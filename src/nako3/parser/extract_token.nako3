@@ -39,7 +39,7 @@ import(
 %token<token> 』&TOKENS&『
 
 --- [2] ---
-func getTokenNo(token_type token.TokenType) int {
+func getTokenNo(token_type token.TType) int {
   switch token_type {
 』&CASE&『
   }

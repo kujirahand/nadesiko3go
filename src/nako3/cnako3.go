@@ -95,6 +95,5 @@ func execCode(sys *core.Core, code string) {
 		println("[run]")
 	}
 	// run
-	runner.SetCore(sys)
 	runner.Run(n)
 }

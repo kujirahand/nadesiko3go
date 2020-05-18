@@ -158,7 +158,7 @@ func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 
 // 以下 extract_token.nako3 により自動生成
 //__getTokenNo:begin__
-func getTokenNo(token_type token.TokenType) int {
+func getTokenNo(token_type token.TType) int {
 	switch token_type {
 	case token.FUNC:
 		return FUNC

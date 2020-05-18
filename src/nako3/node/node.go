@@ -7,17 +7,24 @@ import (
 	"strings"
 )
 
-// NodeType : Nodeの種類
-type NodeType int
+// NType : Nodeの種類
+type NType int
 
 const (
-	Nop       = 0
-	TNodeList = 1
-	Const     = 2
-	Operator  = 3
-	Sentence  = 4
-	Word      = 5
-	CallFunc  = 6
+	// Nop : 何もしない
+	Nop NType = 0
+	// TNodeList : Nodeのリスト
+	TNodeList NType = 1
+	// Const : 定数
+	Const NType = 2
+	// Operator : 演算子
+	Operator NType = 3
+	// Sentence : 文
+	Sentence NType = 4
+	// Word : 変数など
+	Word NType = 5
+	// CallFunc : 関数呼び出し
+	CallFunc NType = 6
 )
 
 var nodeTypeNames = [...]string{
@@ -32,14 +39,14 @@ var nodeTypeNames = [...]string{
 
 // Node : Node Interface
 type Node interface {
-	GetType() NodeType
+	GetType() NType
 	GetFileInfo() core.TFileInfo
 }
 
 // NodeList : Node List
 type NodeList []Node
 
-func (n NodeList) GetType() NodeType           { return TNodeList }
+func (n NodeList) GetType() NType              { return TNodeList }
 func (n NodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
 
 // NodeNop : NOP
@@ -48,7 +55,7 @@ type NodeNop struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeNop) GetType() NodeType           { return Nop }
+func (n NodeNop) GetType() NType              { return Nop }
 func (n NodeNop) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeNop() Node {
@@ -63,7 +70,7 @@ type NodeConst struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeConst) GetType() NodeType           { return Const }
+func (n NodeConst) GetType() NType              { return Const }
 func (n NodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
@@ -83,7 +90,7 @@ type NodeOperator struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeOperator) GetType() NodeType           { return Operator }
+func (n NodeOperator) GetType() NType              { return Operator }
 func (n NodeOperator) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeOperator(op string, left Node, right Node) NodeOperator {
@@ -102,7 +109,7 @@ type NodeSentence struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeSentence) GetType() NodeType           { return Sentence }
+func (n NodeSentence) GetType() NType              { return Sentence }
 func (n NodeSentence) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeSentence() NodeSentence {
@@ -124,7 +131,7 @@ type NodeCallFunc struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeCallFunc) GetType() NodeType           { return CallFunc }
+func (n NodeCallFunc) GetType() NType              { return CallFunc }
 func (n NodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeCallFunc(t *token.Token) NodeCallFunc {

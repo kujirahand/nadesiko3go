@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestLexerSimple : Test
 func TestLexerSimple(t *testing.T) {
 	p := NewLexer("0123", 0)
 	s := p.peekStr(2)

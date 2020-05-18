@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 )
 
+// Lexer : Lexer struct
 type Lexer struct {
 	src      []rune
 	index    int
@@ -16,6 +17,7 @@ type Lexer struct {
 	autoHalf bool
 }
 
+// NewLexer : NewLexer
 func NewLexer(source string, fileNo int) *Lexer {
 	p := Lexer{}
 	p.src = []rune(source)
@@ -26,7 +28,8 @@ func NewLexer(source string, fileNo int) *Lexer {
 	return &p
 }
 
-func NewToken(lexer *Lexer, ttype token.TokenType) *token.Token {
+// NewToken : NewToken
+func NewToken(lexer *Lexer, ttype token.TType) *token.Token {
 	t := token.Token{}
 	t.Type = ttype
 	t.Literal = string(ttype)
@@ -37,10 +40,12 @@ func NewToken(lexer *Lexer, ttype token.TokenType) *token.Token {
 	return &t
 }
 
+// SetAutoHalf : Set AutoHalf
 func (p *Lexer) SetAutoHalf(v bool) {
 	p.autoHalf = v
 }
 
+// Split : Split tokens
 func (p *Lexer) Split() token.Tokens {
 	tt := token.Tokens{}
 	for p.index < len(p.src) {
@@ -61,7 +66,7 @@ func (p *Lexer) skipSpace() {
 	for p.isLive() {
 		c := p.peek()
 		if c == ' ' || c == '\t' {
-			p.index += 1
+			p.index++
 			continue
 		}
 		break
@@ -71,7 +76,7 @@ func (p *Lexer) skipSpace() {
 func (p *Lexer) next() rune {
 	if p.isLive() {
 		c := p.src[p.index]
-		p.index += 1
+		p.index++
 		if p.autoHalf {
 			c = zenhan.EncodeRune(c)
 		}
@@ -391,6 +396,7 @@ func IsUpper(c rune) bool {
 	return rune('A') <= c && c <= rune('Z')
 }
 
+// IsLetter : Is rune alphabet
 func IsLetter(c rune) bool {
 	return IsLower(c) || IsUpper(c)
 }

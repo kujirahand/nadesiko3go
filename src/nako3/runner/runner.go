@@ -10,18 +10,16 @@ import (
 // Core
 var sys *core.Core = nil
 
-func SetCore(co *core.Core) {
-	sys = co
-}
-
+// Run : ノードを実行する
 func Run(n *node.Node) (*value.Value, error) {
 	if sys == nil {
-		panic("need call SetCore")
+		sys = core.GetSystem()
 	}
 	return runNode(n)
 }
 
-func RunError(msg string, n *node.Node) error {
+// RuntimeError : 実行時エラーを生成
+func RuntimeError(msg string, n *node.Node) error {
 	e := fmt.Errorf("[実行時]" + msg)
 	return e
 }
@@ -59,7 +57,7 @@ func runNode(n *node.Node) (*value.Value, error) {
 	case node.CallFunc:
 		return runCallFunc(n)
 	}
-	return nil, RunError("{システム}未実装のノード", n)
+	return nil, RuntimeError("{システム}未実装のノード", n)
 }
 
 func runCallFunc(n *node.Node) (*value.Value, error) {
@@ -70,7 +68,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		argResult, err1 := runNode(&v)
 		if err1 != nil {
 			msg := fmt.Sprintf("関数『%s』の引数でエラー。", cf.Name)
-			return nil, RunError(err1.Error()+msg, n)
+			return nil, RuntimeError(err1.Error()+msg, n)
 		}
 		args[i] = *argResult
 	}
@@ -82,7 +80,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	}
 	if funcV == nil {
 		msgu := fmt.Sprintf("関数『%s』は未定義。", cf.Name)
-		return nil, RunError(msgu, n)
+		return nil, RuntimeError(msgu, n)
 	}
 	result, err2 := funcV.Value.(value.ValueFunc)(args)
 	return result, err2
@@ -98,11 +96,11 @@ func runOperator(n *node.Node) (*value.Value, error) {
 	var v value.Value
 	r, err1 := runNode(&op.Right)
 	if err1 != nil {
-		return nil, RunError(err1.Error()+"演算"+op.Operator, n)
+		return nil, RuntimeError(err1.Error()+"演算"+op.Operator, n)
 	}
 	l, err2 := runNode(&op.Left)
 	if err2 != nil {
-		return nil, RunError(err1.Error()+"演算"+op.Operator, n)
+		return nil, RuntimeError(err1.Error()+"演算"+op.Operator, n)
 	}
 	if r == nil {
 		rNull := value.NewValueNull()
@@ -124,7 +122,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 	case "%":
 		v = value.Mod(l, r)
 	default:
-		return nil, RunError("(システム)未定義の演算子。", n)
+		return nil, RuntimeError("(システム)未定義の演算子。", n)
 	}
 	return &v, nil
 }

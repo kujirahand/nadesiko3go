@@ -5,10 +5,11 @@ import (
 	"strings"
 )
 
-type TokenType string
+// TType : Token Type
+type TType string
 
 type Token struct {
-	Type     TokenType
+	Type     TType
 	Literal  string
 	Josi     string
 	FileInfo core.TFileInfo
