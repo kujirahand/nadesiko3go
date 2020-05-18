@@ -4,8 +4,10 @@
 *.dll
 *.so
 *.dylib
+.DS_Store
 
 pkg/
+bin/
 
 # Test binary, built with `go test -c`
 *.test
