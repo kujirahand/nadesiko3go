@@ -1,6 +1,7 @@
 package io
 
 import (
+	"nako3/core"
 	"nako3/value"
 )
 
@@ -13,6 +14,12 @@ func Print(args value.ValueArray) (*value.Value, error) {
 		return nil, nil
 	}
 	v := args[0]
-	println("[表示]", v.ToString())
+	s := v.ToString()
+	sys := core.GetSystem()
+	if sys.IsDebug {
+		println("[表示]", s)
+	} else {
+		println(s)
+	}
 	return nil, nil
 }

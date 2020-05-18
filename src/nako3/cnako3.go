@@ -79,7 +79,6 @@ func runEvalCode(sys *core.Core) {
 
 func execCode(sys *core.Core, code string) {
 	// parser
-	println("=== cnako3.Parse ===")
 	n, err := parser.Parse(sys, code, 0)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[文法エラー] %s\n", err.Error())
@@ -89,10 +88,11 @@ func execCode(sys *core.Core, code string) {
 		panic("[文法エラー] 不明")
 	}
 	// fmt.Printf("[parser.raw] %#v\n", *n)
-	fmt.Printf("[parser]\n%s\n", node.NodeToString(*n, 0))
+	if sys.IsDebug {
+		fmt.Printf("[parser]\n%s\n", node.NodeToString(*n, 0))
+		println("[run]")
+	}
 	// run
-	println("=== cnako3.Run ===")
 	runner.SetCore(sys)
 	runner.Run(n)
-
 }

@@ -180,7 +180,9 @@ func (l *Lexer) Lex(lval *yySymType) int {
       t.Type = token.FUNC
     }
   }
-  println("- Lex:", t.ToString())
+  if l.sys.IsDebug {
+    println("- Lex:", t.ToString())
+  }
   return result
 }
 
