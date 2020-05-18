@@ -5,6 +5,7 @@
 *.so
 *.dylib
 .DS_Store
+*.swp
 
 pkg/
 bin/
