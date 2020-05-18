@@ -14,7 +14,7 @@ import (
 func main() {
 	// check arguments
 	if len(os.Args) < 2 {
-		println("# cnako3(go) ver." + core.NADESIKO_VERSION)
+		println("# cnako3(go) ver." + core.NadesikoVersion)
 		println("[USAGE]")
 		println("  cnako3 -e \"source\"")
 		println("  cnako3 file.nako3")
@@ -78,7 +78,9 @@ func runEvalCode(sys *core.Core) {
 }
 
 func execCode(sys *core.Core, code string) {
-	// parser
+	if sys.IsDebug {
+		println("[Lexer]")
+	}
 	n, err := parser.Parse(sys, code, 0)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[文法エラー] %s\n", err.Error())

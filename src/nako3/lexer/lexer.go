@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"nako3/core"
 	"nako3/token"
 	"nako3/zenhan"
 	"strings"
@@ -29,9 +30,10 @@ func NewToken(lexer *Lexer, ttype token.TokenType) *token.Token {
 	t := token.Token{}
 	t.Type = ttype
 	t.Literal = string(ttype)
-	t.Line = lexer.line
-	t.Index = lexer.index
-	t.FileNo = lexer.fileNo
+	t.FileInfo = core.TFileInfo{
+		Line:   lexer.line,
+		FileNo: lexer.fileNo,
+	}
 	return &t
 }
 

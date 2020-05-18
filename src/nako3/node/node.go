@@ -1,10 +1,13 @@
 package node
 
 import (
+	"nako3/core"
+	"nako3/token"
 	"nako3/value"
 	"strings"
 )
 
+// NodeType : Nodeの種類
 type NodeType int
 
 const (
@@ -27,38 +30,46 @@ var nodeTypeNames = [...]string{
 	"CallFunc",
 }
 
+// Node : Node Interface
 type Node interface {
 	GetType() NodeType
+	GetFileInfo() core.TFileInfo
 }
 
-// NodeList
+// NodeList : Node List
 type NodeList []Node
 
-func (n NodeList) GetType() NodeType { return TNodeList }
+func (n NodeList) GetType() NodeType           { return TNodeList }
+func (n NodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
 
-// NodeNop
+// NodeNop : NOP
 type NodeNop struct {
 	Node
+	FileInfo core.TFileInfo
 }
 
-func (n NodeNop) GetType() NodeType { return Nop }
+func (n NodeNop) GetType() NodeType           { return Nop }
+func (n NodeNop) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeNop() Node {
 	n := NodeNop{}
 	return n
 }
 
-// NodeConst
+// NodeConst : Const
 type NodeConst struct {
 	Node
-	Value value.Value
+	Value    value.Value
+	FileInfo core.TFileInfo
 }
 
-func (n NodeConst) GetType() NodeType { return Const }
+func (n NodeConst) GetType() NodeType           { return Const }
+func (n NodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
-func NewNodeConst(vtype value.ValueType, s string) NodeConst {
+func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
 	node := NodeConst{
-		Value: value.NewValue(vtype, s),
+		Value:    value.NewValue(vtype, t.Literal),
+		FileInfo: t.FileInfo,
 	}
 	return node
 }
@@ -69,9 +80,11 @@ type NodeOperator struct {
 	Left     Node
 	Right    Node
 	Operator string
+	FileInfo core.TFileInfo
 }
 
-func (n NodeOperator) GetType() NodeType { return Operator }
+func (n NodeOperator) GetType() NodeType           { return Operator }
+func (n NodeOperator) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeOperator(op string, left Node, right Node) NodeOperator {
 	p := NodeOperator{
@@ -85,10 +98,12 @@ func NewNodeOperator(op string, left Node, right Node) NodeOperator {
 // NodeSentence
 type NodeSentence struct {
 	Node
-	List NodeList
+	List     NodeList
+	FileInfo core.TFileInfo
 }
 
-func (n NodeSentence) GetType() NodeType { return Sentence }
+func (n NodeSentence) GetType() NodeType           { return Sentence }
+func (n NodeSentence) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
 func NewNodeSentence() NodeSentence {
 	node := NodeSentence{}
@@ -103,19 +118,27 @@ func (l *NodeSentence) Append(node Node) {
 // NodeCallFunc
 type NodeCallFunc struct {
 	Node
-	Args  NodeList
-	Name  string
-	Cache *value.Value
+	Args     NodeList
+	Name     string
+	Cache    *value.Value
+	FileInfo core.TFileInfo
 }
 
-func (n NodeCallFunc) GetType() NodeType { return CallFunc }
+func (n NodeCallFunc) GetType() NodeType           { return CallFunc }
+func (n NodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 
-func NewNodeCallFunc(name string) NodeCallFunc {
-	node := NodeCallFunc{Name: name}
+func NewNodeCallFunc(t *token.Token) NodeCallFunc {
+	node := NodeCallFunc{
+		Name:     t.Literal,
+		FileInfo: t.FileInfo,
+	}
 	node.Args = []Node{}
 	return node
 }
 
+// ---
+
+// NodeToString : Nodeの値をデバッグ用に出力する
 func NodeToString(n Node, level int) string {
 	indent := ""
 	for i := 0; i < level; i++ {

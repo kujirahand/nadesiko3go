@@ -87,11 +87,12 @@ const yyInitialStackSize = 16
 var haltError error = nil
 
 type Lexer struct {
-	sys    *core.Core
-	lexer  *lexer.Lexer
-	tokens token.Tokens
-	index  int
-	result node.Node
+	sys       *core.Core
+	lexer     *lexer.Lexer
+	tokens    token.Tokens
+	index     int
+	lastToken *token.Token
+	result    node.Node
 }
 
 func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
@@ -126,6 +127,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 			t.Type = token.FUNC
 		}
 	}
+	l.lastToken = t
 	if l.sys.IsDebug {
 		println("- Lex:", t.ToString())
 	}
@@ -138,10 +140,10 @@ func (l *Lexer) Error(e string) {
 	if msg == "syntax error" {
 		msg = "文法エラー"
 	}
-	t := l.tokens[l.index]
-	haltError = fmt.Errorf(
-		"(%d) %s[%s] 理由:"+msg,
-		t.Line, t.Literal, string(t.Type))
+	t := l.lastToken
+	lineno := t.FileInfo.Line
+	desc := t.ToString()
+	haltError = fmt.Errorf("(%d) %s 理由:"+msg, lineno, desc)
 }
 
 // 構文解析を実行する
@@ -655,7 +657,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line parser.y:66
 		{
-			n := node.NewNodeCallFunc(yyDollar[2].token.Literal)
+			n := node.NewNodeCallFunc(yyDollar[2].token)
 			n.Args, _ = yyDollar[1].node.(node.NodeList)
 			yyVAL.node = n
 		}
@@ -663,7 +665,7 @@ yydefault:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line parser.y:72
 		{
-			n := node.NewNodeCallFunc(yyDollar[1].token.Literal)
+			n := node.NewNodeCallFunc(yyDollar[1].token)
 			n.Args, _ = yyDollar[3].node.(node.NodeList)
 			yyVAL.node = n
 		}
@@ -686,25 +688,25 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:93
 		{
-			yyVAL.node = node.NewNodeConst(value.Float, yyDollar[1].token.Literal)
+			yyVAL.node = node.NewNodeConst(value.Float, yyDollar[1].token)
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:97
 		{
-			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
+			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token)
 		}
 	case 12:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:101
 		{
-			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
+			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token)
 		}
 	case 13:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:105
 		{
-			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
+			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token)
 		}
 	case 15:
 		yyDollar = yyS[yypt-3 : yypt+1]

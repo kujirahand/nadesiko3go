@@ -1,16 +1,17 @@
 package token
 
-import "strings"
+import (
+	"nako3/core"
+	"strings"
+)
 
 type TokenType string
 
 type Token struct {
-	Type    TokenType
-	Literal string
-	Josi    string
-	Line    int
-	FileNo  int
-	Index   int
+	Type     TokenType
+	Literal  string
+	Josi     string
+	FileInfo core.TFileInfo
 }
 
 type Tokens []*Token

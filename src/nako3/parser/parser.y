@@ -64,13 +64,13 @@ sentence
 callfunc
   : args FUNC 
   {
-    n := node.NewNodeCallFunc($2.Literal)
+    n := node.NewNodeCallFunc($2)
     n.Args, _ = $1.(node.NodeList)
     $$ = n
   }
   | FUNC LPAREN args RPAREN
   {
-    n := node.NewNodeCallFunc($1.Literal)
+    n := node.NewNodeCallFunc($1)
     n.Args, _ = $3.(node.NodeList)
     $$ = n
   }
@@ -91,19 +91,19 @@ args
 value
 	: NUMBER
 	{
-		$$ = node.NewNodeConst(value.Float, $1.Literal)
+		$$ = node.NewNodeConst(value.Float, $1)
 	}
   | STRING
   {
-    $$ = node.NewNodeConst(value.Str, $1.Literal)
+    $$ = node.NewNodeConst(value.Str, $1)
   }
   | STRING_EX
   {
-    $$ = node.NewNodeConst(value.Str, $1.Literal)
+    $$ = node.NewNodeConst(value.Str, $1)
   }
   | WORD
   {
-    $$ = node.NewNodeConst(value.Str, $1.Literal)
+    $$ = node.NewNodeConst(value.Str, $1)
   }
 
 expr
@@ -149,6 +149,7 @@ type Lexer struct {
 	lexer   *lexer.Lexer
   tokens  token.Tokens
   index   int
+  lastToken *token.Token
 	result  node.Node
 }
 
@@ -180,6 +181,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
       t.Type = token.FUNC
     }
   }
+  l.lastToken = t
   if l.sys.IsDebug {
     println("- Lex:", t.ToString())
   }
@@ -192,10 +194,10 @@ func (l *Lexer) Error(e string) {
   if msg == "syntax error" {
     msg = "文法エラー"
   }
-  t := l.tokens[l.index]
-  haltError = fmt.Errorf(
-    "(%d) %s[%s] 理由:" + msg, 
-    t.Line, t.Literal, string(t.Type))
+  t := l.lastToken
+  lineno := t.FileInfo.Line
+  desc := t.ToString()
+  haltError = fmt.Errorf("(%d) %s 理由:" + msg, lineno, desc)
 }
 
 // 構文解析を実行する

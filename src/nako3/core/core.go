@@ -5,16 +5,21 @@ import (
 )
 
 const (
-	NADESIKO_VERSION = "0.0.1"
+	// NadesikoVersion : ナデシコバージョン
+	NadesikoVersion = "0.0.1"
 )
 
+// TRunMode : コマンドラインの実行モード
 type TRunMode string
 
 const (
+	// EvalCode : -e オプションで実行したとき
 	EvalCode TRunMode = "evalcode"
+	// MainFile : ファイルから実行
 	MainFile TRunMode = "mainfile"
 )
 
+// Core : なでしこのコアシステム情報
 type Core struct {
 	IsDebug    bool
 	MainFile   string
@@ -25,15 +30,16 @@ type Core struct {
 
 var sys *Core = nil
 
+// GetSystem : なでしこのコア情報インスタンスを取得する
 func GetSystem() *Core {
 	if sys != nil {
 		return sys
 	}
-	sys = NewCore()
+	sys = newCore()
 	return sys
 }
 
-func NewCore() *Core {
+func newCore() *Core {
 	c := Core{}
 	c.IsDebug = false
 	c.RunMode = MainFile
