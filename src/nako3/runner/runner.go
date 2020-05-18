@@ -41,6 +41,9 @@ func runNodeList(nodes node.NodeList) (*value.Value, error) {
 }
 
 func runNode(n *node.Node) (*value.Value, error) {
+	if n == nil {
+		return nil, nil
+	}
 	switch (*n).GetType() {
 	case node.Nop:
 		return nil, nil

@@ -41,6 +41,11 @@ const (
 	//__END_TOKEN__
 )
 
+func (t *Token) ToString() string {
+	s := t.Literal + "[" + string(t.Type) + "]" + t.Josi
+	return s
+}
+
 // TokensToString : TokensをStringに変換
 func TokensToString(tt Tokens, delimiter string) string {
 	s := ""

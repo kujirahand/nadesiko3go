@@ -19,10 +19,9 @@ import (
 	"nako3/node"
 	"nako3/token"
 	"nako3/value"
-	"os"
 )
 
-//line parser.y:20
+//line parser.y:19
 type yySymType struct {
 	yys   int
 	token *token.Token // lval *yySymType
@@ -89,7 +88,9 @@ const yyEofCode = 1
 const yyErrCode = 2
 const yyInitialStackSize = 16
 
-//line parser.y:119
+//line parser.y:122
+
+var haltError error = nil
 
 type Lexer struct {
 	sys    *core.Core
@@ -100,6 +101,7 @@ type Lexer struct {
 }
 
 func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
+	haltError = nil
 	lex := Lexer{}
 	lex.sys = sys
 	lex.lexer = lexer.NewLexer(src, fileno)
@@ -114,34 +116,46 @@ func (l *Lexer) Lex(lval *yySymType) int {
 	if l.index >= len(l.tokens) {
 		return -1
 	} // last
+	if haltError != nil {
+		return -1
+	}
 	// next
 	t := l.tokens[l.index]
 	l.index++
 	lval.token = t
 	// return
-	println("-lex:", t.Literal)
 	result := getTokenNo(t.Type)
 	if result == WORD {
 		v := l.sys.GlobalVars.Get(t.Literal)
-		if v.Type == value.Function {
+		if v != nil && v.Type == value.Function {
 			result = FUNC
+			t.Type = token.FUNC
 		}
 	}
+	println("- Lex:", t.ToString())
 	return result
 }
 
 // エラーを報告する
 func (l *Lexer) Error(e string) {
+	msg := e
+	if msg == "syntax error" {
+		msg = "文法エラー"
+	}
 	t := l.tokens[l.index]
-	fmt.Fprintln(os.Stderr, e+":")
-	fmt.Fprintln(os.Stderr, "Line ", t.Line, ":", t.Literal)
+	haltError = fmt.Errorf(
+		"(%d) %s[%s] 理由:"+msg,
+		t.Line, t.Literal, string(t.Type))
 }
 
 // 構文解析を実行する
-func Parse(sys *core.Core, src string, fno int) *node.Node {
+func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 	l := NewLexerWrap(sys, src, fno)
 	yyParse(l)
-	return &l.result
+	if haltError != nil {
+		return nil, haltError
+	}
+	return &l.result, nil
 }
 
 // 以下 extract_token.nako3 により自動生成
@@ -206,48 +220,48 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 51
+const yyLast = 56
 
 var yyAct = [...]int{
 
-	9, 10, 7, 11, 5, 9, 10, 7, 11, 18,
-	9, 10, 23, 11, 16, 6, 12, 24, 17, 14,
-	4, 12, 9, 10, 2, 11, 12, 9, 10, 8,
-	11, 18, 20, 19, 3, 1, 15, 13, 12, 0,
-	0, 0, 0, 12, 0, 0, 0, 21, 22, 0,
-	15,
+	9, 10, 11, 12, 7, 19, 5, 9, 10, 11,
+	12, 18, 24, 17, 2, 7, 13, 25, 9, 10,
+	11, 12, 15, 13, 19, 9, 10, 11, 12, 9,
+	10, 11, 12, 8, 13, 4, 6, 1, 0, 3,
+	16, 13, 14, 0, 0, 13, 0, 0, 0, 20,
+	0, 0, 22, 23, 21, 16,
 }
 var yyPact = [...]int{
 
-	-2, -1000, -2, -1000, -1000, -1000, 15, -9, 6, -1000,
-	-1000, -1000, 3, -1000, -1000, 6, 20, 20, 20, -12,
-	-7, -16, -1000, -1000, -1000,
+	0, -1000, 0, -1000, -1000, -1000, 18, -10, -1, -1000,
+	-1000, -1000, -1000, 11, -1000, -1000, -1, 22, 22, 22,
+	-12, -7, -20, -1000, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 35, 24, 34, 20, 15, 29,
+	0, 37, 14, 39, 35, 36, 33,
 }
 var yyR1 = [...]int{
 
 	0, 1, 2, 2, 3, 3, 4, 4, 5, 5,
-	6, 6, 6, 6, 6, 6,
+	6, 6, 6, 6, 6, 6, 6,
 }
 var yyR2 = [...]int{
 
 	0, 1, 1, 2, 1, 1, 2, 4, 1, 2,
-	1, 1, 1, 3, 3, 3,
+	1, 1, 1, 1, 3, 3, 3,
 }
 var yyChk = [...]int{
 
 	-1000, -1, -2, -3, -4, 6, -5, 4, -6, 7,
-	8, 10, 23, -3, 4, -6, 23, 12, 25, -4,
-	-5, -6, -6, 24, 24,
+	8, 9, 10, 23, -3, 4, -6, 23, 12, 25,
+	-4, -5, -6, -6, 24, 24,
 }
 var yyDef = [...]int{
 
 	0, -2, 1, 2, 4, 5, 0, 0, 8, 10,
-	11, 12, 0, 3, 6, 9, 0, 0, 0, 0,
-	0, 14, 15, 13, 7,
+	11, 12, 13, 0, 3, 6, 9, 0, 0, 0,
+	0, 0, 15, 16, 14, 7,
 }
 var yyTok1 = [...]int{
 
@@ -602,14 +616,14 @@ yydefault:
 
 	case 1:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:37
+//line parser.y:36
 		{
 			yyVAL.node = yyDollar[1].node
 			yylex.(*Lexer).result = yyVAL.node
 		}
 	case 2:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:44
+//line parser.y:43
 		{
 			n := node.NewNodeSentence()
 			n.Append(yyDollar[1].node)
@@ -617,7 +631,7 @@ yydefault:
 		}
 	case 3:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line parser.y:50
+//line parser.y:49
 		{
 			n, _ := yyDollar[1].node.(node.NodeSentence)
 			n.Append(yyDollar[2].node)
@@ -625,19 +639,19 @@ yydefault:
 		}
 	case 4:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:58
+//line parser.y:57
 		{
 			yyVAL.node = yyDollar[1].node
 		}
 	case 5:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:62
+//line parser.y:61
 		{
 			yyVAL.node = node.NewNodeNop()
 		}
 	case 6:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line parser.y:68
+//line parser.y:67
 		{
 			n := node.NewNodeCallFunc(yyDollar[2].token.Literal)
 			n.Args, _ = yyDollar[1].node.(node.NodeList)
@@ -645,7 +659,7 @@ yydefault:
 		}
 	case 7:
 		yyDollar = yyS[yypt-4 : yypt+1]
-//line parser.y:74
+//line parser.y:73
 		{
 			n := node.NewNodeCallFunc(yyDollar[1].token.Literal)
 			n.Args, _ = yyDollar[3].node.(node.NodeList)
@@ -653,14 +667,14 @@ yydefault:
 		}
 	case 8:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:82
+//line parser.y:81
 		{
 			n := node.NodeList{yyDollar[1].node}
 			yyVAL.node = n
 		}
 	case 9:
 		yyDollar = yyS[yypt-2 : yypt+1]
-//line parser.y:87
+//line parser.y:86
 		{
 			args, _ := yyDollar[1].node.(node.NodeList)
 			n := append(args, yyDollar[2].node)
@@ -668,37 +682,43 @@ yydefault:
 		}
 	case 10:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:95
+//line parser.y:94
 		{
 			yyVAL.node = node.NewNodeConst(value.Float, yyDollar[1].token.Literal)
 		}
 	case 11:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:99
+//line parser.y:98
 		{
 			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
 		}
 	case 12:
 		yyDollar = yyS[yypt-1 : yypt+1]
-//line parser.y:103
+//line parser.y:102
 		{
 			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
 		}
 	case 13:
-		yyDollar = yyS[yypt-3 : yypt+1]
-//line parser.y:107
+		yyDollar = yyS[yypt-1 : yypt+1]
+//line parser.y:106
 		{
-			yyVAL.node = yyDollar[2].node
+			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token.Literal)
 		}
 	case 14:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line parser.y:111
+//line parser.y:110
 		{
-			yyVAL.node = node.NewNodeOperator("+", yyDollar[1].node, yyDollar[3].node)
+			yyVAL.node = yyDollar[2].node
 		}
 	case 15:
 		yyDollar = yyS[yypt-3 : yypt+1]
-//line parser.y:115
+//line parser.y:114
+		{
+			yyVAL.node = node.NewNodeOperator("+", yyDollar[1].node, yyDollar[3].node)
+		}
+	case 16:
+		yyDollar = yyS[yypt-3 : yypt+1]
+//line parser.y:118
 		{
 			yyVAL.node = node.NewNodeOperator("*", yyDollar[1].node, yyDollar[3].node)
 		}

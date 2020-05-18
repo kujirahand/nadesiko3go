@@ -49,7 +49,7 @@ func getTokenNo(token_type token.TokenType) int {
 』
 SRCをPATH_OUTへ保存。
 # SRCを表示。
-「--- トークンを変更したら ... extract_token.txt の内容を parser.y へ貼り付け」と表示
+「--- トークン変更で extract_token.txt を parser.y へ貼付」と表示
 
 ●(Lで)出力実行とは
 　　Lの「=」まで切り取る。

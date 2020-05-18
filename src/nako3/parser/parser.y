@@ -12,7 +12,6 @@ import (
 	"nako3/node"
 	"nako3/lexer"
 	"nako3/token"
-	"os"
   "fmt"
 )
 %}
@@ -99,6 +98,10 @@ expr
   {
     $$ = node.NewNodeConst(value.Str, $1.Literal)
   }
+  | STRING_EX
+  {
+    $$ = node.NewNodeConst(value.Str, $1.Literal)
+  }
   | WORD
   {
     $$ = node.NewNodeConst(value.Str, $1.Literal)
@@ -118,6 +121,8 @@ expr
 
 %%
 
+var haltError error = nil
+
 type Lexer struct {
   sys     *core.Core
 	lexer   *lexer.Lexer
@@ -127,6 +132,7 @@ type Lexer struct {
 }
 
 func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
+  haltError = nil
   lex := Lexer{}
   lex.sys = sys
   lex.lexer = lexer.NewLexer(src, fileno)
@@ -139,34 +145,44 @@ func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
 // 字句解析の結果をgoyaccに伝える
 func (l *Lexer) Lex(lval *yySymType) int {
   if l.index >= len(l.tokens) { return -1 } // last
+  if haltError != nil { return - 1 }
   // next
   t := l.tokens[l.index]
   l.index++
   lval.token = t
   // return
-  println("-lex:", t.Literal)
   result := getTokenNo(t.Type)
   if result == WORD {
     v := l.sys.GlobalVars.Get(t.Literal)
-    if v.Type == value.Function {
+    if v != nil && v.Type == value.Function {
       result = FUNC
+      t.Type = token.FUNC
     }
   }
+  println("- Lex:", t.ToString())
   return result
 }
 
 // エラーを報告する
 func (l *Lexer) Error(e string) {
+  msg := e
+  if msg == "syntax error" {
+    msg = "文法エラー"
+  }
   t := l.tokens[l.index]
-	fmt.Fprintln(os.Stderr, e + ":")
-  fmt.Fprintln(os.Stderr, "Line ", t.Line, ":", t.Literal)
+  haltError = fmt.Errorf(
+    "(%d) %s[%s] 理由:" + msg, 
+    t.Line, t.Literal, string(t.Type))
 }
 
 // 構文解析を実行する
-func Parse(sys *core.Core, src string, fno int) *node.Node {
+func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 	l := NewLexerWrap(sys, src, fno)
 	yyParse(l)
-	return &l.result
+  if haltError != nil {
+    return nil, haltError
+  }
+	return &l.result, nil
 }
 
 // 以下 extract_token.nako3 により自動生成

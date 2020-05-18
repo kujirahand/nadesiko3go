@@ -7,14 +7,24 @@ import (
 type NodeType int
 
 const (
-	Nop NodeType = iota
-	TNodeList
-	Const
-	Operator
-	Sentence
-	Word
-	CallFunc
+	Nop       = 0
+	TNodeList = 1
+	Const     = 2
+	Operator  = 3
+	Sentence  = 4
+	Word      = 5
+	CallFunc  = 6
 )
+
+var nodeTypeNames = [...]string{
+	"Nop",
+	"TNodeList",
+	"Const",
+	"Operator",
+	"Sentence",
+	"Word",
+	"CallFunc",
+}
 
 type Node interface {
 	GetType() NodeType
@@ -103,4 +113,37 @@ func NewNodeCallFunc(name string) NodeCallFunc {
 	node := NodeCallFunc{Name: name}
 	node.Args = []Node{}
 	return node
+}
+
+func NodeToString(n Node, level int) string {
+	indent := ""
+	for i := 0; i < level; i++ {
+		indent += "|-"
+	}
+	s := nodeTypeNames[int(n.GetType())]
+	ss := ""
+	switch n.GetType() {
+	case Const:
+		cv := n.(NodeConst).Value
+		s += "(" + cv.ToString() + ")"
+	case Operator:
+		s += ":" + n.(NodeOperator).Operator
+		l := n.(NodeOperator).Left
+		r := n.(NodeOperator).Right
+		ss += NodeToString(l, level+1) + "\n"
+		ss += NodeToString(r, level+1) + "\n"
+	case Sentence:
+		for _, v := range n.(NodeSentence).List {
+			ss += NodeToString(v, level+1) + "\n"
+		}
+	case CallFunc:
+		s += ":" + n.(NodeCallFunc).Name
+		for _, v := range n.(NodeCallFunc).Args {
+			ss += NodeToString(v, level+1) + "\n"
+		}
+	}
+	if ss != "" {
+		s += "\n" + ss
+	}
+	return indent + s
 }
