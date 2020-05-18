@@ -629,7 +629,7 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:42
 		{
-			n := node.NewNodeSentence()
+			n := node.NewNodeSentence(yyDollar[1].node.GetFileInfo())
 			n.Append(yyDollar[1].node)
 			yyVAL.node = n
 		}

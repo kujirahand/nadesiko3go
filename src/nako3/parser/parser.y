@@ -40,7 +40,7 @@ program
 sentences
   : sentence
   {
-    n := node.NewNodeSentence()
+    n := node.NewNodeSentence($1.GetFileInfo())
     n.Append($1)
     $$ = n
   }
