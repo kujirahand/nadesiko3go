@@ -1,0 +1,61 @@
+# トークンタイプを抜き出してソースコードを生成する
+# IN : token/token.go 
+# OUT: paser/lex.txt
+PATH=母艦パスを「../token」で相対パス展開。
+PATH_IN=「{PATH}/token.go」
+PATH_OUT=「{母艦パス}/extract_token.txt」
+
+FLG=０
+RES=[]
+SSS=PATH_INを開く
+SSSを改行で区切って、反復
+　　対象をトリムしてLに代入
+　　もし、L=「//__BEGIN_TOKEN__」ならば、FLG=１
+　　もし、L=「//__END_TOKEN__」ならば、FLG=0
+　　C2=LEFT(L,2)
+　　もし、C2=「//」ならば、続ける。
+　　もし、FLG=１ならば
+　　　　Lで出力実行
+　　ここまで。
+ここまで。
+
+TOKENS=RESを「 」で配列結合。
+CASE=""
+RESを反復
+  CASE=CASE&「  case token.{対象}: return {対象}」&改行
+ここまで
+SRC=『
+// auto generetated by extract_token.nako3. DO NOT EDIT
+// paser.yへ手動で以下を貼り付けてください。
+// そのうち自動化
+/*
+package parser
+import(
+  "nako3/token"
+)
+*/
+
+---- [1] ---
+%token<token> 』&TOKENS&『
+
+--- [2] ---
+func getTokenNo(token_type token.TokenType) int {
+  switch token_type {
+』&CASE&『
+  }
+  panic("[SYSTEM ERROR] parser/extract_token.nako3")
+  return -1
+}
+』
+SRCをPATH_OUTへ保存。
+# SRCを表示。
+「--- トークンを変更したら ... extract_token.txt の内容を parser.y へ貼り付け」と表示
+
+●(Lで)出力実行とは
+　　Lの「=」まで切り取る。
+　　トリム
+　　もし、それが空ならば、戻る。
+　　RESにそれを配列追加。
+ここまで
+
+

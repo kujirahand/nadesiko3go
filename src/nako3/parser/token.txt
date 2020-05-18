@@ -1,0 +1,37 @@
+
+// auto generetated by extract_token.nako3. DO NOT EDIT
+package parser
+import(
+  "nako3/token"
+)
+/* tokens => parser.y へ手動で貼り付け
+%token<token> FUNC EOF LF NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
+*/
+func Convert_token(token_type token.TokenType) int {
+  switch token_type {
+  case token.FUNC: return FUNC
+  case token.EOF: return EOF
+  case token.LF: return LF
+  case token.NUMBER: return NUMBER
+  case token.STRING: return STRING
+  case token.STRING_EX: return STRING_EX
+  case token.WORD: return WORD
+  case token.EQ: return EQ
+  case token.PLUS: return PLUS
+  case token.MINUS: return MINUS
+  case token.NOT: return NOT
+  case token.ASTERISK: return ASTERISK
+  case token.SLASH: return SLASH
+  case token.EQEQ: return EQEQ
+  case token.NTEQ: return NTEQ
+  case token.GT: return GT
+  case token.GTEQ: return GTEQ
+  case token.LT: return LT
+  case token.LTEQ: return LTEQ
+  case token.LPAREN: return LPAREN
+  case token.RPAREN: return RPAREN
+
+  }
+  panic("[SYSTEM ERROR] parser/extract_token.nako3")
+  return -1
+}
