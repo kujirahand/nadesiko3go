@@ -23,6 +23,7 @@ const (
 	EOF       = "EOF"
 	LF        = "LF"
 	EOS       = "EOS"
+	COMMA     = "COMMA"
 	NUMBER    = "NUMBER"
 	STRING    = "STRING"
 	STRING_EX = "STRING_EX"

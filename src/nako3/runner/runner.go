@@ -59,8 +59,21 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runSentence(n)
 	case node.CallFunc:
 		return runCallFunc(n)
+	case node.Word:
+		return runWord(n)
 	}
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runWord(n *node.Node) (*value.Value, error) {
+	cw := (*n).(node.NodeWord)
+	// 関数の実態を得る
+	val := cw.Cache
+	if val == nil {
+		val = sys.Globals.Get(cw.Name)
+		cw.Cache = val
+	}
+	return val, nil
 }
 
 func runCallFunc(n *node.Node) (*value.Value, error) {

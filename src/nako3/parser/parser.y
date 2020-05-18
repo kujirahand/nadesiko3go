@@ -25,7 +25,7 @@ import (
 %type<node> expr value term primary_expr
 
 //__def_token:begin__
-%token<token> FUNC EOF LF EOS NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
+%token<token> FUNC EOF LF EOS COMMA NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
 //__def_token:end__
 
 %%
@@ -107,7 +107,7 @@ value
   }
   | WORD
   {
-    $$ = node.NewNodeConst(value.Str, $1)
+    $$ = node.NewNodeWord($1)
   }
 
 expr
@@ -231,6 +231,7 @@ func getTokenNo(token_type token.TType) int {
   case token.EOF: return EOF
   case token.LF: return LF
   case token.EOS: return EOS
+  case token.COMMA: return COMMA
   case token.NUMBER: return NUMBER
   case token.STRING: return STRING
   case token.STRING_EX: return STRING_EX

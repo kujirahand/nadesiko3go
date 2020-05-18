@@ -6,20 +6,12 @@ import (
 )
 
 func RegisterFunction(sys *Core) {
-	sys.AddFunc("足", DefArgs{Josi{"と", "に"}, Josi{"を"}}, Print)
+	sys.AddFunc("足", DefArgs{Josi{"と", "に"}, Josi{"を"}}, Add)
 }
 
-func Print(args value.ValueArray) (*value.Value, error) {
-	if len(args) == 0 {
-		return nil, nil
-	}
-	v := args[0]
-	s := v.ToString()
-	sys := GetSystem()
-	if sys.IsDebug {
-		println("[表示]", s)
-	} else {
-		println(s)
-	}
-	return nil, nil
+func Add(args value.ValueArray) (*value.Value, error) {
+	l := args[0]
+	r := args[1]
+	v := value.Add(&l, &r)
+	return &v, nil
 }

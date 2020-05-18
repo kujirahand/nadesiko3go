@@ -73,6 +73,16 @@ func (p *Lexer) skipSpace() {
 	}
 }
 
+func (p *Lexer) skipSpaceN() {
+	for p.isLive() {
+		c := p.peek()
+		if c == ' ' || c == '\t' || c == '\r' || c == ',' {
+			p.move(1)
+		}
+		break
+	}
+}
+
 func (p *Lexer) next() rune {
 	if p.isLive() {
 		c := p.src[p.index]
@@ -131,7 +141,8 @@ func (p *Lexer) peekCur(i int) rune {
 }
 
 func (p *Lexer) getToken() *token.Token {
-	p.skipSpace()
+	// skip space
+	p.skipSpaceN()
 	c := p.peek()
 
 	// LF
@@ -246,6 +257,12 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		p.move(1)
 		return NewToken(p, token.NOT)
 	case '。':
+		p.move(1)
+		return NewToken(p, token.EOS)
+	case ';':
+		p.move(1)
+		return NewToken(p, token.EOS)
+	case ':':
 		p.move(1)
 		return NewToken(p, token.EOS)
 	}

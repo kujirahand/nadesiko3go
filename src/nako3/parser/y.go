@@ -32,25 +32,26 @@ const FUNC = 57346
 const EOF = 57347
 const LF = 57348
 const EOS = 57349
-const NUMBER = 57350
-const STRING = 57351
-const STRING_EX = 57352
-const WORD = 57353
-const EQ = 57354
-const PLUS = 57355
-const MINUS = 57356
-const NOT = 57357
-const ASTERISK = 57358
-const SLASH = 57359
-const PERCENT = 57360
-const EQEQ = 57361
-const NTEQ = 57362
-const GT = 57363
-const GTEQ = 57364
-const LT = 57365
-const LTEQ = 57366
-const LPAREN = 57367
-const RPAREN = 57368
+const COMMA = 57350
+const NUMBER = 57351
+const STRING = 57352
+const STRING_EX = 57353
+const WORD = 57354
+const EQ = 57355
+const PLUS = 57356
+const MINUS = 57357
+const NOT = 57358
+const ASTERISK = 57359
+const SLASH = 57360
+const PERCENT = 57361
+const EQEQ = 57362
+const NTEQ = 57363
+const GT = 57364
+const GTEQ = 57365
+const LT = 57366
+const LTEQ = 57367
+const LPAREN = 57368
+const RPAREN = 57369
 
 var yyToknames = [...]string{
 	"$end",
@@ -60,6 +61,7 @@ var yyToknames = [...]string{
 	"EOF",
 	"LF",
 	"EOS",
+	"COMMA",
 	"NUMBER",
 	"STRING",
 	"STRING_EX",
@@ -172,6 +174,8 @@ func getTokenNo(token_type token.TType) int {
 		return LF
 	case token.EOS:
 		return EOS
+	case token.COMMA:
+		return COMMA
 	case token.NUMBER:
 		return NUMBER
 	case token.STRING:
@@ -224,28 +228,28 @@ var yyExca = [...]int{
 
 const yyPrivate = 57344
 
-const yyLast = 62
+const yyLast = 61
 
 var yyAct = [...]int{
 
-	8, 33, 5, 6, 14, 15, 16, 17, 14, 15,
-	16, 17, 8, 21, 9, 4, 14, 15, 16, 17,
-	11, 13, 20, 12, 10, 13, 35, 7, 27, 26,
-	19, 22, 23, 13, 14, 15, 16, 17, 14, 15,
-	16, 17, 2, 20, 34, 31, 32, 29, 30, 28,
-	1, 13, 24, 25, 0, 13, 22, 23, 3, 0,
-	0, 18,
+	8, 33, 5, 6, 21, 14, 15, 16, 17, 14,
+	15, 16, 17, 8, 24, 25, 22, 23, 14, 15,
+	16, 17, 13, 19, 9, 11, 13, 35, 14, 15,
+	16, 17, 20, 7, 10, 13, 22, 23, 27, 14,
+	15, 16, 17, 12, 3, 13, 4, 18, 2, 34,
+	31, 32, 1, 20, 0, 28, 13, 29, 30, 0,
+	26,
 }
 var yyPact = [...]int{
 
-	-4, -1000, -4, -1000, -1000, -1000, -1000, 26, -12, 43,
-	36, -1000, -1000, 8, -1000, -1000, -1000, -1000, -1000, -1000,
-	43, 30, 30, 30, 30, 30, -25, 18, 0, 36,
-	36, -1000, -1000, -1000, -1000, -1000,
+	-4, -1000, -4, -1000, -1000, -1000, -1000, 19, -22, 2,
+	-3, -1000, -1000, 9, -1000, -1000, -1000, -1000, -1000, -1000,
+	2, 30, 30, 30, 30, 30, -26, 22, 0, -3,
+	-3, -1000, -1000, -1000, -1000, -1000,
 }
 var yyPgo = [...]int{
 
-	0, 50, 42, 58, 15, 27, 14, 23, 24, 20,
+	0, 52, 48, 44, 46, 33, 24, 43, 34, 25,
 }
 var yyR1 = [...]int{
 
@@ -262,9 +266,9 @@ var yyR2 = [...]int{
 var yyChk = [...]int{
 
 	-1000, -1, -2, -3, -4, 6, 7, -5, 4, -6,
-	-8, -9, -7, 25, 8, 9, 10, 11, -3, 4,
-	-6, 25, 13, 14, 16, 17, -4, -6, -5, -8,
-	-8, -9, -9, 26, 26, 26,
+	-8, -9, -7, 26, 9, 10, 11, 12, -3, 4,
+	-6, 26, 14, 15, 17, 18, -4, -6, -5, -8,
+	-8, -9, -9, 27, 27, 27,
 }
 var yyDef = [...]int{
 
@@ -281,7 +285,7 @@ var yyTok2 = [...]int{
 
 	2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
 	12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-	22, 23, 24, 25, 26,
+	22, 23, 24, 25, 26, 27,
 }
 var yyTok3 = [...]int{
 	0,
@@ -718,7 +722,7 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line parser.y:109
 		{
-			yyVAL.node = node.NewNodeConst(value.Str, yyDollar[1].token)
+			yyVAL.node = node.NewNodeWord(yyDollar[1].token)
 		}
 	case 15:
 		yyDollar = yyS[yypt-1 : yypt+1]

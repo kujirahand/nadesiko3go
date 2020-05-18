@@ -184,6 +184,28 @@ func NewNodeCallFunc(t *token.Token) NodeCallFunc {
 	return node
 }
 
+// NodeWord : 変数
+type NodeWord struct {
+	Node
+	Name     string
+	Cache    *value.Value
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeWord) GetType() NType              { return Word }
+func (n NodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeWord) GetJosi() string             { return n.Josi }
+
+func NewNodeWord(t *token.Token) NodeWord {
+	node := NodeWord{
+		Name:     t.Literal,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
 // ---
 
 // NodeToString : Nodeの値をデバッグ用に出力する
