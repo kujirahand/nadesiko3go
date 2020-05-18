@@ -21,13 +21,12 @@ import (
 	node  node.Node
 }
 
-%type<node> program sentences sentence callfunc args expr
+%type<node> program sentences sentence callfunc args 
+%type<node> expr value term primary_expr
 
 //__def_token:begin__
 %token<token> FUNC EOF LF NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
 //__def_token:end__
-%left PLUS MINUS
-%left MUL DIV MOD
 
 %%
 
@@ -89,7 +88,7 @@ args
     $$ = n
   }
 
-expr
+value
 	: NUMBER
 	{
 		$$ = node.NewNodeConst(value.Float, $1.Literal)
@@ -106,18 +105,40 @@ expr
   {
     $$ = node.NewNodeConst(value.Str, $1.Literal)
   }
+
+expr
+  : term
+	| expr PLUS term
+	{
+		$$ = node.NewNodeOperator("+", $1, $3)
+	}
+	| expr MINUS term
+	{
+		$$ = node.NewNodeOperator("-", $1, $3)
+	}
+
+term
+  : primary_expr
+  | term ASTERISK primary_expr
+  {
+		$$ = node.NewNodeOperator("*", $1, $3)
+  }
+  | term SLASH primary_expr
+  {
+		$$ = node.NewNodeOperator("/", $1, $3)
+  }
+
+primary_expr
+  : value
   | LPAREN callfunc RPAREN
   {
     $$ = $2
   }
-	| expr PLUS expr
-	{
-		$$ = node.NewNodeOperator("+", $1, $3)
-	}
-	| expr MUL expr
-	{
-		$$ = node.NewNodeOperator("*", $1, $3)
-	}
+  | LPAREN expr RPAREN
+  {
+    $$ = $2
+  }
+
 
 %%
 

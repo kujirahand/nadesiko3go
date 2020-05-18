@@ -7,5 +7,8 @@ goyacc parser.y
 echo "--- build ---"
 go build y.go
 cd ..
-go run cnako3.go
+go run cnako3.go -e "(1+2)を表示。"
+go run cnako3.go -e "1+2+3を表示。"
+go run cnako3.go -e "1+2*3を表示。"
+
 

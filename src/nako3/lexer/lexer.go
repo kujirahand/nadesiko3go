@@ -220,12 +220,17 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 	case '/':
 		p.move(1)
 		return NewToken(p, token.SLASH)
+	case '%':
+		p.move(1)
+		return NewToken(p, token.PERCENT)
 	case '(':
 		p.move(1)
 		return NewToken(p, token.LPAREN)
 	case ')':
 		p.move(1)
-		return NewToken(p, token.RPAREN)
+		rp := NewToken(p, token.RPAREN)
+		rp.Josi = p.getJosi(true)
+		return rp
 	case '!':
 		if p.peekStr(2) == "!=" {
 			p.move(2)

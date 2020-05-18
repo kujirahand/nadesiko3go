@@ -30,6 +30,7 @@ const (
 	NOT       = "!"
 	ASTERISK  = "*"
 	SLASH     = "/"
+	PERCENT   = "%"
 	EQEQ      = "=="
 	NTEQ      = "!="
 	GT        = ">"

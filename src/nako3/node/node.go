@@ -2,6 +2,7 @@ package node
 
 import (
 	"nako3/value"
+	"strings"
 )
 
 type NodeType int
@@ -143,7 +144,7 @@ func NodeToString(n Node, level int) string {
 		}
 	}
 	if ss != "" {
-		s += "\n" + ss
+		s += "\n" + strings.TrimRight(ss, " \t\n")
 	}
 	return indent + s
 }
