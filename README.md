@@ -1,6 +1,8 @@
 # nadesiko3go
 
-golangによるなでしこv3実装
+golangによるなでしこv3実装。
+
+``現在実装中 - まだ何もできません``
 
 # direnv が必要
 
