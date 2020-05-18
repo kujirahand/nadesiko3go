@@ -25,7 +25,7 @@ import (
 %type<node> expr value term primary_expr
 
 //__def_token:begin__
-%token<token> FUNC EOF LF NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
+%token<token> FUNC EOF LF EOS NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
 //__def_token:end__
 
 %%
@@ -58,7 +58,11 @@ sentence
   }
   | LF
   {
-    $$ = node.NewNodeNop()
+    $$ = node.NewNodeNop($1)
+  }
+  | EOS
+  {
+    $$ = node.NewNodeNop($1)
   }
 
 callfunc
@@ -108,6 +112,9 @@ value
 
 expr
   : term
+  {
+    $$ = $1
+  }
 	| expr PLUS term
 	{
 		$$ = node.NewNodeOperator("+", $1, $3)
@@ -119,6 +126,9 @@ expr
 
 term
   : primary_expr
+  {
+    $$ = $1
+  }
   | term ASTERISK primary_expr
   {
 		$$ = node.NewNodeOperator("*", $1, $3)
@@ -130,13 +140,16 @@ term
 
 primary_expr
   : value
+  {
+    $$ = $1
+  }
   | LPAREN callfunc RPAREN
   {
-    $$ = $2
+    $$ = node.NewNodeCalc($3, $2)
   }
   | LPAREN expr RPAREN
   {
-    $$ = $2
+    $$ = node.NewNodeCalc($3, $2)
   }
 
 
@@ -175,7 +188,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
   // return
   result := getTokenNo(t.Type)
   if result == WORD {
-    v := l.sys.GlobalVars.Get(t.Literal)
+    v := l.sys.Globals.Get(t.Literal)
     if v != nil && v.Type == value.Function {
       result = FUNC
       t.Type = token.FUNC
@@ -217,6 +230,7 @@ func getTokenNo(token_type token.TType) int {
   case token.FUNC: return FUNC
   case token.EOF: return EOF
   case token.LF: return LF
+  case token.EOS: return EOS
   case token.NUMBER: return NUMBER
   case token.STRING: return STRING
   case token.STRING_EX: return STRING_EX

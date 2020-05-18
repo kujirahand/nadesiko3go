@@ -22,6 +22,7 @@ const (
 	FUNC      = "FUNC"
 	EOF       = "EOF"
 	LF        = "LF"
+	EOS       = "EOS"
 	NUMBER    = "NUMBER"
 	STRING    = "STRING"
 	STRING_EX = "STRING_EX"

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"nako3/core"
 	"nako3/func/io"
+	"nako3/func/system"
 	"nako3/node"
 	"nako3/parser"
 	"nako3/runner"
@@ -24,7 +25,8 @@ func main() {
 		return
 	}
 	sys := core.GetSystem()
-	io.RegisterFunction(sys.GlobalVars)
+	io.RegisterFunction(sys)
+	system.RegisterFunction(sys)
 
 	// Analize Command Line
 	for _, v := range os.Args {

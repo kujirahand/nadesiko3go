@@ -13,8 +13,8 @@ type NType int
 const (
 	// Nop : 何もしない
 	Nop NType = iota
-	// TNodeList : Nodeのリスト
-	TNodeList
+	// TypeNodeList : Nodeのリスト
+	TypeNodeList
 	// Const : 定数
 	Const
 	// Operator : 演算子
@@ -25,16 +25,19 @@ const (
 	Word
 	// CallFunc : 関数呼び出し
 	CallFunc
+	// Calc : カッコ
+	Calc
 )
 
 var nodeTypeNames = map[NType]string{
-	Nop:       "Nop",
-	TNodeList: "TNodeList",
-	Const:     "Const",
-	Operator:  "Operator",
-	Sentence:  "Sentence",
-	Word:      "Word",
-	CallFunc:  "CallFunc",
+	Nop:          "Nop",
+	TypeNodeList: "TypeNodeList",
+	Const:        "Const",
+	Operator:     "Operator",
+	Sentence:     "Sentence",
+	Word:         "Word",
+	CallFunc:     "CallFunc",
+	Calc:         "Calc",
 }
 
 // Node : Node Interface
@@ -47,14 +50,13 @@ type Node interface {
 // NodeList : Node List
 type NodeList []Node
 
-func (n NodeList) GetType() NType              { return TNodeList }
+func (n NodeList) GetType() NType              { return TypeNodeList }
 func (n NodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
 func (n NodeList) GetJosi() string             { return "" }
 
 // NodeNop : NOP
 type NodeNop struct {
 	Node
-	Child    *Node
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -63,9 +65,32 @@ func (n NodeNop) GetType() NType              { return Nop }
 func (n NodeNop) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeNop) GetJosi() string             { return n.Josi }
 
-func NewNodeNop() Node {
-	n := NodeNop{}
-	n.Child = nil
+func NewNodeNop(t *token.Token) Node {
+	n := NodeNop{
+		FileInfo: t.FileInfo,
+		Josi:     t.Josi,
+	}
+	return n
+}
+
+// NodeCalc : Calc
+type NodeCalc struct {
+	Node
+	Josi     string
+	Child    Node
+	FileInfo core.TFileInfo
+}
+
+func (n NodeCalc) GetType() NType              { return Calc }
+func (n NodeCalc) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeCalc) GetJosi() string             { return n.Josi }
+
+func NewNodeCalc(t *token.Token, child Node) Node {
+	n := NodeCalc{
+		FileInfo: t.FileInfo,
+		Josi:     t.Josi,
+		Child:    child,
+	}
 	return n
 }
 
@@ -167,7 +192,7 @@ func NodeToString(n Node, level int) string {
 	for i := 0; i < level; i++ {
 		indent += "|-"
 	}
-	s := nodeTypeNames[n.GetType()]
+	s := nodeTypeNames[n.GetType()] + "(" + n.GetJosi() + ")"
 	ss := ""
 	switch n.GetType() {
 	case Const:
@@ -188,6 +213,9 @@ func NodeToString(n Node, level int) string {
 		for _, v := range n.(NodeCallFunc).Args {
 			ss += NodeToString(v, level+1) + "\n"
 		}
+	case Calc:
+		nc := n.(NodeCalc)
+		ss += NodeToString(nc.Child, level+1) + "\n"
 	}
 	if ss != "" {
 		s += "\n" + strings.TrimRight(ss, " \t\n")

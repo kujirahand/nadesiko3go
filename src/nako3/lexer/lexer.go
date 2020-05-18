@@ -245,7 +245,11 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		}
 		p.move(1)
 		return NewToken(p, token.NOT)
+	case '。':
+		p.move(1)
+		return NewToken(p, token.EOS)
 	}
+
 	return nil
 }
 
@@ -352,8 +356,52 @@ func (p *Lexer) getWord() *token.Token {
 		}
 		break
 	}
-	t.Literal = s
+	t.Literal = DeleteOkurigana(s)
+	// 送り仮名を省略
 	return t
+}
+
+// DeleteOkurigana : 送り仮名を省略
+func DeleteOkurigana(s string) string {
+	if s == "" {
+		return s
+	}
+	// ひらがなから始まる単語
+	ss := []rune(s)
+	if IsHira(ss[0]) {
+		// (ex) すごく青い → すごく青
+		stat := 0
+		for j, c := range ss {
+			bHira := IsHira(c)
+			switch stat {
+			case 0:
+				if bHira { // すごく
+					continue
+				}
+				stat = 1
+				continue
+			case 1:
+				if !bHira { // 青
+					continue
+				}
+				stat = 2
+			case 2:
+				return string(ss[0:j])
+			}
+			if IsHira(c) {
+				stat++
+			}
+		}
+		return s
+	}
+	// 漢字カタカナのみ取り出す
+	for i, c := range ss {
+		c = ss[i]
+		if IsHira(rune(c)) {
+			return string(ss[0:i])
+		}
+	}
+	return s
 }
 
 func (p *Lexer) getNumber() *token.Token {

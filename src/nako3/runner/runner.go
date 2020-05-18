@@ -45,7 +45,10 @@ func runNode(n *node.Node) (*value.Value, error) {
 	switch (*n).GetType() {
 	case node.Nop:
 		return nil, nil
-	case node.TNodeList:
+	case node.Calc:
+		nchild := (*n).(node.NodeCalc)
+		return runNode(&nchild.Child)
+	case node.TypeNodeList:
 		nlist := (*n).(node.NodeList)
 		return runNodeList(nlist)
 	case node.Const:
@@ -62,27 +65,66 @@ func runNode(n *node.Node) (*value.Value, error) {
 
 func runCallFunc(n *node.Node) (*value.Value, error) {
 	cf := (*n).(node.NodeCallFunc)
-	// args
-	args := make(value.ValueArray, len(cf.Args))
-	for i, v := range cf.Args {
-		argResult, err1 := runNode(&v)
-		if err1 != nil {
-			msg := fmt.Sprintf("関数『%s』の引数でエラー。", cf.Name)
-			return nil, RuntimeError(err1.Error()+msg, n)
-		}
-		args[i] = *argResult
-	}
-	// find
+	// 関数の実態を得る
 	funcV := cf.Cache
 	if funcV == nil {
-		funcV = sys.GlobalVars.Get(cf.Name)
+		funcV = sys.Globals.Get(cf.Name)
 		cf.Cache = funcV
 	}
+	// 変数が見当たらない
 	if funcV == nil {
 		msgu := fmt.Sprintf("関数『%s』は未定義。", cf.Name)
 		return nil, RuntimeError(msgu, n)
 	}
+	// 関数ではない？
+	if funcV.Type != value.Function {
+		msgn := fmt.Sprintf("『%s』は関数ではい。", cf.Name)
+		return nil, RuntimeError(msgn, n)
+	}
+	// args
+	defArgs := sys.JosiList[funcV.Tag]           // 定義
+	args := make(value.ValueArray, len(defArgs)) // 関数に与える値
+	nodeArgs := cf.Args                          // ノードの値
+	usedArgs := make([]bool, len(nodeArgs))      // ノードを利用したか(同じ助詞が二つある場合)
+	for bi := 0; bi < len(usedArgs); bi++ {
+		usedArgs[bi] = false
+	}
+	for i, josiList := range defArgs {
+		for _, josi := range josiList {
+			for k, nodeJosi := range nodeArgs {
+				if usedArgs[k] {
+					continue
+				}
+				if josi != nodeJosi.GetJosi() { // 助詞が一致しない
+					continue
+				}
+				usedArgs[k] = true
+				argResult, err1 := runNode(&nodeJosi)
+				if err1 != nil {
+					msg := fmt.Sprintf("関数『%s』の引数でエラー。", cf.Name)
+					return nil, RuntimeError(err1.Error()+msg, n)
+				}
+				if argResult != nil {
+					args[i] = *argResult
+				} else {
+					args[i] = value.NewValueNull()
+				}
+			}
+		}
+	}
+	// 引数のチェック
+	for ci, b := range usedArgs {
+		if !b {
+			msgArg := fmt.Sprintf("関数『%s』の第%d引数の間違い。", cf.Name, ci)
+			return nil, RuntimeError(msgArg, n)
+		}
+	}
+	// 関数を実行
 	result, err2 := funcV.Value.(value.ValueFunc)(args)
+	// 結果をそれに覚える
+	if result != nil {
+		sys.Globals.Set("それ", *result)
+	}
 	return result, err2
 }
 

@@ -8,18 +8,19 @@ import (
 type ValueType int
 
 const (
-	Null     = 0
-	Int      = 1
-	Float    = 2
-	Str      = 3
-	Array    = 4
-	Hash     = 5
-	Function = 6
+	Null ValueType = iota
+	Int
+	Float
+	Str
+	Array
+	Hash
+	Function
 )
 
 type Value struct {
 	Type  ValueType
 	Value interface{}
+	Tag   int
 }
 
 type ValueArray []Value

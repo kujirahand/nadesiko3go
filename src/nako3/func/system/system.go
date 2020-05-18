@@ -1,4 +1,4 @@
-package io
+package system
 
 import (
 	. "nako3/core"
@@ -6,7 +6,7 @@ import (
 )
 
 func RegisterFunction(sys *Core) {
-	sys.AddFunc("表示", DefArgs{Josi{"の", "を", "と"}}, Print)
+	sys.AddFunc("足", DefArgs{Josi{"と", "に"}, Josi{"を"}}, Print)
 }
 
 func Print(args value.ValueArray) (*value.Value, error) {
