@@ -8,6 +8,7 @@ import (
 // TType : Token Type
 type TType string
 
+// Token : トークン定義
 type Token struct {
 	Type     TType
 	Literal  string
@@ -15,6 +16,7 @@ type Token struct {
 	FileInfo core.TFileInfo
 }
 
+// Tokens : トークンのスライス
 type Tokens []*Token
 
 const (
@@ -28,6 +30,15 @@ const (
 	STRING    = "STRING"
 	STRING_EX = "STRING_EX"
 	WORD      = "WORD"
+	IF        = "もし"
+	THEN      = "ならば"
+	ELSE      = "違"
+	BEGIN     = "ここから"
+	END       = "ここまで"
+	FOR       = "繰返"
+	REPEAT    = "回"
+	FOREACH   = "反復"
+	LET       = "代入"
 	EQ        = "="
 	PLUS      = "+"
 	MINUS     = "-"
@@ -43,9 +54,36 @@ const (
 	LTEQ      = "<="
 	LPAREN    = "("
 	RPAREN    = ")"
+	LBRACKET  = "["
+	RBRACKET  = "]"
+	LBRACE    = "{"
+	RBRACE    = "}"
 	//__END_TOKEN__
 )
 
+var wordTokens = map[string]TType{
+	"もし":   IF,
+	"ならば":  THEN,
+	"違":    ELSE,
+	"ここまで": END,
+	"ここから": BEGIN,
+	"繰返":   FOR,
+	"反復":   FOREACH,
+	"回":    REPEAT,
+	"代入":   LET,
+	"入":    LET,
+}
+
+// ReplaceWordToken : WORDを特定のトークンに置換
+func ReplaceWordToken(lit string) TType {
+	tok := wordTokens[lit]
+	if tok == "" {
+		return WORD
+	}
+	return tok
+}
+
+// ToString : トークンを文字列に変換
 func (t *Token) ToString() string {
 	s := t.Literal + "[" + string(t.Type) + "]" + t.Josi
 	return s

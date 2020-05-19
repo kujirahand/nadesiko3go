@@ -9,6 +9,11 @@ var Josi = []string{
 	"は", "を", "に", "へ", "で", "と", "が", "の",
 }
 
+// JosiRenbun : 上記助詞で、連文認定する助詞
+var JosiRenbun = []string{
+	"いて", "えて", "きて", "けて", "して", "って", "にて", "みて", "めて", "ねて", "には",
+}
+
 // JosiTarareba : たら・れば
 var JosiTarareba = []string{
 	"でなければ", "ならば", "なら", "たら", "れば",

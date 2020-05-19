@@ -10,11 +10,12 @@ import (
 
 // Lexer : Lexer struct
 type Lexer struct {
-	src      []rune
-	index    int
-	line     int
-	fileNo   int
-	autoHalf bool
+	src        []rune
+	index      int
+	line       int
+	fileNo     int
+	autoHalf   bool
+	renbunJosi map[string]bool
 }
 
 // NewLexer : NewLexer
@@ -25,6 +26,11 @@ func NewLexer(source string, fileNo int) *Lexer {
 	p.line = 0
 	p.fileNo = fileNo
 	p.autoHalf = true
+	// 連文に使う助詞を初期化
+	p.renbunJosi = map[string]bool{}
+	for _, josi := range JosiRenbun {
+		p.renbunJosi[josi] = true
+	}
 	return &p
 }
 
@@ -40,22 +46,181 @@ func NewToken(lexer *Lexer, ttype token.TType) *token.Token {
 	return &t
 }
 
-// SetAutoHalf : Set AutoHalf
-func (p *Lexer) SetAutoHalf(v bool) {
-	p.autoHalf = v
-}
-
 // Split : Split tokens
 func (p *Lexer) Split() token.Tokens {
 	tt := token.Tokens{}
 	for p.isLive() {
-		t := p.getToken()
+		t := p.GetToken()
 		if t == nil {
+			continue
+		}
+		// 連文に対処
+		if p.renbunJosi[t.Josi] == true {
+			tt = append(tt, t)
+			tt = append(tt, NewToken(p, token.EOS))
 			continue
 		}
 		tt = append(tt, t)
 	}
+	// 最後にEOSを足す
+	tt = append(tt, NewToken(p, token.EOS))
 	return tt
+}
+
+// GetToken : トークンを一つ取得
+func (p *Lexer) GetToken() *token.Token {
+	// skip space
+	p.skipSpaceN()
+	c := p.peek()
+
+	// LF
+	if c == '\n' {
+		p.move(1)
+		p.line++
+		return NewToken(p, token.LF)
+	}
+
+	// flag
+	t := p.checkFlagToken(c)
+	if t != nil {
+		return t
+	}
+	// number
+	if IsDigit(c) {
+		return p.getNumber()
+	}
+	// word
+	if IsLetter(c) || c == '_' || IsMultibytes(c) {
+		return p.getWord()
+	}
+
+	return nil
+}
+
+// checkFlagToken : 記号から始まるトークンをチェックする
+func (p *Lexer) checkFlagToken(c rune) *token.Token {
+	switch c {
+	// string
+	case '\'':
+		p.next()
+		return p.getString(c)
+	case '"':
+		p.next()
+		return p.getStringEx(c)
+	case '「':
+		p.next()
+		return p.getStringEx('」')
+	case '『':
+		p.next()
+		return p.getString('」')
+	// 不等号
+	case '=':
+		switch p.peekStr(2) {
+		case "==":
+			p.move(2)
+			return NewToken(p, token.EQEQ)
+		case "=>":
+			p.move(2)
+			return NewToken(p, token.GTEQ)
+		case "=<":
+			p.move(2)
+			return NewToken(p, token.LTEQ)
+		}
+		p.move(1)
+		return NewToken(p, token.EQ)
+	case '>':
+		switch p.peekStr(2) {
+		case ">=":
+			p.move(2)
+			return NewToken(p, token.GTEQ)
+		case "><":
+			p.move(2)
+			return NewToken(p, token.NTEQ)
+		}
+		p.move(1)
+		return NewToken(p, token.GT)
+	case '<':
+		switch p.peekStr(2) {
+		case "<=":
+			p.move(2)
+			return NewToken(p, token.LTEQ)
+		case "<>":
+			return NewToken(p, token.NTEQ)
+		}
+		p.move(1)
+		return NewToken(p, token.LT)
+	case '≧':
+		p.move(1)
+		return NewToken(p, token.GTEQ)
+	case '≦':
+		p.move(1)
+		return NewToken(p, token.LTEQ)
+	case '!':
+		if p.peekStr(2) == "!=" {
+			p.move(2)
+			return NewToken(p, token.NTEQ)
+		}
+		p.move(1)
+		return NewToken(p, token.NOT)
+	// 算術演算子
+	case '+':
+		p.move(1)
+		return NewToken(p, token.PLUS)
+	case '-':
+		p.move(1)
+		return NewToken(p, token.MINUS)
+	case '*':
+		p.move(1)
+		return NewToken(p, token.ASTERISK)
+	case '/':
+		p.move(1)
+		return NewToken(p, token.SLASH)
+	case '%':
+		p.move(1)
+		return NewToken(p, token.PERCENT)
+	// カッコ
+	case '(':
+		p.move(1)
+		return NewToken(p, token.LPAREN)
+	case ')':
+		p.move(1)
+		rp := NewToken(p, token.RPAREN)
+		rp.Josi = p.getJosi(true)
+		return rp
+	case '{':
+		p.move(1)
+		return NewToken(p, token.LBRACE)
+	case '}':
+		p.move(1)
+		rp := NewToken(p, token.RBRACE)
+		rp.Josi = p.getJosi(true)
+		return rp
+	case '[':
+		p.move(1)
+		return NewToken(p, token.LBRACKET)
+	case ']':
+		p.move(1)
+		rp := NewToken(p, token.RBRACKET)
+		rp.Josi = p.getJosi(true)
+		return rp
+	// 句点など
+	case '。':
+		p.move(1)
+		return NewToken(p, token.EOS)
+	case ';':
+		p.move(1)
+		return NewToken(p, token.EOS)
+	case ':':
+		p.move(1)
+		return NewToken(p, token.EOS)
+	}
+
+	return nil
+}
+
+// SetAutoHalf : Set AutoHalf
+func (p *Lexer) SetAutoHalf(v bool) {
+	p.autoHalf = v
 }
 
 func (p *Lexer) isLive() bool {
@@ -138,136 +303,6 @@ func (p *Lexer) peekCur(i int) rune {
 		return p.src[p.index+i]
 	}
 	return rune(0)
-}
-
-func (p *Lexer) getToken() *token.Token {
-	// skip space
-	p.skipSpaceN()
-	c := p.peek()
-
-	// LF
-	if c == '\n' {
-		p.move(1)
-		p.line++
-		return NewToken(p, token.LF)
-	}
-
-	// flag
-	t := p.checkFlagToken(c)
-	if t != nil {
-		return t
-	}
-	// number
-	if IsDigit(c) {
-		return p.getNumber()
-	}
-	// word
-	if IsLetter(c) || c == '_' || IsMultibytes(c) {
-		return p.getWord()
-	}
-
-	return nil
-}
-
-func (p *Lexer) checkFlagToken(c rune) *token.Token {
-	switch c {
-	// string
-	case '\'':
-		p.next()
-		return p.getString(c)
-	case '"':
-		p.next()
-		return p.getStringEx(c)
-	case '「':
-		p.next()
-		return p.getStringEx('」')
-	case '『':
-		p.next()
-		return p.getString('」')
-	// 不等号
-	case '=':
-		switch p.peekStr(2) {
-		case "==":
-			p.move(2)
-			return NewToken(p, token.EQEQ)
-		case "=>":
-			p.move(2)
-			return NewToken(p, token.GTEQ)
-		case "=<":
-			p.move(2)
-			return NewToken(p, token.LTEQ)
-		}
-		p.move(1)
-		return NewToken(p, token.EQ)
-	case '>':
-		switch p.peekStr(2) {
-		case ">=":
-			p.move(2)
-			return NewToken(p, token.GTEQ)
-		case "><":
-			p.move(2)
-			return NewToken(p, token.NTEQ)
-		}
-		p.move(1)
-		return NewToken(p, token.GT)
-	case '<':
-		switch p.peekStr(2) {
-		case "<=":
-			p.move(2)
-			return NewToken(p, token.LTEQ)
-		case "<>":
-			return NewToken(p, token.NTEQ)
-		}
-		p.move(1)
-		return NewToken(p, token.LT)
-	case '≧':
-		p.move(1)
-		return NewToken(p, token.GTEQ)
-	case '≦':
-		p.move(1)
-		return NewToken(p, token.LTEQ)
-	case '+':
-		p.move(1)
-		return NewToken(p, token.PLUS)
-	case '-':
-		p.move(1)
-		return NewToken(p, token.MINUS)
-	case '*':
-		p.move(1)
-		return NewToken(p, token.ASTERISK)
-	case '/':
-		p.move(1)
-		return NewToken(p, token.SLASH)
-	case '%':
-		p.move(1)
-		return NewToken(p, token.PERCENT)
-	case '(':
-		p.move(1)
-		return NewToken(p, token.LPAREN)
-	case ')':
-		p.move(1)
-		rp := NewToken(p, token.RPAREN)
-		rp.Josi = p.getJosi(true)
-		return rp
-	case '!':
-		if p.peekStr(2) == "!=" {
-			p.move(2)
-			return NewToken(p, token.NTEQ)
-		}
-		p.move(1)
-		return NewToken(p, token.NOT)
-	case '。':
-		p.move(1)
-		return NewToken(p, token.EOS)
-	case ';':
-		p.move(1)
-		return NewToken(p, token.EOS)
-	case ':':
-		p.move(1)
-		return NewToken(p, token.EOS)
-	}
-
-	return nil
 }
 
 // GetStringToRune : endRuneまでの文字列を返す(endRuneは含まない)
@@ -388,8 +423,10 @@ func (p *Lexer) getWord() *token.Token {
 		}
 		break
 	}
-	t.Literal = DeleteOkurigana(s)
 	// 送り仮名を省略
+	t.Literal = DeleteOkurigana(s)
+	// 特定トークンに置換
+	t.Type = token.ReplaceWordToken(t.Literal)
 	return t
 }
 

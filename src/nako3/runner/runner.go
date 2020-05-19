@@ -20,20 +20,25 @@ func Run(n *node.Node) (*value.Value, error) {
 
 // RuntimeError : 実行時エラーを生成
 func RuntimeError(msg string, n *node.Node) error {
-	e := fmt.Errorf("[実行時]" + msg)
+	var e error
+	if n != nil {
+		fi := (*n).GetFileInfo()
+		e = fmt.Errorf("[実行時エラー] (%d) %s", fi.Line, msg)
+	} else {
+		e = fmt.Errorf("[実行時エラー] " + msg)
+	}
 	return e
 }
 
 func runNodeList(nodes node.NodeList) (*value.Value, error) {
+	// TODO: 最後のそれの値を結果とすること
 	var lastValue *value.Value = nil
 	for _, n := range nodes {
 		v, err := runNode(&n)
 		if err != nil {
 			return v, err
 		}
-		if v != nil {
-			lastValue = v
-		}
+		lastValue = v // nil でもそうでなくても最後の結果がそれ。
 	}
 	return lastValue, nil
 }
@@ -125,18 +130,30 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 			}
 		}
 	}
-	// 引数のチェック
+	// 引数のチェック (1) 漏れなくcf.Args内のノードを評価したか
 	for ci, b := range usedArgs {
-		if !b {
+		if b == false {
 			msgArg := fmt.Sprintf("関数『%s』の第%d引数の間違い。", cf.Name, ci)
 			return nil, RuntimeError(msgArg, n)
+		}
+	}
+	// 引数のチェック (2) 関数定義引数(defArgs)と数が合っているか？
+	// 		特定として 引数-1であれば、変数「それ」の値を補う
+	// fmt.Printf("args: %d=%d", len(nodeArgs), len(defArgs))
+	if len(nodeArgs) != len(defArgs) {
+		// 特例ルール -- 「それ」を補完する
+		if len(nodeArgs) == (len(defArgs) - 1) {
+			args[0] = sys.Sore
+		} else {
+			return nil, RuntimeError(fmt.Sprintf("関数『%s』で引数の数が違います。", cf.Name), n)
 		}
 	}
 	// 関数を実行
 	result, err2 := funcV.Value.(value.ValueFunc)(args)
 	// 結果をそれに覚える
 	if result != nil {
-		sys.Globals.Set("それ", *result)
+		sys.Sore = *result
+		sys.Globals.Set("それ", &sys.Sore)
 	}
 	return result, err2
 }

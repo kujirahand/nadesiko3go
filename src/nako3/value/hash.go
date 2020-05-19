@@ -10,8 +10,8 @@ func NewValueHash() *ValueHash {
 	return &p
 }
 
-func (p *ValueHash) Set(key string, v Value) {
-	p.hash[key] = &v
+func (p *ValueHash) Set(key string, v *Value) {
+	p.hash[key] = v
 }
 
 func (p *ValueHash) Get(key string) *Value {

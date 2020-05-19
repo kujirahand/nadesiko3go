@@ -32,6 +32,7 @@ type Core struct {
 	Code     string
 	RunMode  TRunMode
 	Globals  *value.ValueHash
+	Sore     value.Value
 	JosiList []DefArgs // システム関数の助詞情報を記憶する
 }
 
@@ -52,7 +53,8 @@ func NewCore() *Core {
 	c.IsDebug = false
 	c.RunMode = MainFile
 	c.Globals = value.NewValueHash()
-	c.Globals.Set("それ", value.NewValueNull())
+	c.Sore = value.NewValueNull()
+	c.Globals.Set("それ", &c.Sore)
 	c.JosiList = []DefArgs{}
 	return &c
 }
@@ -62,5 +64,5 @@ func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) {
 	val := value.NewValueFunc(f)
 	val.Tag = len(sys.JosiList)
 	sys.JosiList = append(sys.JosiList, args)
-	sys.Globals.Set(name, val)
+	sys.Globals.Set(name, &val)
 }

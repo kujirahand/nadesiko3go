@@ -21,11 +21,11 @@ import (
 	node  node.Node
 }
 
-%type<node> program sentences sentence callfunc args 
+%type<node> program sentences sentence end_sentence callfunc args 
 %type<node> expr value term primary_expr
 
 //__def_token:begin__
-%token<token> FUNC EOF LF EOS COMMA NUMBER STRING STRING_EX WORD EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN
+%token<token> FUNC EOF LF EOS COMMA NUMBER STRING STRING_EX WORD IF THEN ELSE BEGIN END FOR REPEAT FOREACH LET EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
 //__def_token:end__
 
 %%
@@ -53,20 +53,24 @@ sentences
 
 sentence
   : callfunc 
+  | end_sentence
+
+end_sentence
+  : EOS
   {
-    $$ = $1
+    $$ = node.NewNodeNop($1)
   }
   | LF
   {
     $$ = node.NewNodeNop($1)
   }
-  | EOS
-  {
-    $$ = node.NewNodeNop($1)
-  }
 
 callfunc
-  : args FUNC 
+  : FUNC EOS
+  {
+    $$ = node.NewNodeCallFunc($1)
+  }
+  | args FUNC 
   {
     n := node.NewNodeCallFunc($2)
     n.Args, _ = $1.(node.NodeList)
@@ -112,9 +116,6 @@ value
 
 expr
   : term
-  {
-    $$ = $1
-  }
 	| expr PLUS term
 	{
 		$$ = node.NewNodeOperator($2, $1, $3)
@@ -126,9 +127,6 @@ expr
 
 term
   : primary_expr
-  {
-    $$ = $1
-  }
   | term ASTERISK primary_expr
   {
 		$$ = node.NewNodeOperator($2, $1, $3)
@@ -140,9 +138,6 @@ term
 
 primary_expr
   : value
-  {
-    $$ = $1
-  }
   | LPAREN callfunc RPAREN
   {
     $$ = node.NewNodeCalc($3, $2)
@@ -151,7 +146,6 @@ primary_expr
   {
     $$ = node.NewNodeCalc($3, $2)
   }
-
 
 %%
 
@@ -236,12 +230,22 @@ func getTokenNo(token_type token.TType) int {
   case token.STRING: return STRING
   case token.STRING_EX: return STRING_EX
   case token.WORD: return WORD
+  case token.IF: return IF
+  case token.THEN: return THEN
+  case token.ELSE: return ELSE
+  case token.BEGIN: return BEGIN
+  case token.END: return END
+  case token.FOR: return FOR
+  case token.REPEAT: return REPEAT
+  case token.FOREACH: return FOREACH
+  case token.LET: return LET
   case token.EQ: return EQ
   case token.PLUS: return PLUS
   case token.MINUS: return MINUS
   case token.NOT: return NOT
   case token.ASTERISK: return ASTERISK
   case token.SLASH: return SLASH
+  case token.PERCENT: return PERCENT
   case token.EQEQ: return EQEQ
   case token.NTEQ: return NTEQ
   case token.GT: return GT
@@ -250,9 +254,14 @@ func getTokenNo(token_type token.TType) int {
   case token.LTEQ: return LTEQ
   case token.LPAREN: return LPAREN
   case token.RPAREN: return RPAREN
+  case token.LBRACKET: return LBRACKET
+  case token.RBRACKET: return RBRACKET
+  case token.LBRACE: return LBRACE
+  case token.RBRACE: return RBRACE
 
   }
   panic("[SYSTEM ERROR] parser/extract_token.nako3")
+  return -1
 }
 //__getTokenNo:end__
 

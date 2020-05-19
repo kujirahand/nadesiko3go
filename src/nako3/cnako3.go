@@ -9,6 +9,7 @@ import (
 	"nako3/node"
 	"nako3/parser"
 	"nako3/runner"
+	"nako3/value"
 	"os"
 )
 
@@ -71,22 +72,32 @@ func runMainFile(sys *core.Core) {
 			sys.MainFile)
 		return
 	}
-	execCode(sys, string(code))
+	ret, err := execCode(sys, string(code))
+	outputResult(ret, err)
 }
 
 func runEvalCode(sys *core.Core) {
 	sys.MainFile = "-e"
-	execCode(sys, sys.Code)
+	ret, err := execCode(sys, sys.Code)
+	outputResult(ret, err)
 }
 
-func execCode(sys *core.Core, code string) {
+func outputResult(ret *value.Value, err error) {
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s", err.Error())
+	}
+	if ret != nil {
+		println(ret.ToString())
+	}
+}
+
+func execCode(sys *core.Core, code string) (*value.Value, error) {
 	if sys.IsDebug {
 		println("[Lexer]")
 	}
 	n, err := parser.Parse(sys, code, 0)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[文法エラー] %s\n", err.Error())
-		return
+		return nil, fmt.Errorf("[文法エラー] %s", err.Error())
 	}
 	if n == nil {
 		panic("[文法エラー] 不明")
@@ -97,5 +108,5 @@ func execCode(sys *core.Core, code string) {
 		println("[run]")
 	}
 	// run
-	runner.Run(n)
+	return runner.Run(n)
 }
