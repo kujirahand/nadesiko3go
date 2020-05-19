@@ -1,3 +1,4 @@
+// __TOP_COMMENT__
 %{
 //
 // なでしこ3 --- 文法定義 (goyaccを利用)
@@ -7,12 +8,12 @@
 //
 package parser
 import (
-  "nako3/core"
-  "nako3/value"
+	"nako3/core"
+	"nako3/value"
 	"nako3/node"
 	"nako3/lexer"
 	"nako3/token"
-  "fmt"
+	"fmt"
 )
 %}
 
@@ -22,11 +23,8 @@ import (
 }
 
 %type<node> program sentences sentence end_sentence callfunc args 
-%type<node> expr value term primary_expr
-
-//__def_token:begin__
-%token<token> FUNC EOF LF EOS COMMA NUMBER STRING STRING_EX WORD IF THEN ELSE BEGIN END FOR REPEAT FOREACH LET EQ PLUS MINUS NOT ASTERISK SLASH PERCENT EQEQ NTEQ GT GTEQ LT LTEQ LPAREN RPAREN LBRACKET RBRACKET LBRACE RBRACE
-//__def_token:end__
+%type<node> expr value term primary_expr let varindex
+%token<token> __TOKENS_LIST__
 
 %%
 
@@ -52,9 +50,10 @@ sentences
   }
 
 sentence
-  : callfunc
+  : end_sentence
+  | callfunc end_sentence
   | expr end_sentence
-  | end_sentence
+  | let end_sentence
 
 end_sentence
   : EOS
@@ -66,8 +65,35 @@ end_sentence
     $$ = node.NewNodeNop($1)
   }
 
+let
+  : WORD EQ expr
+  {
+    $$ = node.NewNodeLet($1, node.NewNodeList(), $3)
+  }
+  | WORD varindex EQ expr
+  {
+    n := $2.(node.NodeList)
+    $$ = node.NewNodeLet($1, n, $4)
+  }
+  | LET_BEGIN WORD_REF expr LET
+  {
+    $$ = node.NewNodeLet($2, node.NewNodeList(), $3)
+  }
+
+varindex
+  : LBRACKET expr RBRACKET
+  {
+    n := node.NodeList{$2}
+    $$ = n
+  }
+  | varindex LBRACKET expr RBRACKET
+  {
+    n := $1.(node.NodeList)
+    $$ = append(n, $3)
+  }
+
 callfunc
-  : FUNC EOS
+  : FUNC
   {
     $$ = node.NewNodeCallFunc($1)
   }
@@ -219,51 +245,12 @@ func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 }
 
 // 以下 extract_token.nako3 により自動生成
-//__getTokenNo:begin__
 func getTokenNo(token_type token.TType) int {
-  switch token_type {
-  case token.FUNC: return FUNC
-  case token.EOF: return EOF
-  case token.LF: return LF
-  case token.EOS: return EOS
-  case token.COMMA: return COMMA
-  case token.NUMBER: return NUMBER
-  case token.STRING: return STRING
-  case token.STRING_EX: return STRING_EX
-  case token.WORD: return WORD
-  case token.IF: return IF
-  case token.THEN: return THEN
-  case token.ELSE: return ELSE
-  case token.BEGIN: return BEGIN
-  case token.END: return END
-  case token.FOR: return FOR
-  case token.REPEAT: return REPEAT
-  case token.FOREACH: return FOREACH
-  case token.LET: return LET
-  case token.EQ: return EQ
-  case token.PLUS: return PLUS
-  case token.MINUS: return MINUS
-  case token.NOT: return NOT
-  case token.ASTERISK: return ASTERISK
-  case token.SLASH: return SLASH
-  case token.PERCENT: return PERCENT
-  case token.EQEQ: return EQEQ
-  case token.NTEQ: return NTEQ
-  case token.GT: return GT
-  case token.GTEQ: return GTEQ
-  case token.LT: return LT
-  case token.LTEQ: return LTEQ
-  case token.LPAREN: return LPAREN
-  case token.RPAREN: return RPAREN
-  case token.LBRACKET: return LBRACKET
-  case token.RBRACKET: return RBRACKET
-  case token.LBRACE: return LBRACE
-  case token.RBRACE: return RBRACE
-
-  }
-  panic("[SYSTEM ERROR] parser/extract_token.nako3")
-  return -1
+	switch token_type {
+__FUNC_GET_TOKEN_NO_CONTNTS__
+	}
+	panic("[SYSTEM ERROR] parser.y + extract_token.nako3")
+	return -1
 }
-//__getTokenNo:end__
-
-
+// (メモ) これより下にコードを書かないようにする
+// → 行番号が変わらないための対策

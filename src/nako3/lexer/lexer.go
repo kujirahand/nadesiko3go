@@ -64,6 +64,8 @@ func (p *Lexer) Split() token.Tokens {
 	}
 	// 最後にEOSを足す
 	tt = append(tt, NewToken(p, token.EOS))
+	// goyaccで文法エラー起こさないためにマーカーを入れる
+	tt = p.formatTokenList(tt)
 	return tt
 }
 
@@ -216,6 +218,34 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 	}
 
 	return nil
+}
+
+// formatTokenList : トークン
+func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
+	if len(tt) == 0 {
+		return tt
+	}
+	// WORD(に|へ)exprを代入→LET_MARKER WORD expr LET
+	var t_word *token.Token = nil
+	i, mk := 0, 0
+	for i < len(tt) {
+		t := tt[i]
+		if t.Type == token.LF || t.Type == token.EOS {
+			mk = i
+		} else if t.Type == token.WORD {
+			if t.Josi == "に" || t.Josi == "へ" {
+				t_word = t
+			}
+		} else if t.Type == token.LET {
+			t_word.Type = token.WORD_REF
+			tt = token.TokensInsert(tt, mk,
+				NewToken(p, token.LET_BEGIN))
+			i += 2
+			continue
+		}
+		i++
+	}
+	return tt
 }
 
 // SetAutoHalf : Set AutoHalf

@@ -27,6 +27,8 @@ const (
 	CallFunc
 	// Calc : カッコ
 	Calc
+	// Let : 代入文
+	Let
 )
 
 var nodeTypeNames = map[NType]string{
@@ -53,6 +55,10 @@ type NodeList []Node
 func (n NodeList) GetType() NType              { return TypeNodeList }
 func (n NodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
 func (n NodeList) GetJosi() string             { return "" }
+
+func NewNodeList() NodeList {
+	return NodeList{}
+}
 
 // NodeNop : NOP
 type NodeNop struct {
@@ -90,6 +96,31 @@ func NewNodeCalc(t *token.Token, child Node) Node {
 		FileInfo: t.FileInfo,
 		Josi:     t.Josi,
 		Child:    child,
+	}
+	return n
+}
+
+// NodeLet :
+type NodeLet struct {
+	Node
+	Var      string
+	VarIndex NodeList
+	Value    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeLet) GetType() NType              { return Calc }
+func (n NodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeLet) GetJosi() string             { return n.Josi }
+
+func NewNodeLet(t *token.Token, index NodeList, value Node) Node {
+	n := NodeLet{
+		Var:      t.Literal,
+		VarIndex: index,
+		Value:    value,
+		FileInfo: t.FileInfo,
+		Josi:     t.Josi,
 	}
 	return n
 }

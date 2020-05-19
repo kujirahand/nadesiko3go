@@ -30,6 +30,7 @@ const (
 	STRING    = "STRING"
 	STRING_EX = "STRING_EX"
 	WORD      = "WORD"
+	WORD_REF  = "WORD_REF"
 	IF        = "もし"
 	THEN      = "ならば"
 	ELSE      = "違"
@@ -39,6 +40,7 @@ const (
 	REPEAT    = "回"
 	FOREACH   = "反復"
 	LET       = "代入"
+	LET_BEGIN = "LET_BEGIN"
 	EQ        = "="
 	PLUS      = "+"
 	MINUS     = "-"
@@ -114,4 +116,19 @@ func TokensToTypeString(tt Tokens, delimiter string) string {
 	}
 	s = strings.TrimSpace(s)
 	return s
+}
+
+// TokensAppend : トークンの末尾に追加
+func TokensAppend(tt Tokens, t *Token) Tokens {
+	tt2 := append(tt, t)
+	return tt2
+}
+
+// TonkensInsert : トークンの途中に追加
+func TokensInsert(tt Tokens, index int, t *Token) Tokens {
+	tt2 := append(
+		tt[:index],
+		append(Tokens{t},
+			tt[index:]...)...)
+	return tt2
 }
