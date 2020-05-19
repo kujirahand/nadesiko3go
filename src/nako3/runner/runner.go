@@ -31,14 +31,13 @@ func RuntimeError(msg string, n *node.Node) error {
 }
 
 func runNodeList(nodes node.NodeList) (*value.Value, error) {
-	// TODO: 最後のそれの値を結果とすること
 	var lastValue *value.Value = nil
 	for _, n := range nodes {
 		v, err := runNode(&n)
 		if err != nil {
 			return v, err
 		}
-		lastValue = v // nil でもそうでなくても最後の結果がそれ。
+		lastValue = v
 	}
 	return lastValue, nil
 }

@@ -52,7 +52,8 @@ sentences
   }
 
 sentence
-  : callfunc 
+  : callfunc
+  | expr end_sentence
   | end_sentence
 
 end_sentence
