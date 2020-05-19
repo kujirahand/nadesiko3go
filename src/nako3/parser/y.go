@@ -734,13 +734,13 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:119
 		{
-			yyVAL.node = node.NewNodeOperator("+", yyDollar[1].node, yyDollar[3].node)
+			yyVAL.node = node.NewNodeOperator(yyDollar[2].token, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 17:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:123
 		{
-			yyVAL.node = node.NewNodeOperator("-", yyDollar[1].node, yyDollar[3].node)
+			yyVAL.node = node.NewNodeOperator(yyDollar[2].token, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 18:
 		yyDollar = yyS[yypt-1 : yypt+1]
@@ -752,13 +752,13 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:133
 		{
-			yyVAL.node = node.NewNodeOperator("*", yyDollar[1].node, yyDollar[3].node)
+			yyVAL.node = node.NewNodeOperator(yyDollar[2].token, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 20:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser.y:137
 		{
-			yyVAL.node = node.NewNodeOperator("/", yyDollar[1].node, yyDollar[3].node)
+			yyVAL.node = node.NewNodeOperator(yyDollar[2].token, yyDollar[1].node, yyDollar[3].node)
 		}
 	case 21:
 		yyDollar = yyS[yypt-1 : yypt+1]

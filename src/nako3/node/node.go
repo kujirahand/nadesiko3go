@@ -109,6 +109,7 @@ func (n NodeConst) GetJosi() string             { return n.Josi }
 func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
 	node := NodeConst{
 		Value:    value.NewValue(vtype, t.Literal),
+		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
 	return node
@@ -128,11 +129,13 @@ func (n NodeOperator) GetType() NType              { return Operator }
 func (n NodeOperator) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeOperator) GetJosi() string             { return n.Josi }
 
-func NewNodeOperator(op string, left Node, right Node) NodeOperator {
+func NewNodeOperator(op *token.Token, left Node, right Node) NodeOperator {
 	p := NodeOperator{
 		Left:     left,
 		Right:    right,
-		Operator: op,
+		Operator: op.Literal,
+		Josi:     right.GetJosi(),
+		FileInfo: left.GetFileInfo(),
 	}
 	return p
 }

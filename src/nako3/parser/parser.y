@@ -117,11 +117,11 @@ expr
   }
 	| expr PLUS term
 	{
-		$$ = node.NewNodeOperator("+", $1, $3)
+		$$ = node.NewNodeOperator($2, $1, $3)
 	}
 	| expr MINUS term
 	{
-		$$ = node.NewNodeOperator("-", $1, $3)
+		$$ = node.NewNodeOperator($2, $1, $3)
 	}
 
 term
@@ -131,11 +131,11 @@ term
   }
   | term ASTERISK primary_expr
   {
-		$$ = node.NewNodeOperator("*", $1, $3)
+		$$ = node.NewNodeOperator($2, $1, $3)
   }
   | term SLASH primary_expr
   {
-		$$ = node.NewNodeOperator("/", $1, $3)
+		$$ = node.NewNodeOperator($2, $1, $3)
   }
 
 primary_expr

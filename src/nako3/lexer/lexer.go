@@ -48,10 +48,10 @@ func (p *Lexer) SetAutoHalf(v bool) {
 // Split : Split tokens
 func (p *Lexer) Split() token.Tokens {
 	tt := token.Tokens{}
-	for p.index < len(p.src) {
+	for p.isLive() {
 		t := p.getToken()
 		if t == nil {
-			break
+			continue
 		}
 		tt = append(tt, t)
 	}
@@ -275,6 +275,14 @@ func (p *Lexer) GetStringToRune(endRune rune) string {
 	s := ""
 	for p.isLive() {
 		c := p.peekRaw()
+		if c == '\n' {
+			p.move(1)
+			p.line++
+			if endRune == c {
+				break
+			}
+			continue
+		}
 		if c == endRune {
 			p.move(1)
 			break
@@ -290,6 +298,13 @@ func (p *Lexer) GetStringToRunes(endRunes []rune) string {
 	s := ""
 	for p.isLive() {
 		c := p.peekRaw()
+		if c == '\n' {
+			p.move(1)
+			p.line++
+			if HasRune(endRunes, c) {
+				break
+			}
+		}
 		if HasRune(endRunes, c) {
 			p.move(1)
 			break
