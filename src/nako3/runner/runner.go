@@ -65,8 +65,26 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runCallFunc(n)
 	case node.Word:
 		return runWord(n)
+	case node.Let:
+		return runLet(n)
 	}
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runLet(n *node.Node) (*value.Value, error) {
+	cl := (*n).(node.NodeLet)
+	// 変数に代入する値を評価する
+	val, err := runNode(&cl.Value)
+	if err != nil {
+		return nil, err
+	}
+	// 普通に変数に代入する場合
+	if len(cl.VarIndex) == 0 {
+		sys.Globals.Set(cl.Var, val)
+		return val, nil
+	}
+	// TODO: 配列など参照に代入する場合
+	panic("開発中")
 }
 
 func runWord(n *node.Node) (*value.Value, error) {

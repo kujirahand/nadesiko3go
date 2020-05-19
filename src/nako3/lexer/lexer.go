@@ -55,17 +55,29 @@ func (p *Lexer) Split() token.Tokens {
 			continue
 		}
 		// 連文に対処
-		if p.renbunJosi[t.Josi] == true {
+		if t.Josi != "" {
+			if p.renbunJosi[t.Josi] == true {
+				tt = append(tt, t)
+				tt = append(tt, NewToken(p, token.EOS))
+				continue
+			}
+		}
+		// WORDは → WORD EQ
+		if t.Type == token.WORD && t.Josi == "は" {
+			t.Josi = ""
 			tt = append(tt, t)
-			tt = append(tt, NewToken(p, token.EOS))
+			tt = append(tt, NewToken(p, token.EQ))
 			continue
 		}
+		// その他、普通に追加
 		tt = append(tt, t)
 	}
 	// 最後にEOSを足す
 	tt = append(tt, NewToken(p, token.EOS))
+
 	// goyaccで文法エラー起こさないためにマーカーを入れる
 	tt = p.formatTokenList(tt)
+
 	return tt
 }
 

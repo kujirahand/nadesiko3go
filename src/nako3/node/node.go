@@ -110,7 +110,7 @@ type NodeLet struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeLet) GetType() NType              { return Calc }
+func (n NodeLet) GetType() NType              { return Let }
 func (n NodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeLet) GetJosi() string             { return n.Josi }
 
@@ -272,6 +272,12 @@ func NodeToString(n Node, level int) string {
 	case Calc:
 		nc := n.(NodeCalc)
 		ss += NodeToString(nc.Child, level+1) + "\n"
+	case Let:
+		nl := n.(NodeLet)
+		s += ":" + nl.Var
+		ss += NodeToString(nl.Value, level+1) + "\n"
+	default:
+		s += " *"
 	}
 	if ss != "" {
 		s += "\n" + strings.TrimRight(ss, " \t\n")

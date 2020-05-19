@@ -2,7 +2,7 @@
 cd parser
 cnako3 extract_token.nako3
 echo "--- parse ---"
-goyacc parser_generated.y
+goyacc _parser_generated.y
 echo "--- build ---"
 go build y.go
 cd ..
