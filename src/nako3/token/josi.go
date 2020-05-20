@@ -1,4 +1,4 @@
-package lexer
+package token
 
 // Josi : 助詞一覧
 var Josi = []string{

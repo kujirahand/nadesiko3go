@@ -30,7 +30,7 @@ func NewLexer(source string, fileNo int) *Lexer {
 	p.autoHalf = true
 	// 連文に使う助詞を初期化
 	p.renbunJosi = map[string]bool{}
-	for _, josi := range JosiRenbun {
+	for _, josi := range token.JosiRenbun {
 		p.renbunJosi[josi] = true
 	}
 	return &p
@@ -50,6 +50,7 @@ func NewToken(lexer *Lexer, ttype token.TType) *token.Token {
 
 // Split : Split tokens
 func (p *Lexer) Split() token.Tokens {
+	var lastToken *token.Token = nil
 	tt := token.Tokens{}
 	for p.isLive() {
 		t := p.GetToken()
@@ -68,15 +69,34 @@ func (p *Lexer) Split() token.Tokens {
 				continue
 			}
 		}
-		// WORDは → WORD EQ
-		if t.Type == token.WORD && t.Josi == "は" {
-			t.Josi = ""
-			tt = append(tt, t)
-			tt = append(tt, NewToken(p, token.EQ))
-			continue
+		if t.Type == token.WORD {
+			// WORDは → WORD EQ
+			if t.Josi == "は" {
+				t.Josi = ""
+				tt = append(tt, t)
+				tt = append(tt, NewToken(p, token.EQ))
+				continue
+			}
+			// ここまで
+			if t.Literal == "ここ" {
+				if t.Josi == "まで" {
+					t.Type = token.END
+				} else if t.Josi == "から" {
+					t.Type = token.BEGIN
+				}
+			}
+		}
+		// 行頭のコメント`だけ`トークンに追加
+		// その他のコメントは構文解析を邪魔するので。
+		// TODO: 将来的に DocTest などに使う
+		if t.Type == token.COMMENT {
+			if lastToken != nil && lastToken.Type != token.LF {
+				continue
+			}
 		}
 		// その他、普通に追加
 		tt = append(tt, t)
+		lastToken = t
 	}
 	// 最後にEOSを足す
 	tt = append(tt, NewToken(p, token.EOS))
@@ -110,7 +130,7 @@ func (p *Lexer) GetToken() *token.Token {
 		return p.getNumber()
 	}
 	// word
-	if IsLetter(c) || c == '_' || IsWordRune(c) {
+	if IsWordRune(c) {
 		return p.getWord()
 	}
 
@@ -193,6 +213,15 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		p.move(1)
 		return NewToken(p, token.ASTERISK)
 	case '/':
+		// comment
+		ch2 := p.peekStr(2)
+		if ch2 == "//" {
+			p.move(2)
+			return p.getLineComment()
+		} else if ch2 == "/*" {
+			p.move(2)
+			return p.getRangeComment()
+		}
 		p.move(1)
 		return NewToken(p, token.SLASH)
 	case '%':
@@ -291,6 +320,7 @@ func (p *Lexer) skipSpaceN() {
 		c := p.peek()
 		if c == ' ' || c == '\t' || c == '\r' || c == ',' {
 			p.move(1)
+			continue
 		}
 		break
 	}
@@ -398,6 +428,31 @@ func (p *Lexer) GetStringToRunes(endRunes []rune) string {
 	return s
 }
 
+func (p *Lexer) getLineComment() *token.Token {
+	t := NewToken(p, token.COMMENT)
+	s := p.GetStringToRune('\n')
+	t.Literal = s
+	p.line++
+	return t
+}
+
+func (p *Lexer) getRangeComment() *token.Token {
+	t := NewToken(p, token.COMMENT)
+	s := ""
+	for p.isLive() {
+		if p.peekStr(2) == "*/" {
+			p.move(2)
+			break
+		}
+		if p.peek() == '\n' {
+			p.line++
+		}
+		s += string(p.next())
+	}
+	t.Literal = strings.TrimSpace(s)
+	return t
+}
+
 func (p *Lexer) getString(endRune rune) *token.Token {
 	t := NewToken(p, token.STRING)
 	t.Literal = p.GetStringToRune(endRune)
@@ -450,6 +505,20 @@ func (p *Lexer) getStringEx(endRune rune) *token.Token {
 // getWord : 単語を得る
 func (p *Lexer) getWord() *token.Token {
 	t := NewToken(p, token.WORD)
+
+	// 予約語を確認
+	for _, rt := range token.ReservedToken {
+		rtlen := Length(rt)
+		if p.peekStr(rtlen) == rt {
+			p.move(rtlen)
+			t.Literal = rt
+			t.Josi = p.getJosi(true)
+			t.Type = token.ReplaceWordToken(t.Literal)
+			return t
+		}
+	}
+
+	// 一文字ずつ確認
 	s := ""
 	s += string(p.next())
 	for p.isLive() {
@@ -465,16 +534,18 @@ func (p *Lexer) getWord() *token.Token {
 		}
 
 		// word ...
-		if IsLetter(c) || c == '_' || IsWordRune(c) {
+		if IsWordRune(c) {
 			s += string(c)
 			p.move(1)
 			continue
 		}
 		break
 	}
+	t.Literal = s
+
 	// 送り仮名を省略
-	t.Literal = DeleteOkurigana(s)
-	// 特定トークンに置換
+	t.Literal = DeleteOkurigana(t.Literal)
+	// replace
 	t.Type = token.ReplaceWordToken(t.Literal)
 	return t
 }
@@ -540,7 +611,7 @@ func (p *Lexer) getNumber() *token.Token {
 }
 
 func (p *Lexer) getJosi(moveCur bool) string {
-	for _, j := range Josi {
+	for _, j := range token.Josi {
 		jLen := utf8.RuneCountInString(j)
 		if p.peekStr(jLen) == j {
 			if moveCur {

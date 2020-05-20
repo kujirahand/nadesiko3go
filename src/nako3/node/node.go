@@ -68,6 +68,7 @@ func NewNodeList() NodeList {
 // NodeNop : NOP
 type NodeNop struct {
 	Node
+	Comment  string
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -78,6 +79,7 @@ func (n NodeNop) GetJosi() string             { return n.Josi }
 
 func NewNodeNop(t *token.Token) Node {
 	n := NodeNop{
+		Comment:  t.Literal,
 		FileInfo: t.FileInfo,
 		Josi:     t.Josi,
 	}
@@ -278,9 +280,15 @@ func NodeToString(n Node, level int) string {
 	for i := 0; i < level; i++ {
 		indent += "|-"
 	}
-	s := nodeTypeNames[n.GetType()] + "(" + n.GetJosi() + ")"
+	s := fmt.Sprintf("%03d: %s {%s}",
+		n.GetFileInfo().Line,
+		nodeTypeNames[n.GetType()],
+		n.GetJosi())
 	ss := ""
 	switch n.GetType() {
+	case Nop:
+		np := n.(NodeNop)
+		s += " // " + np.Comment
 	case Const:
 		cv := n.(NodeConst).Value
 		s += "(" + cv.ToString() + ")"

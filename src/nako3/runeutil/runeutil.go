@@ -108,3 +108,9 @@ func HasRune(runes []rune, c rune) bool {
 	}
 	return false
 }
+
+// Length : Count String Length
+func Length(s string) int {
+	r := []rune(s)
+	return len(r)
+}

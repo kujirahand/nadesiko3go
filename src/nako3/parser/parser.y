@@ -56,6 +56,10 @@ sentence
   | expr end_sentence
   | let_stmt end_sentence
   | if_stmt end_sentence
+  | COMMENT
+  {
+    $$ = node.NewNodeNop($1)
+  }
 
 end_sentence
   : EOS
@@ -297,6 +301,9 @@ func (l *Lexer) Error(e string) {
 // 構文解析を実行する
 func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 	l := NewLexerWrap(sys, src, fno)
+	if sys.IsDebug {
+		yyDebug = 1
+	}
 	yyParse(l)
   if haltError != nil {
     return nil, haltError

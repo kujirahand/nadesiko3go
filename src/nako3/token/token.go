@@ -21,6 +21,7 @@ type Tokens []*Token
 
 const (
 	//__BEGIN_TOKEN__
+	COMMENT   = "COMMENT"
 	FUNC      = "FUNC"
 	EOF       = "EOF"
 	LF        = "LF"
@@ -37,10 +38,23 @@ const (
 	BEGIN     = "ここから"
 	END       = "ここまで"
 	FOR       = "繰返"
-	REPEAT    = "回"
+	KAI       = "回"
+	AIDA      = "間"
+	SAKINI    = "先"
+	TUGINI    = "次"
 	FOREACH   = "反復"
+	BREAK     = "抜"
+	CONTINUE  = "続"
+	RETURN    = "戻"
+	TIKUJI    = "逐次実行"
 	LET       = "代入"
+	HENSU     = "変数"
+	TEISU     = "定数"
+	INCLUDE   = "取込"
 	LET_BEGIN = "LET_BEGIN"
+	ERROR_TRY = "エラー監視"
+	ERROR     = "エラー"
+	DEF_FUNC  = "関数"
 	EQ        = "="
 	PLUS      = "+"
 	MINUS     = "-"
@@ -71,14 +85,14 @@ var wordTokens = map[string]TType{
 	"ここから": BEGIN,
 	"繰返":   FOR,
 	"反復":   FOREACH,
-	"回":    REPEAT,
+	"回":    KAI,
 	"代入":   LET,
 	"入":    LET,
 }
 
 // ReplaceWordToken : WORDを特定のトークンに置換
 func ReplaceWordToken(lit string) TType {
-	tok := wordTokens[lit]
+	tok := ReservedWord[lit]
 	if tok == "" {
 		return WORD
 	}
