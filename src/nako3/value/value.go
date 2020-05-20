@@ -12,6 +12,7 @@ const (
 	Int
 	Float
 	Str
+	Bool
 	Array
 	Hash
 	Function
@@ -39,6 +40,10 @@ func NewValueFloat(v float64) Value {
 func NewValueStr(v string) Value {
 	return Value{Type: Str, Value: v}
 }
+func NewValueBool(v bool) Value {
+	return Value{Type: Bool, Value: v}
+}
+
 func NewValueFunc(v ValueFunc) Value {
 	return Value{Type: Function, Value: v}
 }
@@ -62,6 +67,11 @@ func NewValue(vtype ValueType, s string) Value {
 		return NewValueFloat(StrToFloat(s))
 	case Str:
 		return NewValueStr(s)
+	case Bool:
+		if s == "" {
+			return NewValueBool(false)
+		}
+		return NewValueBool(true)
 	default:
 		return Value{Type: vtype, Value: s}
 	}
@@ -75,6 +85,10 @@ func (v *Value) ToInt() int64 {
 		return int64(v.Value.(float64))
 	case Str:
 		return StrToInt(v.Value.(string))
+	case Bool:
+		if v.Value.(bool) {
+			return 1
+		}
 	}
 	return 0
 }
@@ -87,6 +101,10 @@ func (v *Value) ToFloat() float64 {
 		return v.Value.(float64)
 	case Str:
 		return StrToFloat(v.Value.(string))
+	case Bool:
+		if v.Value.(bool) {
+			return 1
+		}
 	}
 	return 0
 }
@@ -116,6 +134,11 @@ func (v *Value) ToString() string {
 		return FloatToStr(v.Value.(float64))
 	case Str:
 		return v.Value.(string)
+	case Bool:
+		if true {
+			return "真"
+		}
+		return "偽"
 	}
 	return ""
 }
@@ -195,4 +218,106 @@ func Mod(l, r *Value) Value {
 		return NewValueFloat(math.Mod(l.ToFloat(), r.ToFloat()))
 	}
 	return NewValueNull()
+}
+
+// EqEq
+func EqEq(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() == r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() == r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() == r.ToInt())
+	}
+	return NewValueBool(false)
+}
+
+// Nteq
+func NtEq(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() != r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() != r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() != r.ToInt())
+	}
+	return NewValueBool(false)
+}
+
+// Gt
+func Gt(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() > r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() > r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() > r.ToInt())
+	}
+	return NewValueBool(false)
+}
+
+// GtEq
+func GtEq(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() >= r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() >= r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() >= r.ToInt())
+	}
+	return NewValueBool(false)
+}
+
+// Lt
+func Lt(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() < r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() < r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() < r.ToInt())
+	}
+	return NewValueBool(false)
+}
+
+// LtEq
+func LtEq(l, r *Value) Value {
+	// どちらかが文字列同士の計算
+	if l.Type == Str || r.Type == Str {
+		return NewValueBool(l.ToString() <= r.ToString())
+	}
+	// どちらかがFloatの計算
+	if l.Type == Float || r.Type == Float {
+		return NewValueBool(l.ToFloat() <= r.ToFloat())
+	}
+	// どちらかがIntの計算
+	if l.Type == Int || r.Type == Int {
+		return NewValueBool(l.ToInt() <= r.ToInt())
+	}
+	return NewValueBool(false)
 }

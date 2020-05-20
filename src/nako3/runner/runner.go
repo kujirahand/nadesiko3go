@@ -81,6 +81,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 	// 普通に変数に代入する場合
 	if len(cl.VarIndex) == 0 {
 		sys.Globals.Set(cl.Var, val)
+		sys.Sore = *val
 		return val, nil
 	}
 	// TODO: 配列など参照に代入する場合
@@ -210,6 +211,18 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		v = value.Div(l, r)
 	case "%":
 		v = value.Mod(l, r)
+	case "==":
+		v = value.EqEq(l, r)
+	case "!=":
+		v = value.NtEq(l, r)
+	case ">":
+		v = value.Gt(l, r)
+	case ">=":
+		v = value.GtEq(l, r)
+	case "<":
+		v = value.Lt(l, r)
+	case "<=":
+		v = value.LtEq(l, r)
 	default:
 		return nil, RuntimeError("(システム)未定義の演算子。", n)
 	}

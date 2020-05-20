@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"nako3/core"
 	"nako3/token"
 	"nako3/value"
@@ -29,6 +30,8 @@ const (
 	Calc
 	// Let : 代入文
 	Let
+	// If : もし
+	If
 )
 
 var nodeTypeNames = map[NType]string{
@@ -40,6 +43,8 @@ var nodeTypeNames = map[NType]string{
 	Word:         "Word",
 	CallFunc:     "CallFunc",
 	Calc:         "Calc",
+	Let:          "Let",
+	If:           "If",
 }
 
 // Node : Node Interface
@@ -240,6 +245,31 @@ func NewNodeWord(t *token.Token) NodeWord {
 	return node
 }
 
+// NodeIf : もし
+type NodeIf struct {
+	Node
+	Expr      Node
+	TrueNode  Node
+	FalseNode Node
+	Josi      string
+	FileInfo  core.TFileInfo
+}
+
+func (n NodeIf) GetType() NType              { return If }
+func (n NodeIf) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeIf) GetJosi() string             { return n.Josi }
+
+func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
+	node := NodeIf{
+		Expr:      nExpr,
+		TrueNode:  nTrue,
+		FalseNode: nFalse,
+		Josi:      t.Josi,
+		FileInfo:  t.FileInfo,
+	}
+	return node
+}
+
 // ---
 
 // NodeToString : Nodeの値をデバッグ用に出力する
@@ -274,7 +304,13 @@ func NodeToString(n Node, level int) string {
 		ss += NodeToString(nc.Child, level+1) + "\n"
 	case Let:
 		nl := n.(NodeLet)
-		s += ":" + nl.Var
+		s += " " + nl.Var
+		if len(nl.VarIndex) > 0 {
+			s += fmt.Sprintf("[]*%d", len(nl.VarIndex))
+			for _, v := range nl.VarIndex {
+				ss += NodeToString(v, level+1)
+			}
+		}
 		ss += NodeToString(nl.Value, level+1) + "\n"
 	default:
 		s += " *"

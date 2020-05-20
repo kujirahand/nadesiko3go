@@ -23,7 +23,8 @@ import (
 }
 
 %type<node> program sentences sentence end_sentence callfunc args 
-%type<node> expr value term primary_expr let varindex
+%type<node> expr value comp factor term primary_expr 
+%type<node> let_stmt varindex if_stmt if_comp
 %token<token> __TOKENS_LIST__
 
 %%
@@ -53,7 +54,8 @@ sentence
   : end_sentence
   | callfunc end_sentence
   | expr end_sentence
-  | let end_sentence
+  | let_stmt end_sentence
+  | if_stmt end_sentence
 
 end_sentence
   : EOS
@@ -65,7 +67,7 @@ end_sentence
     $$ = node.NewNodeNop($1)
   }
 
-let
+let_stmt
   : WORD EQ expr
   {
     $$ = node.NewNodeLet($1, node.NewNodeList(), $3)
@@ -78,6 +80,10 @@ let
   | LET_BEGIN WORD_REF expr LET
   {
     $$ = node.NewNodeLet($2, node.NewNodeList(), $3)
+  }
+  | LET_BEGIN expr WORD_REF LET
+  {
+    $$ = node.NewNodeLet($3, node.NewNodeList(), $2)
   }
 
 varindex
@@ -142,12 +148,42 @@ value
   }
 
 expr
+  : comp
+
+comp
+  : factor
+  | comp EQEQ factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | comp NTEQ factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | comp GT factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | comp GTEQ factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | comp LT factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | comp LTEQ factor
+  {
+		$$ = node.NewNodeOperator($2, $1, $3)
+  }
+
+factor
   : term
-	| expr PLUS term
+	| factor PLUS term
 	{
 		$$ = node.NewNodeOperator($2, $1, $3)
 	}
-	| expr MINUS term
+	| factor MINUS term
 	{
 		$$ = node.NewNodeOperator($2, $1, $3)
 	}
@@ -173,6 +209,29 @@ primary_expr
   {
     $$ = node.NewNodeCalc($3, $2)
   }
+
+if_stmt
+  : IF if_comp THEN sentence
+  {
+    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
+  }
+  | IF if_comp THEN sentence ELSE sentence
+  {
+    $$ = node.NewNodeIf($1, $2, $4, $6)
+  }
+  /*
+  | IF expr THEN LF block END
+  {
+    $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
+  }
+  | IF expr THEN LF block ELSE LF block END
+  {
+    $$ = node.NewNodeIf($1, $2, $5, $8)
+  }
+  */
+
+if_comp
+  : expr 
 
 %%
 

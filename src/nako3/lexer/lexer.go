@@ -4,6 +4,7 @@ import (
 	"nako3/core"
 	"nako3/token"
 	"nako3/zenhan"
+	. "nako3/runeutil"
 	"strings"
 	"unicode/utf8"
 )
@@ -441,6 +442,7 @@ func (p *Lexer) getStringEx(endRune rune) *token.Token {
 	return t
 }
 
+// getWord : 単語を得る
 func (p *Lexer) getWord() *token.Token {
 	t := NewToken(p, token.WORD)
 	s := ""
@@ -449,7 +451,7 @@ func (p *Lexer) getWord() *token.Token {
 		c := p.peek()
 
 		// check Josi
-		if IsHira(c) {
+		if IsHiragana(c) {
 			josi := p.getJosi(true)
 			if josi != "" {
 				t.Josi = josi
@@ -479,11 +481,11 @@ func DeleteOkurigana(s string) string {
 	}
 	// ひらがなから始まる単語
 	ss := []rune(s)
-	if IsHira(ss[0]) {
+	if IsHiragana(ss[0]) {
 		// (ex) すごく青い → すごく青
 		stat := 0
 		for j, c := range ss {
-			bHira := IsHira(c)
+			bHira := IsHiragana(c)
 			switch stat {
 			case 0:
 				if bHira { // すごく
@@ -499,7 +501,7 @@ func DeleteOkurigana(s string) string {
 			case 2:
 				return string(ss[0:j])
 			}
-			if IsHira(c) {
+			if IsHiragana(c) {
 				stat++
 			}
 		}
@@ -508,7 +510,7 @@ func DeleteOkurigana(s string) string {
 	// 漢字カタカナのみ取り出す
 	for i, c := range ss {
 		c = ss[i]
-		if IsHira(rune(c)) {
+		if IsHiragana(rune(c)) {
 			return string(ss[0:i])
 		}
 	}
@@ -543,52 +545,4 @@ func (p *Lexer) getJosi(moveCur bool) string {
 		}
 	}
 	return ""
-}
-
-// IsLower : Is rune lower case?
-func IsLower(c rune) bool {
-	return rune('a') <= c && c <= rune('z')
-}
-
-// IsUpper : Is rune upper case?
-func IsUpper(c rune) bool {
-	return rune('A') <= c && c <= rune('Z')
-}
-
-// IsLetter : Is rune alphabet
-func IsLetter(c rune) bool {
-	return IsLower(c) || IsUpper(c)
-}
-
-// IsDigit : Is rune Digit?
-func IsDigit(c rune) bool {
-	return rune('0') <= c && c <= rune('9')
-}
-
-// IsFlag : Is rune Flag?
-func IsFlag(c rune) bool {
-	return rune(0x21) <= c && c <= rune(0x2F) ||
-		rune(0x3A) <= c && c <= rune(0x40) ||
-		rune(0x5B) <= c && c <= rune(0x60) ||
-		rune(0x7B) <= c && c <= rune(0x7E)
-}
-
-// IsMultibytes : Is rune multibytes?
-func IsMultibytes(c rune) bool {
-	return (c > 0xFF)
-}
-
-// IsHira : Is rune Hiragana?
-func IsHira(c rune) bool {
-	return ('ぁ' <= c && c <= 'ん')
-}
-
-// HasRune : Has rune in runes?
-func HasRune(runes []rune, c rune) bool {
-	for _, v := range runes {
-		if v == c {
-			return true
-		}
-	}
-	return false
 }
