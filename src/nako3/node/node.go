@@ -289,6 +289,9 @@ func NodeToString(n Node, level int) string {
 	case Nop:
 		np := n.(NodeNop)
 		s += " // " + np.Comment
+	case Word:
+		nw := n.(NodeWord)
+		s += nw.Name
 	case Const:
 		cv := n.(NodeConst).Value
 		s += "(" + cv.ToString() + ")"
