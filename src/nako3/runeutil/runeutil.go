@@ -35,9 +35,25 @@ func IsFlag(c rune) bool {
 
 // IsWordRune : Is rune WORD token ?
 func IsWordRune(c rune) bool {
-	return c == '_' || IsLetter(c) ||
-		IsHiragana(c) || IsKatakana(c) ||
-		IsKanji(c)
+	return c == '_' ||
+		IsLetter(c) ||
+		IsHiragana(c) ||
+		IsKatakana(c) ||
+		IsKanji(c) ||
+		IsEmoji(c)
+}
+
+// IsGreek : Is rune Greek ?
+func IsGreek(c rune) bool {
+	return InRange(c, 0x0370, 0x03FF) || // Greek
+		InRange(c, 0x1F00, 0x1FFF) || // Greek Extended
+		InRange(c, 0x10140, 0x1018F) // Ancient Greek Numbers
+}
+
+// IsLatin : Is rune Latine ?
+func IsLatin(c rune) bool {
+	return InRange(c, 0x80, 0xFF) || // Latin-1
+		InRange(c, 0x0100, 0x024F) // Latin Extend-A/B
 }
 
 // IsKanji : Is rune Kanji ?

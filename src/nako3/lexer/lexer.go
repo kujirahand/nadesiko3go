@@ -2,9 +2,9 @@ package lexer
 
 import (
 	"nako3/core"
+	. "nako3/runeutil"
 	"nako3/token"
 	"nako3/zenhan"
-	. "nako3/runeutil"
 	"strings"
 	"unicode/utf8"
 )
@@ -460,7 +460,7 @@ func (p *Lexer) getWord() *token.Token {
 		}
 
 		// word ...
-		if IsLetter(c) || c == '_' || IsMultibytes(c) {
+		if IsLetter(c) || c == '_' || IsWordRune(c) {
 			s += string(c)
 			p.move(1)
 			continue
