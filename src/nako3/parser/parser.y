@@ -24,7 +24,7 @@ import (
 
 %type<node> program sentences sentence end_sentence callfunc args 
 %type<node> expr value comp factor term primary_expr 
-%type<node> let_stmt varindex if_stmt if_comp
+%type<node> let_stmt varindex if_stmt if_comp block
 %token<token> __TOKENS_LIST__
 
 %%
@@ -219,19 +219,20 @@ if_stmt
   {
     $$ = node.NewNodeIf($1, $2, $4, $6)
   }
-  /*
-  | IF expr THEN LF block END
+  | IF if_comp THEN LF block END
   {
     $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
   }
-  | IF expr THEN LF block ELSE LF block END
+  | IF if_comp THEN LF block ELSE LF block END
   {
     $$ = node.NewNodeIf($1, $2, $5, $8)
   }
-  */
 
 if_comp
   : expr 
+
+block
+  : sentences 
 
 %%
 

@@ -67,8 +67,27 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runWord(n)
 	case node.Let:
 		return runLet(n)
+	case node.If:
+		return runIf(n)
 	}
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runIf(n *node.Node) (*value.Value, error) {
+	ni := (*n).(node.NodeIf)
+	// 条件を評価
+	expr, err := runNode(&ni.Expr)
+	if err != nil {
+		return nil, RuntimeError("『もし』構文の条件式でエラー。", n)
+	}
+	if expr == nil {
+		return runNode(&ni.FalseNode)
+	}
+	if expr.ToBool() {
+		return runNode(&ni.TrueNode)
+	} else {
+		return runNode(&ni.FalseNode)
+	}
 }
 
 func runLet(n *node.Node) (*value.Value, error) {

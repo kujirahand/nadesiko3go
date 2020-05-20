@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"fmt"
 	"nako3/core"
 	. "nako3/runeutil"
 	"nako3/token"
@@ -53,6 +54,10 @@ func (p *Lexer) Split() token.Tokens {
 	for p.isLive() {
 		t := p.GetToken()
 		if t == nil {
+			if core.GetSystem().IsDebug {
+				c := p.next()
+				fmt.Printf("[警告] (%d) 不明な文字[%c:%d]\n", p.line, c, c)
+			}
 			continue
 		}
 		// 連文に対処
@@ -105,7 +110,7 @@ func (p *Lexer) GetToken() *token.Token {
 		return p.getNumber()
 	}
 	// word
-	if IsLetter(c) || c == '_' || IsMultibytes(c) {
+	if IsLetter(c) || c == '_' || IsWordRune(c) {
 		return p.getWord()
 	}
 

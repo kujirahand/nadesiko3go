@@ -84,7 +84,7 @@ func runEvalCode(sys *core.Core) {
 
 func outputResult(ret *value.Value, err error) {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 	}
 	if ret != nil {
 		println(ret.ToString())

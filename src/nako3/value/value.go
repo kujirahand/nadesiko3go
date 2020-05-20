@@ -77,6 +77,23 @@ func NewValue(vtype ValueType, s string) Value {
 	}
 }
 
+func (v *Value) ToBool() bool {
+	switch v.Type {
+	case Int:
+		i := v.Value.(int64)
+		return (i != 0)
+	case Float:
+		i := int64(v.Value.(float64))
+		return (i != 0)
+	case Str:
+		s := v.Value.(string)
+		return (s != "")
+	case Bool:
+		return v.Value.(bool)
+	}
+	return false
+}
+
 func (v *Value) ToInt() int64 {
 	switch v.Type {
 	case Int:

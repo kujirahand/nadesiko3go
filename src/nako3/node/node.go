@@ -312,6 +312,11 @@ func NodeToString(n Node, level int) string {
 			}
 		}
 		ss += NodeToString(nl.Value, level+1) + "\n"
+	case If:
+		ni := n.(NodeIf)
+		ss += NodeToString(ni.Expr, level+1) + "\n"
+		ss += NodeToString(ni.TrueNode, level+1) + "\n"
+		ss += NodeToString(ni.FalseNode, level+1) + "\n"
 	default:
 		s += " *"
 	}
