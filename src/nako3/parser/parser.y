@@ -23,8 +23,9 @@ import (
 }
 
 %type<node> program sentences sentence end_sentence callfunc args 
-%type<node> expr value comp factor term primary_expr 
+%type<node> expr value comp factor term primary_expr
 %type<node> let_stmt varindex if_stmt if_comp block repeat_stmt
+%type<node> for_stmt 
 %token<token> __TOKENS_LIST__
 
 %%
@@ -57,6 +58,7 @@ sentence
   | let_stmt end_sentence
   | if_stmt end_sentence
   | repeat_stmt end_sentence
+  | for_stmt end_sentence
   | COMMENT
   {
     $$ = node.NewNodeNop($1)
@@ -244,6 +246,16 @@ repeat_stmt
   {
     $$ = node.NewNodeRepeat($2, $1, $3)
   }
+  | expr KAI LF block END
+  {
+    $$ = node.NewNodeRepeat($2, $1, $4)
+  }
+
+for_stmt
+  : FOR_BEGIN expr expr FOR LF block END
+  {
+    $$ = $2 // TODO
+  }
 
 %%
 
@@ -264,6 +276,13 @@ func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
   lex.sys = sys
   lex.lexer = lexer.NewLexer(src, fileno)
   lex.tokens = lex.lexer.Split()
+  if sys.IsDebug {
+    println("[lexer.Split]")
+    for _, v := range lex.tokens {
+      print("" + v.ToString() + " ")
+    }
+    print("\n")
+  }
   lex.index = 0
   lex.result = nil
   return &lex

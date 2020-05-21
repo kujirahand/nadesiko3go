@@ -152,6 +152,12 @@ func (v *Value) SetBool(value bool) {
 	v.Value = value
 }
 
+func (v *Value) SetValue(value *Value) {
+	v.Type = value.Type
+	v.Value = value.Value
+	v.Tag = value.Tag
+}
+
 func IntToStr(i int64) string {
 	return strconv.FormatInt(i, 10)
 }

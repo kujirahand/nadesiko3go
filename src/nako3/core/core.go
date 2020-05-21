@@ -55,6 +55,7 @@ func NewCore() *Core {
 	c.Globals = value.NewValueHash()
 	c.Sore = value.NewValueNull()
 	c.Globals.Set("それ", &c.Sore)
+	c.Globals.Set("そう", &c.Sore) // Alias "それ"
 	c.JosiList = []DefArgs{}
 	return &c
 }

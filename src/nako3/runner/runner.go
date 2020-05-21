@@ -88,8 +88,6 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 	// 繰り返し
 	var lastValue *value.Value = nil
 	var errNode error = nil
-	sys.Sore = value.NewValueInt(0)
-	sys.Globals.Set("それ", &sys.Sore)
 	kaisu := expr.ToInt()
 	for i := 0; i < int(kaisu); i++ {
 		sys.Sore.SetInt(int64(i))
@@ -128,7 +126,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 	// 普通に変数に代入する場合
 	if len(cl.VarIndex) == 0 {
 		sys.Globals.Set(cl.Var, val)
-		sys.Sore = *val
+		sys.Sore.SetValue(val)
 		return val, nil
 	}
 	// TODO: 配列など参照に代入する場合
@@ -217,8 +215,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	result, err2 := funcV.Value.(value.ValueFunc)(args)
 	// 結果をそれに覚える
 	if result != nil {
-		sys.Sore = *result
-		sys.Globals.Set("それ", &sys.Sore)
+		sys.Sore.SetValue(result)
 	}
 	return result, err2
 }

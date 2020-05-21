@@ -37,6 +37,7 @@ const (
 	ELSE      = "違"
 	BEGIN     = "ここから"
 	END       = "ここまで"
+	FOR_BEGIN = "FOR_BEGIN"
 	FOR       = "繰返"
 	KAI       = "回"
 	AIDA      = "間"
