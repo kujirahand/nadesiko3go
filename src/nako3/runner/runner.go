@@ -69,8 +69,36 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runLet(n)
 	case node.If:
 		return runIf(n)
+	case node.Repeat:
+		return runRepeat(n)
 	}
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runRepeat(n *node.Node) (*value.Value, error) {
+	ni := (*n).(node.NodeRepeat)
+	// 回数を評価
+	expr, err := runNode(&ni.Expr)
+	if err != nil {
+		return nil, RuntimeError("『回』構文の式でエラー。", n)
+	}
+	if expr == nil {
+		return nil, nil
+	}
+	// 繰り返し
+	var lastValue *value.Value = nil
+	var errNode error = nil
+	sys.Sore = value.NewValueInt(0)
+	sys.Globals.Set("それ", &sys.Sore)
+	kaisu := expr.ToInt()
+	for i := 0; i < int(kaisu); i++ {
+		sys.Sore.SetInt(int64(i))
+		lastValue, errNode = runNode(&ni.Block)
+		if errNode != nil {
+			return nil, err
+		}
+	}
+	return lastValue, err
 }
 
 func runIf(n *node.Node) (*value.Value, error) {

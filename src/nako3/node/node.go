@@ -32,6 +32,8 @@ const (
 	Let
 	// If : もし
 	If
+	// Repeat : n回
+	Repeat
 )
 
 var nodeTypeNames = map[NType]string{
@@ -45,6 +47,7 @@ var nodeTypeNames = map[NType]string{
 	Calc:         "Calc",
 	Let:          "Let",
 	If:           "If",
+	Repeat:       "Repeat",
 }
 
 // Node : Node Interface
@@ -268,6 +271,29 @@ func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
 		FalseNode: nFalse,
 		Josi:      t.Josi,
 		FileInfo:  t.FileInfo,
+	}
+	return node
+}
+
+// NodeRepeat : 回
+type NodeRepeat struct {
+	Node
+	Expr     Node
+	Block    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeRepeat) GetType() NType              { return Repeat }
+func (n NodeRepeat) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeRepeat) GetJosi() string             { return n.Josi }
+
+func NewNodeRepeat(t *token.Token, nExpr, block Node) NodeRepeat {
+	node := NodeRepeat{
+		Expr:     nExpr,
+		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
 	}
 	return node
 }

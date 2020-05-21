@@ -43,7 +43,6 @@ func NewValueStr(v string) Value {
 func NewValueBool(v bool) Value {
 	return Value{Type: Bool, Value: v}
 }
-
 func NewValueFunc(v ValueFunc) Value {
 	return Value{Type: Function, Value: v}
 }
@@ -134,6 +133,23 @@ func (v *Value) IsNumber() bool {
 		return true
 	}
 	return false
+}
+
+func (v *Value) SetInt(value int64) {
+	v.Type = Int
+	v.Value = value
+}
+func (v *Value) SetFloat(value float64) {
+	v.Type = Float
+	v.Value = value
+}
+func (v *Value) SetStr(value string) {
+	v.Type = Str
+	v.Value = value
+}
+func (v *Value) SetBool(value bool) {
+	v.Type = Bool
+	v.Value = value
 }
 
 func IntToStr(i int64) string {

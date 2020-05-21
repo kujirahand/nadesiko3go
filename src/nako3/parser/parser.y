@@ -24,7 +24,7 @@ import (
 
 %type<node> program sentences sentence end_sentence callfunc args 
 %type<node> expr value comp factor term primary_expr 
-%type<node> let_stmt varindex if_stmt if_comp block
+%type<node> let_stmt varindex if_stmt if_comp block repeat_stmt
 %token<token> __TOKENS_LIST__
 
 %%
@@ -56,6 +56,7 @@ sentence
   | expr end_sentence
   | let_stmt end_sentence
   | if_stmt end_sentence
+  | repeat_stmt end_sentence
   | COMMENT
   {
     $$ = node.NewNodeNop($1)
@@ -237,6 +238,12 @@ if_comp
 
 block
   : sentences 
+
+repeat_stmt
+  : expr KAI sentence
+  {
+    $$ = node.NewNodeRepeat($2, $1, $3)
+  }
 
 %%
 
