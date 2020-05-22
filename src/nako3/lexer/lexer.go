@@ -70,9 +70,10 @@ func (p *Lexer) Split() token.Tokens {
 	for p.isLive() {
 		t := p.GetToken()
 		if t == nil {
+			c := p.next()
 			if core.GetSystem().IsDebug {
-				c := p.next()
-				fmt.Printf("[警告] (%d) 不明な文字[%c:%d]\n", p.line, c, c)
+				fmt.Printf(
+					"[警告] (%d) 不明な文字[%c:%d]\n", p.line, c, c)
 			}
 			continue
 		}
@@ -258,6 +259,9 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 	case '%':
 		p.move(1)
 		return NewToken(p, token.PERCENT)
+	case '^':
+		p.move(1)
+		return NewToken(p, token.CIRCUMFLEX)
 	// カッコ
 	case '(':
 		p.move(1)

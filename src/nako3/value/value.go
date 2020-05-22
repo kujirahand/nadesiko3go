@@ -271,6 +271,12 @@ func Mod(l, r *Value) Value {
 	return NewValueNull()
 }
 
+// Exp
+func Exp(l, r *Value) Value {
+	f := math.Pow(l.ToFloat(), r.ToFloat())
+	return NewValueFloat(f)
+}
+
 // EqEq
 func EqEq(l, r *Value) Value {
 	// どちらかが文字列同士の計算

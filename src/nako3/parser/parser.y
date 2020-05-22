@@ -24,7 +24,7 @@ import (
 }
 
 %type<node> program sentences sentence end_sentence callfunc args 
-%type<node> expr value comp factor term primary_expr and_or_expr
+%type<node> expr value comp factor term pri_expr high_expr and_or_expr
 %type<node> let_stmt varindex 
 %type<node> if_stmt if_comp then_block else_block block 
 %type<node> repeat_stmt
@@ -193,21 +193,28 @@ factor
   }
 
 term
-  : primary_expr
-  | term ASTERISK primary_expr
+  : pri_expr
+  | term ASTERISK pri_expr
   {
     $$ = node.NewNodeOperator($2, $1, $3)
   }
-  | term SLASH primary_expr
+  | term SLASH pri_expr
   {
     $$ = node.NewNodeOperator($2, $1, $3)
   }
-  | term PERCENT primary_expr
+  | term PERCENT pri_expr
   {
     $$ = node.NewNodeOperator($2, $1, $3)
   }
 
-primary_expr
+pri_expr
+  : high_expr
+  | pri_expr CIRCUMFLEX high_expr
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
+
+high_expr
   : value
   | LPAREN expr RPAREN
   {
@@ -352,11 +359,11 @@ func (l *Lexer) Error(e string) {
 // 構文解析を実行する
 func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 	l := NewLexerWrap(sys, src, fno)
-	if sys.IsDebug {
-		yyDebug = 1
-    yyErrorVerbose = true
-	}
+  
+  yyDebug = 1
+  yyErrorVerbose = true
 	yyParse(l)
+  
   if haltError != nil {
     return nil, haltError
   }

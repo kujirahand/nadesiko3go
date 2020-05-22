@@ -46,6 +46,7 @@ func runNode(n *node.Node) (*value.Value, error) {
 	if n == nil {
 		return nil, nil
 	}
+	// println(node.NodeToString(*n, 0))
 	switch (*n).GetType() {
 	case node.Nop:
 		return nil, nil
@@ -329,6 +330,8 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		v = value.Div(l, r)
 	case "%":
 		v = value.Mod(l, r)
+	case "^":
+		v = value.Exp(l, r)
 	case "==", "=":
 		v = value.EqEq(l, r)
 	case "!=":

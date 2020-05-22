@@ -73,6 +73,7 @@ const (
 	ASTERISK    = "*"
 	SLASH       = "/"
 	PERCENT     = "%"
+	CIRCUMFLEX  = "^"
 	EQEQ        = "=="
 	NTEQ        = "!="
 	GT          = ">"

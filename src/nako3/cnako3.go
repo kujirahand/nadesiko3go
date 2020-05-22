@@ -16,10 +16,10 @@ import (
 func main() {
 	// check arguments
 	if len(os.Args) < 2 {
-		println("# cnako3(go) ver." + core.NadesikoVersion)
+		println("# cnako3go ver." + core.NadesikoVersion)
 		println("[USAGE]")
-		println("  cnako3 -e \"source\"")
-		println("  cnako3 file.nako3")
+		println("  cnako3go -e \"source\"")
+		println("  cnako3go file.nako3")
 		println("[Options]")
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")
