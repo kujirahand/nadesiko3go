@@ -372,3 +372,23 @@ func LtEq(l, r *Value) Value {
 	}
 	return NewValueBool(false)
 }
+
+// And
+func And(l, r *Value) Value {
+	boolLeft := l.ToBool()
+	if boolLeft == false {
+		return NewValueBool(false)
+	}
+	boolRight := r.ToBool()
+	if boolRight == false {
+		return NewValueBool(false)
+	}
+	return NewValueBool(true)
+}
+
+// Or
+func Or(l, r *Value) Value {
+	boolLeft := l.ToBool()
+	boolRight := r.ToBool()
+	return NewValueBool(boolLeft || boolRight)
+}

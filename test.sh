@@ -10,6 +10,7 @@ $FMAKE
 
 # test
 $CNAKO $TEST_DIR/basic.nako3
+$CNAKO $TEST_DIR/fizzbuzz.nako3
 
 
 

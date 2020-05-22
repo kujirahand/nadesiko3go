@@ -284,7 +284,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		v = value.Div(l, r)
 	case "%":
 		v = value.Mod(l, r)
-	case "==":
+	case "==", "=":
 		v = value.EqEq(l, r)
 	case "!=":
 		v = value.NtEq(l, r)
@@ -296,8 +296,14 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		v = value.Lt(l, r)
 	case "<=":
 		v = value.LtEq(l, r)
+	case "かつ":
+		v = value.And(l, r)
+	case "または":
+		v = value.Or(l, r)
 	default:
-		return nil, RuntimeError("(システム)未定義の演算子。", n)
+		println("未定義:", op.Operator)
+		return nil, RuntimeError(
+			"(システム)未定義の演算子。"+op.Operator, n)
 	}
 	return &v, nil
 }

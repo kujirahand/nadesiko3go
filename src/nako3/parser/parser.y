@@ -14,6 +14,7 @@ import (
 	"nako3/lexer"
 	"nako3/token"
 	"fmt"
+  "strings"
 )
 %}
 
@@ -23,8 +24,10 @@ import (
 }
 
 %type<node> program sentences sentence end_sentence callfunc args 
-%type<node> expr value comp factor term primary_expr
-%type<node> let_stmt varindex if_stmt if_comp block repeat_stmt
+%type<node> expr value comp factor term primary_expr and_or_expr
+%type<node> let_stmt varindex 
+%type<node> if_stmt if_comp then_block else_block block 
+%type<node> repeat_stmt
 %type<node> for_stmt while_stmt
 %token<token> __TOKENS_LIST__
 
@@ -56,10 +59,10 @@ sentence
   | callfunc end_sentence
   | expr end_sentence
   | let_stmt end_sentence
-  | if_stmt end_sentence
-  | repeat_stmt end_sentence
-  | for_stmt end_sentence
-  | while_stmt end_sentence
+  | if_stmt 
+  | repeat_stmt 
+  | for_stmt 
+  | while_stmt 
   | COMMENT
   {
     $$ = node.NewNodeNop($1)
@@ -111,7 +114,7 @@ callfunc
   {
     $$ = node.NewNodeCallFunc($1)
   }
-  | args FUNC 
+  | args FUNC
   {
     n := node.NewNodeCallFunc($2)
     n.Args, _ = $1.(node.NodeList)
@@ -138,102 +141,106 @@ args
   }
 
 value
-	: NUMBER
-	{
-		$$ = node.NewNodeConst(value.Float, $1)
-	}
-  | STRING
-  {
-    $$ = node.NewNodeConst(value.Str, $1)
-  }
-  | STRING_EX
-  {
-    $$ = node.NewNodeConst(value.Str, $1)
-  }
-  | WORD
-  {
-    $$ = node.NewNodeWord($1)
-  }
+  : NUMBER    { $$ = node.NewNodeConst(value.Float, $1) }
+  | STRING    { $$ = node.NewNodeConst(value.Str, $1) }
+  | STRING_EX { $$ = node.NewNodeConst(value.Str, $1) }
+  | WORD      { $$ = node.NewNodeWord($1) }
 
 expr
+  : and_or_expr
+
+and_or_expr
   : comp
+  | and_or_expr AND comp
+  | and_or_expr OR comp
 
 comp
   : factor
   | comp EQEQ factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | comp NTEQ factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | comp GT factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | comp GTEQ factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | comp LT factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | comp LTEQ factor
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
 
 factor
   : term
-	| factor PLUS term
-	{
-		$$ = node.NewNodeOperator($2, $1, $3)
-	}
-	| factor MINUS term
-	{
-		$$ = node.NewNodeOperator($2, $1, $3)
-	}
+  | factor PLUS term
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | factor MINUS term
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
 
 term
   : primary_expr
   | term ASTERISK primary_expr
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
   | term SLASH primary_expr
   {
-		$$ = node.NewNodeOperator($2, $1, $3)
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
+  | term PERCENT primary_expr
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
   }
 
 primary_expr
   : value
-  | LPAREN callfunc RPAREN
-  {
-    $$ = node.NewNodeCalc($3, $2)
-  }
   | LPAREN expr RPAREN
   {
     $$ = node.NewNodeCalc($3, $2)
   }
 
 if_stmt
-  : IF if_comp THEN_SINGLE sentence
+  : IF if_comp then_block else_block
   {
-    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $3, $4)
   }
-  | IF if_comp THEN block END
+  | IF if_comp then_block
   {
-    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $3, node.NewNodeNop($1))
   }
-  | IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
+
+then_block
+  : THEN_SINGLE sentence 
   {
-    $$ = node.NewNodeIf($1, $2, $4, $6)
+    $$ = $2
   }
-  | IF if_comp THEN block ELSE block END
+  | THEN block END
   {
-    $$ = node.NewNodeIf($1, $2, $4, $6)
+    $$ = $2
+  }
+else_block
+  : ELSE_SINGLE sentence 
+  {
+    $$ = $2
+  }
+  | ELSE block END
+  {
+    $$ = $2
   }
 
 if_comp
@@ -297,10 +304,7 @@ func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
   lex.tokens = lex.lexer.Split()
   if sys.IsDebug {
     println("[lexer.Split]")
-    for _, v := range lex.tokens {
-      print("" + v.ToString() + " ")
-    }
-    print("\n")
+    println(token.TokensToStringDebug(lex.tokens))
   }
   lex.index = 0
   lex.result = nil
@@ -326,7 +330,8 @@ func (l *Lexer) Lex(lval *yySymType) int {
   }
   l.lastToken = t
   if l.sys.IsDebug {
-    println("- Lex:", t.ToString())
+    fmt.Printf("- Lex (%03d) %s\n",
+      t.FileInfo.Line, t.ToString())
   }
   return result
 }
@@ -334,9 +339,9 @@ func (l *Lexer) Lex(lval *yySymType) int {
 // エラーを報告する
 func (l *Lexer) Error(e string) {
   msg := e
-  if msg == "syntax error" {
-    msg = "文法エラー"
-  }
+  msg = strings.Replace(msg, "syntax error", "文法エラー", -1)
+  msg = strings.Replace(msg, "unexpected", "不正な語句:", -1)
+  msg = strings.Replace(msg, "expecting", "期待する語句:", -1)
   t := l.lastToken
   lineno := t.FileInfo.Line
   desc := t.ToString()
@@ -348,6 +353,7 @@ func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 	l := NewLexerWrap(sys, src, fno)
 	if sys.IsDebug {
 		yyDebug = 1
+    yyErrorVerbose = true
 	}
 	yyParse(l)
   if haltError != nil {

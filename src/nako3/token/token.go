@@ -1,6 +1,7 @@
 package token
 
 import (
+	"fmt"
 	"nako3/core"
 	"strings"
 )
@@ -27,25 +28,28 @@ const (
 	EOF         = "EOF"
 	LF          = "LF"
 	EOS         = "EOS"
+	EOS4ELSE    = "EOS(違えば)"
 	COMMA       = "COMMA"
 	NUMBER      = "NUMBER"
 	STRING      = "STRING"
 	STRING_EX   = "STRING_EX"
 	WORD        = "WORD"
 	WORD_REF    = "WORD_REF"
+	AND         = "かつ"
+	OR          = "または"
 	IF          = "もし"
 	THEN        = "ならば"
 	THEN_SINGLE = "ならば単文"
 	ELSE        = "違"
-	ELSE_SINGLE = "違:単文"
+	ELSE_SINGLE = "違(単文)"
 	BEGIN       = "ここから"
 	END         = "ここまで"
 	WHILE_BEGIN = "間:始点"
-	FOR_BEGIN   = "繰返:始点"
+	FOR_BEGIN   = "繰返(始点)"
 	FOR         = "繰返"
-	FOR_SINGLE  = "繰返:単文"
+	FOR_SINGLE  = "繰返(単文)"
 	KAI         = "回"
-	KAI_SINGLE  = "回:単文"
+	KAI_SINGLE  = "回(単文)"
 	AIDA        = "間"
 	SAKINI      = "先"
 	TUGINI      = "次"
@@ -58,7 +62,7 @@ const (
 	HENSU       = "変数"
 	TEISU       = "定数"
 	INCLUDE     = "取込"
-	LET_BEGIN   = "LET_BEGIN"
+	LET_BEGIN   = "代入(単文)"
 	ERROR_TRY   = "エラー監視"
 	ERROR       = "エラー"
 	DEF_FUNC    = "関数"
@@ -111,6 +115,27 @@ func TokensToString(tt Tokens, delimiter string) string {
 			value = "「" + value + "」"
 		}
 		s += value + v.Josi + delimiter
+	}
+	s = strings.TrimSpace(s)
+	return s
+}
+
+// TokensToStringDebug : デバッグ用にトークンを出力
+func TokensToStringDebug(tt Tokens) string {
+	s := ""
+	for _, v := range tt {
+		value := v.Literal
+		switch v.Type {
+		case STRING:
+			value = "'" + value + "'"
+		case STRING_EX:
+			value = "「" + value + "」"
+		}
+		typ := string(v.Type)
+		w := fmt.Sprintf(
+			"[%s:%s%s]",
+			typ, value, v.Josi)
+		s += strings.TrimSpace(w)
 	}
 	s = strings.TrimSpace(s)
 	return s

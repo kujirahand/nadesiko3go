@@ -79,6 +79,7 @@ func (p *Lexer) Split() token.Tokens {
 		// 連文に対処
 		if t.Josi != "" {
 			if p.renbunJosi[t.Josi] == true {
+				p.line = t.FileInfo.Line
 				tt = append(tt, t)
 				tt = append(tt, NewToken(p, token.EOS))
 				continue
@@ -88,8 +89,16 @@ func (p *Lexer) Split() token.Tokens {
 			// WORDは → WORD EQ
 			if t.Josi == "は" {
 				t.Josi = ""
+				p.line = t.FileInfo.Line
 				tt = append(tt, t)
 				tt = append(tt, NewToken(p, token.EQ))
+				continue
+			}
+		}
+		// EOS LF → LF
+		if t.Type == token.LF {
+			if p.lastTokenType() == token.EOS {
+				p.lastToken().Type = token.LF
 				continue
 			}
 		}
@@ -117,6 +126,10 @@ func (p *Lexer) Split() token.Tokens {
 		tt = append(tt, t)
 	}
 	// 最後にEOSを足す
+	lt := p.lastToken()
+	if lt != nil {
+		p.line = lt.FileInfo.Line
+	}
 	tt = append(tt, NewToken(p, token.EOS))
 
 	// goyaccで文法エラー起こさないためにマーカーを入れる
@@ -294,7 +307,7 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
 	// 同じく,FOR_BEGINを挿入
 	var t_word *token.Token = nil
-	i, mk := 0, 0
+	i, mk, mosi := 0, 0, false
 	nextType := func() token.TType {
 		if (i + 1) < len(tt) {
 			return tt[i+1].Type
@@ -305,34 +318,37 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 		t := tt[i]
 		switch t.Type {
 		case token.LF, token.EOS:
-			mk = i
+			mk = i + 1
 		case token.WORD:
 			if t.Josi == "に" || t.Josi == "へ" {
 				t_word = t
 			}
 		case token.LET:
+			p.line = t.FileInfo.Line
 			t_word.Type = token.WORD_REF
-			tt = token.TokensInsert(tt, mk+1,
+			tt = token.TokensInsert(tt, mk,
 				NewToken(p, token.LET_BEGIN))
 			i += 2
 			continue
 		case token.AIDA:
-			tt = token.TokensInsert(tt, mk+1,
+			p.line = t.FileInfo.Line
+			tt = token.TokensInsert(tt, mk,
 				NewToken(p, token.WHILE_BEGIN))
 			i += 2
 			continue
 		case token.FOR:
+			p.line = t.FileInfo.Line
 			if nextType() != token.LF {
 				t.Type = token.FOR_SINGLE
 			}
 			// 繰り返し変数が指定されている場合
-			t_ref := tt[mk+1]
+			t_ref := tt[mk]
 			if t_ref.Type == token.WORD &&
 				(t_ref.Josi == "を" || t_ref.Josi == "で") {
 				t_ref.Type = token.WORD_REF
 			}
 			// マーカーを挿入
-			tt = token.TokensInsert(tt, mk+1,
+			tt = token.TokensInsert(tt, mk,
 				NewToken(p, token.FOR_BEGIN))
 			i += 2
 			continue
@@ -340,10 +356,17 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			if nextType() != token.LF {
 				t.Type = token.KAI_SINGLE
 			}
+		case token.IF:
+			mosi = true
+		case token.EQ:
+			if mosi {
+				t.Type = token.EQEQ
+			}
 		case token.THEN:
 			if nextType() != token.LF {
 				t.Type = token.THEN_SINGLE
 			}
+			mosi = false
 		case token.ELSE:
 			if nextType() != token.LF {
 				t.Type = token.ELSE_SINGLE
@@ -616,40 +639,44 @@ func DeleteOkurigana(s string) string {
 	}
 	// ひらがなから始まる単語
 	ss := []rune(s)
+	k := ""
 	if IsHiragana(ss[0]) {
 		// (ex) すごく青い → すごく青
 		stat := 0
-		for j, c := range ss {
+		for _, c := range ss {
 			bHira := IsHiragana(c)
 			switch stat {
 			case 0:
 				if bHira { // すごく
+					k += string(c)
 					continue
 				}
 				stat = 1
+				k += string(c)
 				continue
 			case 1:
 				if !bHira { // 青
+					k += string(c)
 					continue
 				}
 				stat = 2
 			case 2:
-				return string(ss[0:j])
-			}
-			if IsHiragana(c) {
-				stat++
+				if bHira {
+					continue
+				}
+				k += string(c)
 			}
 		}
-		return s
+		return k
 	}
 	// 漢字カタカナのみ取り出す
 	for i, c := range ss {
 		c = ss[i]
-		if IsHiragana(rune(c)) {
-			return string(ss[0:i])
+		if !IsHiragana(rune(c)) {
+			k += string(c)
 		}
 	}
-	return s
+	return k
 }
 
 func (p *Lexer) getNumber() *token.Token {
