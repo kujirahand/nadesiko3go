@@ -26,8 +26,8 @@ import (
 %type<node> program sentences sentence end_sentence callfunc args 
 %type<node> expr value comp factor term pri_expr high_expr and_or_expr
 %type<node> let_stmt varindex 
-%type<node> if_stmt if_comp then_block else_block block 
-%type<node> repeat_stmt
+%type<node> if_stmt if_comp block 
+%type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt
 %token<token> __TOKENS_LIST__
 
@@ -62,7 +62,8 @@ sentence
   | if_stmt 
   | repeat_stmt 
   | for_stmt 
-  | while_stmt 
+  | while_stmt
+  | loop_ctrl
   | COMMENT
   {
     $$ = node.NewNodeNop($1)
@@ -183,6 +184,10 @@ comp
 
 factor
   : term
+  | factor STR_PLUS term
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
   | factor PLUS term
   {
     $$ = node.NewNodeOperator($2, $1, $3)
@@ -222,33 +227,25 @@ high_expr
   }
 
 if_stmt
-  : IF if_comp then_block else_block
+  : IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
   {
-    $$ = node.NewNodeIf($1, $2, $3, $4)
+    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
-  | IF if_comp then_block END
+  | IF if_comp THEN_SINGLE sentence
   {
-    $$ = node.NewNodeIf($1, $2, $3, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
   }
-
-then_block
-  : THEN_SINGLE sentence 
+  | IF if_comp THEN LF block ELSE_SINGLE sentence
   {
-    $$ = $2
+    $$ = node.NewNodeIf($1, $2, $5, $7)
   }
-  | THEN block
+  | IF if_comp THEN LF block ELSE LF block END
   {
-    $$ = $2
+    $$ = node.NewNodeIf($1, $2, $5, $8)
   }
-
-else_block
-  : ELSE_SINGLE sentence 
+  | IF if_comp THEN LF block END
   {
-    $$ = $2
-  }
-  | ELSE block END
-  {
-    $$ = $2
+    $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
   }
 
 if_comp
@@ -256,6 +253,15 @@ if_comp
 
 block
   : sentences 
+
+loop_ctrl
+  : CONTINUE {
+    $$ = node.NewNodeContinue($1, 0)
+  }
+  | BREAK {
+    $$ = node.NewNodeBreak($1, 0)
+  }
+
 
 repeat_stmt
   : expr KAI_SINGLE sentence
@@ -300,6 +306,7 @@ type Lexer struct {
 	lexer   *lexer.Lexer
   tokens  token.Tokens
   index   int
+  loopId  int
   lastToken *token.Token
 	result  node.Node
 }
@@ -316,7 +323,13 @@ func NewLexerWrap(sys *core.Core, src string, fileno int) *Lexer {
   }
   lex.index = 0
   lex.result = nil
+  lex.loopId = 0
   return &lex
+}
+
+func (l *Lexer) getId() int {
+  l.loopId++
+  return l.loopId
 }
 
 // 字句解析の結果をgoyaccに伝える

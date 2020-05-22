@@ -194,6 +194,11 @@ func (v *Value) ToString() string {
 	return ""
 }
 
+// AddStr
+func AddStr(l, r *Value) Value {
+	return NewValueStr(l.ToString() + r.ToString())
+}
+
 // Add
 func Add(l, r *Value) Value {
 	// どちらかが文字列同士の計算

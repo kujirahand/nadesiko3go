@@ -76,6 +76,10 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runWhile(n)
 	case node.For:
 		return runFor(n)
+	case node.Continue:
+		return runContinue(n)
+	case node.Break:
+		return runBreak(n)
 	}
 	// 未定義のノードを表示
 	println("system error")
@@ -112,7 +116,18 @@ func runFor(n *node.Node) (*value.Value, error) {
 			loopVar = &newVar
 		}
 	}
+	// LOOP
+	sys.LoopLevel++
 	for ; i <= iTo; i++ {
+		// CHECK BREAK
+		// println("LOOP:", sys.BreakId, ":", sys.LoopLevel)
+		if sys.BreakId == sys.LoopLevel {
+			sys.BreakId = 0
+			break
+		}
+		if sys.BreakId > 0 {
+			break
+		}
 		loopVar.SetInt(i)
 		v, err := runNode(&nn.Block)
 		if err != nil {
@@ -120,6 +135,7 @@ func runFor(n *node.Node) (*value.Value, error) {
 		}
 		lastValue = v
 	}
+	sys.LoopLevel--
 	return lastValue, nil
 }
 
@@ -320,6 +336,8 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		l = &rNull
 	}
 	switch op.Operator {
+	case "&":
+		v = value.AddStr(l, r)
 	case "+":
 		v = value.Add(l, r)
 	case "-":
@@ -354,6 +372,16 @@ func runOperator(n *node.Node) (*value.Value, error) {
 			"(システム)未定義の演算子。"+op.Operator, n)
 	}
 	return &v, nil
+}
+
+func runBreak(n *node.Node) (*value.Value, error) {
+	sys.BreakId = sys.LoopLevel
+	return nil, nil
+}
+
+func runContinue(n *node.Node) (*value.Value, error) {
+	sys.ContinueId = sys.LoopLevel
+	return nil, nil
 }
 
 func runConst(n *node.Node) (*value.Value, error) {

@@ -27,14 +27,17 @@ type DefArgs []Josi
 
 // Core : なでしこのコアシステム情報
 type Core struct {
-	IsDebug  bool
-	MainFile string
-	Code     string
-	RunMode  TRunMode
-	Globals  *value.ValueHash
-	Sore     value.Value
-	Taisyo   value.Value
-	JosiList []DefArgs // システム関数の助詞情報を記憶する
+	IsDebug    bool
+	MainFile   string
+	Code       string
+	RunMode    TRunMode
+	Globals    *value.ValueHash
+	Sore       value.Value
+	Taisyo     value.Value
+	BreakId    int
+	ContinueId int
+	LoopLevel  int
+	JosiList   []DefArgs // システム関数の助詞情報を記憶する
 }
 
 var sys *Core = nil
@@ -60,6 +63,9 @@ func NewCore() *Core {
 	c.Globals.Set("そう", &c.Sore) // Alias "それ"
 	c.Globals.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
+	c.BreakId = 0
+	c.ContinueId = 0
+	c.LoopLevel = 0
 	return &c
 }
 

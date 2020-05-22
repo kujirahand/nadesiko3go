@@ -235,6 +235,9 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		p.move(1)
 		return NewToken(p, token.NOT)
 	// 算術演算子
+	case '&':
+		p.move(1)
+		return NewToken(p, token.PLUS)
 	case '+':
 		p.move(1)
 		return NewToken(p, token.PLUS)
@@ -365,8 +368,9 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 		case token.EQ:
 			if mosi {
 				t.Type = token.EQEQ
+				t.Literal = "=="
 			}
-		case token.THEN:
+		case token.THEN, token.THEN_SINGLE:
 			if nextType() != token.LF {
 				t.Type = token.THEN_SINGLE
 			}

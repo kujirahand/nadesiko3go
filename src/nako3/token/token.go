@@ -68,6 +68,7 @@ const (
 	DEF_FUNC    = "関数"
 	EQ          = "="
 	PLUS        = "+"
+	STR_PLUS    = "&"
 	MINUS       = "-"
 	NOT         = "!"
 	ASTERISK    = "*"

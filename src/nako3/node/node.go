@@ -38,22 +38,28 @@ const (
 	For
 	// While : 条件繰り返し
 	While
+	// Continue : 続ける
+	Continue
+	// Break : 抜ける
+	Break
 )
 
 var nodeTypeNames = map[NType]string{
 	Nop:          "Nop",
 	TypeNodeList: "TypeNodeList",
-	Const:        "Const",
-	Operator:     "Operator",
-	Sentence:     "Sentence",
-	Word:         "Word",
-	CallFunc:     "CallFunc",
-	Calc:         "Calc",
-	Let:          "Let",
-	If:           "If",
-	Repeat:       "Repeat",
-	For:          "For",
-	While:        "While",
+	Const:        "値",
+	Operator:     "演算",
+	Sentence:     "文",
+	Word:         "変数",
+	CallFunc:     "関数呼出",
+	Calc:         "計算",
+	Let:          "代入",
+	If:           "もし",
+	Repeat:       "回",
+	For:          "繰返",
+	While:        "間",
+	Continue:     "続",
+	Break:        "抜",
 }
 
 // Node : Node Interface
@@ -293,6 +299,7 @@ func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
 // NodeFor : 繰り返す
 type NodeFor struct {
 	Node
+	LoopId   int
 	Word     string
 	FromNode Node
 	ToNode   Node
@@ -320,6 +327,7 @@ func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) NodeFor {
 // NodeWhile: 繰り返す
 type NodeWhile struct {
 	Node
+	LoopId   int
 	Expr     Node
 	Block    Node
 	Josi     string
@@ -343,6 +351,7 @@ func NewNodeWhile(t *token.Token, expr, block Node) NodeWhile {
 // NodeRepeat : 回
 type NodeRepeat struct {
 	Node
+	LoopId   int
 	Expr     Node
 	Block    Node
 	Josi     string
@@ -357,6 +366,48 @@ func NewNodeRepeat(t *token.Token, nExpr, block Node) NodeRepeat {
 	node := NodeRepeat{
 		Expr:     nExpr,
 		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// NodeContinue : Continue
+type NodeContinue struct {
+	Node
+	LoopId   int
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeContinue) GetType() NType              { return Continue }
+func (n NodeContinue) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeContinue) GetJosi() string             { return n.Josi }
+
+func NewNodeContinue(t *token.Token, loopId int) NodeContinue {
+	node := NodeContinue{
+		LoopId:   loopId,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// NodeBreak : Break
+type NodeBreak struct {
+	Node
+	LoopId   int
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeBreak) GetType() NType              { return Break }
+func (n NodeBreak) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeBreak) GetJosi() string             { return n.Josi }
+
+func NewNodeBreak(t *token.Token, loopId int) NodeBreak {
+	node := NodeBreak{
+		LoopId:   loopId,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
@@ -422,18 +473,24 @@ func NodeToString(n Node, level int) string {
 		ss += NodeToString(ni.FalseNode, level+1) + "\n"
 	case For:
 		ni := n.(NodeFor)
-		s += ni.Word
+		s += fmt.Sprintf("%s id=%d", ni.Word, ni.LoopId)
 		ss += NodeToString(ni.FromNode, level+1) + "\n"
 		ss += NodeToString(ni.ToNode, level+1) + "\n"
 		ss += NodeToString(ni.Block, level+1) + "\n"
 	case Repeat:
 		nn := n.(NodeRepeat)
+		s += fmt.Sprintf(" id=%d", nn.LoopId)
 		ss += NodeToString(nn.Expr, level+1) + "\n"
 		ss += NodeToString(nn.Block, level+1) + "\n"
 	case While:
 		nn := n.(NodeWhile)
+		s += fmt.Sprintf(" id=%d", nn.LoopId)
 		ss += NodeToString(nn.Expr, level+1) + "\n"
 		ss += NodeToString(nn.Block, level+1) + "\n"
+	case Continue:
+		s += fmt.Sprintf("id=%d", n.(NodeContinue).LoopId)
+	case Break:
+		s += fmt.Sprintf("id=%d", n.(NodeBreak).LoopId)
 	default:
 		s += " *"
 	}
