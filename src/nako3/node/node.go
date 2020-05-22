@@ -418,6 +418,12 @@ func NodeToString(n Node, level int) string {
 		ss += NodeToString(ni.Expr, level+1) + "\n"
 		ss += NodeToString(ni.TrueNode, level+1) + "\n"
 		ss += NodeToString(ni.FalseNode, level+1) + "\n"
+	case For:
+		ni := n.(NodeFor)
+		s += ni.Word
+		ss += NodeToString(ni.FromNode, level+1) + "\n"
+		ss += NodeToString(ni.ToNode, level+1) + "\n"
+		ss += NodeToString(ni.Block, level+1) + "\n"
 	case Repeat:
 		nn := n.(NodeRepeat)
 		ss += NodeToString(nn.Expr, level+1) + "\n"

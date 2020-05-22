@@ -73,8 +73,53 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runRepeat(n)
 	case node.While:
 		return runWhile(n)
+	case node.For:
+		return runFor(n)
 	}
+	// 未定義のノードを表示
+	println("system error")
+	println(node.NodeToString(*n, 0))
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runFor(n *node.Node) (*value.Value, error) {
+	var lastValue *value.Value = nil
+	nn := (*n).(node.NodeFor)
+	// eval
+	vFrom, err1 := runNode(&nn.FromNode)
+	if err1 != nil {
+		return nil, RuntimeError(
+			"繰返の『から』でエラー:"+err1.Error(), n)
+	}
+	vTo, err2 := runNode(&nn.ToNode)
+	if err2 != nil {
+		return nil, RuntimeError(
+			"繰返の『まで』でエラー:"+err2.Error(), n)
+	}
+	i := vFrom.ToInt()
+	iTo := vTo.ToInt()
+	// check Word
+	var loopVar *value.Value = nil
+	if nn.Word == "" {
+		loopVar = &sys.Sore
+	} else {
+		// できるだけ再利用
+		loopVar = sys.Globals.Get(nn.Word)
+		if loopVar == nil {
+			newVar := value.NewValueInt(0)
+			sys.Globals.Set(nn.Word, &newVar)
+			loopVar = &newVar
+		}
+	}
+	for ; i <= iTo; i++ {
+		loopVar.SetInt(i)
+		v, err := runNode(&nn.Block)
+		if err != nil {
+			return nil, err
+		}
+		lastValue = v
+	}
+	return lastValue, nil
 }
 
 func runWhile(n *node.Node) (*value.Value, error) {
@@ -301,7 +346,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 	case "または":
 		v = value.Or(l, r)
 	default:
-		println("未定義:", op.Operator)
+		println("system error : 未定義:", op.Operator)
 		return nil, RuntimeError(
 			"(システム)未定義の演算子。"+op.Operator, n)
 	}
