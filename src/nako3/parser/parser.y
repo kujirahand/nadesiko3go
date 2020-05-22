@@ -219,7 +219,7 @@ if_stmt
   {
     $$ = node.NewNodeIf($1, $2, $3, $4)
   }
-  | IF if_comp then_block
+  | IF if_comp then_block END
   {
     $$ = node.NewNodeIf($1, $2, $3, node.NewNodeNop($1))
   }
@@ -229,10 +229,11 @@ then_block
   {
     $$ = $2
   }
-  | THEN block END
+  | THEN block
   {
     $$ = $2
   }
+
 else_block
   : ELSE_SINGLE sentence 
   {

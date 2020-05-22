@@ -198,6 +198,7 @@ func NewNodeOperator(op *token.Token, left Node, right Node) NodeOperator {
 // NodeSentence
 type NodeSentence struct {
 	Node
+	Memo     string
 	List     NodeList
 	Josi     string
 	FileInfo core.TFileInfo
@@ -392,6 +393,7 @@ func NodeToString(n Node, level int) string {
 		ss += NodeToString(l, level+1) + "\n"
 		ss += NodeToString(r, level+1) + "\n"
 	case Sentence:
+		s += n.(NodeSentence).Memo
 		for _, v := range n.(NodeSentence).List {
 			ss += NodeToString(v, level+1) + "\n"
 		}
