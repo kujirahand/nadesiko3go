@@ -25,7 +25,7 @@ import (
 %type<node> program sentences sentence end_sentence callfunc args 
 %type<node> expr value comp factor term primary_expr
 %type<node> let_stmt varindex if_stmt if_comp block repeat_stmt
-%type<node> for_stmt 
+%type<node> for_stmt while_stmt
 %token<token> __TOKENS_LIST__
 
 %%
@@ -59,6 +59,7 @@ sentence
   | if_stmt end_sentence
   | repeat_stmt end_sentence
   | for_stmt end_sentence
+  | while_stmt end_sentence
   | COMMENT
   {
     $$ = node.NewNodeNop($1)
@@ -222,17 +223,17 @@ if_stmt
   {
     $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
   }
-  | IF if_comp THEN LF block END
+  | IF if_comp THEN block END
   {
-    $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
   }
   | IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
   {
     $$ = node.NewNodeIf($1, $2, $4, $6)
   }
-  | IF if_comp THEN LF block ELSE LF block END
+  | IF if_comp THEN block ELSE block END
   {
-    $$ = node.NewNodeIf($1, $2, $5, $8)
+    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
 
 if_comp
@@ -249,6 +250,12 @@ repeat_stmt
   | expr KAI LF block END
   {
     $$ = node.NewNodeRepeat($2, $1, $4)
+  }
+
+while_stmt
+  : WHILE_BEGIN expr AIDA block END
+  {
+    $$ = node.NewNodeWhile($3, $2, $4)
   }
 
 for_stmt

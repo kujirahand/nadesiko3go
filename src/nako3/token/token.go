@@ -40,6 +40,7 @@ const (
 	ELSE_SINGLE = "違単文"
 	BEGIN       = "ここから"
 	END         = "ここまで"
+	WHILE_BEGIN = "WHILE_BEGIN"
 	FOR_BEGIN   = "FOR_BEGIN"
 	FOR         = "繰返"
 	FOR_SINGLE  = "繰返単文"

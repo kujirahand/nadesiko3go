@@ -36,6 +36,8 @@ const (
 	Repeat
 	// For : 繰り返す
 	For
+	// While : 条件繰り返し
+	While
 )
 
 var nodeTypeNames = map[NType]string{
@@ -51,6 +53,7 @@ var nodeTypeNames = map[NType]string{
 	If:           "If",
 	Repeat:       "Repeat",
 	For:          "For",
+	While:        "While",
 }
 
 // Node : Node Interface
@@ -306,6 +309,29 @@ func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) NodeFor {
 		Word:     hensu,
 		FromNode: nFrom,
 		ToNode:   nTo,
+		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// NodeWhile: 繰り返す
+type NodeWhile struct {
+	Node
+	Expr     Node
+	Block    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeWhile) GetType() NType              { return While }
+func (n NodeWhile) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeWhile) GetJosi() string             { return n.Josi }
+
+func NewNodeWhile(t *token.Token, expr, block Node) NodeWhile {
+	node := NodeWhile{
+		Expr:     expr,
 		Block:    block,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,

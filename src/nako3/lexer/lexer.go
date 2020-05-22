@@ -92,14 +92,6 @@ func (p *Lexer) Split() token.Tokens {
 				tt = append(tt, NewToken(p, token.EQ))
 				continue
 			}
-			// ここまで
-			if t.Literal == "ここ" {
-				if t.Josi == "まで" {
-					t.Type = token.END
-				} else if t.Josi == "から" {
-					t.Type = token.BEGIN
-				}
-			}
 		}
 		// -1が後ろの数値と結びつくか判定
 		if t.Type == token.MINUS {
@@ -324,13 +316,19 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 				NewToken(p, token.LET_BEGIN))
 			i += 2
 			continue
+		case token.AIDA:
+			tt = token.TokensInsert(tt, mk,
+				NewToken(p, token.WHILE_BEGIN))
+			i += 2
+			continue
 		case token.FOR:
 			if nextType() != token.LF {
 				t.Type = token.FOR_SINGLE
 			}
 			// 繰り返し変数が指定されている場合
 			t_ref := tt[mk+1]
-			if t_ref.Type == token.WORD && (t_ref.Josi == "を" || t_ref.Josi == "で") {
+			if t_ref.Type == token.WORD &&
+				(t_ref.Josi == "を" || t_ref.Josi == "で") {
 				t_ref.Type = token.WORD_REF
 			}
 			// マーカーを挿入
