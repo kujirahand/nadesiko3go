@@ -90,7 +90,10 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 	var errNode error = nil
 	kaisu := expr.ToInt()
 	for i := 0; i < int(kaisu); i++ {
+		// 「それ」と「対象」を更新
 		sys.Sore.SetInt(int64(i))
+		sys.Taisyo.SetInt(int64(i))
+		// 実行
 		lastValue, errNode = runNode(&ni.Block)
 		if errNode != nil {
 			return nil, err

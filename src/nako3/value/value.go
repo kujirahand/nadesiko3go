@@ -3,6 +3,7 @@ package value
 import (
 	"math"
 	"strconv"
+	"strings"
 )
 
 type ValueType int
@@ -63,7 +64,12 @@ func NewValue(vtype ValueType, s string) Value {
 	case Int:
 		return NewValueInt(StrToInt(s))
 	case Float:
-		return NewValueFloat(StrToFloat(s))
+		// IntにできるならIntに変換
+		if strings.Index(s, ".") >= 0 {
+			return NewValueFloat(StrToFloat(s))
+		} else {
+			return NewValueInt(StrToInt(s))
+		}
 	case Str:
 		return NewValueStr(s)
 	case Bool:
@@ -153,6 +159,12 @@ func (v *Value) SetBool(value bool) {
 }
 
 func (v *Value) SetValue(value *Value) {
+	if value == nil {
+		v.Type = Null
+		v.Value = nil
+		v.Tag = 0
+		return
+	}
 	v.Type = value.Type
 	v.Value = value.Value
 	v.Tag = value.Tag

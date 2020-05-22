@@ -21,75 +21,67 @@ type Tokens []*Token
 
 const (
 	//__BEGIN_TOKEN__
-	COMMENT   = "COMMENT"
-	FUNC      = "FUNC"
-	EOF       = "EOF"
-	LF        = "LF"
-	EOS       = "EOS"
-	COMMA     = "COMMA"
-	NUMBER    = "NUMBER"
-	STRING    = "STRING"
-	STRING_EX = "STRING_EX"
-	WORD      = "WORD"
-	WORD_REF  = "WORD_REF"
-	IF        = "もし"
-	THEN      = "ならば"
-	ELSE      = "違"
-	BEGIN     = "ここから"
-	END       = "ここまで"
-	FOR_BEGIN = "FOR_BEGIN"
-	FOR       = "繰返"
-	KAI       = "回"
-	AIDA      = "間"
-	SAKINI    = "先"
-	TUGINI    = "次"
-	FOREACH   = "反復"
-	BREAK     = "抜"
-	CONTINUE  = "続"
-	RETURN    = "戻"
-	TIKUJI    = "逐次実行"
-	LET       = "代入"
-	HENSU     = "変数"
-	TEISU     = "定数"
-	INCLUDE   = "取込"
-	LET_BEGIN = "LET_BEGIN"
-	ERROR_TRY = "エラー監視"
-	ERROR     = "エラー"
-	DEF_FUNC  = "関数"
-	EQ        = "="
-	PLUS      = "+"
-	MINUS     = "-"
-	NOT       = "!"
-	ASTERISK  = "*"
-	SLASH     = "/"
-	PERCENT   = "%"
-	EQEQ      = "=="
-	NTEQ      = "!="
-	GT        = ">"
-	GTEQ      = ">="
-	LT        = "<"
-	LTEQ      = "<="
-	LPAREN    = "("
-	RPAREN    = ")"
-	LBRACKET  = "["
-	RBRACKET  = "]"
-	LBRACE    = "{"
-	RBRACE    = "}"
+	UNKNOWN     = "UNKNOWN"
+	COMMENT     = "COMMENT"
+	FUNC        = "FUNC"
+	EOF         = "EOF"
+	LF          = "LF"
+	EOS         = "EOS"
+	COMMA       = "COMMA"
+	NUMBER      = "NUMBER"
+	STRING      = "STRING"
+	STRING_EX   = "STRING_EX"
+	WORD        = "WORD"
+	WORD_REF    = "WORD_REF"
+	IF          = "もし"
+	THEN        = "ならば"
+	THEN_SINGLE = "ならば単文"
+	ELSE        = "違"
+	ELSE_SINGLE = "違単文"
+	BEGIN       = "ここから"
+	END         = "ここまで"
+	FOR_BEGIN   = "FOR_BEGIN"
+	FOR         = "繰返"
+	FOR_SINGLE  = "繰返単文"
+	KAI         = "回"
+	KAI_SINGLE  = "回単文"
+	AIDA        = "間"
+	SAKINI      = "先"
+	TUGINI      = "次"
+	FOREACH     = "反復"
+	BREAK       = "抜"
+	CONTINUE    = "続"
+	RETURN      = "戻"
+	TIKUJI      = "逐次実行"
+	LET         = "代入"
+	HENSU       = "変数"
+	TEISU       = "定数"
+	INCLUDE     = "取込"
+	LET_BEGIN   = "LET_BEGIN"
+	ERROR_TRY   = "エラー監視"
+	ERROR       = "エラー"
+	DEF_FUNC    = "関数"
+	EQ          = "="
+	PLUS        = "+"
+	MINUS       = "-"
+	NOT         = "!"
+	ASTERISK    = "*"
+	SLASH       = "/"
+	PERCENT     = "%"
+	EQEQ        = "=="
+	NTEQ        = "!="
+	GT          = ">"
+	GTEQ        = ">="
+	LT          = "<"
+	LTEQ        = "<="
+	LPAREN      = "("
+	RPAREN      = ")"
+	LBRACKET    = "["
+	RBRACKET    = "]"
+	LBRACE      = "{"
+	RBRACE      = "}"
 	//__END_TOKEN__
 )
-
-var wordTokens = map[string]TType{
-	"もし":   IF,
-	"ならば":  THEN,
-	"違":    ELSE,
-	"ここまで": END,
-	"ここから": BEGIN,
-	"繰返":   FOR,
-	"反復":   FOREACH,
-	"回":    KAI,
-	"代入":   LET,
-	"入":    LET,
-}
 
 // ReplaceWordToken : WORDを特定のトークンに置換
 func ReplaceWordToken(lit string) TType {
@@ -146,4 +138,18 @@ func TokensInsert(tt Tokens, index int, t *Token) Tokens {
 		append(Tokens{t},
 			tt[index:]...)...)
 	return tt2
+}
+
+func IsOperator(t TType) bool {
+	return t == PLUS || t == MINUS ||
+		t == ASTERISK || t == SLASH || t == PERCENT ||
+		t == EQEQ || t == NTEQ ||
+		t == GT || t == GTEQ || t == LT || t == LTEQ
+}
+
+func CanUMinus(lt TType) bool {
+	return IsOperator(lt) ||
+		lt == LF || lt == EOS || lt == UNKNOWN ||
+		lt == RPAREN || lt == RBRACKET || lt == RBRACE ||
+		lt == EQ
 }

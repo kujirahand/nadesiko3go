@@ -34,6 +34,8 @@ const (
 	If
 	// Repeat : n回
 	Repeat
+	// For : 繰り返す
+	For
 )
 
 var nodeTypeNames = map[NType]string{
@@ -48,6 +50,7 @@ var nodeTypeNames = map[NType]string{
 	Let:          "Let",
 	If:           "If",
 	Repeat:       "Repeat",
+	For:          "For",
 }
 
 // Node : Node Interface
@@ -150,6 +153,14 @@ func (n NodeConst) GetJosi() string             { return n.Josi }
 func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
 	node := NodeConst{
 		Value:    value.NewValue(vtype, t.Literal),
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+func NewNodeConstInt(t *token.Token, num int) NodeConst {
+	node := NodeConst{
+		Value:    value.NewValueInt(int64(num)),
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
@@ -275,6 +286,33 @@ func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
 	return node
 }
 
+// NodeFor : 繰り返す
+type NodeFor struct {
+	Node
+	Word     string
+	FromNode Node
+	ToNode   Node
+	Block    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeFor) GetType() NType              { return For }
+func (n NodeFor) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeFor) GetJosi() string             { return n.Josi }
+
+func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) NodeFor {
+	node := NodeFor{
+		Word:     hensu,
+		FromNode: nFrom,
+		ToNode:   nTo,
+		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
 // NodeRepeat : 回
 type NodeRepeat struct {
 	Node
@@ -354,6 +392,10 @@ func NodeToString(n Node, level int) string {
 		ss += NodeToString(ni.Expr, level+1) + "\n"
 		ss += NodeToString(ni.TrueNode, level+1) + "\n"
 		ss += NodeToString(ni.FalseNode, level+1) + "\n"
+	case Repeat:
+		nn := n.(NodeRepeat)
+		ss += NodeToString(nn.Expr, level+1) + "\n"
+		ss += NodeToString(nn.Block, level+1) + "\n"
 	default:
 		s += " *"
 	}

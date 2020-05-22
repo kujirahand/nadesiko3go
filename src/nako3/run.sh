@@ -14,7 +14,6 @@ echo "--- run ---"
 #go run cnako3.go -d -e "'----------------'を表示"
 # go run cnako3.go -e "1+2*3を表示。"
 # go run cnako3.go -e -d "7>=3を表示。「OK」を表示。"
-
-go run cnako3.go -d test.nako3
-
+# go run cnako3.go -d test.nako3
+go run cnako3.go -d -e "3回それを表示。"
 

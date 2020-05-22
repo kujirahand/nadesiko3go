@@ -18,6 +18,7 @@ type Lexer struct {
 	fileNo     int
 	autoHalf   bool
 	renbunJosi map[string]bool
+	tokens     *token.Tokens
 }
 
 // NewLexer : NewLexer
@@ -48,10 +49,24 @@ func NewToken(lexer *Lexer, ttype token.TType) *token.Token {
 	return &t
 }
 
+func (p *Lexer) lastToken() *token.Token {
+	if len(*p.tokens) == 0 {
+		return nil
+	}
+	return (*p.tokens)[len(*p.tokens)-1]
+}
+func (p *Lexer) lastTokenType() token.TType {
+	t := p.lastToken()
+	if t == nil {
+		return token.UNKNOWN
+	}
+	return t.Type
+}
+
 // Split : Split tokens
 func (p *Lexer) Split() token.Tokens {
-	var lastToken *token.Token = nil
 	tt := token.Tokens{}
+	p.tokens = &tt
 	for p.isLive() {
 		t := p.GetToken()
 		if t == nil {
@@ -86,17 +101,28 @@ func (p *Lexer) Split() token.Tokens {
 				}
 			}
 		}
+		// -1が後ろの数値と結びつくか判定
+		if t.Type == token.MINUS {
+			lt := p.lastTokenType()
+			if token.CanUMinus(lt) {
+				nt := p.GetToken()
+				if nt.Type == token.NUMBER {
+					nt.Literal = "-" + nt.Literal
+				}
+				tt = append(tt, nt)
+				continue
+			}
+		}
 		// 行頭のコメント`だけ`トークンに追加
 		// その他のコメントは構文解析を邪魔するので。
 		// TODO: 将来的に DocTest などに使う
 		if t.Type == token.COMMENT {
-			if lastToken != nil && lastToken.Type != token.LF {
+			if p.lastTokenType() != token.LF {
 				continue
 			}
 		}
 		// その他、普通に追加
 		tt = append(tt, t)
-		lastToken = t
 	}
 	// 最後にEOSを足す
 	tt = append(tt, NewToken(p, token.EOS))
@@ -272,23 +298,58 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	if len(tt) == 0 {
 		return tt
 	}
-	// WORD(に|へ)exprを代入→LET_MARKER WORD expr LET
+	// goyaccのために Markerを挿入
+	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
+	// 同じく,FOR_BEGINを挿入
 	var t_word *token.Token = nil
 	i, mk := 0, 0
+	nextType := func() token.TType {
+		if (i + 1) < len(tt) {
+			return tt[i+1].Type
+		}
+		return token.UNKNOWN
+	}
 	for i < len(tt) {
 		t := tt[i]
-		if t.Type == token.LF || t.Type == token.EOS {
+		switch t.Type {
+		case token.LF, token.EOS:
 			mk = i
-		} else if t.Type == token.WORD {
+		case token.WORD:
 			if t.Josi == "に" || t.Josi == "へ" {
 				t_word = t
 			}
-		} else if t.Type == token.LET {
+		case token.LET:
 			t_word.Type = token.WORD_REF
 			tt = token.TokensInsert(tt, mk,
 				NewToken(p, token.LET_BEGIN))
 			i += 2
 			continue
+		case token.FOR:
+			if nextType() != token.LF {
+				t.Type = token.FOR_SINGLE
+			}
+			// 繰り返し変数が指定されている場合
+			t_ref := tt[mk+1]
+			if t_ref.Type == token.WORD && (t_ref.Josi == "を" || t_ref.Josi == "で") {
+				t_ref.Type = token.WORD_REF
+			}
+			// マーカーを挿入
+			tt = token.TokensInsert(tt, mk,
+				NewToken(p, token.FOR_BEGIN))
+			i += 2
+			continue
+		case token.KAI:
+			if nextType() != token.LF {
+				t.Type = token.KAI_SINGLE
+			}
+		case token.THEN:
+			if nextType() != token.LF {
+				t.Type = token.THEN_SINGLE
+			}
+		case token.ELSE:
+			if nextType() != token.LF {
+				t.Type = token.ELSE_SINGLE
+			}
 		}
 		i++
 	}

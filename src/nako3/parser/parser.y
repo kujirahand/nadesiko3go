@@ -218,17 +218,17 @@ primary_expr
   }
 
 if_stmt
-  : IF if_comp THEN sentence
+  : IF if_comp THEN_SINGLE sentence
   {
     $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
-  }
-  | IF if_comp THEN sentence ELSE sentence
-  {
-    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
   | IF if_comp THEN LF block END
   {
     $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
+  }
+  | IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
+  {
+    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
   | IF if_comp THEN LF block ELSE LF block END
   {
@@ -242,7 +242,7 @@ block
   : sentences 
 
 repeat_stmt
-  : expr KAI sentence
+  : expr KAI_SINGLE sentence
   {
     $$ = node.NewNodeRepeat($2, $1, $3)
   }
@@ -254,7 +254,19 @@ repeat_stmt
 for_stmt
   : FOR_BEGIN expr expr FOR LF block END
   {
-    $$ = $2 // TODO
+    $$ = node.NewNodeFor($4, "", $2, $3, $6)
+  }
+  | FOR_BEGIN WORD_REF expr expr FOR LF block END
+  {
+    $$ = node.NewNodeFor($5, $2.Literal, $3, $4, $7)
+  }
+  | FOR_BEGIN expr expr FOR_SINGLE sentence
+  {
+    $$ = node.NewNodeFor($4, "", $2, $3, $5)
+  }
+  | FOR_BEGIN WORD_REF expr expr FOR_SINGLE sentence
+  {
+    $$ = node.NewNodeFor($5, $2.Literal, $3, $4, $6)
   }
 
 %%

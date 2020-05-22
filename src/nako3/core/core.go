@@ -33,6 +33,7 @@ type Core struct {
 	RunMode  TRunMode
 	Globals  *value.ValueHash
 	Sore     value.Value
+	Taisyo   value.Value
 	JosiList []DefArgs // システム関数の助詞情報を記憶する
 }
 
@@ -54,8 +55,10 @@ func NewCore() *Core {
 	c.RunMode = MainFile
 	c.Globals = value.NewValueHash()
 	c.Sore = value.NewValueNull()
+	c.Taisyo = value.NewValueNull()
 	c.Globals.Set("それ", &c.Sore)
 	c.Globals.Set("そう", &c.Sore) // Alias "それ"
+	c.Globals.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
 	return &c
 }
