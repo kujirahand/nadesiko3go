@@ -14,8 +14,8 @@ func EncodeRune(c rune) rune {
 	case c <= 0xFF:
 		return c
 	// BASIC convert (num alpha flag)
-	case '！' <= c && c <= '〜':
-		return rune(c + ('!' - '！'))
+	case rune(0xFF01) <= c && c <= rune(0xFF5E): // ! ... ~
+		return rune(0x21) + (c - rune(0xFF01))
 	// カンマ
 	case c == '，' || c == '、':
 		return ','

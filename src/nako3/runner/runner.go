@@ -71,8 +71,34 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runIf(n)
 	case node.Repeat:
 		return runRepeat(n)
+	case node.While:
+		return runWhile(n)
 	}
 	return nil, RuntimeError("{システム}未実装のノード", n)
+}
+
+func runWhile(n *node.Node) (*value.Value, error) {
+	var lastValue *value.Value = nil
+	nn := (*n).(node.NodeWhile)
+	for true {
+		cond, err := runNode(&nn.Expr)
+		if err != nil {
+			return nil, err
+		}
+		if cond == nil {
+			break
+		}
+		if cond.ToBool() {
+			v, err := runNode(&nn.Block)
+			if err != nil {
+				return nil, err
+			}
+			lastValue = v
+			continue
+		}
+		break
+	}
+	return lastValue, nil
 }
 
 func runRepeat(n *node.Node) (*value.Value, error) {

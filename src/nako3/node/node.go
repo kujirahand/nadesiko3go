@@ -422,6 +422,10 @@ func NodeToString(n Node, level int) string {
 		nn := n.(NodeRepeat)
 		ss += NodeToString(nn.Expr, level+1) + "\n"
 		ss += NodeToString(nn.Block, level+1) + "\n"
+	case While:
+		nn := n.(NodeWhile)
+		ss += NodeToString(nn.Expr, level+1) + "\n"
+		ss += NodeToString(nn.Block, level+1) + "\n"
 	default:
 		s += " *"
 	}

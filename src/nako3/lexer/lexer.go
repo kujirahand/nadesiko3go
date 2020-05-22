@@ -312,12 +312,12 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			}
 		case token.LET:
 			t_word.Type = token.WORD_REF
-			tt = token.TokensInsert(tt, mk,
+			tt = token.TokensInsert(tt, mk+1,
 				NewToken(p, token.LET_BEGIN))
 			i += 2
 			continue
 		case token.AIDA:
-			tt = token.TokensInsert(tt, mk,
+			tt = token.TokensInsert(tt, mk+1,
 				NewToken(p, token.WHILE_BEGIN))
 			i += 2
 			continue
@@ -332,7 +332,7 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 				t_ref.Type = token.WORD_REF
 			}
 			// マーカーを挿入
-			tt = token.TokensInsert(tt, mk,
+			tt = token.TokensInsert(tt, mk+1,
 				NewToken(p, token.FOR_BEGIN))
 			i += 2
 			continue
