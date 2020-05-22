@@ -1,12 +1,13 @@
 # nadesiko3go
 
 golangによるなでしこv3実装。
-今のところコマンドラインから簡単な計算が実行できる。
+今のところコマンドラインから計算、条件分岐、繰り返しが可能。
+FizzBuzzもなんとか動く感じ。
 
 ```
 [USAGE]
-  cnako3 -e "source"
-  cnako3 file.nako3
+  cnako3go -e "source"
+  cnako3go file.nako3
 
 [Options]
   -d	Debug Mode
@@ -15,7 +16,11 @@ golangによるなでしこv3実装。
 
 ## コンパイルの方法
 
-### (1) direnv が必要
+### (1) Go言語
+
+まずはGo言語をインストール。
+
+### (2) direnv が必要
 
 - ``direnv`` をインストール
   - macOS  : ``brew install direnv``
@@ -25,19 +30,19 @@ golangによるなでしこv3実装。
   - zsh  : ``eval "$(direnv hook zsh)"``
 - ``direnv allow`` を実行する
 
-### (2) goyacc が必要
+### (3) goyacc が必要
 
 ```
 go get golang.org/x/tools/cmd/goyacc
 ```
 
-### (3) make.shを実行
+### (4) make.shを実行
 
 ```
 ./make.sh
 ```
 
-すると、binディレクトリにcnako3ができる。
+すると、binディレクトリにcnako3goができる。
 
 
 

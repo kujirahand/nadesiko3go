@@ -235,17 +235,17 @@ if_stmt
   {
     $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
   }
-  | IF if_comp THEN LF block ELSE_SINGLE sentence
+  | IF if_comp THEN block ELSE_SINGLE sentence
   {
-    $$ = node.NewNodeIf($1, $2, $5, $7)
+    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
-  | IF if_comp THEN LF block ELSE LF block END
+  | IF if_comp THEN block ELSE block END
   {
-    $$ = node.NewNodeIf($1, $2, $5, $8)
+    $$ = node.NewNodeIf($1, $2, $4, $6)
   }
-  | IF if_comp THEN LF block END
+  | IF if_comp THEN block END
   {
-    $$ = node.NewNodeIf($1, $2, $5, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
   }
 
 if_comp
