@@ -23,7 +23,7 @@ import (
 	node  node.Node
 }
 
-%type<node> program sentences sentence end_sentence callfunc args 
+%type<node> program sentences sentence eos callfunc args 
 %type<node> expr value comp factor term pri_expr high_expr and_or_expr
 %type<node> let_stmt varindex 
 %type<node> if_stmt if_comp block 
@@ -55,10 +55,10 @@ sentences
   }
 
 sentence
-  : end_sentence
-  | callfunc end_sentence
-  | expr end_sentence
-  | let_stmt end_sentence
+  : eos
+  | callfunc eos
+  | expr eos
+  | let_stmt eos
   | if_stmt 
   | repeat_stmt 
   | for_stmt 
@@ -69,7 +69,7 @@ sentence
     $$ = node.NewNodeNop($1)
   }
 
-end_sentence
+eos
   : EOS
   {
     $$ = node.NewNodeNop($1)
@@ -153,7 +153,13 @@ expr
 and_or_expr
   : comp
   | and_or_expr AND comp
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
   | and_or_expr OR comp
+  {
+    $$ = node.NewNodeOperator($2, $1, $3)
+  }
 
 comp
   : factor
