@@ -33,6 +33,7 @@ import (
 
 %%
 
+// --- program ---
 program
 	: sentences
 	{
@@ -141,6 +142,7 @@ args
     $$ = n
   }
 
+// --- calc ---
 value
   : NUMBER    { $$ = node.NewNodeConst(value.Float, $1) }
   | STRING    { $$ = node.NewNodeConst(value.Str, $1) }
@@ -232,6 +234,7 @@ high_expr
     $$ = node.NewNodeCalc($3, $2)
   }
 
+// --- if ---
 if_stmt
   : IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
   {
@@ -260,6 +263,7 @@ if_comp
 block
   : sentences 
 
+// --- loop ---
 loop_ctrl
   : CONTINUE {
     $$ = node.NewNodeContinue($1, 0)
@@ -268,15 +272,14 @@ loop_ctrl
     $$ = node.NewNodeBreak($1, 0)
   }
 
-
 repeat_stmt
-  : expr KAI_SINGLE sentence
+  : KAI_BEGIN expr KAI_SINGLE sentence
   {
-    $$ = node.NewNodeRepeat($2, $1, $3)
+    $$ = node.NewNodeRepeat($3, $2, $4)
   }
-  | expr KAI LF block END
+  | KAI_BEGIN expr KAI LF block END
   {
-    $$ = node.NewNodeRepeat($2, $1, $4)
+    $$ = node.NewNodeRepeat($3, $2, $5)
   }
 
 while_stmt

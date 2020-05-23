@@ -67,7 +67,15 @@ func (p *Lexer) lastTokenType() token.TType {
 func (p *Lexer) Split() token.Tokens {
 	tt := token.Tokens{}
 	p.tokens = &tt
+	lastIndex := -1
 	for p.isLive() {
+		if lastIndex == p.index {
+			println("[Lexer error] " + string(p.peek()))
+			p.index++
+			continue
+		} else {
+			lastIndex = p.index
+		}
 		t := p.GetToken()
 		if t == nil {
 			c := p.next()
@@ -217,6 +225,7 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 			p.move(2)
 			return NewToken(p, token.LTEQ)
 		case "<>":
+			p.move(2)
 			return NewToken(p, token.NTEQ)
 		}
 		p.move(1)
@@ -310,6 +319,7 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	if len(tt) == 0 {
 		return tt
 	}
+	println("formatTokenList")
 	// goyaccのために Markerを挿入
 	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
 	// 同じく,FOR_BEGINを挿入
@@ -363,6 +373,12 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			if nextType() != token.LF {
 				t.Type = token.KAI_SINGLE
 			}
+			// マーカーを挿入
+			p.line = t.FileInfo.Line
+			tt = token.TokensInsert(tt, mk,
+				NewToken(p, token.KAI_BEGIN))
+			i += 2
+			continue
 		case token.IF:
 			mosi = true
 		case token.EQ:

@@ -9,7 +9,9 @@ TEST_DIR=$BASE_DIR/test
 $FMAKE
 
 # test
-$CNAKO $TEST_DIR/fizzbuzz.nako3
+echo "--- fizzbizz ---"
+$CNAKO -d $TEST_DIR/fizzbuzz.nako3
+echo "--- basic ---"
 $CNAKO $TEST_DIR/basic.nako3
 
 
