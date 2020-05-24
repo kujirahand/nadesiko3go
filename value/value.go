@@ -204,7 +204,13 @@ func (v *Value) ToString() string {
 	return ""
 }
 
-// AddStr
+// ToRunes : []runeに変換して返す
+func (v *Value) ToRunes() []rune {
+	s := v.ToString()
+	return []rune(s)
+}
+
+// AddStr : 文字列同士の結合
 func AddStr(l, r *Value) Value {
 	return NewValueStr(l.ToString() + r.ToString())
 }

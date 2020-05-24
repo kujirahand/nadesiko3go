@@ -33,8 +33,9 @@ type Core struct {
 	Global     *scope.Scope
 	Sore       value.Value
 	Taisyo     value.Value
-	BreakId    int
-	ContinueId int
+	BreakID    int
+	ContinueID int
+	ReturnID   int
 	LoopLevel  int
 	JosiList   []DefArgs // システム関数の助詞情報を記憶する
 }
@@ -64,8 +65,9 @@ func NewCore() *Core {
 	g.Set("そう", &c.Sore) // Alias "それ"
 	g.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
-	c.BreakId = 0
-	c.ContinueId = 0
+	c.BreakID = 0
+	c.ContinueID = 0
+	c.ReturnID = 0
 	c.LoopLevel = 0
 	return &c
 }

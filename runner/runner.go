@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/lexer"
 	"github.com/kujirahand/nadesiko3go/node"
 	"github.com/kujirahand/nadesiko3go/value"
 )
@@ -80,6 +81,8 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runContinue(n)
 	case node.Break:
 		return runBreak(n)
+	case node.Return:
+		return runReturn(n)
 	case node.DefFunc:
 		return nil, nil
 	}
@@ -123,11 +126,11 @@ func runFor(n *node.Node) (*value.Value, error) {
 	for ; i <= iTo; i++ {
 		// CHECK BREAK
 		// println("LOOP:", sys.BreakId, ":", sys.LoopLevel)
-		if sys.BreakId == sys.LoopLevel {
-			sys.BreakId = 0
+		if sys.BreakID == sys.LoopLevel {
+			sys.BreakID = 0
 			break
 		}
-		if sys.BreakId > 0 {
+		if sys.BreakID > 0 {
 			break
 		}
 		loopVar.SetInt(i)
@@ -321,7 +324,9 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		for i, v := range userNode.ArgNames {
 			scope.Set(v, &args[i])
 		}
+		sys.LoopLevel++
 		result, err2 = runNode(&userNode.Block)
+		sys.LoopLevel--
 		sys.Scopes.Close()
 	} else {
 		// Go func
@@ -399,16 +404,54 @@ func runOperator(n *node.Node) (*value.Value, error) {
 }
 
 func runBreak(n *node.Node) (*value.Value, error) {
-	sys.BreakId = sys.LoopLevel
+	sys.BreakID = sys.LoopLevel
 	return nil, nil
 }
 
 func runContinue(n *node.Node) (*value.Value, error) {
-	sys.ContinueId = sys.LoopLevel
+	sys.ContinueID = sys.LoopLevel
+	return nil, nil
+}
+
+func runReturn(n *node.Node) (*value.Value, error) {
+	sys.ReturnID = sys.LoopLevel
 	return nil, nil
 }
 
 func runConst(n *node.Node) (*value.Value, error) {
 	nc := (*n).(node.NodeConst)
-	return &nc.Value, nil
+	if !nc.IsExtend {
+		return &nc.Value, nil
+	}
+	// 拡張
+	result := ""
+	runes := nc.Value.ToRunes()
+	i := 0
+	for i < len(runes) {
+		c := runes[i]
+		if c != '{' {
+			result += string(c)
+			i++
+			continue
+		}
+		i++
+		e := ""
+		for i < len(runes) {
+			c = runes[i]
+			if c != '}' {
+				e += string(c)
+				i++
+				continue
+			}
+			i++
+			break
+		}
+		e = lexer.DeleteOkurigana(e)
+		ev := sys.Scopes.Get(e)
+		if ev != nil {
+			result += ev.ToString()
+		}
+	}
+	resultValue := value.NewValueStr(result)
+	return &resultValue, nil
 }

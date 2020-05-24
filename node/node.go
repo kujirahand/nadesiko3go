@@ -45,6 +45,8 @@ const (
 	Break
 	// DefFunc : 関数定義
 	DefFunc
+	// Return : 戻る
+	Return
 )
 
 var nodeTypeNames = map[NType]string{
@@ -64,6 +66,7 @@ var nodeTypeNames = map[NType]string{
 	Continue:     "続",
 	Break:        "抜",
 	DefFunc:      "関数",
+	Return:       "戻る",
 }
 
 // Node : Node Interface
@@ -158,6 +161,7 @@ func NewNodeLet(t *token.Token, index NodeList, value Node) Node {
 type NodeConst struct {
 	Node
 	Value    value.Value
+	IsExtend bool
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -169,6 +173,7 @@ func (n NodeConst) GetJosi() string             { return n.Josi }
 func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
 	node := NodeConst{
 		Value:    value.NewValue(vtype, t.Literal),
+		IsExtend: false,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
@@ -180,6 +185,11 @@ func NewNodeConstInt(t *token.Token, num int) NodeConst {
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
+	return node
+}
+func NewNodeConstEx(vtype value.ValueType, t *token.Token) NodeConst {
+	node := NewNodeConst(vtype, t)
+	node.IsExtend = true
 	return node
 }
 
@@ -465,6 +475,29 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
 	// Add System
 	funcID := core.GetSystem().AddUserFunc(word, a)
 	UserFunc[funcID] = node
+	return node
+}
+
+// NodeReturn : Return
+type NodeReturn struct {
+	Node
+	Arg      Node
+	LoopId   int
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeReturn) GetType() NType              { return Return }
+func (n NodeReturn) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeReturn) GetJosi() string             { return n.Josi }
+
+func NewNodeReturn(t *token.Token, arg Node, loopId int) NodeReturn {
+	node := NodeReturn{
+		LoopId:   loopId,
+		Arg:      arg,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
 	return node
 }
 

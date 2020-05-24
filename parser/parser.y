@@ -141,7 +141,7 @@ args
 value
   : NUMBER    { $$ = node.NewNodeConst(value.Float, $1) }
   | STRING    { $$ = node.NewNodeConst(value.Str, $1) }
-  | STRING_EX { $$ = node.NewNodeConst(value.Str, $1) }
+  | STRING_EX { $$ = node.NewNodeConstEx(value.Str, $1) }
   | WORD      { $$ = node.NewNodeWord($1) }
 
 expr
@@ -265,6 +265,12 @@ loop_ctrl
   }
   | BREAK {
     $$ = node.NewNodeBreak($1, 0)
+  }
+  | RETURN {
+    $$ = node.NewNodeReturn($1, nil, 0)
+  }
+  | expr RETURN {
+    $$ = node.NewNodeReturn($2, $1, 0)
   }
 
 repeat_stmt
