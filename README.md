@@ -6,9 +6,8 @@ FizzBuzzもなんとか動く感じ。
 
 ```
 [USAGE]
-  cnako3go -e "source"
-  cnako3go file.nako3
-
+  nadesiko3go -e "source"
+  nadesiko3go file.nako3
 [Options]
   -d	Debug Mode
   -e (source)	Eval Mode
@@ -25,6 +24,8 @@ $ go install github.com/kujirahand/nadesiko3go
 ```
 
 ## GitHubからリポジトリを取得するコンパイルの方法
+
+現在のところ、なでしこ3(nodejs)のコマンドライン版cnako3が必要。
 
 ### (1) goyacc を入手
 
