@@ -149,7 +149,15 @@ func runFor(n *node.Node) (*value.Value, error) {
 func runWhile(n *node.Node) (*value.Value, error) {
 	var lastValue *value.Value = nil
 	nn := (*n).(node.NodeWhile)
+	sys.LoopLevel++
 	for true {
+		// break ?
+		if sys.BreakID >= 0 || sys.ReturnID >= 0 {
+			if sys.BreakID == sys.LoopLevel {
+				sys.BreakID = -1
+			}
+			break
+		}
 		cond, err := runNode(&nn.Expr)
 		if err != nil {
 			return nil, err
@@ -167,6 +175,10 @@ func runWhile(n *node.Node) (*value.Value, error) {
 		}
 		break
 	}
+	if sys.ContinueID == sys.LoopLevel {
+		sys.ContinueID = -1
+	}
+	sys.LoopLevel--
 	return lastValue, nil
 }
 
@@ -183,17 +195,29 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 	// 繰り返し
 	var lastValue *value.Value = nil
 	var errNode error = nil
+	sys.LoopLevel++
 	kaisu := expr.ToInt()
 	for i := 0; i < int(kaisu); i++ {
+		if sys.BreakID >= 0 || sys.ReturnID >= 0 {
+			if sys.BreakID == sys.LoopLevel {
+				sys.BreakID = -1
+			}
+			break
+		}
 		// 「それ」と「対象」を更新
 		sys.Sore.SetInt(int64(i))
 		sys.Taisyo.SetInt(int64(i))
 		// 実行
 		lastValue, errNode = runNode(&ni.Block)
 		if errNode != nil {
+			sys.LoopLevel--
 			return nil, err
 		}
 	}
+	if sys.ContinueID >= 0 {
+		sys.ContinueID = -1
+	}
+	sys.LoopLevel--
 	return lastValue, err
 }
 

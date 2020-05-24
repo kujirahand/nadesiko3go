@@ -1,6 +1,8 @@
 package io
 
 import (
+	"fmt"
+
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
 )
@@ -19,9 +21,8 @@ func Print(args value.ValueArray) (*value.Value, error) {
 	s := v.ToString()
 	sys := core.GetSystem()
 	if sys.IsDebug {
-		println("[表示]", s)
-	} else {
-		println(s)
+		s = "[表示] " + s
 	}
+	fmt.Println(s)
 	return nil, nil
 }

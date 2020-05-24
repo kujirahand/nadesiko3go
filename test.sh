@@ -9,8 +9,13 @@ $FMAKE
 
 # test
 echo "--- fizzbizz ---"
-$EXE -d $TEST_DIR/fizzbuzz.nako3
+FILE_FIZZBUZZ=$TEST_DIR/fizzbuzz-out.txt
+rm -f $FILE_FIZZBUZZ
+$EXE $TEST_DIR/fizzbuzz.nako3 > $FILE_FIZZBUZZ
+diff $TEST_DIR/fizzbuzz-out.txt $TEST_DIR/fizzbuzz-result.txt 
 echo "--- basic ---"
 $EXE $TEST_DIR/basic.nako3
+$EXE $TEST_DIR/func_test.nako3
+$EXE $TEST_DIR/loop_test.nako3
 
 
