@@ -3,14 +3,15 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"nako3/core"
-	"nako3/func/io"
-	"nako3/func/system"
-	"nako3/node"
-	"nako3/parser"
-	"nako3/runner"
-	"nako3/value"
 	"os"
+
+	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/func/io"
+	"github.com/kujirahand/nadesiko3go/func/system"
+	"github.com/kujirahand/nadesiko3go/node"
+	"github.com/kujirahand/nadesiko3go/parser"
+	"github.com/kujirahand/nadesiko3go/runner"
+	"github.com/kujirahand/nadesiko3go/value"
 )
 
 func main() {

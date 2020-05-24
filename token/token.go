@@ -2,8 +2,9 @@ package token
 
 import (
 	"fmt"
-	"nako3/core"
 	"strings"
+
+	"github.com/kujirahand/nadesiko3go/core"
 )
 
 // TType : Token Type

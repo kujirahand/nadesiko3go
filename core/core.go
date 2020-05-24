@@ -1,8 +1,8 @@
 package core
 
 import (
-	"nako3/scope"
-	"nako3/value"
+	"github.com/kujirahand/nadesiko3go/scope"
+	"github.com/kujirahand/nadesiko3go/value"
 )
 
 const (

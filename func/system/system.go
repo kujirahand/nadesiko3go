@@ -1,8 +1,8 @@
 package system
 
 import (
-	. "nako3/core"
-	"nako3/value"
+	. "github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/value"
 )
 
 func RegisterFunction(sys *Core) {

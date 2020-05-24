@@ -2,10 +2,11 @@ package node
 
 import (
 	"fmt"
-	"nako3/core"
-	"nako3/token"
-	"nako3/value"
 	"strings"
+
+	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/token"
+	"github.com/kujirahand/nadesiko3go/value"
 )
 
 // NType : Nodeの種類

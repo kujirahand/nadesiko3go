@@ -2,9 +2,10 @@ package runner
 
 import (
 	"fmt"
-	"nako3/core"
-	"nako3/node"
-	"nako3/value"
+
+	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/node"
+	"github.com/kujirahand/nadesiko3go/value"
 )
 
 // Core
@@ -220,7 +221,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		if v != nil {
 			v.SetValue(val)
 		} else {
-			sys.Scopes.SetTop(cl.Var, val)
+			sys.Scopes.SetTopVars(cl.Var, val)
 		}
 		return val, nil
 	}

@@ -1,8 +1,9 @@
 package lexer
 
 import (
-	"nako3/token"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/token"
 )
 
 func TestLexer1(t *testing.T) {

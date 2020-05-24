@@ -4,15 +4,15 @@
 // なでしこ3 --- 文法定義 (goyaccを利用)
 // 
 // Lexerはgoyaccが要求する形にするため
-// nako3/lexerをラップしてこのユニットで使用
+// github.com/kujirahand/nadesiko3go/lexerをラップしてこのユニットで使用
 //
 package parser
 import (
-	"nako3/core"
-	"nako3/value"
-	"nako3/node"
-	"nako3/lexer"
-	"nako3/token"
+	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/value"
+	"github.com/kujirahand/nadesiko3go/node"
+	"github.com/kujirahand/nadesiko3go/lexer"
+	"github.com/kujirahand/nadesiko3go/token"
 	"fmt"
   "strings"
 )

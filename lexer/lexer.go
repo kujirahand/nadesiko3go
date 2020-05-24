@@ -2,12 +2,13 @@ package lexer
 
 import (
 	"fmt"
-	"nako3/core"
-	. "nako3/runeutil"
-	"nako3/token"
-	"nako3/zenhan"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/kujirahand/nadesiko3go/core"
+	. "github.com/kujirahand/nadesiko3go/runeutil"
+	"github.com/kujirahand/nadesiko3go/token"
+	"github.com/kujirahand/nadesiko3go/zenhan"
 )
 
 // Lexer : Lexer struct
