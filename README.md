@@ -14,25 +14,40 @@ FizzBuzzもなんとか動く感じ。
   -e (source)	Eval Mode
 ```
 
-## コンパイルの方法
+## 簡単なビルド方法
 
-### (1) Go言語
-
-まずはGo言語をインストール。
-
-### (2) goyacc が必要
+Go言語がインストールされている状態にて。
 
 ```
-go get golang.org/x/tools/cmd/goyacc
+$ go get golang.org/x/tools/cmd/goyacc
+$ go get github.com/kujirahand/nadesiko3go
+$ go install github.com/kujirahand/nadesiko3go
 ```
 
-### (3) make.shを実行
+## GitHubからリポジトリを取得するコンパイルの方法
+
+### (1) goyacc を入手
 
 ```
-./make.sh
+$ go get golang.org/x/tools/cmd/goyacc
 ```
 
-すると、cnako3goが生成される。
+### (2) git clone
+
+```
+$ cd $HOME/src
+$ mkdir -p github.com/kujirahand
+$ cd github.com/kujirahand
+$ git clone git@github.com:kujirahand/nadesiko3go.git
+$ cd nadesiko3go
+```
+
+### (3) make
+
+```
+$ ./make.sh
+```
+
 
 
 
