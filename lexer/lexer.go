@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/core"
-	. "github.com/kujirahand/nadesiko3go/runeutil"
+	"github.com/kujirahand/nadesiko3go/runeutil"
 	"github.com/kujirahand/nadesiko3go/token"
 	"github.com/kujirahand/nadesiko3go/zenhan"
 )
@@ -167,11 +167,11 @@ func (p *Lexer) GetToken() *token.Token {
 		return t
 	}
 	// number
-	if IsDigit(c) {
+	if runeutil.IsDigit(c) {
 		return p.getNumber()
 	}
 	// word
-	if IsWordRune(c) {
+	if runeutil.IsWordRune(c) {
 		return p.getWord()
 	}
 
@@ -320,11 +320,10 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	if len(tt) == 0 {
 		return tt
 	}
-	println("formatTokenList")
 	// goyaccのために Markerを挿入
 	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
 	// 同じく,FOR_BEGINを挿入
-	var t_word *token.Token = nil
+	var tWord *token.Token = nil
 	i, mk, mosi := 0, 0, false
 	nextType := func() token.TType {
 		if (i + 1) < len(tt) {
@@ -339,11 +338,11 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			mk = i + 1
 		case token.WORD:
 			if t.Josi == "に" || t.Josi == "へ" {
-				t_word = t
+				tWord = t
 			}
 		case token.LET:
 			p.line = t.FileInfo.Line
-			t_word.Type = token.WORD_REF
+			tWord.Type = token.WORD_REF
 			tt = token.TokensInsert(tt, mk,
 				NewToken(p, token.LET_BEGIN))
 			i += 2
@@ -360,10 +359,10 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 				t.Type = token.FOR_SINGLE
 			}
 			// 繰り返し変数が指定されている場合
-			t_ref := tt[mk]
-			if t_ref.Type == token.WORD &&
-				(t_ref.Josi == "を" || t_ref.Josi == "で") {
-				t_ref.Type = token.WORD_REF
+			tRef := tt[mk]
+			if tRef.Type == token.WORD &&
+				(tRef.Josi == "を" || tRef.Josi == "で") {
+				tRef.Type = token.WORD_REF
 			}
 			// マーカーを挿入
 			tt = token.TokensInsert(tt, mk,
@@ -521,11 +520,11 @@ func (p *Lexer) GetStringToRunes(endRunes []rune) string {
 		if c == '\n' {
 			p.move(1)
 			p.line++
-			if HasRune(endRunes, c) {
+			if runeutil.HasRune(endRunes, c) {
 				break
 			}
 		}
-		if HasRune(endRunes, c) {
+		if runeutil.HasRune(endRunes, c) {
 			p.move(1)
 			break
 		}
@@ -615,7 +614,7 @@ func (p *Lexer) getWord() *token.Token {
 
 	// 予約語を確認
 	for _, rt := range token.ReservedToken {
-		rtlen := Length(rt)
+		rtlen := runeutil.Length(rt)
 		if p.peekStr(rtlen) == rt {
 			p.move(rtlen)
 			t.Literal = rt
@@ -632,7 +631,7 @@ func (p *Lexer) getWord() *token.Token {
 		c := p.peek()
 
 		// check Josi
-		if IsHiragana(c) {
+		if runeutil.IsHiragana(c) {
 			josi := p.getJosi(true)
 			if josi != "" {
 				t.Josi = josi
@@ -641,7 +640,7 @@ func (p *Lexer) getWord() *token.Token {
 		}
 
 		// word ...
-		if IsWordRune(c) {
+		if runeutil.IsWordRune(c) {
 			s += string(c)
 			p.move(1)
 			continue
@@ -665,11 +664,11 @@ func DeleteOkurigana(s string) string {
 	// ひらがなから始まる単語
 	ss := []rune(s)
 	k := ""
-	if IsHiragana(ss[0]) {
+	if runeutil.IsHiragana(ss[0]) {
 		// (ex) すごく青い → すごく青
 		stat := 0
 		for _, c := range ss {
-			bHira := IsHiragana(c)
+			bHira := runeutil.IsHiragana(c)
 			switch stat {
 			case 0:
 				if bHira { // すごく
@@ -697,7 +696,7 @@ func DeleteOkurigana(s string) string {
 	// 漢字カタカナのみ取り出す
 	for i, c := range ss {
 		c = ss[i]
-		if !IsHiragana(rune(c)) {
+		if !runeutil.IsHiragana(rune(c)) {
 			k += string(c)
 		}
 	}
@@ -709,7 +708,7 @@ func (p *Lexer) getNumber() *token.Token {
 	s := ""
 	for p.isLive() {
 		c := p.peek()
-		if IsDigit(c) || c == '.' {
+		if runeutil.IsDigit(c) || c == '.' {
 			s += string(c)
 			p.move(1)
 			continue

@@ -43,6 +43,8 @@ const (
 	Continue
 	// Break : 抜ける
 	Break
+	// DefFunc : 関数定義
+	DefFunc
 )
 
 var nodeTypeNames = map[NType]string{
@@ -61,6 +63,7 @@ var nodeTypeNames = map[NType]string{
 	While:        "間",
 	Continue:     "続",
 	Break:        "抜",
+	DefFunc:      "●",
 }
 
 // Node : Node Interface
@@ -409,6 +412,31 @@ func (n NodeBreak) GetJosi() string             { return n.Josi }
 func NewNodeBreak(t *token.Token, loopId int) NodeBreak {
 	node := NodeBreak{
 		LoopId:   loopId,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// NodeDefFunc : NodeDefFunc
+type NodeDefFunc struct {
+	Node
+	Word     string
+	Args     NodeList
+	Block    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeDefFunc) GetType() NType              { return DefFunc }
+func (n NodeDefFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeDefFunc) GetJosi() string             { return n.Josi }
+
+func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
+	node := NodeDefFunc{
+		Word:     t.Literal,
+		Args:     args.(NodeList),
+		Block:    block,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}

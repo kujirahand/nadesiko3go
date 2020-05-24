@@ -1,6 +1,6 @@
 #!/bin/sh
 BASE_DIR=$(cd $(dirname $0); pwd)
-CNAKO3GO=$BASE_DIR/cnako3go
+EXE=$BASE_DIR/nadesiko3go
 FMAKE=$BASE_DIR/make.sh
 TEST_DIR=$BASE_DIR/test
 
@@ -9,8 +9,8 @@ $FMAKE
 
 # test
 echo "--- fizzbizz ---"
-$CNAKO3GO -d $TEST_DIR/fizzbuzz.nako3
+$EXE -d $TEST_DIR/fizzbuzz.nako3
 echo "--- basic ---"
-$CNAKO3GO $TEST_DIR/basic.nako3
+$EXE $TEST_DIR/basic.nako3
 
 

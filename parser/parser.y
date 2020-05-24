@@ -28,7 +28,8 @@ import (
 %type<node> let_stmt varindex 
 %type<node> if_stmt if_comp block 
 %type<node> repeat_stmt loop_ctrl
-%type<node> for_stmt while_stmt
+%type<node> for_stmt while_stmt comment_stmt
+%type<node> def_function
 %token<token> __TOKENS_LIST__
 
 %%
@@ -65,20 +66,14 @@ sentence
   | for_stmt 
   | while_stmt
   | loop_ctrl
-  | COMMENT
-  {
-    $$ = node.NewNodeNop($1)
-  }
+  | comment_stmt
+  | def_function
+
+comment_stmt : COMMENT { $$ = node.NewNodeNop($1) }
 
 eos
-  : EOS
-  {
-    $$ = node.NewNodeNop($1)
-  }
-  | LF
-  {
-    $$ = node.NewNodeNop($1)
-  }
+  : EOS { $$ = node.NewNodeNop($1) }
+  | LF  { $$ = node.NewNodeNop($1) }
 
 let_stmt
   : WORD EQ expr
@@ -304,6 +299,16 @@ for_stmt
   | FOR_BEGIN WORD_REF expr expr FOR_SINGLE sentence
   {
     $$ = node.NewNodeFor($5, $2.Literal, $3, $4, $6)
+  }
+
+def_function
+  : DEF_FUNC WORD LF block END
+  {
+    $$ = node.NewNodeDefFunc($2, node.NewNodeList(), $4)
+  }
+  | DEF_FUNC LPAREN args RPAREN WORD LF block END
+  {
+    $$ = node.NewNodeDefFunc($5, $3, $7)
   }
 
 %%
