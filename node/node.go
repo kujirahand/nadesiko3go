@@ -63,7 +63,7 @@ var nodeTypeNames = map[NType]string{
 	While:        "間",
 	Continue:     "続",
 	Break:        "抜",
-	DefFunc:      "●",
+	DefFunc:      "関数",
 }
 
 // Node : Node Interface
@@ -83,6 +83,9 @@ func (n NodeList) GetJosi() string             { return "" }
 func NewNodeList() NodeList {
 	return NodeList{}
 }
+
+// UserFunc : ユーザー関数の一覧
+var UserFunc = map[int]Node{}
 
 // NodeNop : NOP
 type NodeNop struct {
@@ -423,6 +426,7 @@ type NodeDefFunc struct {
 	Node
 	Word     string
 	Args     NodeList
+	ArgNames []string
 	Block    Node
 	Josi     string
 	FileInfo core.TFileInfo
@@ -433,13 +437,34 @@ func (n NodeDefFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeDefFunc) GetJosi() string             { return n.Josi }
 
 func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
+	word := t.Literal
 	node := NodeDefFunc{
-		Word:     t.Literal,
+		Word:     word,
 		Args:     args.(NodeList),
+		ArgNames: []string{},
 		Block:    block,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
+	// Analize Args
+	a := [][]string{}
+	m := map[string]int{}
+	cnt := 0
+	for _, v := range node.Args {
+		nw := v.(NodeWord)
+		i, ok := m[nw.Name]
+		if !ok {
+			m[nw.Name] = cnt
+			cnt++
+			a = append(a, []string{nw.Josi})
+			node.ArgNames = append(node.ArgNames, nw.Name)
+		} else {
+			a[i] = append(a[i], nw.Josi)
+		}
+	}
+	// Add System
+	funcID := core.GetSystem().AddUserFunc(word, a)
+	UserFunc[funcID] = node
 	return node
 }
 
@@ -475,6 +500,12 @@ func NodeToString(n Node, level int) string {
 	case Sentence:
 		s += n.(NodeSentence).Memo
 		for _, v := range n.(NodeSentence).List {
+			ss += NodeToString(v, level+1) + "\n"
+		}
+	case TypeNodeList:
+		nlist := n.(NodeList)
+		s += fmt.Sprintf("(%d)", len(nlist))
+		for _, v := range nlist {
 			ss += NodeToString(v, level+1) + "\n"
 		}
 	case CallFunc:
@@ -520,6 +551,10 @@ func NodeToString(n Node, level int) string {
 		s += fmt.Sprintf("id=%d", n.(NodeContinue).LoopId)
 	case Break:
 		s += fmt.Sprintf("id=%d", n.(NodeBreak).LoopId)
+	case DefFunc:
+		nn := n.(NodeDefFunc)
+		s += fmt.Sprintf(" %s", nn.Word)
+		ss += NodeToString(nn.Args, level+1) + "\n"
 	default:
 		s += " *"
 	}

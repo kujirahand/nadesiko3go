@@ -80,6 +80,8 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runContinue(n)
 	case node.Break:
 		return runBreak(n)
+	case node.DefFunc:
+		return nil, nil
 	}
 	// 未定義のノードを表示
 	println("system error")
@@ -202,9 +204,8 @@ func runIf(n *node.Node) (*value.Value, error) {
 	}
 	if expr.ToBool() {
 		return runNode(&ni.TrueNode)
-	} else {
-		return runNode(&ni.FalseNode)
 	}
+	return runNode(&ni.FalseNode)
 }
 
 func runLet(n *node.Node) (*value.Value, error) {
@@ -254,7 +255,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(msgu, n)
 	}
 	// 関数ではない？
-	if funcV.Type != value.Function {
+	if !funcV.IsFunction() {
 		msgn := fmt.Sprintf("『%s』は関数ではい。", cf.Name)
 		return nil, RuntimeError(msgn, n)
 	}
@@ -308,7 +309,25 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		}
 	}
 	// 関数を実行
-	result, err2 := funcV.Value.(value.ValueFunc)(args)
+	var result *value.Value = nil
+	var err2 error = nil
+	if funcV.Type == value.UserFunc {
+		// User func
+		index := funcV.Tag
+		userNode := node.UserFunc[index].(node.NodeDefFunc)
+		sys.Scopes.Open()
+		// スコープにローカル変数を挿入
+		scope := sys.Scopes.GetTopScope()
+		for i, v := range userNode.ArgNames {
+			scope.Set(v, &args[i])
+		}
+		result, err2 = runNode(&userNode.Block)
+		sys.Scopes.Close()
+	} else {
+		// Go func
+		f := funcV.Value.(value.ValueFunc)
+		result, err2 = f(args)
+	}
 	// 結果をそれに覚える
 	if result != nil {
 		sys.Sore.SetValue(result)

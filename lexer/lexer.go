@@ -20,6 +20,7 @@ type Lexer struct {
 	autoHalf   bool
 	renbunJosi map[string]bool
 	tokens     *token.Tokens
+	FuncNames  map[string]bool
 }
 
 // NewLexer : NewLexer
@@ -30,6 +31,7 @@ func NewLexer(source string, fileNo int) *Lexer {
 	p.line = 0
 	p.fileNo = fileNo
 	p.autoHalf = true
+	p.FuncNames = map[string]bool{}
 	// 連文に使う助詞を初期化
 	p.renbunJosi = map[string]bool{}
 	for _, josi := range token.JosiRenbun {
@@ -310,6 +312,10 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 	case ':':
 		p.move(1)
 		return NewToken(p, token.EOS)
+	// その他の記号
+	case '●':
+		p.move(1)
+		return NewToken(p, token.DEF_FUNC)
 	}
 
 	return nil
@@ -324,7 +330,9 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
 	// 同じく,FOR_BEGINを挿入
 	var tWord *token.Token = nil
-	i, mk, mosi := 0, 0, false
+	i, mk, isMosi := 0, 0, false
+	isDefFunc, isParen, funcName := false, false, ""
+	p.FuncNames = map[string]bool{}
 	nextType := func() token.TType {
 		if (i + 1) < len(tt) {
 			return tt[i+1].Type
@@ -336,9 +344,19 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 		switch t.Type {
 		case token.LF, token.EOS:
 			mk = i + 1
+			if isDefFunc {
+				isDefFunc = false
+				if funcName != "" {
+					p.FuncNames[funcName] = true
+					funcName = ""
+				}
+			}
 		case token.WORD:
 			if t.Josi == "に" || t.Josi == "へ" {
 				tWord = t
+			}
+			if isDefFunc && !isParen {
+				funcName = t.Literal
 			}
 		case token.LET:
 			p.line = t.FileInfo.Line
@@ -380,9 +398,9 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			i += 2
 			continue
 		case token.IF:
-			mosi = true
+			isMosi = true
 		case token.EQ:
-			if mosi {
+			if isMosi {
 				t.Type = token.EQEQ
 				t.Literal = "=="
 			}
@@ -390,12 +408,19 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 			if nextType() != token.LF {
 				t.Type = token.THEN_SINGLE
 			}
-			mosi = false
+			isMosi = false
 		case token.ELSE:
 			if nextType() != token.LF {
 				t.Type = token.ELSE_SINGLE
 			}
+		case token.DEF_FUNC:
+			isDefFunc = true
+		case token.LPAREN:
+			isParen = true
+		case token.RPAREN:
+			isParen = false
 		}
+		//
 		i++
 	}
 	return tt

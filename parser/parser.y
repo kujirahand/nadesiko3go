@@ -29,7 +29,7 @@ import (
 %type<node> if_stmt if_comp block 
 %type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt comment_stmt
-%type<node> def_function
+%type<node> def_function def_args
 %token<token> __TOKENS_LIST__
 
 %%
@@ -302,13 +302,29 @@ for_stmt
   }
 
 def_function
-  : DEF_FUNC WORD LF block END
+  : DEF_FUNC FUNC LF block END
   {
     $$ = node.NewNodeDefFunc($2, node.NewNodeList(), $4)
   }
-  | DEF_FUNC LPAREN args RPAREN WORD LF block END
+  | DEF_FUNC LPAREN def_args RPAREN FUNC LF block END
   {
     $$ = node.NewNodeDefFunc($5, $3, $7)
+  }
+
+def_args
+  : WORD
+  {
+    w := node.NewNodeWord($1)
+    nl := node.NewNodeList()
+    nl = append(nl, w)
+    $$ = nl
+  }
+  | def_args WORD
+  {
+    w := node.NewNodeWord($2)
+    nl := $1.(node.NodeList)
+    nl = append(nl, w)
+    $$ = nl
   }
 
 %%
@@ -357,8 +373,12 @@ func (l *Lexer) Lex(lval *yySymType) int {
   // return
   result := getTokenNo(t.Type)
   if result == WORD {
+    // go func
     v, _ := l.sys.Scopes.Find(t.Literal)
-    if v != nil && v.Type == value.Function {
+    if v != nil && v.IsFunction() {
+      result = FUNC
+      t.Type = token.FUNC
+    } else if l.lexer.FuncNames[t.Literal] {
       result = FUNC
       t.Type = token.FUNC
     }

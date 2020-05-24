@@ -6,8 +6,10 @@ import (
 
 func TestHash(t *testing.T) {
 	h := NewValueHash()
-	h.Set("aaa", NewValueInt(30))
-	h.Set("bbb", NewValueInt(50))
+	v30 := NewValueInt(30)
+	v50 := NewValueInt(50)
+	h.Set("aaa", &v30)
+	h.Set("bbb", &v50)
 	s := h.Get("aaa").ToString()
 	if s != "30" {
 		t.Errorf("hash get aaa")

@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// ValueType : valueの型
 type ValueType int
 
 const (
@@ -17,8 +18,10 @@ const (
 	Array
 	Hash
 	Function
+	UserFunc
 )
 
+// Value : Value
 type Value struct {
 	Type  ValueType
 	Value interface{}
@@ -47,6 +50,9 @@ func NewValueBool(v bool) Value {
 func NewValueFunc(v ValueFunc) Value {
 	return Value{Type: Function, Value: v}
 }
+func NewValueUserFunc(v int) Value {
+	return Value{Type: UserFunc, Value: v}
+}
 
 func StrToInt(s string) int64 {
 	i, _ := strconv.ParseInt(s, 10, 64)
@@ -67,9 +73,8 @@ func NewValue(vtype ValueType, s string) Value {
 		// IntにできるならIntに変換
 		if strings.Index(s, ".") >= 0 {
 			return NewValueFloat(StrToFloat(s))
-		} else {
-			return NewValueInt(StrToInt(s))
 		}
+		return NewValueInt(StrToInt(s))
 	case Str:
 		return NewValueStr(s)
 	case Bool:
@@ -168,6 +173,11 @@ func (v *Value) SetValue(value *Value) {
 	v.Type = value.Type
 	v.Value = value.Value
 	v.Tag = value.Tag
+}
+
+// IsFuncType : 関数タイプか
+func (v *Value) IsFunction() bool {
+	return v.Type == Function || v.Type == UserFunc
 }
 
 func IntToStr(i int64) string {

@@ -20,11 +20,8 @@ const (
 	MainFile TRunMode = "mainfile"
 )
 
-// Josi : 助詞の一覧
-type Josi []string
-
 // DefArgs : 関数引数の助詞一覧
-type DefArgs []Josi
+type DefArgs [][]string
 
 // Core : なでしこのコアシステム情報
 type Core struct {
@@ -73,10 +70,24 @@ func NewCore() *Core {
 	return &c
 }
 
-// AddFunc : システムに関数を登録する
-func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) {
-	val := value.NewValueFunc(f)
+// addFuncCustom : システムに関数を登録する
+func (sys *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 	val.Tag = len(sys.JosiList)
 	sys.JosiList = append(sys.JosiList, args)
 	sys.Global.Set(name, &val)
+	return val.Tag
+}
+
+// AddFunc : システムにGo関数を登録する
+func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) int {
+	val := value.NewValueFunc(f)
+	return sys.addFuncCustom(name, args, val)
+}
+
+// AddUserFunc : システムにユーザー関数を登録する
+func (sys *Core) AddUserFunc(name string, args DefArgs) int {
+	val := value.NewValueUserFunc(-1)
+	tag := sys.addFuncCustom(name, args, val)
+	val.Value = tag
+	return tag
 }

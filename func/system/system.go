@@ -1,14 +1,16 @@
 package system
 
 import (
-	. "github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
 )
 
-func RegisterFunction(sys *Core) {
-	sys.AddFunc("足", DefArgs{Josi{"と", "に"}, Josi{"を"}}, Add)
+// RegisterFunction : 関数を登録
+func RegisterFunction(sys *core.Core) {
+	sys.AddFunc("足", core.DefArgs{{"と", "に"}, {"を"}}, Add)
 }
 
+// Add : 足す
 func Add(args value.ValueArray) (*value.Value, error) {
 	l := args[0]
 	r := args[1]
