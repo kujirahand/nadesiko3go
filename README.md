@@ -20,29 +20,19 @@ FizzBuzzもなんとか動く感じ。
 
 まずはGo言語をインストール。
 
-### (2) direnv が必要
-
-- ``direnv`` をインストール
-  - macOS  : ``brew install direnv``
-  - ubuntu : ``apt install direnv``
-- シェルにフックを設定(設定ファイルに以下を記述)
-  - bash : ``eval "$(direnv hook bash)"``
-  - zsh  : ``eval "$(direnv hook zsh)"``
-- ``direnv allow`` を実行する
-
-### (3) goyacc が必要
+### (2) goyacc が必要
 
 ```
 go get golang.org/x/tools/cmd/goyacc
 ```
 
-### (4) make.shを実行
+### (3) make.shを実行
 
 ```
 ./make.sh
 ```
 
-すると、binディレクトリにcnako3goができる。
+すると、cnako3goが生成される。
 
 
 
