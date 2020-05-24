@@ -65,9 +65,9 @@ func NewCore() *Core {
 	g.Set("そう", &c.Sore) // Alias "それ"
 	g.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
-	c.BreakID = 0
-	c.ContinueID = 0
-	c.ReturnID = 0
+	c.BreakID = -1
+	c.ContinueID = -1
+	c.ReturnID = -1
 	c.LoopLevel = 0
 	return &c
 }

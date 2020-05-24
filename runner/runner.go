@@ -35,6 +35,9 @@ func RuntimeError(msg string, n *node.Node) error {
 func runNodeList(nodes node.NodeList) (*value.Value, error) {
 	var lastValue *value.Value = nil
 	for _, n := range nodes {
+		if sys.BreakID >= 0 || sys.ContinueID >= 0 {
+			break
+		}
 		v, err := runNode(&n)
 		if err != nil {
 			return v, err
@@ -124,21 +127,20 @@ func runFor(n *node.Node) (*value.Value, error) {
 	// LOOP
 	sys.LoopLevel++
 	for ; i <= iTo; i++ {
-		// CHECK BREAK
-		// println("LOOP:", sys.BreakId, ":", sys.LoopLevel)
-		if sys.BreakID == sys.LoopLevel {
-			sys.BreakID = 0
-			break
-		}
-		if sys.BreakID > 0 {
-			break
-		}
 		loopVar.SetInt(i)
 		v, err := runNode(&nn.Block)
 		if err != nil {
 			return nil, err
 		}
 		lastValue = v
+		// check break
+		if sys.BreakID >= 0 {
+			sys.BreakID = -1
+			break
+		}
+	}
+	if sys.ContinueID == sys.LoopLevel {
+		sys.ContinueID = -1
 	}
 	sys.LoopLevel--
 	return lastValue, nil
@@ -414,8 +416,14 @@ func runContinue(n *node.Node) (*value.Value, error) {
 }
 
 func runReturn(n *node.Node) (*value.Value, error) {
+	var result *value.Value = nil
+	var err error = nil
+	nn := (*n).(node.NodeReturn)
+	if nn.Arg != nil {
+		result, err = runNode(&nn.Arg)
+	}
 	sys.ReturnID = sys.LoopLevel
-	return nil, nil
+	return result, err
 }
 
 func runConst(n *node.Node) (*value.Value, error) {
