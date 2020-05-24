@@ -1,6 +1,7 @@
 package core
 
 import (
+	"nako3/scope"
 	"nako3/value"
 )
 
@@ -31,7 +32,8 @@ type Core struct {
 	MainFile   string
 	Code       string
 	RunMode    TRunMode
-	Globals    *value.ValueHash
+	Scopes     *scope.ScopeObj
+	Global     *scope.Scope
 	Sore       value.Value
 	Taisyo     value.Value
 	BreakId    int
@@ -56,12 +58,14 @@ func NewCore() *Core {
 	c := Core{}
 	c.IsDebug = false
 	c.RunMode = MainFile
-	c.Globals = value.NewValueHash()
+	c.Scopes = scope.NewScopeObj()
+	c.Global = c.Scopes.GetGlobal()
 	c.Sore = value.NewValueNull()
 	c.Taisyo = value.NewValueNull()
-	c.Globals.Set("それ", &c.Sore)
-	c.Globals.Set("そう", &c.Sore) // Alias "それ"
-	c.Globals.Set("対象", &c.Taisyo)
+	g := c.Global
+	g.Set("それ", &c.Sore)
+	g.Set("そう", &c.Sore) // Alias "それ"
+	g.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
 	c.BreakId = 0
 	c.ContinueId = 0
@@ -74,5 +78,5 @@ func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) {
 	val := value.NewValueFunc(f)
 	val.Tag = len(sys.JosiList)
 	sys.JosiList = append(sys.JosiList, args)
-	sys.Globals.Set(name, &val)
+	sys.Global.Set(name, &val)
 }

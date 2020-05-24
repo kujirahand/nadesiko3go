@@ -223,7 +223,7 @@ func (l *Lexer) Lex(lval *yySymType) int {
 	// return
 	result := getTokenNo(t.Type)
 	if result == WORD {
-		v := l.sys.Globals.Get(t.Literal)
+		v, _ := l.sys.Scopes.Find(t.Literal)
 		if v != nil && v.Type == value.Function {
 			result = FUNC
 			t.Type = token.FUNC

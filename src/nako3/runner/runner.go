@@ -108,10 +108,10 @@ func runFor(n *node.Node) (*value.Value, error) {
 		loopVar = &sys.Sore
 	} else {
 		// できるだけ再利用
-		loopVar = sys.Globals.Get(nn.Word)
+		loopVar = sys.Global.Get(nn.Word)
 		if loopVar == nil {
 			newVar := value.NewValueInt(0)
-			sys.Globals.Set(nn.Word, &newVar)
+			sys.Global.Set(nn.Word, &newVar)
 			loopVar = &newVar
 		}
 	}
@@ -215,8 +215,13 @@ func runLet(n *node.Node) (*value.Value, error) {
 	}
 	// 普通に変数に代入する場合
 	if len(cl.VarIndex) == 0 {
-		sys.Globals.Set(cl.Var, val)
-		sys.Sore.SetValue(val)
+		// 既にこのレベル以下に変数がある？
+		v := sys.Scopes.Get(cl.Var)
+		if v != nil {
+			v.SetValue(val)
+		} else {
+			sys.Scopes.SetTop(cl.Var, val)
+		}
 		return val, nil
 	}
 	// TODO: 配列など参照に代入する場合
@@ -228,7 +233,7 @@ func runWord(n *node.Node) (*value.Value, error) {
 	// 関数の実態を得る
 	val := cw.Cache
 	if val == nil {
-		val = sys.Globals.Get(cw.Name)
+		val = sys.Scopes.Get(cw.Name)
 		cw.Cache = val
 	}
 	return val, nil
@@ -239,7 +244,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	// 関数の実態を得る
 	funcV := cf.Cache
 	if funcV == nil {
-		funcV = sys.Globals.Get(cf.Name)
+		funcV = sys.Scopes.Get(cf.Name)
 		cf.Cache = funcV
 	}
 	// 変数が見当たらない
