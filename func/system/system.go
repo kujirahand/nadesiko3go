@@ -14,6 +14,6 @@ func RegisterFunction(sys *core.Core) {
 func Add(args value.ValueArray) (*value.Value, error) {
 	l := args[0]
 	r := args[1]
-	v := value.Add(&l, &r)
+	v := value.Add(l, r)
 	return &v, nil
 }

@@ -27,12 +27,16 @@ type Value struct {
 	Tag   int
 }
 
-type ValueArray []Value
+type ValueArray []*Value
 
 type ValueFunc func(args ValueArray) (*Value, error)
 
 func NewValueNull() Value {
-	return Value{Type: Null, Value: nil}
+	return Value{Type: Null}
+}
+func NewValueNullPtr() *Value {
+	p := NewValueNull()
+	return &p
 }
 func NewValueInt(v int64) Value {
 	return Value{Type: Int, Value: v}
@@ -180,6 +184,9 @@ func (v *Value) IsFunction() bool {
 }
 
 func (v *Value) ToString() string {
+	if v == nil {
+		return ""
+	}
 	switch v.Type {
 	case Int:
 		return IntToStr(v.Value.(int64))
@@ -204,6 +211,9 @@ func (v *Value) ToString() string {
 
 // ToJSONString : Convert to JSON string
 func (v *Value) ToJSONString() string {
+	if v == nil {
+		return "undefined"
+	}
 	switch v.Type {
 	case Int:
 		return IntToStr(v.Value.(int64))

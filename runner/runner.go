@@ -312,9 +312,9 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 					return nil, RuntimeError(err1.Error()+msg, n)
 				}
 				if argResult != nil {
-					args[i] = *argResult
+					args[i] = argResult
 				} else {
-					args[i] = value.NewValueNull()
+					args[i] = value.NewValueNullPtr()
 				}
 			}
 		}
@@ -332,7 +332,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	if len(nodeArgs) != len(defArgs) {
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
-			args[0] = sys.Sore
+			args[0] = &sys.Sore
 		} else {
 			return nil, RuntimeError(fmt.Sprintf("関数『%s』で引数の数が違います。", cf.Name), n)
 		}
@@ -348,7 +348,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		// スコープにローカル変数を挿入
 		scope := sys.Scopes.GetTopScope()
 		for i, v := range userNode.ArgNames {
-			scope.Set(v, &args[i])
+			scope.Set(v, args[i])
 		}
 		sys.LoopLevel++
 		result, err2 = runNode(&userNode.Block)

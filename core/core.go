@@ -80,6 +80,13 @@ func (sys *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 	return val.Tag
 }
 
+// AddVar : システムに変数を登録
+func (sys *Core) AddVar(name, v string) int {
+	val := value.NewValueStr(v)
+	sys.Global.Set(name, &val)
+	return -1
+}
+
 // AddFunc : システムにGo関数を登録する
 func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) int {
 	val := value.NewValueFunc(f)
