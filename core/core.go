@@ -80,10 +80,39 @@ func (sys *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 	return val.Tag
 }
 
+// AddConst : システムに定数を登録
+func (sys *Core) AddConst(name, v string) int {
+	val := value.NewValueStr(v)
+	val.IsFreeze = true
+	sys.Global.Set(name, &val)
+	return -1
+}
+
+// AddConstInt : システムに定数を登録
+func (sys *Core) AddConstInt(name string, v int) int {
+	val := value.NewValueInt(int64(v))
+	val.IsFreeze = true
+	sys.Global.Set(name, &val)
+	return -1
+}
+
 // AddVar : システムに変数を登録
 func (sys *Core) AddVar(name, v string) int {
 	val := value.NewValueStr(v)
 	sys.Global.Set(name, &val)
+	return -1
+}
+
+// AddVarInt : システムに整数型の値を登録
+func (sys *Core) AddVarInt(name string, v int) int {
+	val := value.NewValueInt(int64(v))
+	sys.Global.Set(name, &val)
+	return -1
+}
+
+// AddVarValue : システムに変数を登録
+func (sys *Core) AddVarValue(name string, v value.Value) int {
+	sys.Global.Set(name, &v)
 	return -1
 }
 
