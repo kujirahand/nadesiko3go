@@ -82,15 +82,15 @@ type Node interface {
 	GetFileInfo() core.TFileInfo
 }
 
-// NodeList : Node List
-type NodeList []Node
+// TNodeList : Node List
+type TNodeList []Node
 
-func (n NodeList) GetType() NType              { return TypeNodeList }
-func (n NodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
-func (n NodeList) GetJosi() string             { return "" }
+func (n TNodeList) GetType() NType              { return TypeNodeList }
+func (n TNodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
+func (n TNodeList) GetJosi() string             { return "" }
 
-func NewNodeList() NodeList {
-	return NodeList{}
+func NewNodeList() TNodeList {
+	return TNodeList{}
 }
 
 // UserFunc : ユーザー関数の一覧
@@ -142,7 +142,7 @@ func NewNodeCalc(t *token.Token, child Node) Node {
 type NodeLet struct {
 	Node
 	Var      string
-	VarIndex NodeList
+	VarIndex TNodeList
 	Value    Node
 	Josi     string
 	FileInfo core.TFileInfo
@@ -152,7 +152,7 @@ func (n NodeLet) GetType() NType              { return Let }
 func (n NodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeLet) GetJosi() string             { return n.Josi }
 
-func NewNodeLet(t *token.Token, index NodeList, value Node) Node {
+func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
 	n := NodeLet{
 		Var:      t.Literal,
 		VarIndex: index,
@@ -176,9 +176,9 @@ func (n NodeConst) GetType() NType              { return Const }
 func (n NodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeConst) GetJosi() string             { return n.Josi }
 
-func NewNodeConst(vtype value.ValueType, t *token.Token) NodeConst {
+func NewNodeConst(vtype value.Type, t *token.Token) NodeConst {
 	node := NodeConst{
-		Value:    value.NewValue(vtype, t.Literal),
+		Value:    value.NewValueByType(vtype, t.Literal),
 		IsExtend: false,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
@@ -193,7 +193,7 @@ func NewNodeConstInt(t *token.Token, num int) NodeConst {
 	}
 	return node
 }
-func NewNodeConstEx(vtype value.ValueType, t *token.Token) NodeConst {
+func NewNodeConstEx(vtype value.Type, t *token.Token) NodeConst {
 	node := NewNodeConst(vtype, t)
 	node.IsExtend = true
 	return node
@@ -228,7 +228,7 @@ func NewNodeOperator(op *token.Token, left Node, right Node) NodeOperator {
 type NodeSentence struct {
 	Node
 	Memo     string
-	List     NodeList
+	List     TNodeList
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -241,7 +241,7 @@ func NewNodeSentence(finfo core.TFileInfo) NodeSentence {
 	node := NodeSentence{
 		FileInfo: finfo,
 	}
-	node.List = NodeList{}
+	node.List = TNodeList{}
 	return node
 }
 
@@ -252,7 +252,7 @@ func (l *NodeSentence) Append(node Node) {
 // NodeCallFunc
 type NodeCallFunc struct {
 	Node
-	Args     NodeList
+	Args     TNodeList
 	Name     string
 	Cache    *value.Value
 	Josi     string
@@ -277,7 +277,7 @@ type NodeWord struct {
 	Node
 	Name     string
 	Cache    *value.Value
-	Index    NodeList
+	Index    TNodeList
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -286,7 +286,7 @@ func (n NodeWord) GetType() NType              { return Word }
 func (n NodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeWord) GetJosi() string             { return n.Josi }
 
-func NewNodeWord(t *token.Token, index NodeList) NodeWord {
+func NewNodeWord(t *token.Token, index TNodeList) NodeWord {
 	node := NodeWord{
 		Name:     t.Literal,
 		Index:    index,
@@ -443,7 +443,7 @@ func NewNodeBreak(t *token.Token, loopId int) NodeBreak {
 type NodeDefFunc struct {
 	Node
 	Word     string
-	Args     NodeList
+	Args     TNodeList
 	ArgNames []string
 	Block    Node
 	Josi     string
@@ -458,7 +458,7 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
 	word := t.Literal
 	node := NodeDefFunc{
 		Word:     word,
-		Args:     args.(NodeList),
+		Args:     args.(TNodeList),
 		ArgNames: []string{},
 		Block:    block,
 		Josi:     t.Josi,
@@ -512,7 +512,7 @@ func NewNodeReturn(t *token.Token, arg Node, loopId int) NodeReturn {
 // NodeJSONArray : NodeJSONArray
 type NodeJSONArray struct {
 	Node
-	Items    NodeList
+	Items    TNodeList
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -521,7 +521,7 @@ func (n NodeJSONArray) GetType() NType              { return JSONArray }
 func (n NodeJSONArray) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeJSONArray) GetJosi() string             { return n.Josi }
 
-func NewNodeJSONArray(t *token.Token, items NodeList) NodeJSONArray {
+func NewNodeJSONArray(t *token.Token, items TNodeList) NodeJSONArray {
 	node := NodeJSONArray{
 		Items:    items,
 		Josi:     t.Josi,
@@ -588,7 +588,7 @@ func NodeToString(n Node, level int) string {
 			ss += NodeToString(v, level+1) + "\n"
 		}
 	case TypeNodeList:
-		nlist := n.(NodeList)
+		nlist := n.(TNodeList)
 		s += fmt.Sprintf("(%d)", len(nlist))
 		for _, v := range nlist {
 			ss += NodeToString(v, level+1) + "\n"

@@ -28,7 +28,7 @@ type yySymType struct {
 	token    *token.Token // lval *yySymType
 	node     node.Node
 	jsonkv   node.JSONHashKeyValue
-	nodelist node.NodeList
+	nodelist node.TNodeList
 }
 
 const UNKNOWN = 57346
@@ -972,7 +972,7 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line _parser_generated.y:104
 		{
-			yyVAL.nodelist = node.NodeList{yyDollar[2].node}
+			yyVAL.nodelist = node.TNodeList{yyDollar[2].node}
 		}
 	case 23:
 		yyDollar = yyS[yypt-4 : yypt+1]
@@ -991,7 +991,7 @@ yydefault:
 //line _parser_generated.y:118
 		{
 			n := node.NewNodeCallFunc(yyDollar[2].token)
-			n.Args, _ = yyDollar[1].node.(node.NodeList)
+			n.Args, _ = yyDollar[1].node.(node.TNodeList)
 			yyVAL.node = n
 		}
 	case 26:
@@ -999,21 +999,21 @@ yydefault:
 //line _parser_generated.y:124
 		{
 			n := node.NewNodeCallFunc(yyDollar[1].token)
-			n.Args, _ = yyDollar[3].node.(node.NodeList)
+			n.Args, _ = yyDollar[3].node.(node.TNodeList)
 			yyVAL.node = n
 		}
 	case 27:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line _parser_generated.y:132
 		{
-			n := node.NodeList{yyDollar[1].node}
+			n := node.TNodeList{yyDollar[1].node}
 			yyVAL.node = n
 		}
 	case 28:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line _parser_generated.y:137
 		{
-			args, _ := yyDollar[1].node.(node.NodeList)
+			args, _ := yyDollar[1].node.(node.TNodeList)
 			n := append(args, yyDollar[2].node)
 			yyVAL.node = n
 		}
@@ -1306,7 +1306,7 @@ yydefault:
 //line _parser_generated.y:373
 		{
 			w := node.NewNodeWord(yyDollar[2].token, nil)
-			nl := yyDollar[1].node.(node.NodeList)
+			nl := yyDollar[1].node.(node.TNodeList)
 			nl = append(nl, w)
 			yyVAL.node = nl
 		}

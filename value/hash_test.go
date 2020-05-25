@@ -5,16 +5,16 @@ import (
 )
 
 func TestHash(t *testing.T) {
-	h := NewValueHashObj()
+	h := NewValueHash()
 	v30 := NewValueInt(30)
 	v50 := NewValueInt(50)
-	h.Set("aaa", &v30)
-	h.Set("bbb", &v50)
-	s := h.Get("aaa").ToString()
+	h.HashSet("aaa", &v30)
+	h.HashSet("bbb", &v50)
+	s := h.HashGet("aaa").ToString()
 	if s != "30" {
 		t.Errorf("hash get aaa")
 	}
-	v := h.Get("bbb").ToInt()
+	v := h.HashGet("bbb").ToInt()
 	if v != 50 {
 		t.Errorf("hash get bbb")
 	}
@@ -26,9 +26,9 @@ func TestHash(t *testing.T) {
 }
 
 func TestHash2(t *testing.T) {
-	h := NewValueHashObj()
+	h := NewValueHash()
 	v30 := NewValueInt(30)
-	h.Set("aaa", &v30)
+	h.HashSet("aaa", &v30)
 	json := h.ToString()
 	if json != "{\"aaa\":30}" {
 		t.Errorf("hash.ToString=" + json)

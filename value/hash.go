@@ -5,26 +5,25 @@ import (
 	"strings"
 )
 
-func NewValueHashObj() *ValueHash {
-	p := ValueHash{}
-	return &p
-}
-
-func (p *ValueHash) Set(key string, v *Value) {
+// Set : THash.Set
+func (p *THash) Set(key string, v *Value) {
 	h := *p
 	h[key] = v
 }
 
-func (p *ValueHash) Get(key string) *Value {
+// Get : THash.Get
+func (p *THash) Get(key string) *Value {
 	h := *p
 	return h[key]
 }
 
-func (p *ValueHash) ToString() string {
+// ToString : to string
+func (p *THash) ToString() string {
 	return p.ToJSONString()
 }
 
-func (p *ValueHash) ToJSONString() string {
+// ToJSONString : to json string
+func (p *THash) ToJSONString() string {
 	a := []string{}
 	for key, val := range *p {
 		s := fmt.Sprintf("\"%s\":%s", key, val.ToJSONString())
@@ -33,6 +32,7 @@ func (p *ValueHash) ToJSONString() string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
-func (p *ValueHash) Length() int {
+// Length : get value count
+func (p *THash) Length() int {
 	return len(*p)
 }

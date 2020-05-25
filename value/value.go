@@ -1,14 +1,12 @@
 package value
 
-import (
-	"strings"
-)
+import "strings"
 
-// ValueType : valueの型
-type ValueType int
+// Type : valueの型
+type Type int
 
 const (
-	Null ValueType = iota
+	Null Type = iota
 	Int
 	Float
 	Str
@@ -17,57 +15,85 @@ const (
 	Hash
 	Function
 	UserFunc
+	Binary
 )
 
 // Value : Value
 type Value struct {
-	Type     ValueType
+	Type     Type
 	Value    interface{}
 	Tag      int
 	IsFreeze bool
 }
 
-type ValueArray []*Value
-type ValueHash map[string]*Value
+// TArray : 配列型の型
+type TArray []*Value
 
-type ValueFunc func(args ValueArray) (*Value, error)
+// THash : ハッシュ型の型
+type THash map[string]*Value
 
+// TFunction : 関数型の型
+type TFunction func(args TArray) (*Value, error)
+
+// NewValueNull : NULL型の値を返す
 func NewValueNull() Value {
 	return Value{Type: Null}
 }
+
+// NewValueNullPtr : NULL型の値を生成し、そのポインタを返す
 func NewValueNullPtr() *Value {
 	p := NewValueNull()
 	return &p
 }
+
+// NewValueInt : 整数型を返す
 func NewValueInt(v int64) Value {
 	return Value{Type: Int, Value: v}
 }
+
+// NewValueIntPtr : 整数型を生成してそのポインタを返す
 func NewValueIntPtr(v int64) *Value {
 	vv := NewValueInt(v)
 	return &vv
 }
+
+// NewValueFloat : 実数型を生成
 func NewValueFloat(v float64) Value {
 	return Value{Type: Float, Value: v}
 }
+
+// NewValueStr : 文字列を生成
 func NewValueStr(v string) Value {
 	return Value{Type: Str, Value: v}
 }
+
+// NewValueBool : 真偽値
 func NewValueBool(v bool) Value {
 	return Value{Type: Bool, Value: v}
 }
-func NewValueFunc(v ValueFunc) Value {
+
+// NewValueFunc : 関数オブジェクトを生成
+func NewValueFunc(v TFunction) Value {
 	return Value{Type: Function, Value: v}
 }
+
+// NewValueUserFunc : ユーザー定義関数を生成
 func NewValueUserFunc(v int) Value {
 	return Value{Type: UserFunc, Value: v}
 }
+
+// NewValueArray : 配列を生成
 func NewValueArray() Value {
-	return Value{Type: Array, Value: ValueArray{}}
+	return Value{Type: Array, Value: TArray{}}
 }
+
+// NewValueHash : ハッシュを生成
 func NewValueHash() Value {
-	return Value{Type: Hash, Value: ValueHash{}}
+	return Value{Type: Hash, Value: THash{}}
 }
-func NewValue(vtype ValueType, s string) Value {
+
+// NewValueByType : タイプに応じた値を生成する
+func NewValueByType(vtype Type, s string) Value {
 	switch vtype {
 	case Null:
 		return Value{Type: Null, Value: nil}
@@ -201,10 +227,10 @@ func (v *Value) ToString() string {
 		}
 		return "偽"
 	case Array:
-		a := v.Value.(ValueArray)
+		a := v.Value.(TArray)
 		return a.ToJSONString()
 	case Hash:
-		h := v.Value.(ValueHash)
+		h := v.Value.(THash)
 		return h.ToString()
 	}
 	return ""
@@ -228,10 +254,10 @@ func (v *Value) ToJSONString() string {
 		}
 		return "false"
 	case Array:
-		a := v.Value.(ValueArray)
+		a := v.Value.(TArray)
 		return a.ToJSONString()
 	case Hash:
-		h := v.Value.(ValueHash)
+		h := v.Value.(THash)
 		return h.ToString()
 	}
 	return ""
@@ -241,9 +267,9 @@ func (v *Value) ToJSONString() string {
 func (v *Value) Append(val *Value) int {
 	if v.Type != Array {
 		v.Type = Array
-		v.Value = ValueArray{}
+		v.Value = TArray{}
 	}
-	b := append(v.Value.(ValueArray), val)
+	b := append(v.Value.(TArray), val)
 	v.Value = b
 	return len(b)
 }
@@ -252,9 +278,9 @@ func (v *Value) Append(val *Value) int {
 func (v *Value) HashSet(key string, val *Value) {
 	if v.Type != Hash {
 		v.Type = Hash
-		v.Value = ValueHash{}
+		v.Value = THash{}
 	}
-	vh := v.Value.(ValueHash)
+	vh := v.Value.(THash)
 	vh[key] = val
 }
 
@@ -263,7 +289,7 @@ func (v *Value) HashGet(key string) *Value {
 	if v.Type != Hash {
 		return nil
 	}
-	vh := v.Value.(ValueHash)
+	vh := v.Value.(THash)
 	return vh[key]
 }
 
@@ -272,9 +298,9 @@ func (v *Value) ArraySet(idx int, val *Value) {
 	if v.Type != Array {
 		v.Type = Array
 		cv := NewValueStr(v.ToString())
-		v.Value = ValueArray{&cv}
+		v.Value = TArray{&cv}
 	}
-	a := v.Value.(ValueArray)
+	a := v.Value.(TArray)
 	a[idx] = val
 }
 
@@ -283,6 +309,6 @@ func (v *Value) ArrayGet(idx int) *Value {
 	if v.Type != Array {
 		return nil
 	}
-	a := v.Value.(ValueArray)
+	a := v.Value.(TArray)
 	return a[idx]
 }

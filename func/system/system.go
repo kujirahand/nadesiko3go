@@ -11,7 +11,7 @@ func RegisterFunction(sys *core.Core) {
 }
 
 // Add : 足す
-func Add(args value.ValueArray) (*value.Value, error) {
+func Add(args value.TArray) (*value.Value, error) {
 	l := args[0]
 	r := args[1]
 	v := value.Add(l, r)

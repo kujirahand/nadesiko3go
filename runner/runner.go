@@ -32,7 +32,7 @@ func RuntimeError(msg string, n *node.Node) error {
 	return e
 }
 
-func runNodeList(nodes node.NodeList) (*value.Value, error) {
+func runNodeList(nodes node.TNodeList) (*value.Value, error) {
 	var lastValue *value.Value = nil
 	for _, n := range nodes {
 		if sys.BreakID >= 0 || sys.ContinueID >= 0 {
@@ -60,7 +60,7 @@ func runNode(n *node.Node) (*value.Value, error) {
 		nchild := (*n).(node.NodeCalc)
 		return runNode(&nchild.Child)
 	case node.TypeNodeList:
-		nlist := (*n).(node.NodeList)
+		nlist := (*n).(node.TNodeList)
 		return runNodeList(nlist)
 	case node.Const:
 		return runConst(n)
@@ -348,10 +348,10 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(msgn, n)
 	}
 	// args
-	defArgs := sys.JosiList[funcV.Tag]           // 定義
-	args := make(value.ValueArray, len(defArgs)) // 関数に与える値
-	nodeArgs := cf.Args                          // ノードの値
-	usedArgs := make([]bool, len(nodeArgs))      // ノードを利用したか(同じ助詞が二つある場合)
+	defArgs := sys.JosiList[funcV.Tag]       // 定義
+	args := make(value.TArray, len(defArgs)) // 関数に与える値
+	nodeArgs := cf.Args                      // ノードの値
+	usedArgs := make([]bool, len(nodeArgs))  // ノードを利用したか(同じ助詞が二つある場合)
 	for bi := 0; bi < len(usedArgs); bi++ {
 		usedArgs[bi] = false
 	}
@@ -415,7 +415,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		sys.Scopes.Close()
 	} else {
 		// Go func
-		f := funcV.Value.(value.ValueFunc)
+		f := funcV.Value.(value.TFunction)
 		result, err2 = f(args)
 	}
 	// 結果をそれに覚える

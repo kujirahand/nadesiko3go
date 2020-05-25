@@ -29,7 +29,7 @@ type Core struct {
 	MainFile   string
 	Code       string
 	RunMode    TRunMode
-	Scopes     *scope.ScopeObj
+	Scopes     *scope.TScopeList
 	Global     *scope.Scope
 	Sore       value.Value
 	Taisyo     value.Value
@@ -56,7 +56,7 @@ func NewCore() *Core {
 	c := Core{}
 	c.IsDebug = false
 	c.RunMode = MainFile
-	c.Scopes = scope.NewScopeObj()
+	c.Scopes = scope.NewScopeList()
 	c.Global = c.Scopes.GetGlobal()
 	c.Sore = value.NewValueNull()
 	c.Taisyo = value.NewValueNull()
@@ -88,7 +88,7 @@ func (sys *Core) AddVar(name, v string) int {
 }
 
 // AddFunc : システムにGo関数を登録する
-func (sys *Core) AddFunc(name string, args DefArgs, f value.ValueFunc) int {
+func (sys *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
 	val := value.NewValueFunc(f)
 	return sys.addFuncCustom(name, args, val)
 }

@@ -22,7 +22,7 @@ import (
 	token     *token.Token // lval *yySymType
 	node      node.Node
   jsonkv    node.JSONHashKeyValue
-  nodelist  node.NodeList
+  nodelist  node.TNodeList
 }
 
 %type<node> program sentences sentence eos callfunc args 
@@ -102,7 +102,7 @@ let_stmt
 varindex
   : LBRACKET expr RBRACKET
   {
-    $$ = node.NodeList{$2}
+    $$ = node.TNodeList{$2}
   }
   | varindex LBRACKET expr RBRACKET
   {
@@ -117,25 +117,25 @@ callfunc
   | args FUNC
   {
     n := node.NewNodeCallFunc($2)
-    n.Args, _ = $1.(node.NodeList)
+    n.Args, _ = $1.(node.TNodeList)
     $$ = n
   }
   | FUNC LPAREN args RPAREN
   {
     n := node.NewNodeCallFunc($1)
-    n.Args, _ = $3.(node.NodeList)
+    n.Args, _ = $3.(node.TNodeList)
     $$ = n
   }
 
 args
   : expr
   {
-    n := node.NodeList{ $1 }
+    n := node.TNodeList{ $1 }
     $$ = n
   }
   | args expr
   {
-    args, _ := $1.(node.NodeList)
+    args, _ := $1.(node.TNodeList)
     n := append(args, $2)
     $$ = n
   }
@@ -372,7 +372,7 @@ def_args
   | def_args WORD
   {
     w := node.NewNodeWord($2, nil)
-    nl := $1.(node.NodeList)
+    nl := $1.(node.TNodeList)
     nl = append(nl, w)
     $$ = nl
   }

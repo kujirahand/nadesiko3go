@@ -1,15 +1,18 @@
 package value
 
-type ValueNode struct {
+// TNode : TNode struct
+type TNode struct {
 	v    *Value
-	next *ValueNode
+	next *TNode
 }
 
+// ValueStack : ValueStack struct
 type ValueStack struct {
-	top    *ValueNode
+	top    *TNode
 	length int
 }
 
+// NewValueStack : get stack object
 func NewValueStack() *ValueStack {
 	stack := ValueStack{
 		top:    nil,
@@ -20,7 +23,7 @@ func NewValueStack() *ValueStack {
 
 func (stack *ValueStack) Push(val Value) int {
 	// new node
-	n := ValueNode{
+	n := TNode{
 		v:    &val,
 		next: nil,
 	}

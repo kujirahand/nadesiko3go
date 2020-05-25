@@ -4,13 +4,13 @@ import "github.com/kujirahand/nadesiko3go/value"
 
 // Scope : Scope
 type Scope struct {
-	Vars *value.ValueHash
+	Vars *value.THash
 }
 
 // NewScope : Create Scope
 func NewScope() *Scope {
 	s := Scope{}
-	s.Vars = value.NewValueHashObj()
+	s.Vars = &value.THash{}
 	return &s
 }
 
@@ -24,40 +24,40 @@ func (s *Scope) Set(key string, v *value.Value) {
 	s.Vars.Set(key, v)
 }
 
-// ScopeObj : Scope Object
-type ScopeObj struct {
+// TScopeList : Scope Object
+type TScopeList struct {
 	Items []*Scope
 }
 
-// NewScopeObj : Create ScopeObj
-func NewScopeObj() *ScopeObj {
-	p := ScopeObj{}
+// NewScopeList : Create ScopeObj
+func NewScopeList() *TScopeList {
+	p := TScopeList{}
 	p.Items = []*Scope{}
 	p.Open() // make global scope
 	return &p
 }
 
 // GetGlobal : Get Global
-func (p *ScopeObj) GetGlobal() *Scope {
+func (p *TScopeList) GetGlobal() *Scope {
 	return p.Items[0]
 
 }
 
 // Open : Open Scope
-func (p *ScopeObj) Open() {
+func (p *TScopeList) Open() {
 	s := NewScope()
 	p.Items = append(p.Items, s)
 }
 
 // Close : Close Scope
-func (p *ScopeObj) Close() *Scope {
+func (p *TScopeList) Close() *Scope {
 	s := p.Items[len(p.Items)-1]
 	p.Items = p.Items[0 : len(p.Items)-1]
 	return s
 }
 
 // Find : Find
-func (p *ScopeObj) Find(key string) (*value.Value, int) {
+func (p *TScopeList) Find(key string) (*value.Value, int) {
 	i := len(p.Items) - 1
 	for i >= 0 {
 		scope := p.Items[i]
@@ -71,18 +71,18 @@ func (p *ScopeObj) Find(key string) (*value.Value, int) {
 }
 
 // Get : Get Variable's Value
-func (p *ScopeObj) Get(key string) *value.Value {
+func (p *TScopeList) Get(key string) *value.Value {
 	v, _ := p.Find(key)
 	return v
 }
 
 // GetTopScope : Get Top Scope
-func (p *ScopeObj) GetTopScope() *Scope {
+func (p *TScopeList) GetTopScope() *Scope {
 	return p.Items[len(p.Items)-1]
 }
 
 // SetTopVars : SetTopVars
-func (p *ScopeObj) SetTopVars(key string, v *value.Value) {
+func (p *TScopeList) SetTopVars(key string, v *value.Value) {
 	scope := p.GetTopScope()
 	scope.Set(key, v)
 }

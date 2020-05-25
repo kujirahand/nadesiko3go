@@ -9,7 +9,7 @@ func AddStr(l, r *Value) Value {
 	return NewValueStr(l.ToString() + r.ToString())
 }
 
-// Add
+// Add : 加算
 func Add(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -26,7 +26,7 @@ func Add(l, r *Value) Value {
 	return NewValueNull()
 }
 
-// Mul
+// Mul : かけ算
 func Mul(l, r *Value) Value {
 	// 整数同士
 	if l.Type == Int && r.Type == Int {
@@ -47,7 +47,7 @@ func Mul(l, r *Value) Value {
 	return NewValueNull()
 }
 
-// Sub
+// Sub : 引き算
 func Sub(l, r *Value) Value {
 	// 整数同士
 	if l.Type == Int && r.Type == Int {
@@ -60,7 +60,7 @@ func Sub(l, r *Value) Value {
 	return NewValueNull()
 }
 
-// Div
+// Div : 割り算
 func Div(l, r *Value) Value {
 	// 整数同士
 	if l.Type == Int && r.Type == Int {
@@ -73,7 +73,7 @@ func Div(l, r *Value) Value {
 	return NewValueNull()
 }
 
-// Mod
+// Mod : 割り算の余り
 func Mod(l, r *Value) Value {
 	// 整数同士
 	if l.Type == Int && r.Type == Int {
@@ -86,13 +86,13 @@ func Mod(l, r *Value) Value {
 	return NewValueNull()
 }
 
-// Exp
+// Exp : べき乗
 func Exp(l, r *Value) Value {
 	f := math.Pow(l.ToFloat(), r.ToFloat())
 	return NewValueFloat(f)
 }
 
-// EqEq
+// EqEq : ==
 func EqEq(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -109,7 +109,7 @@ func EqEq(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// Nteq
+// NtEq : !=
 func NtEq(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -126,7 +126,7 @@ func NtEq(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// Gt
+// Gt : >
 func Gt(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -143,7 +143,7 @@ func Gt(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// GtEq
+// GtEq : >=
 func GtEq(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -160,7 +160,7 @@ func GtEq(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// Lt
+// Lt : <
 func Lt(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -177,7 +177,7 @@ func Lt(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// LtEq
+// LtEq : <=
 func LtEq(l, r *Value) Value {
 	// どちらかが文字列同士の計算
 	if l.Type == Str || r.Type == Str {
@@ -194,7 +194,7 @@ func LtEq(l, r *Value) Value {
 	return NewValueBool(false)
 }
 
-// And
+// And : And
 func And(l, r *Value) Value {
 	boolLeft := l.ToBool()
 	if boolLeft == false {
@@ -207,7 +207,7 @@ func And(l, r *Value) Value {
 	return NewValueBool(true)
 }
 
-// Or
+// Or : Or
 func Or(l, r *Value) Value {
 	boolLeft := l.ToBool()
 	boolRight := r.ToBool()
