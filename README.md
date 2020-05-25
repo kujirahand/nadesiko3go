@@ -36,7 +36,7 @@ $ go get golang.org/x/tools/cmd/goyacc
 ### (2) git clone
 
 ```
-$ cd $HOME/src
+$ cd $GOPATH/src
 $ mkdir -p github.com/kujirahand
 $ cd github.com/kujirahand
 $ git clone git@github.com:kujirahand/nadesiko3go.git
