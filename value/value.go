@@ -6,16 +6,26 @@ import "strings"
 type Type int
 
 const (
+	// Null : Null
 	Null Type = iota
+	// Int : 整数
 	Int
+	// Float : 実数
 	Float
+	// Str : 文字列
 	Str
+	// Bool : 真偽型
 	Bool
+	// Array : 配列
 	Array
+	// Hash : ハッシュ
 	Hash
+	// Function : 関数
 	Function
+	// UserFunc : ユーザー関数
 	UserFunc
-	Binary
+	// Bytes : バイナリ
+	Bytes
 )
 
 // Value : Value
@@ -65,6 +75,11 @@ func NewValueFloat(v float64) Value {
 // NewValueStr : 文字列を生成
 func NewValueStr(v string) Value {
 	return Value{Type: Str, Value: v}
+}
+
+// NewValueBytes : []byteを生成
+func NewValueBytes(v []byte) Value {
+	return Value{Type: Bytes, Value: v}
 }
 
 // NewValueBool : 真偽値
@@ -117,6 +132,7 @@ func NewValueByType(vtype Type, s string) Value {
 	}
 }
 
+// ToBool : 真偽型に変換
 func (v *Value) ToBool() bool {
 	switch v.Type {
 	case Int:
@@ -134,6 +150,7 @@ func (v *Value) ToBool() bool {
 	return false
 }
 
+// ToInt : 整数型に変換
 func (v *Value) ToInt() int64 {
 	switch v.Type {
 	case Int:
@@ -150,6 +167,7 @@ func (v *Value) ToInt() int64 {
 	return 0
 }
 
+// ToFloat : 実数型に変換
 func (v *Value) ToFloat() float64 {
 	switch v.Type {
 	case Int:
@@ -166,6 +184,7 @@ func (v *Value) ToFloat() float64 {
 	return 0
 }
 
+// IsNumber : 数値？
 func (v *Value) IsNumber() bool {
 	switch v.Type {
 	case Int:
@@ -176,23 +195,31 @@ func (v *Value) IsNumber() bool {
 	return false
 }
 
+// SetInt : 整数を設定
 func (v *Value) SetInt(value int64) {
 	v.Type = Int
 	v.Value = value
 }
+
+// SetFloat : 実数を設定
 func (v *Value) SetFloat(value float64) {
 	v.Type = Float
 	v.Value = value
 }
+
+// SetStr : 文字列を設定
 func (v *Value) SetStr(value string) {
 	v.Type = Str
 	v.Value = value
 }
+
+// SetBool : 真偽型を設定
 func (v *Value) SetBool(value bool) {
 	v.Type = Bool
 	v.Value = value
 }
 
+// SetValue : Value型を設定
 func (v *Value) SetValue(value *Value) {
 	if value == nil {
 		v.Type = Null
@@ -205,11 +232,12 @@ func (v *Value) SetValue(value *Value) {
 	v.Tag = value.Tag
 }
 
-// IsFuncType : 関数タイプか
+// IsFunction : 関数タイプか
 func (v *Value) IsFunction() bool {
 	return v.Type == Function || v.Type == UserFunc
 }
 
+// ToString : 文字列型に変換
 func (v *Value) ToString() string {
 	if v == nil {
 		return ""

@@ -6,22 +6,23 @@ type TNode struct {
 	next *TNode
 }
 
-// ValueStack : ValueStack struct
-type ValueStack struct {
+// TValueStack : TValueStack struct
+type TValueStack struct {
 	top    *TNode
 	length int
 }
 
 // NewValueStack : get stack object
-func NewValueStack() *ValueStack {
-	stack := ValueStack{
+func NewValueStack() *TValueStack {
+	stack := TValueStack{
 		top:    nil,
 		length: 0,
 	}
 	return &stack
 }
 
-func (stack *ValueStack) Push(val Value) int {
+// Push : push value
+func (stack *TValueStack) Push(val Value) int {
 	// new node
 	n := TNode{
 		v:    &val,
@@ -39,7 +40,8 @@ func (stack *ValueStack) Push(val Value) int {
 	return stack.length
 }
 
-func (stack *ValueStack) Pop() *Value {
+// Pop : pop value
+func (stack *TValueStack) Pop() *Value {
 	if stack.length == 0 {
 		return nil
 	}
@@ -49,6 +51,7 @@ func (stack *ValueStack) Pop() *Value {
 	return n.v
 }
 
-func (stack *ValueStack) Length() int {
+// Length : get stack length
+func (stack *TValueStack) Length() int {
 	return stack.length
 }
