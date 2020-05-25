@@ -18,4 +18,9 @@ func TestHash(t *testing.T) {
 	if v != 50 {
 		t.Errorf("hash get bbb")
 	}
+	//
+	json := h.ToString()
+	if json != "{\"aaa\":30,\"bbb\":50}" {
+		t.Errorf("hash.ToString=" + json)
+	}
 }
