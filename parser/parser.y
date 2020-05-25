@@ -27,15 +27,15 @@ import (
 
 %type<node> program sentences sentence eos callfunc args 
 %type<node> expr value comp factor term pri_expr high_expr and_or_expr
-%type<node> let_stmt varindex
+%type<node> let_stmt
 %type<node> if_stmt if_comp block 
 %type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt comment_stmt
 %type<node> def_function def_args
-%type<node> json_value
+%type<node> json_value variable
 %type<jsonkv> json_hash
 %type<token> json_key
-%type<nodelist> json_array
+%type<nodelist> json_array varindex
 __TOKENS_LIST__
 
 %%
@@ -88,8 +88,7 @@ let_stmt
   }
   | WORD varindex EQ expr
   {
-    n := $2.(node.NodeList)
-    $$ = node.NewNodeLet($1, n, $4)
+    $$ = node.NewNodeLet($1, $2, $4)
   }
   | LET_BEGIN WORD_REF expr LET
   {
@@ -103,13 +102,11 @@ let_stmt
 varindex
   : LBRACKET expr RBRACKET
   {
-    n := node.NodeList{$2}
-    $$ = n
+    $$ = node.NodeList{$2}
   }
   | varindex LBRACKET expr RBRACKET
   {
-    n := $1.(node.NodeList)
-    $$ = append(n, $3)
+    $$ = append($1, $3)
   }
 
 callfunc
@@ -148,8 +145,12 @@ value
   : NUMBER    { $$ = node.NewNodeConst(value.Float, $1) }
   | STRING    { $$ = node.NewNodeConst(value.Str, $1) }
   | STRING_EX { $$ = node.NewNodeConstEx(value.Str, $1) }
-  | WORD      { $$ = node.NewNodeWord($1) }
+  | variable
   | json_value
+
+variable
+  : WORD          { $$ = node.NewNodeWord($1, nil) }
+  | WORD varindex { $$ = node.NewNodeWord($1, $2)  }
 
 expr
   : and_or_expr
@@ -363,14 +364,14 @@ def_function
 def_args
   : WORD
   {
-    w := node.NewNodeWord($1)
+    w := node.NewNodeWord($1, nil)
     nl := node.NewNodeList()
     nl = append(nl, w)
     $$ = nl
   }
   | def_args WORD
   {
-    w := node.NewNodeWord($2)
+    w := node.NewNodeWord($2, nil)
     nl := $1.(node.NodeList)
     nl = append(nl, w)
     $$ = nl

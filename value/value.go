@@ -266,3 +266,23 @@ func (v *Value) HashGet(key string) *Value {
 	vh := v.Value.(ValueHash)
 	return vh[key]
 }
+
+// ArraySet : Set value to array
+func (v *Value) ArraySet(idx int, val *Value) {
+	if v.Type != Array {
+		v.Type = Array
+		cv := NewValueStr(v.ToString())
+		v.Value = ValueArray{&cv}
+	}
+	a := v.Value.(ValueArray)
+	a[idx] = val
+}
+
+// ArrayGet : get value from array
+func (v *Value) ArrayGet(idx int) *Value {
+	if v.Type != Array {
+		return nil
+	}
+	a := v.Value.(ValueArray)
+	return a[idx]
+}

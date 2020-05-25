@@ -248,19 +248,53 @@ func runLet(n *node.Node) (*value.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	// 普通に変数に代入する場合
-	if len(cl.VarIndex) == 0 {
+	if cl.VarIndex == nil || len(cl.VarIndex) == 0 {
 		// 既にこのレベル以下に変数がある？
-		v := sys.Scopes.Get(cl.Var)
-		if v != nil {
-			v.SetValue(val)
+		vv := sys.Scopes.Get(cl.Var)
+		if vv != nil {
+			vv.SetValue(val)
 		} else {
 			sys.Scopes.SetTopVars(cl.Var, val)
 		}
 		return val, nil
 	}
-	// TODO: 配列など参照に代入する場合
-	panic("開発中")
+
+	// 配列など参照に代入する場合
+	vv := sys.Scopes.Get(cl.Var)
+	if vv == nil {
+		vv = value.NewValueNullPtr()
+		sys.Scopes.SetTopVars(cl.Var, vv)
+	}
+	// 添字へのアクセス
+	for i, nIndex := range cl.VarIndex {
+		iv, err := runNode(&nIndex)
+		if err != nil {
+			return nil, RuntimeError("代入の添字の評価でエラー:"+err.Error(), &nIndex)
+		}
+		if vv == nil {
+			return nil, RuntimeError("代入時NULLに対する添字アクセス", n)
+		}
+		if vv.Type == value.Array {
+			idx := int(iv.ToInt())
+			if i == len(cl.VarIndex)-1 {
+				vv.ArraySet(idx, val)
+			} else {
+				vv = vv.ArrayGet(idx)
+			}
+			continue
+		}
+		if vv.Type == value.Hash {
+			key := iv.ToString()
+			if i == len(cl.VarIndex)-1 {
+				vv.HashSet(key, val)
+			} else {
+				vv = vv.HashGet(key)
+			}
+		}
+	}
+	return val, nil
 }
 
 func runWord(n *node.Node) (*value.Value, error) {
@@ -270,6 +304,27 @@ func runWord(n *node.Node) (*value.Value, error) {
 	if val == nil {
 		val = sys.Scopes.Get(cw.Name)
 		cw.Cache = val
+	}
+	// 配列アクセスが不要な時
+	if cw.Index == nil || len(cw.Index) == 0 {
+		return val, nil
+	}
+	// 添字を一つずつ取り出していく
+	for _, nIndex := range cw.Index {
+		i, err := runNode(&nIndex)
+		if err != nil {
+			return nil, RuntimeError(fmt.Sprintf("配列添字の値参照でエラー:%s", err.Error()), &nIndex)
+		}
+		if val == nil {
+			return nil, RuntimeError("NULLに対する配列アクセス", n)
+		}
+		if val.Type == value.Array {
+			val = val.ArrayGet(int(i.ToInt()))
+			continue
+		}
+		if val.Type == value.Hash {
+			val = val.HashGet(i.ToString())
+		}
 	}
 	return val, nil
 }

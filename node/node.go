@@ -277,6 +277,7 @@ type NodeWord struct {
 	Node
 	Name     string
 	Cache    *value.Value
+	Index    NodeList
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -285,9 +286,10 @@ func (n NodeWord) GetType() NType              { return Word }
 func (n NodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n NodeWord) GetJosi() string             { return n.Josi }
 
-func NewNodeWord(t *token.Token) NodeWord {
+func NewNodeWord(t *token.Token, index NodeList) NodeWord {
 	node := NodeWord{
 		Name:     t.Literal,
+		Index:    index,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
