@@ -24,3 +24,13 @@ func TestHash(t *testing.T) {
 		t.Errorf("hash.ToString=" + json)
 	}
 }
+
+func TestHash2(t *testing.T) {
+	h := NewValueHash()
+	v30 := NewValueInt(30)
+	h.Set("aaa", &v30)
+	json := h.ToString()
+	if json != "{\"aaa\":30}" {
+		t.Errorf("hash.ToString=" + json)
+	}
+}

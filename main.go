@@ -26,9 +26,7 @@ func main() {
 		println("  -e (source)\tEval Mode")
 		return
 	}
-	sys := core.GetSystem()
-	io.RegisterFunction(sys)
-	system.RegisterFunction(sys)
+	sys := InitSystem()
 
 	// Analize Command Line
 	for _, v := range os.Args {
@@ -63,6 +61,27 @@ func main() {
 	case core.EvalCode:
 		runEvalCode(sys)
 	}
+}
+
+var sys *core.Core = nil
+
+// InitSystem : システムを初期化
+func InitSystem() *core.Core {
+	if sys != nil {
+		return sys
+	}
+	sys := core.GetSystem()
+	io.RegisterFunction(sys)
+	system.RegisterFunction(sys)
+	return sys
+}
+
+// Eval : コードを評価して返す
+func Eval(code string) (*value.Value, error) {
+	sys := InitSystem()
+	sys.Code = code
+	sys.MainFile = "-e"
+	return execCode(sys, sys.Code)
 }
 
 func runMainFile(sys *core.Core) {
