@@ -124,7 +124,7 @@ func execCode(sys *core.Core, code string) (*value.Value, error) {
 	}
 	// fmt.Printf("[parser.raw] %#v\n", *n)
 	if sys.IsDebug {
-		fmt.Printf("[parser]\n%s\n", node.NodeToString(*n, 0))
+		fmt.Printf("[parser]\n%s\n", node.ToString(*n, 0))
 		println("[run]")
 	}
 	// run

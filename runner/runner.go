@@ -57,7 +57,7 @@ func runNode(n *node.Node) (*value.Value, error) {
 	case node.DefFunc:
 		return nil, nil
 	case node.Calc:
-		nchild := (*n).(node.NodeCalc)
+		nchild := (*n).(node.TNodeCalc)
 		return runNode(&nchild.Child)
 	case node.TypeNodeList:
 		nlist := (*n).(node.TNodeList)
@@ -95,13 +95,13 @@ func runNode(n *node.Node) (*value.Value, error) {
 	}
 	// 未定義のノードを表示
 	println("system error")
-	println(node.NodeToString(*n, 0))
+	println(node.ToString(*n, 0))
 	return nil, RuntimeError("{システム}未実装のノード", n)
 }
 
 func runFor(n *node.Node) (*value.Value, error) {
 	var lastValue *value.Value = nil
-	nn := (*n).(node.NodeFor)
+	nn := (*n).(node.TNodeFor)
 	// eval
 	vFrom, err1 := runNode(&nn.FromNode)
 	if err1 != nil {
@@ -152,7 +152,7 @@ func runFor(n *node.Node) (*value.Value, error) {
 
 func runWhile(n *node.Node) (*value.Value, error) {
 	var lastValue *value.Value = nil
-	nn := (*n).(node.NodeWhile)
+	nn := (*n).(node.TNodeWhile)
 	sys.LoopLevel++
 	for true {
 		// break ?
@@ -187,7 +187,7 @@ func runWhile(n *node.Node) (*value.Value, error) {
 }
 
 func runRepeat(n *node.Node) (*value.Value, error) {
-	ni := (*n).(node.NodeRepeat)
+	ni := (*n).(node.TNodeRepeat)
 	// 回数を評価
 	expr, err := runNode(&ni.Expr)
 	if err != nil {
@@ -226,7 +226,7 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 }
 
 func runIf(n *node.Node) (*value.Value, error) {
-	ni := (*n).(node.NodeIf)
+	ni := (*n).(node.TNodeIf)
 	// 条件を評価
 	expr, err := runNode(&ni.Expr)
 	if err != nil {
@@ -242,7 +242,7 @@ func runIf(n *node.Node) (*value.Value, error) {
 }
 
 func runLet(n *node.Node) (*value.Value, error) {
-	cl := (*n).(node.NodeLet)
+	cl := (*n).(node.TNodeLet)
 	// 変数に代入する値を評価する
 	val, err := runNode(&cl.Value)
 	if err != nil {
@@ -298,7 +298,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 }
 
 func runWord(n *node.Node) (*value.Value, error) {
-	cw := (*n).(node.NodeWord)
+	cw := (*n).(node.TNodeWord)
 	// 関数の実態を得る
 	val := cw.Cache
 	if val == nil {
@@ -330,7 +330,7 @@ func runWord(n *node.Node) (*value.Value, error) {
 }
 
 func runCallFunc(n *node.Node) (*value.Value, error) {
-	cf := (*n).(node.NodeCallFunc)
+	cf := (*n).(node.TNodeCallFunc)
 	// 関数の実態を得る
 	funcV := cf.Cache
 	if funcV == nil {
@@ -402,7 +402,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	if funcV.Type == value.UserFunc {
 		// User func
 		index := funcV.Tag
-		userNode := node.UserFunc[index].(node.NodeDefFunc)
+		userNode := node.UserFunc[index].(node.TNodeDefFunc)
 		sys.Scopes.Open()
 		// スコープにローカル変数を挿入
 		scope := sys.Scopes.GetTopScope()
@@ -426,12 +426,12 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 }
 
 func runSentence(n *node.Node) (*value.Value, error) {
-	se := (*n).(node.NodeSentence)
+	se := (*n).(node.TNodeSentence)
 	return runNodeList(se.List)
 }
 
 func runOperator(n *node.Node) (*value.Value, error) {
-	op := (*n).(node.NodeOperator)
+	op := (*n).(node.TNodeOperator)
 	var v value.Value
 	r, err1 := runNode(&op.Right)
 	if err1 != nil {
@@ -489,7 +489,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 }
 
 func runJSONArray(n *node.Node) (*value.Value, error) {
-	nn := (*n).(node.NodeJSONArray)
+	nn := (*n).(node.TNodeJSONArray)
 	res := value.NewValueArray()
 	for i, vNode := range nn.Items {
 		val, err := runNode(&vNode)
@@ -502,7 +502,7 @@ func runJSONArray(n *node.Node) (*value.Value, error) {
 }
 
 func runJSONHash(n *node.Node) (*value.Value, error) {
-	nn := (*n).(node.NodeJSONHash)
+	nn := (*n).(node.TNodeJSONHash)
 	res := value.NewValueHash()
 	for k, vNode := range nn.Items {
 		val, err := runNode(&vNode)
@@ -527,7 +527,7 @@ func runContinue(n *node.Node) (*value.Value, error) {
 func runReturn(n *node.Node) (*value.Value, error) {
 	var result *value.Value = nil
 	var err error = nil
-	nn := (*n).(node.NodeReturn)
+	nn := (*n).(node.TNodeReturn)
 	if nn.Arg != nil {
 		result, err = runNode(&nn.Arg)
 	}
@@ -536,7 +536,7 @@ func runReturn(n *node.Node) (*value.Value, error) {
 }
 
 func runConst(n *node.Node) (*value.Value, error) {
-	nc := (*n).(node.NodeConst)
+	nc := (*n).(node.TNodeConst)
 	if !nc.IsExtend {
 		return &nc.Value, nil
 	}

@@ -57,7 +57,7 @@ sentences
   }
   | sentences sentence
   {
-    n, _ := $1.(node.NodeSentence)
+    n, _ := $1.(node.TNodeSentence)
     n.Append($2)
     $$ = n
   }

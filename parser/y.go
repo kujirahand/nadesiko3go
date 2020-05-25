@@ -922,7 +922,7 @@ yydefault:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line _parser_generated.y:59
 		{
-			n, _ := yyDollar[1].node.(node.NodeSentence)
+			n, _ := yyDollar[1].node.(node.TNodeSentence)
 			n.Append(yyDollar[2].node)
 			yyVAL.node = n
 		}

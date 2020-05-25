@@ -85,10 +85,16 @@ type Node interface {
 // TNodeList : Node List
 type TNodeList []Node
 
-func (n TNodeList) GetType() NType              { return TypeNodeList }
-func (n TNodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
-func (n TNodeList) GetJosi() string             { return "" }
+// GetType : 型名取得
+func (n TNodeList) GetType() NType { return TypeNodeList }
 
+// GetFileInfo : ファイル情報取得
+func (n TNodeList) GetFileInfo() core.TFileInfo { return core.TFileInfo{} }
+
+// GetJosi : 助詞取得
+func (n TNodeList) GetJosi() string { return "" }
+
+// NewNodeList : 新規TNodeListを取得
 func NewNodeList() TNodeList {
 	return TNodeList{}
 }
@@ -96,20 +102,26 @@ func NewNodeList() TNodeList {
 // UserFunc : ユーザー関数の一覧
 var UserFunc = map[int]Node{}
 
-// NodeNop : NOP
-type NodeNop struct {
+// TNodeNop : NOP
+type TNodeNop struct {
 	Node
 	Comment  string
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeNop) GetType() NType              { return Nop }
-func (n NodeNop) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeNop) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeNop) GetType() NType { return Nop }
 
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeNop) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeNop) GetJosi() string { return n.Josi }
+
+// NewNodeNop : NOP Node
 func NewNodeNop(t *token.Token) Node {
-	n := NodeNop{
+	n := TNodeNop{
 		Comment:  t.Literal,
 		FileInfo: t.FileInfo,
 		Josi:     t.Josi,
@@ -117,20 +129,26 @@ func NewNodeNop(t *token.Token) Node {
 	return n
 }
 
-// NodeCalc : Calc
-type NodeCalc struct {
+// TNodeCalc : Calc
+type TNodeCalc struct {
 	Node
 	Josi     string
 	Child    Node
 	FileInfo core.TFileInfo
 }
 
-func (n NodeCalc) GetType() NType              { return Calc }
-func (n NodeCalc) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeCalc) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeCalc) GetType() NType { return Calc }
 
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeCalc) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeCalc) GetJosi() string { return n.Josi }
+
+// NewNodeCalc : TNodeCalcを生成
 func NewNodeCalc(t *token.Token, child Node) Node {
-	n := NodeCalc{
+	n := TNodeCalc{
 		FileInfo: t.FileInfo,
 		Josi:     t.Josi,
 		Child:    child,
@@ -138,8 +156,8 @@ func NewNodeCalc(t *token.Token, child Node) Node {
 	return n
 }
 
-// NodeLet :
-type NodeLet struct {
+// TNodeLet :
+type TNodeLet struct {
 	Node
 	Var      string
 	VarIndex TNodeList
@@ -148,12 +166,18 @@ type NodeLet struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeLet) GetType() NType              { return Let }
-func (n NodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeLet) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeLet) GetType() NType { return Let }
 
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeLet) GetJosi() string { return n.Josi }
+
+// NewNodeLet : TNodeLetを返す
 func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
-	n := NodeLet{
+	n := TNodeLet{
 		Var:      t.Literal,
 		VarIndex: index,
 		Value:    value,
@@ -163,8 +187,8 @@ func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
 	return n
 }
 
-// NodeConst : Const
-type NodeConst struct {
+// TNodeConst : Const
+type TNodeConst struct {
 	Node
 	Value    value.Value
 	IsExtend bool
@@ -172,12 +196,18 @@ type NodeConst struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeConst) GetType() NType              { return Const }
-func (n NodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeConst) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeConst) GetType() NType { return Const }
 
-func NewNodeConst(vtype value.Type, t *token.Token) NodeConst {
-	node := NodeConst{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeConst) GetJosi() string { return n.Josi }
+
+// NewNodeConst : TNodeConstを返す
+func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
+	node := TNodeConst{
 		Value:    value.NewValueByType(vtype, t.Literal),
 		IsExtend: false,
 		Josi:     t.Josi,
@@ -185,22 +215,26 @@ func NewNodeConst(vtype value.Type, t *token.Token) NodeConst {
 	}
 	return node
 }
-func NewNodeConstInt(t *token.Token, num int) NodeConst {
-	node := NodeConst{
+
+// NewNodeConstInt : 整数型のConstノードを返す
+func NewNodeConstInt(t *token.Token, num int) TNodeConst {
+	node := TNodeConst{
 		Value:    value.NewValueInt(int64(num)),
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
 	return node
 }
-func NewNodeConstEx(vtype value.Type, t *token.Token) NodeConst {
+
+// NewNodeConstEx : STRING_EX型に対応するノードを返す
+func NewNodeConstEx(vtype value.Type, t *token.Token) TNodeConst {
 	node := NewNodeConst(vtype, t)
 	node.IsExtend = true
 	return node
 }
 
-// NodeOperator
-type NodeOperator struct {
+// TNodeOperator : 演算子型のノード
+type TNodeOperator struct {
 	Node
 	Left     Node
 	Right    Node
@@ -209,12 +243,18 @@ type NodeOperator struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeOperator) GetType() NType              { return Operator }
-func (n NodeOperator) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeOperator) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeOperator) GetType() NType { return Operator }
 
-func NewNodeOperator(op *token.Token, left Node, right Node) NodeOperator {
-	p := NodeOperator{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeOperator) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeOperator) GetJosi() string { return n.Josi }
+
+// NewNodeOperator : TNodeOperatorを返す
+func NewNodeOperator(op *token.Token, left Node, right Node) TNodeOperator {
+	p := TNodeOperator{
 		Left:     left,
 		Right:    right,
 		Operator: op.Literal,
@@ -224,8 +264,8 @@ func NewNodeOperator(op *token.Token, left Node, right Node) NodeOperator {
 	return p
 }
 
-// NodeSentence
-type NodeSentence struct {
+// TNodeSentence : TNodeSentence
+type TNodeSentence struct {
 	Node
 	Memo     string
 	List     TNodeList
@@ -233,24 +273,31 @@ type NodeSentence struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeSentence) GetType() NType              { return Sentence }
-func (n NodeSentence) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeSentence) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeSentence) GetType() NType { return Sentence }
 
-func NewNodeSentence(finfo core.TFileInfo) NodeSentence {
-	node := NodeSentence{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeSentence) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeSentence) GetJosi() string { return n.Josi }
+
+// NewNodeSentence : TNodeSentence型のノードを生成
+func NewNodeSentence(finfo core.TFileInfo) TNodeSentence {
+	node := TNodeSentence{
 		FileInfo: finfo,
 	}
 	node.List = TNodeList{}
 	return node
 }
 
-func (l *NodeSentence) Append(node Node) {
-	l.List = append(l.List, node)
+// Append : TNodeSentence に Node を追加
+func (n *TNodeSentence) Append(node Node) {
+	n.List = append(n.List, node)
 }
 
-// NodeCallFunc
-type NodeCallFunc struct {
+// TNodeCallFunc : 関数呼び出しのためのノード
+type TNodeCallFunc struct {
 	Node
 	Args     TNodeList
 	Name     string
@@ -259,12 +306,18 @@ type NodeCallFunc struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeCallFunc) GetType() NType              { return CallFunc }
-func (n NodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeCallFunc) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeCallFunc) GetType() NType { return CallFunc }
 
-func NewNodeCallFunc(t *token.Token) NodeCallFunc {
-	node := NodeCallFunc{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeCallFunc) GetJosi() string { return n.Josi }
+
+// NewNodeCallFunc : 関数呼び出しのノードを返す
+func NewNodeCallFunc(t *token.Token) TNodeCallFunc {
+	node := TNodeCallFunc{
 		Name:     t.Literal,
 		FileInfo: t.FileInfo,
 	}
@@ -272,8 +325,8 @@ func NewNodeCallFunc(t *token.Token) NodeCallFunc {
 	return node
 }
 
-// NodeWord : 変数
-type NodeWord struct {
+// TNodeWord : 変数を表すノード
+type TNodeWord struct {
 	Node
 	Name     string
 	Cache    *value.Value
@@ -282,12 +335,18 @@ type NodeWord struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeWord) GetType() NType              { return Word }
-func (n NodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeWord) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeWord) GetType() NType { return Word }
 
-func NewNodeWord(t *token.Token, index TNodeList) NodeWord {
-	node := NodeWord{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeWord) GetJosi() string { return n.Josi }
+
+// NewNodeWord : 変数を表すノードを生成
+func NewNodeWord(t *token.Token, index TNodeList) TNodeWord {
+	node := TNodeWord{
 		Name:     t.Literal,
 		Index:    index,
 		Josi:     t.Josi,
@@ -296,8 +355,8 @@ func NewNodeWord(t *token.Token, index TNodeList) NodeWord {
 	return node
 }
 
-// NodeIf : もし
-type NodeIf struct {
+// TNodeIf : もし
+type TNodeIf struct {
 	Node
 	Expr      Node
 	TrueNode  Node
@@ -306,12 +365,18 @@ type NodeIf struct {
 	FileInfo  core.TFileInfo
 }
 
-func (n NodeIf) GetType() NType              { return If }
-func (n NodeIf) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeIf) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeIf) GetType() NType { return If }
 
-func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
-	node := NodeIf{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeIf) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeIf) GetJosi() string { return n.Josi }
+
+// NewNodeIf : TNodeIfを返す
+func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) TNodeIf {
+	node := TNodeIf{
 		Expr:      nExpr,
 		TrueNode:  nTrue,
 		FalseNode: nFalse,
@@ -321,10 +386,10 @@ func NewNodeIf(t *token.Token, nExpr, nTrue, nFalse Node) NodeIf {
 	return node
 }
 
-// NodeFor : 繰り返す
-type NodeFor struct {
+// TNodeFor : 繰り返す
+type TNodeFor struct {
 	Node
-	LoopId   int
+	LoopID   int
 	Word     string
 	FromNode Node
 	ToNode   Node
@@ -333,12 +398,18 @@ type NodeFor struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeFor) GetType() NType              { return For }
-func (n NodeFor) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeFor) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeFor) GetType() NType { return For }
 
-func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) NodeFor {
-	node := NodeFor{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeFor) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeFor) GetJosi() string { return n.Josi }
+
+// NewNodeFor : 繰り返しノードを返す
+func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) TNodeFor {
+	node := TNodeFor{
 		Word:     hensu,
 		FromNode: nFrom,
 		ToNode:   nTo,
@@ -349,22 +420,28 @@ func NewNodeFor(t *token.Token, hensu string, nFrom, nTo, block Node) NodeFor {
 	return node
 }
 
-// NodeWhile: 繰り返す
-type NodeWhile struct {
+// TNodeWhile : 繰り返す
+type TNodeWhile struct {
 	Node
-	LoopId   int
+	LoopID   int
 	Expr     Node
 	Block    Node
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeWhile) GetType() NType              { return While }
-func (n NodeWhile) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeWhile) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeWhile) GetType() NType { return While }
 
-func NewNodeWhile(t *token.Token, expr, block Node) NodeWhile {
-	node := NodeWhile{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeWhile) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeWhile) GetJosi() string { return n.Josi }
+
+// NewNodeWhile : 間のノードを生成
+func NewNodeWhile(t *token.Token, expr, block Node) TNodeWhile {
+	node := TNodeWhile{
 		Expr:     expr,
 		Block:    block,
 		Josi:     t.Josi,
@@ -373,22 +450,28 @@ func NewNodeWhile(t *token.Token, expr, block Node) NodeWhile {
 	return node
 }
 
-// NodeRepeat : 回
-type NodeRepeat struct {
+// TNodeRepeat : 回
+type TNodeRepeat struct {
 	Node
-	LoopId   int
+	LoopID   int
 	Expr     Node
 	Block    Node
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeRepeat) GetType() NType              { return Repeat }
-func (n NodeRepeat) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeRepeat) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeRepeat) GetType() NType { return Repeat }
 
-func NewNodeRepeat(t *token.Token, nExpr, block Node) NodeRepeat {
-	node := NodeRepeat{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeRepeat) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeRepeat) GetJosi() string { return n.Josi }
+
+// NewNodeRepeat : TNodeRepeat を返す
+func NewNodeRepeat(t *token.Token, nExpr, block Node) TNodeRepeat {
+	node := TNodeRepeat{
 		Expr:     nExpr,
 		Block:    block,
 		Josi:     t.Josi,
@@ -397,50 +480,62 @@ func NewNodeRepeat(t *token.Token, nExpr, block Node) NodeRepeat {
 	return node
 }
 
-// NodeContinue : Continue
-type NodeContinue struct {
+// TNodeContinue : Continue
+type TNodeContinue struct {
 	Node
-	LoopId   int
+	LoopID   int
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeContinue) GetType() NType              { return Continue }
-func (n NodeContinue) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeContinue) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeContinue) GetType() NType { return Continue }
 
-func NewNodeContinue(t *token.Token, loopId int) NodeContinue {
-	node := NodeContinue{
-		LoopId:   loopId,
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeContinue) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeContinue) GetJosi() string { return n.Josi }
+
+// NewNodeContinue : continue
+func NewNodeContinue(t *token.Token, LoopID int) TNodeContinue {
+	node := TNodeContinue{
+		LoopID:   LoopID,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
 	return node
 }
 
-// NodeBreak : Break
-type NodeBreak struct {
+// TNodeBreak : Break
+type TNodeBreak struct {
 	Node
-	LoopId   int
+	LoopID   int
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeBreak) GetType() NType              { return Break }
-func (n NodeBreak) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeBreak) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeBreak) GetType() NType { return Break }
 
-func NewNodeBreak(t *token.Token, loopId int) NodeBreak {
-	node := NodeBreak{
-		LoopId:   loopId,
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeBreak) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeBreak) GetJosi() string { return n.Josi }
+
+// NewNodeBreak : break
+func NewNodeBreak(t *token.Token, LoopID int) TNodeBreak {
+	node := TNodeBreak{
+		LoopID:   LoopID,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
 	return node
 }
 
-// NodeDefFunc : NodeDefFunc
-type NodeDefFunc struct {
+// TNodeDefFunc : TNodeDefFunc
+type TNodeDefFunc struct {
 	Node
 	Word     string
 	Args     TNodeList
@@ -450,13 +545,19 @@ type NodeDefFunc struct {
 	FileInfo core.TFileInfo
 }
 
-func (n NodeDefFunc) GetType() NType              { return DefFunc }
-func (n NodeDefFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeDefFunc) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeDefFunc) GetType() NType { return DefFunc }
 
-func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeDefFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeDefFunc) GetJosi() string { return n.Josi }
+
+// NewNodeDefFunc : def func
+func NewNodeDefFunc(t *token.Token, args Node, block Node) TNodeDefFunc {
 	word := t.Literal
-	node := NodeDefFunc{
+	node := TNodeDefFunc{
 		Word:     word,
 		Args:     args.(TNodeList),
 		ArgNames: []string{},
@@ -469,7 +570,7 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
 	m := map[string]int{}
 	cnt := 0
 	for _, v := range node.Args {
-		nw := v.(NodeWord)
+		nw := v.(TNodeWord)
 		i, ok := m[nw.Name]
 		if !ok {
 			m[nw.Name] = cnt
@@ -486,22 +587,28 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) NodeDefFunc {
 	return node
 }
 
-// NodeReturn : Return
-type NodeReturn struct {
+// TNodeReturn : Return
+type TNodeReturn struct {
 	Node
 	Arg      Node
-	LoopId   int
+	LoopID   int
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeReturn) GetType() NType              { return Return }
-func (n NodeReturn) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeReturn) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeReturn) GetType() NType { return Return }
 
-func NewNodeReturn(t *token.Token, arg Node, loopId int) NodeReturn {
-	node := NodeReturn{
-		LoopId:   loopId,
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeReturn) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeReturn) GetJosi() string { return n.Josi }
+
+// NewNodeReturn : return node
+func NewNodeReturn(t *token.Token, arg Node, LoopID int) TNodeReturn {
+	node := TNodeReturn{
+		LoopID:   LoopID,
 		Arg:      arg,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
@@ -509,20 +616,26 @@ func NewNodeReturn(t *token.Token, arg Node, loopId int) NodeReturn {
 	return node
 }
 
-// NodeJSONArray : NodeJSONArray
-type NodeJSONArray struct {
+// TNodeJSONArray : TNodeJSONArray
+type TNodeJSONArray struct {
 	Node
 	Items    TNodeList
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeJSONArray) GetType() NType              { return JSONArray }
-func (n NodeJSONArray) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeJSONArray) GetJosi() string             { return n.Josi }
+// GetType : 型名取得
+func (n TNodeJSONArray) GetType() NType { return JSONArray }
 
-func NewNodeJSONArray(t *token.Token, items TNodeList) NodeJSONArray {
-	node := NodeJSONArray{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeJSONArray) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeJSONArray) GetJosi() string { return n.Josi }
+
+// NewNodeJSONArray : array node
+func NewNodeJSONArray(t *token.Token, items TNodeList) TNodeJSONArray {
+	node := TNodeJSONArray{
 		Items:    items,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
@@ -530,22 +643,29 @@ func NewNodeJSONArray(t *token.Token, items TNodeList) NodeJSONArray {
 	return node
 }
 
+// JSONHashKeyValue : for json hash
 type JSONHashKeyValue map[string]Node
 
-// NodeJSONHash : NodeJSONHash
-type NodeJSONHash struct {
+// TNodeJSONHash : TNodeJSONHash
+type TNodeJSONHash struct {
 	Node
 	Items    JSONHashKeyValue
 	Josi     string
 	FileInfo core.TFileInfo
 }
 
-func (n NodeJSONHash) GetType() NType              { return JSONHash }
-func (n NodeJSONHash) GetFileInfo() core.TFileInfo { return n.FileInfo }
-func (n NodeJSONHash) GetJosi() string             { return n.Josi }
+// GetType : 型情報取得
+func (n TNodeJSONHash) GetType() NType { return JSONHash }
 
-func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) NodeJSONHash {
-	node := NodeJSONHash{
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeJSONHash) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeJSONHash) GetJosi() string { return n.Josi }
+
+// NewNodeJSONHash : json hash node
+func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) TNodeJSONHash {
+	node := TNodeJSONHash{
 		Items:    items,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
@@ -555,8 +675,8 @@ func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) NodeJSONHash {
 
 // ---
 
-// NodeToString : Nodeの値をデバッグ用に出力する
-func NodeToString(n Node, level int) string {
+// ToString : Nodeの値をデバッグ用に出力する
+func ToString(n Node, level int) string {
 	indent := ""
 	for i := 0; i < level; i++ {
 		indent += "|-"
@@ -568,81 +688,81 @@ func NodeToString(n Node, level int) string {
 	ss := ""
 	switch n.GetType() {
 	case Nop:
-		np := n.(NodeNop)
+		np := n.(TNodeNop)
 		s += " // " + np.Comment
 	case Word:
-		nw := n.(NodeWord)
+		nw := n.(TNodeWord)
 		s += nw.Name
 	case Const:
-		cv := n.(NodeConst).Value
+		cv := n.(TNodeConst).Value
 		s += "(" + cv.ToString() + ")"
 	case Operator:
-		s += ":" + n.(NodeOperator).Operator
-		l := n.(NodeOperator).Left
-		r := n.(NodeOperator).Right
-		ss += NodeToString(l, level+1) + "\n"
-		ss += NodeToString(r, level+1) + "\n"
+		s += ":" + n.(TNodeOperator).Operator
+		l := n.(TNodeOperator).Left
+		r := n.(TNodeOperator).Right
+		ss += ToString(l, level+1) + "\n"
+		ss += ToString(r, level+1) + "\n"
 	case Sentence:
-		s += n.(NodeSentence).Memo
-		for _, v := range n.(NodeSentence).List {
-			ss += NodeToString(v, level+1) + "\n"
+		s += n.(TNodeSentence).Memo
+		for _, v := range n.(TNodeSentence).List {
+			ss += ToString(v, level+1) + "\n"
 		}
 	case TypeNodeList:
 		nlist := n.(TNodeList)
 		s += fmt.Sprintf("(%d)", len(nlist))
 		for _, v := range nlist {
-			ss += NodeToString(v, level+1) + "\n"
+			ss += ToString(v, level+1) + "\n"
 		}
 	case CallFunc:
-		s += ":" + n.(NodeCallFunc).Name
-		for _, v := range n.(NodeCallFunc).Args {
-			ss += NodeToString(v, level+1) + "\n"
+		s += ":" + n.(TNodeCallFunc).Name
+		for _, v := range n.(TNodeCallFunc).Args {
+			ss += ToString(v, level+1) + "\n"
 		}
 	case Calc:
-		nc := n.(NodeCalc)
-		ss += NodeToString(nc.Child, level+1) + "\n"
+		nc := n.(TNodeCalc)
+		ss += ToString(nc.Child, level+1) + "\n"
 	case Let:
-		nl := n.(NodeLet)
+		nl := n.(TNodeLet)
 		s += " " + nl.Var
 		if len(nl.VarIndex) > 0 {
 			s += fmt.Sprintf("[]*%d", len(nl.VarIndex))
 			for _, v := range nl.VarIndex {
-				ss += NodeToString(v, level+1)
+				ss += ToString(v, level+1)
 			}
 		}
-		ss += NodeToString(nl.Value, level+1) + "\n"
+		ss += ToString(nl.Value, level+1) + "\n"
 	case If:
-		ni := n.(NodeIf)
-		ss += NodeToString(ni.Expr, level+1) + "\n"
-		ss += NodeToString(ni.TrueNode, level+1) + "\n"
-		ss += NodeToString(ni.FalseNode, level+1) + "\n"
+		ni := n.(TNodeIf)
+		ss += ToString(ni.Expr, level+1) + "\n"
+		ss += ToString(ni.TrueNode, level+1) + "\n"
+		ss += ToString(ni.FalseNode, level+1) + "\n"
 	case For:
-		ni := n.(NodeFor)
-		s += fmt.Sprintf("%s id=%d", ni.Word, ni.LoopId)
-		ss += NodeToString(ni.FromNode, level+1) + "\n"
-		ss += NodeToString(ni.ToNode, level+1) + "\n"
-		ss += NodeToString(ni.Block, level+1) + "\n"
+		ni := n.(TNodeFor)
+		s += fmt.Sprintf("%s id=%d", ni.Word, ni.LoopID)
+		ss += ToString(ni.FromNode, level+1) + "\n"
+		ss += ToString(ni.ToNode, level+1) + "\n"
+		ss += ToString(ni.Block, level+1) + "\n"
 	case Repeat:
-		nn := n.(NodeRepeat)
-		s += fmt.Sprintf(" id=%d", nn.LoopId)
-		ss += NodeToString(nn.Expr, level+1) + "\n"
-		ss += NodeToString(nn.Block, level+1) + "\n"
+		nn := n.(TNodeRepeat)
+		s += fmt.Sprintf(" id=%d", nn.LoopID)
+		ss += ToString(nn.Expr, level+1) + "\n"
+		ss += ToString(nn.Block, level+1) + "\n"
 	case While:
-		nn := n.(NodeWhile)
-		s += fmt.Sprintf(" id=%d", nn.LoopId)
-		ss += NodeToString(nn.Expr, level+1) + "\n"
-		ss += NodeToString(nn.Block, level+1) + "\n"
+		nn := n.(TNodeWhile)
+		s += fmt.Sprintf(" id=%d", nn.LoopID)
+		ss += ToString(nn.Expr, level+1) + "\n"
+		ss += ToString(nn.Block, level+1) + "\n"
 	case Continue:
-		s += fmt.Sprintf("id=%d", n.(NodeContinue).LoopId)
+		s += fmt.Sprintf("id=%d", n.(TNodeContinue).LoopID)
 	case Break:
-		s += fmt.Sprintf("id=%d", n.(NodeBreak).LoopId)
+		s += fmt.Sprintf("id=%d", n.(TNodeBreak).LoopID)
 	case DefFunc:
-		nn := n.(NodeDefFunc)
+		nn := n.(TNodeDefFunc)
 		s += fmt.Sprintf(" %s", nn.Word)
-		ss += NodeToString(nn.Args, level+1) + "\n"
+		ss += ToString(nn.Args, level+1) + "\n"
 	case JSONArray:
-		nn := n.(NodeJSONArray)
-		ss += NodeToString(nn.Items, level+1) + "\n"
+		nn := n.(TNodeJSONArray)
+		ss += ToString(nn.Items, level+1) + "\n"
 	default:
 		s += " *"
 	}
