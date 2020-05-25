@@ -18,7 +18,6 @@ FizzBuzzもなんとか動く感じ。
 Go言語がインストールされている状態にて。
 
 ```
-$ go get golang.org/x/tools/cmd/goyacc
 $ go get github.com/kujirahand/nadesiko3go
 $ go install github.com/kujirahand/nadesiko3go
 ```
@@ -27,10 +26,11 @@ $ go install github.com/kujirahand/nadesiko3go
 
 現在のところ、なでしこ3(nodejs)のコマンドライン版cnako3が必要。
 
-### (1) goyacc を入手
+### (1) goyacc を入手してインストール
 
 ```
 $ go get golang.org/x/tools/cmd/goyacc
+$ go install golang.org/x/tools/cmd/goyacc
 ```
 
 ### (2) git clone
