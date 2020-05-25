@@ -311,7 +311,7 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		return NewToken(p, token.EOS)
 	case ':':
 		p.move(1)
-		return NewToken(p, token.EOS)
+		return NewToken(p, token.COLON)
 	// その他の記号
 	case '●':
 		p.move(1)

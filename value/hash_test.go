@@ -5,7 +5,7 @@ import (
 )
 
 func TestHash(t *testing.T) {
-	h := NewValueHash()
+	h := NewValueHashObj()
 	v30 := NewValueInt(30)
 	v50 := NewValueInt(50)
 	h.Set("aaa", &v30)
@@ -26,7 +26,7 @@ func TestHash(t *testing.T) {
 }
 
 func TestHash2(t *testing.T) {
-	h := NewValueHash()
+	h := NewValueHashObj()
 	v30 := NewValueInt(30)
 	h.Set("aaa", &v30)
 	json := h.ToString()

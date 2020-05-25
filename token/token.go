@@ -89,6 +89,7 @@ const (
 	RBRACKET    = "]"
 	LBRACE      = "{"
 	RBRACE      = "}"
+	COLON       = ":"
 	//__END_TOKEN__
 )
 

@@ -54,6 +54,8 @@ func runNode(n *node.Node) (*value.Value, error) {
 	switch (*n).GetType() {
 	case node.Nop:
 		return nil, nil
+	case node.DefFunc:
+		return nil, nil
 	case node.Calc:
 		nchild := (*n).(node.NodeCalc)
 		return runNode(&nchild.Child)
@@ -86,8 +88,10 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runBreak(n)
 	case node.Return:
 		return runReturn(n)
-	case node.DefFunc:
-		return nil, nil
+	case node.JSONArray:
+		return runJSONArray(n)
+	case node.JSONHash:
+		return runJSONHash(n)
 	}
 	// 未定義のノードを表示
 	println("system error")
@@ -427,6 +431,32 @@ func runOperator(n *node.Node) (*value.Value, error) {
 			"(システム)未定義の演算子。"+op.Operator, n)
 	}
 	return &v, nil
+}
+
+func runJSONArray(n *node.Node) (*value.Value, error) {
+	nn := (*n).(node.NodeJSONArray)
+	res := value.NewValueArray()
+	for i, vNode := range nn.Items {
+		val, err := runNode(&vNode)
+		if err != nil {
+			return nil, RuntimeError(fmt.Sprintf("JSONArray[%d]の評価: %s", i, err.Error()), n)
+		}
+		res.Append(val)
+	}
+	return &res, nil
+}
+
+func runJSONHash(n *node.Node) (*value.Value, error) {
+	nn := (*n).(node.NodeJSONHash)
+	res := value.NewValueHash()
+	for k, vNode := range nn.Items {
+		val, err := runNode(&vNode)
+		if err != nil {
+			return nil, RuntimeError(fmt.Sprintf("JSONHash[%s]の評価: %s", k, err.Error()), n)
+		}
+		res.HashSet(k, val)
+	}
+	return &res, nil
 }
 
 func runBreak(n *node.Node) (*value.Value, error) {

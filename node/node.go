@@ -47,6 +47,10 @@ const (
 	DefFunc
 	// Return : 戻る
 	Return
+	// JSONArray : array
+	JSONArray
+	// JSONHash : hash
+	JSONHash
 )
 
 var nodeTypeNames = map[NType]string{
@@ -67,6 +71,8 @@ var nodeTypeNames = map[NType]string{
 	Break:        "抜",
 	DefFunc:      "関数",
 	Return:       "戻る",
+	JSONArray:    "JSONArray",
+	JSONHash:     "JSONHash",
 }
 
 // Node : Node Interface
@@ -501,6 +507,50 @@ func NewNodeReturn(t *token.Token, arg Node, loopId int) NodeReturn {
 	return node
 }
 
+// NodeJSONArray : NodeJSONArray
+type NodeJSONArray struct {
+	Node
+	Items    NodeList
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeJSONArray) GetType() NType              { return JSONArray }
+func (n NodeJSONArray) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeJSONArray) GetJosi() string             { return n.Josi }
+
+func NewNodeJSONArray(t *token.Token, items NodeList) NodeJSONArray {
+	node := NodeJSONArray{
+		Items:    items,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+type JSONHashKeyValue map[string]Node
+
+// NodeJSONHash : NodeJSONHash
+type NodeJSONHash struct {
+	Node
+	Items    JSONHashKeyValue
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+func (n NodeJSONHash) GetType() NType              { return JSONHash }
+func (n NodeJSONHash) GetFileInfo() core.TFileInfo { return n.FileInfo }
+func (n NodeJSONHash) GetJosi() string             { return n.Josi }
+
+func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) NodeJSONHash {
+	node := NodeJSONHash{
+		Items:    items,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
 // ---
 
 // NodeToString : Nodeの値をデバッグ用に出力する
@@ -588,6 +638,9 @@ func NodeToString(n Node, level int) string {
 		nn := n.(NodeDefFunc)
 		s += fmt.Sprintf(" %s", nn.Word)
 		ss += NodeToString(nn.Args, level+1) + "\n"
+	case JSONArray:
+		nn := n.(NodeJSONArray)
+		ss += NodeToString(nn.Items, level+1) + "\n"
 	default:
 		s += " *"
 	}

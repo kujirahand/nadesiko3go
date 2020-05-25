@@ -5,23 +5,19 @@ import (
 	"strings"
 )
 
-// ValueHash : ValueHash struct
-type ValueHash struct {
-	hash map[string]*Value
-}
-
-func NewValueHash() *ValueHash {
+func NewValueHashObj() *ValueHash {
 	p := ValueHash{}
-	p.hash = map[string]*Value{}
 	return &p
 }
 
 func (p *ValueHash) Set(key string, v *Value) {
-	p.hash[key] = v
+	h := *p
+	h[key] = v
 }
 
 func (p *ValueHash) Get(key string) *Value {
-	return p.hash[key]
+	h := *p
+	return h[key]
 }
 
 func (p *ValueHash) ToString() string {
@@ -30,7 +26,7 @@ func (p *ValueHash) ToString() string {
 
 func (p *ValueHash) ToJSONString() string {
 	a := []string{}
-	for key, val := range p.hash {
+	for key, val := range *p {
 		s := fmt.Sprintf("\"%s\":%s", key, val.ToJSONString())
 		a = append(a, s)
 	}
@@ -38,5 +34,5 @@ func (p *ValueHash) ToJSONString() string {
 }
 
 func (p *ValueHash) Length() int {
-	return len(p.hash)
+	return len(*p)
 }

@@ -10,7 +10,7 @@ type Scope struct {
 // NewScope : Create Scope
 func NewScope() *Scope {
 	s := Scope{}
-	s.Vars = value.NewValueHash()
+	s.Vars = value.NewValueHashObj()
 	return &s
 }
 

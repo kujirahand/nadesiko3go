@@ -21,6 +21,18 @@ func FloatToStr(f float64) string {
 	return strconv.FormatFloat(f, 'G', -1, 64)
 }
 
+// StrToInt : StrToInt
+func StrToInt(s string) int64 {
+	i, _ := strconv.ParseInt(s, 10, 64)
+	return i
+}
+
+// StrToFloat : StrToFloat
+func StrToFloat(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
 // EncodeStrToJSON : Encode string for JSON
 func EncodeStrToJSON(s string) string {
 	r := s

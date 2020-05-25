@@ -19,18 +19,24 @@ import (
 %}
 
 %union{
-	token *token.Token // lval *yySymType
-	node  node.Node
+	token     *token.Token // lval *yySymType
+	node      node.Node
+  jsonkv    node.JSONHashKeyValue
+  nodelist  node.NodeList
 }
 
 %type<node> program sentences sentence eos callfunc args 
 %type<node> expr value comp factor term pri_expr high_expr and_or_expr
-%type<node> let_stmt varindex 
+%type<node> let_stmt varindex
 %type<node> if_stmt if_comp block 
 %type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt comment_stmt
 %type<node> def_function def_args
-%token<token> __TOKENS_LIST__
+%type<node> json_value
+%type<jsonkv> json_hash
+%type<token> json_key
+%type<nodelist> json_array
+__TOKENS_LIST__
 
 %%
 
@@ -143,6 +149,7 @@ value
   | STRING    { $$ = node.NewNodeConst(value.Str, $1) }
   | STRING_EX { $$ = node.NewNodeConstEx(value.Str, $1) }
   | WORD      { $$ = node.NewNodeWord($1) }
+  | json_value
 
 expr
   : and_or_expr
@@ -228,6 +235,42 @@ high_expr
   {
     $$ = node.NewNodeCalc($3, $2)
   }
+
+json_value
+  : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2) }
+  | LBRACE json_hash RBRACE      { $$ = node.NewNodeJSONHash($1, $2) }
+
+json_array
+  : expr
+  {
+    $$ = node.NewNodeList()
+    $$ = append($$, $1)
+  }
+  | json_array expr
+  {
+    $1 = append($1, $2)
+    $$ = $1
+  }
+
+json_key
+  : STRING
+  | STRING_EX
+  | WORD
+
+json_hash
+  :  json_key COLON expr
+  {
+    kv := node.JSONHashKeyValue {}
+    kv[$1.Literal] = $3
+    $$ = kv
+  }
+  | json_hash json_key COLON expr
+  {
+    $1[$2.Literal] = $4
+    $$ = $1
+  }
+
+
 
 // --- if ---
 if_stmt

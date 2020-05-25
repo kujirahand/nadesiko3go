@@ -1,7 +1,6 @@
 package value
 
 import (
-	"strconv"
 	"strings"
 )
 
@@ -22,12 +21,14 @@ const (
 
 // Value : Value
 type Value struct {
-	Type  ValueType
-	Value interface{}
-	Tag   int
+	Type     ValueType
+	Value    interface{}
+	Tag      int
+	IsFreeze bool
 }
 
 type ValueArray []*Value
+type ValueHash map[string]*Value
 
 type ValueFunc func(args ValueArray) (*Value, error)
 
@@ -40,6 +41,10 @@ func NewValueNullPtr() *Value {
 }
 func NewValueInt(v int64) Value {
 	return Value{Type: Int, Value: v}
+}
+func NewValueIntPtr(v int64) *Value {
+	vv := NewValueInt(v)
+	return &vv
 }
 func NewValueFloat(v float64) Value {
 	return Value{Type: Float, Value: v}
@@ -56,16 +61,12 @@ func NewValueFunc(v ValueFunc) Value {
 func NewValueUserFunc(v int) Value {
 	return Value{Type: UserFunc, Value: v}
 }
-
-func StrToInt(s string) int64 {
-	i, _ := strconv.ParseInt(s, 10, 64)
-	return i
+func NewValueArray() Value {
+	return Value{Type: Array, Value: ValueArray{}}
 }
-func StrToFloat(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
+func NewValueHash() Value {
+	return Value{Type: Hash, Value: ValueHash{}}
 }
-
 func NewValue(vtype ValueType, s string) Value {
 	switch vtype {
 	case Null:
@@ -234,4 +235,34 @@ func (v *Value) ToJSONString() string {
 		return h.ToString()
 	}
 	return ""
+}
+
+// Append : append value to array value
+func (v *Value) Append(val *Value) int {
+	if v.Type != Array {
+		v.Type = Array
+		v.Value = ValueArray{}
+	}
+	b := append(v.Value.(ValueArray), val)
+	v.Value = b
+	return len(b)
+}
+
+// HashSet : append value to hash value
+func (v *Value) HashSet(key string, val *Value) {
+	if v.Type != Hash {
+		v.Type = Hash
+		v.Value = ValueHash{}
+	}
+	vh := v.Value.(ValueHash)
+	vh[key] = val
+}
+
+// HashGet : get value from hash value
+func (v *Value) HashGet(key string) *Value {
+	if v.Type != Hash {
+		return nil
+	}
+	vh := v.Value.(ValueHash)
+	return vh[key]
 }
