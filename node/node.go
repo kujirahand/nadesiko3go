@@ -1,9 +1,6 @@
 package node
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/token"
 	"github.com/kujirahand/nadesiko3go/value"
@@ -37,6 +34,8 @@ const (
 	Repeat
 	// For : 繰り返す
 	For
+	// Foreach : 反復
+	Foreach
 	// While : 条件繰り返し
 	While
 	// Continue : 続ける
@@ -52,28 +51,6 @@ const (
 	// JSONHash : hash
 	JSONHash
 )
-
-var nodeTypeNames = map[NType]string{
-	Nop:          "Nop",
-	TypeNodeList: "TypeNodeList",
-	Const:        "値",
-	Operator:     "演算",
-	Sentence:     "文",
-	Word:         "変数",
-	CallFunc:     "関数呼出",
-	Calc:         "計算",
-	Let:          "代入",
-	If:           "もし",
-	Repeat:       "回",
-	For:          "繰返",
-	While:        "間",
-	Continue:     "続",
-	Break:        "抜",
-	DefFunc:      "関数",
-	Return:       "戻る",
-	JSONArray:    "JSONArray",
-	JSONHash:     "JSONHash",
-}
 
 // Node : Node Interface
 type Node interface {
@@ -159,11 +136,11 @@ func NewNodeCalc(t *token.Token, child Node) Node {
 // TNodeLet :
 type TNodeLet struct {
 	Node
-	Var      string
-	VarIndex TNodeList
-	Value    Node
-	Josi     string
-	FileInfo core.TFileInfo
+	Name      string
+	Index     TNodeList
+	ValueNode Node
+	Josi      string
+	FileInfo  core.TFileInfo
 }
 
 // GetType : 型名取得
@@ -178,11 +155,11 @@ func (n TNodeLet) GetJosi() string { return n.Josi }
 // NewNodeLet : TNodeLetを返す
 func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
 	n := TNodeLet{
-		Var:      t.Literal,
-		VarIndex: index,
-		Value:    value,
-		FileInfo: t.FileInfo,
-		Josi:     t.Josi,
+		Name:      t.Literal,
+		Index:     index,
+		ValueNode: value,
+		FileInfo:  t.FileInfo,
+		Josi:      t.Josi,
 	}
 	return n
 }
@@ -673,101 +650,31 @@ func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) TNodeJSONHash {
 	return node
 }
 
-// ---
+// TNodeForeach : TNodeForeach
+type TNodeForeach struct {
+	Node
+	Expr     Node
+	Block    Node
+	Josi     string
+	FileInfo core.TFileInfo
+}
 
-// ToString : Nodeの値をデバッグ用に出力する
-func ToString(n Node, level int) string {
-	indent := ""
-	for i := 0; i < level; i++ {
-		indent += "|-"
+// GetType : 型情報取得
+func (n TNodeForeach) GetType() NType { return Foreach }
+
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeForeach) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeForeach) GetJosi() string { return n.Josi }
+
+// NewNodeForeach :
+func NewNodeForeach(t *token.Token, expr Node, block Node) TNodeForeach {
+	node := TNodeForeach{
+		Expr:     expr,
+		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
 	}
-	s := fmt.Sprintf("%03d: %s {%s}",
-		n.GetFileInfo().Line,
-		nodeTypeNames[n.GetType()],
-		n.GetJosi())
-	ss := ""
-	switch n.GetType() {
-	case Nop:
-		np := n.(TNodeNop)
-		s += " // " + np.Comment
-	case Word:
-		nw := n.(TNodeWord)
-		s += nw.Name
-	case Const:
-		cv := n.(TNodeConst).Value
-		s += "(" + cv.ToString() + ")"
-	case Operator:
-		s += ":" + n.(TNodeOperator).Operator
-		l := n.(TNodeOperator).Left
-		r := n.(TNodeOperator).Right
-		ss += ToString(l, level+1) + "\n"
-		ss += ToString(r, level+1) + "\n"
-	case Sentence:
-		s += n.(TNodeSentence).Memo
-		for _, v := range n.(TNodeSentence).List {
-			ss += ToString(v, level+1) + "\n"
-		}
-	case TypeNodeList:
-		nlist := n.(TNodeList)
-		s += fmt.Sprintf("(%d)", len(nlist))
-		for _, v := range nlist {
-			ss += ToString(v, level+1) + "\n"
-		}
-	case CallFunc:
-		s += ":" + n.(TNodeCallFunc).Name
-		for _, v := range n.(TNodeCallFunc).Args {
-			ss += ToString(v, level+1) + "\n"
-		}
-	case Calc:
-		nc := n.(TNodeCalc)
-		ss += ToString(nc.Child, level+1) + "\n"
-	case Let:
-		nl := n.(TNodeLet)
-		s += " " + nl.Var
-		if len(nl.VarIndex) > 0 {
-			s += fmt.Sprintf("[]*%d", len(nl.VarIndex))
-			for _, v := range nl.VarIndex {
-				ss += ToString(v, level+1)
-			}
-		}
-		ss += ToString(nl.Value, level+1) + "\n"
-	case If:
-		ni := n.(TNodeIf)
-		ss += ToString(ni.Expr, level+1) + "\n"
-		ss += ToString(ni.TrueNode, level+1) + "\n"
-		ss += ToString(ni.FalseNode, level+1) + "\n"
-	case For:
-		ni := n.(TNodeFor)
-		s += fmt.Sprintf("%s id=%d", ni.Word, ni.LoopID)
-		ss += ToString(ni.FromNode, level+1) + "\n"
-		ss += ToString(ni.ToNode, level+1) + "\n"
-		ss += ToString(ni.Block, level+1) + "\n"
-	case Repeat:
-		nn := n.(TNodeRepeat)
-		s += fmt.Sprintf(" id=%d", nn.LoopID)
-		ss += ToString(nn.Expr, level+1) + "\n"
-		ss += ToString(nn.Block, level+1) + "\n"
-	case While:
-		nn := n.(TNodeWhile)
-		s += fmt.Sprintf(" id=%d", nn.LoopID)
-		ss += ToString(nn.Expr, level+1) + "\n"
-		ss += ToString(nn.Block, level+1) + "\n"
-	case Continue:
-		s += fmt.Sprintf("id=%d", n.(TNodeContinue).LoopID)
-	case Break:
-		s += fmt.Sprintf("id=%d", n.(TNodeBreak).LoopID)
-	case DefFunc:
-		nn := n.(TNodeDefFunc)
-		s += fmt.Sprintf(" %s", nn.Word)
-		ss += ToString(nn.Args, level+1) + "\n"
-	case JSONArray:
-		nn := n.(TNodeJSONArray)
-		ss += ToString(nn.Items, level+1) + "\n"
-	default:
-		s += " *"
-	}
-	if ss != "" {
-		s += "\n" + strings.TrimRight(ss, " \t\n")
-	}
-	return indent + s
+	return node
 }

@@ -291,6 +291,22 @@ func (v *Value) ToJSONString() string {
 	return ""
 }
 
+// ToArray : to array
+func (v *Value) ToArray() TArray {
+	if v.Type != Array {
+		return nil
+	}
+	return v.Value.(TArray)
+}
+
+// ToHash : to hash
+func (v *Value) ToHash() THash {
+	if v.Type != Hash {
+		return nil
+	}
+	return v.Value.(THash)
+}
+
 // Append : append value to array value
 func (v *Value) Append(val *Value) int {
 	if v.Type != Array {

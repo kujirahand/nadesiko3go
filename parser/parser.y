@@ -30,7 +30,7 @@ import (
 %type<node> let_stmt
 %type<node> if_stmt if_comp block 
 %type<node> repeat_stmt loop_ctrl
-%type<node> for_stmt while_stmt comment_stmt
+%type<node> for_stmt while_stmt comment_stmt foreach_stmt
 %type<node> def_function def_args
 %type<node> json_value variable
 %type<jsonkv> json_hash
@@ -66,10 +66,11 @@ sentence
   : eos
   | callfunc eos
   | expr eos
-  | let_stmt eos
+  | let_stmt
   | if_stmt 
   | repeat_stmt 
   | for_stmt 
+  | foreach_stmt
   | while_stmt
   | loop_ctrl
   | comment_stmt
@@ -331,6 +332,24 @@ while_stmt
   : WHILE_BEGIN expr AIDA block END
   {
     $$ = node.NewNodeWhile($3, $2, $4)
+  }
+
+foreach_stmt
+  : FOREACH_BEGIN expr FOREACH_SINGLE sentence
+  {
+    $$ = node.NewNodeForeach($3, $2, $4)
+  }
+  | FOREACH_BEGIN FOREACH_SINGLE sentence
+  {
+    $$ = node.NewNodeForeach($2, nil, $3)
+  }
+  | FOREACH_BEGIN expr FOREACH LF block END
+  {
+    $$ = node.NewNodeForeach($3, $2, $5)
+  }
+  | FOREACH_BEGIN FOREACH LF block END
+  {
+    $$ = node.NewNodeForeach($2, nil, $4)
   }
 
 for_stmt

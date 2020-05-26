@@ -31,8 +31,9 @@ type Core struct {
 	RunMode    TRunMode
 	Scopes     *scope.TScopeList
 	Global     *scope.Scope
-	Sore       value.Value
-	Taisyo     value.Value
+	Sore       *value.Value
+	Taisyo     *value.Value
+	TaisyoKey  *value.Value
 	BreakID    int
 	ContinueID int
 	ReturnID   int
@@ -58,12 +59,6 @@ func NewCore() *Core {
 	c.RunMode = MainFile
 	c.Scopes = scope.NewScopeList()
 	c.Global = c.Scopes.GetGlobal()
-	c.Sore = value.NewValueNull()
-	c.Taisyo = value.NewValueNull()
-	g := c.Global
-	g.Set("それ", &c.Sore)
-	g.Set("そう", &c.Sore) // Alias "それ"
-	g.Set("対象", &c.Taisyo)
 	c.JosiList = []DefArgs{}
 	c.BreakID = -1
 	c.ContinueID = -1
@@ -72,11 +67,20 @@ func NewCore() *Core {
 	return &c
 }
 
+// SetSoreLink : よく使う変数を設定
+func (p *Core) SetSoreLink() {
+	g := p.Global
+	p.Sore = g.Get("それ")
+	p.Taisyo = g.Get("対象")
+	p.TaisyoKey = g.Get("対象キー")
+	g.Set("そう", p.Sore)
+}
+
 // addFuncCustom : システムに関数を登録する
-func (sys *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
-	val.Tag = len(sys.JosiList)
-	sys.JosiList = append(sys.JosiList, args)
-	sys.Global.Set(name, &val)
+func (p *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
+	val.Tag = len(p.JosiList)
+	p.JosiList = append(p.JosiList, args)
+	p.Global.Set(name, &val)
 	return val.Tag
 }
 

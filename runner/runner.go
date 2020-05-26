@@ -82,6 +82,8 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runWhile(n)
 	case node.For:
 		return runFor(n)
+	case node.Foreach:
+		return runForeach(n)
 	case node.Continue:
 		return runContinue(n)
 	case node.Break:
@@ -118,7 +120,7 @@ func runFor(n *node.Node) (*value.Value, error) {
 	// check Word
 	var loopVar *value.Value = nil
 	if nn.Word == "" {
-		loopVar = &sys.Sore
+		loopVar = sys.Sore
 	} else {
 		// できるだけ再利用
 		loopVar = sys.Global.Get(nn.Word)
@@ -186,16 +188,103 @@ func runWhile(n *node.Node) (*value.Value, error) {
 	return lastValue, nil
 }
 
+func canBreakInLoop() bool {
+	if sys.BreakID >= 0 || sys.ReturnID >= 0 {
+		if sys.BreakID == sys.LoopLevel {
+			sys.BreakID = -1
+		}
+		return true
+	}
+	return false
+}
+
+func runForeach(n *node.Node) (*value.Value, error) {
+	ni := (*n).(node.TNodeForeach)
+	// 反復対象を評価
+	exprValue := sys.Sore
+	if ni.Expr != nil {
+		expr, err := runNode(&ni.Expr)
+		if err != nil {
+			return nil, RuntimeError("『反復』構文の条件式でエラー。", n)
+		}
+		exprValue = expr
+	}
+	// 繰り返しなし
+	if exprValue == nil {
+		return nil, nil
+	}
+
+	// 繰り返し
+	var lastValue *value.Value = nil
+	var errNode error = nil
+	sys.LoopLevel++
+
+	// 文字列を指定したなら一行ずつ実行する
+	if exprValue.Type == value.Str {
+		tmp := value.NewValueArrayFromStr(exprValue.ToString(), "\n")
+		exprValue = &tmp
+	}
+	if exprValue.Type == value.Array { // --- 配列の場合
+		for _, v := range exprValue.ToArray() {
+			if canBreakInLoop() {
+				break
+			}
+			// 「それ」と「対象」を更新
+			sys.Sore.SetValue(v)
+			sys.Taisyo.SetValue(v)
+			// 実行
+			lastValue, errNode = runNode(&ni.Block)
+			if errNode != nil {
+				sys.LoopLevel--
+				return nil, errNode
+			}
+		}
+	} else if exprValue.Type == value.Hash { // --- ハッシュの場合
+		for k, v := range exprValue.ToHash() {
+			if canBreakInLoop() {
+				break
+			}
+			// 対象キーを更新
+			sys.TaisyoKey.SetStr(k)
+			// 「それ」と「対象」を更新
+			sys.Sore.SetValue(v)
+			sys.Taisyo.SetValue(v)
+			// 実行
+			lastValue, errNode = runNode(&ni.Block)
+			if errNode != nil {
+				sys.LoopLevel--
+				return nil, errNode
+			}
+
+		}
+	} else {
+		return nil, RuntimeError("『反復』構文に不適切な値型の変数が指定されました。", n)
+	}
+	if sys.ContinueID >= 0 {
+		sys.ContinueID = -1
+	}
+	sys.LoopLevel--
+	return lastValue, nil
+}
+
 func runRepeat(n *node.Node) (*value.Value, error) {
 	ni := (*n).(node.TNodeRepeat)
 	// 回数を評価
 	expr, err := runNode(&ni.Expr)
 	if err != nil {
-		return nil, RuntimeError("『回』構文の式でエラー。", n)
+		return nil, RuntimeError("『回』構文の条件式でエラー。", n)
 	}
 	if expr == nil {
 		return nil, nil
 	}
+	// 回数変数を取得
+	kaisuHensu := sys.Global.Get("回数")
+	if kaisuHensu == nil {
+		kaisuHensu := value.NewValueInt(1)
+		sys.Global.Set("回数", &kaisuHensu)
+	}
+	// 上のループの回数を得る
+	lastKaisu := kaisuHensu.ToInt()
 	// 繰り返し
 	var lastValue *value.Value = nil
 	var errNode error = nil
@@ -208,9 +297,9 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 			}
 			break
 		}
-		// 「それ」と「対象」を更新
-		sys.Sore.SetInt(int64(i))
-		sys.Taisyo.SetInt(int64(i))
+		// 「それ」と「回数」を更新
+		sys.Sore.SetInt(int64(i + 1))   // それ
+		kaisuHensu.SetInt(int64(i + 1)) // 回数
 		// 実行
 		lastValue, errNode = runNode(&ni.Block)
 		if errNode != nil {
@@ -222,6 +311,7 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 		sys.ContinueID = -1
 	}
 	sys.LoopLevel--
+	kaisuHensu.SetInt(lastKaisu)
 	return lastValue, err
 }
 
@@ -243,36 +333,37 @@ func runIf(n *node.Node) (*value.Value, error) {
 
 func runLet(n *node.Node) (*value.Value, error) {
 	cl := (*n).(node.TNodeLet)
+
 	// 変数に代入する値を評価する
-	val, err := runNode(&cl.Value)
+	val, err := runNode(&cl.ValueNode)
 	if err != nil {
 		return nil, err
 	}
 
 	// 普通に変数に代入する場合
-	if cl.VarIndex == nil || len(cl.VarIndex) == 0 {
+	if cl.Index == nil || len(cl.Index) == 0 {
 		// 既にこのレベル以下に変数がある？
-		vv := sys.Scopes.Get(cl.Var)
-		if vv != nil {
-			vv.SetValue(val)
-			if vv.IsFreeze {
-				return nil, RuntimeError(fmt.Sprintf(
-					"定数『%s』は変更できません。", cl.Var), n)
-			}
-		} else {
-			sys.Scopes.SetTopVars(cl.Var, val)
+		nameValue := sys.Scopes.Get(cl.Name)
+		if nameValue == nil { // 変数がなければ作る
+			nameValue = value.NewValueNullPtr()
+			sys.Scopes.GetTopScope().Set(cl.Name, nameValue)
 		}
+		if nameValue.IsFreeze {
+			return nil, RuntimeError(fmt.Sprintf(
+				"定数『%s』は変更できません。", cl.Name), n)
+		}
+		nameValue.SetValue(val)
 		return val, nil
 	}
 
 	// 配列など参照に代入する場合
-	vv := sys.Scopes.Get(cl.Var)
-	if vv == nil {
+	vv := sys.Scopes.Get(cl.Name)
+	if vv == nil { // 変数がなければ作る
 		vv = value.NewValueNullPtr()
-		sys.Scopes.SetTopVars(cl.Var, vv)
+		sys.Scopes.SetTopVars(cl.Name, vv)
 	}
 	// 添字へのアクセス
-	for i, nIndex := range cl.VarIndex {
+	for i, nIndex := range cl.Index {
 		iv, err := runNode(&nIndex)
 		if err != nil {
 			return nil, RuntimeError("代入の添字の評価でエラー:"+err.Error(), &nIndex)
@@ -282,7 +373,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		}
 		if vv.Type == value.Array {
 			idx := int(iv.ToInt())
-			if i == len(cl.VarIndex)-1 {
+			if i == len(cl.Index)-1 {
 				vv.ArraySet(idx, val)
 			} else {
 				vv = vv.ArrayGet(idx)
@@ -291,7 +382,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		}
 		if vv.Type == value.Hash {
 			key := iv.ToString()
-			if i == len(cl.VarIndex)-1 {
+			if i == len(cl.Index)-1 {
 				vv.HashSet(key, val)
 			} else {
 				vv = vv.HashGet(key)
@@ -395,7 +486,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	if len(nodeArgs) != len(defArgs) {
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
-			args[0] = &sys.Sore
+			args[0] = sys.Sore
 		} else {
 			return nil, RuntimeError(fmt.Sprintf("関数『%s』で引数の数が違います。", cf.Name), n)
 		}

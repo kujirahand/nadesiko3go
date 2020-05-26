@@ -51,5 +51,6 @@ func ExecCode(sys *core.Core, code string) (*value.Value, error) {
 		println("[run]")
 	}
 	// run
+	sys.SetSoreLink() // よく使う変数を毎回取得しなくても良いようにリンクを張る
 	return runner.Run(n)
 }

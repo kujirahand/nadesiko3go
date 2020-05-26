@@ -33,6 +33,8 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddVarValue("NULL", value.NewValueNull())
 	sys.AddVarValue("未定義", value.NewValueNull())
 	sys.AddVar("エラーメッセージ", "")
+	sys.AddVar("それ", "")
+	sys.AddVar("そう", "") // alias "それ" ... SetSoreLinkで処理
 	sys.AddConst("対象", "")
 	sys.AddConst("対象キー", "")
 	sys.AddConstInt("回数", 0)

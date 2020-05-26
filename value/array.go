@@ -22,3 +22,22 @@ func (p *TArray) ToJSONString() string {
 func (p *TArray) Length() int {
 	return len(*p)
 }
+
+// SplitString : 文字列から配列を作る
+func SplitString(src, splitter string) TArray {
+	a := TArray{}
+	sa := strings.Split(src, splitter)
+	for _, v := range sa {
+		vv := NewValueStr(v)
+		a = append(a, &vv)
+	}
+	return a
+}
+
+// NewValueArrayFromStr : 文字列から配列型のValueを作る
+func NewValueArrayFromStr(src, splitter string) Value {
+	a := SplitString(src, splitter)
+	nv := NewValueArray()
+	nv.Value = a
+	return nv
+}

@@ -105,6 +105,15 @@ func (p *Lexer) insertSyntaxMarker(f *TokensManager) {
 			f.Insert(makerPos, p.newMarker(t, token.WHILE_BEGIN))
 			f.Move(2)
 			continue
+		case token.FOREACH:
+			// 単文・複文の確認
+			if f.PeekNextType() != token.LF {
+				t.Type = token.FOREACH_SINGLE
+			}
+			// マーカーを挿入
+			f.Insert(makerPos, p.newMarker(t, token.FOREACH_BEGIN))
+			f.Move(2)
+			continue
 		case token.FOR:
 			if f.PeekNextType() != token.LF {
 				t.Type = token.FOR_SINGLE
