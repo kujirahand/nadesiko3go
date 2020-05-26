@@ -41,7 +41,8 @@ __TOKENS_LIST__
 %%
 
 // --- program ---
-program : sentences { $$ = $1; yylex.(*Lexer).result = $$ }
+program
+  : sentences { $$ = $1; yylex.(*Lexer).result = $$ }
 
 sentences
   : sentence            { $$ = node.TNodeList{$1} }
@@ -61,29 +62,18 @@ sentence
   | comment_stmt
   | def_function
 
-comment_stmt : COMMENT { $$ = node.NewNodeNop($1) }
+comment_stmt
+  : COMMENT { $$ = node.NewNodeNop($1) }
 
 eos
   : EOS { $$ = node.NewNodeNop($1) }
   | LF  { $$ = node.NewNodeNop($1) }
 
 let_stmt
-  : WORD EQ expr
-  {
-    $$ = node.NewNodeLet($1, node.NewNodeList(), $3)
-  }
-  | WORD varindex EQ expr
-  {
-    $$ = node.NewNodeLet($1, $2, $4)
-  }
-  | LET_BEGIN WORD_REF expr LET
-  {
-    $$ = node.NewNodeLet($2, node.NewNodeList(), $3)
-  }
-  | LET_BEGIN expr WORD_REF LET
-  {
-    $$ = node.NewNodeLet($3, node.NewNodeList(), $2)
-  }
+  : WORD EQ expr                { $$ = node.NewNodeLet($1, nil, $3) }
+  | WORD varindex EQ expr       { $$ = node.NewNodeLet($1, $2, $4)  }
+  | LET_BEGIN WORD_REF expr LET { $$ = node.NewNodeLet($2, nil, $3) }
+  | LET_BEGIN expr WORD_REF LET { $$ = node.NewNodeLet($3, nil, $2) }
 
 varindex
   : LBRACKET expr RBRACKET          { $$ = node.TNodeList{$2} }
