@@ -75,10 +75,10 @@ const (
 	STR_PLUS       = "&"
 	MINUS          = "-"
 	NOT            = "!"
-	ASTERISK       = "*"
-	SLASH          = "/"
-	PERCENT        = "%"
-	CIRCUMFLEX     = "^"
+	MUL            = "*"
+	DIV            = "/"
+	MOD            = "%"
+	EXP            = "^"
 	EQEQ           = "=="
 	NTEQ           = "!="
 	GT             = ">"
@@ -173,13 +173,15 @@ func TokensInsert(tt Tokens, index int, t *Token) Tokens {
 	return tt2
 }
 
+// IsOperator : 演算子か
 func IsOperator(t TType) bool {
 	return t == PLUS || t == MINUS ||
-		t == ASTERISK || t == SLASH || t == PERCENT ||
+		t == MUL || t == DIV || t == MOD ||
 		t == EQEQ || t == NTEQ ||
 		t == GT || t == GTEQ || t == LT || t == LTEQ
 }
 
+// CanUMinus : UMINUSか
 func CanUMinus(lt TType) bool {
 	return IsOperator(lt) ||
 		lt == LF || lt == EOS || lt == UNKNOWN ||

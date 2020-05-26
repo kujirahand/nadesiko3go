@@ -26,7 +26,8 @@ import (
 }
 
 %type<node> program sentence eos callfunc 
-%type<node> expr value comp factor term pri_expr high_expr and_or_expr
+%type<node> expr value 
+// comp factor term pri_expr high_expr and_or_expr
 %type<node> let_stmt
 %type<node> if_stmt if_comp 
 %type<node> repeat_stmt loop_ctrl
@@ -38,6 +39,12 @@ import (
 %type<nodelist> sentences json_array varindex args block
 __TOKENS_LIST__
 
+// 演算子の順序
+%left AND OR
+%left EQEQ NTEQ GT GTEQ LT LTEQ
+%left STR_PLUS PLUS MINUS
+%left MUL DIV MOD
+%left EXP
 %%
 
 // --- program ---
@@ -100,6 +107,26 @@ variable
   : WORD          { $$ = node.NewNodeWord($1, nil) }
   | WORD varindex { $$ = node.NewNodeWord($1, $2)  }
 
+
+expr
+  : value
+  | expr AND expr   { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr OR expr    { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr EQEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr NTEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr GT expr        { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr GTEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr LT expr        { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr LTEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr PLUS expr      { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr MINUS expr     { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr MUL expr       { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr DIV expr       { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr MOD expr       { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr EXP expr       { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr STR_PLUS expr  { $$ = node.NewNodeOperator($2, $1, $3) }
+  | LPAREN expr RPAREN  { $$ = node.NewNodeCalc($3, $2) }
+/*
 expr
   : and_or_expr
 
@@ -184,6 +211,7 @@ high_expr
   {
     $$ = node.NewNodeCalc($3, $2)
   }
+*/
 
 json_value
   : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2) }

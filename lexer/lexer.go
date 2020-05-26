@@ -258,7 +258,7 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		return NewToken(p, token.MINUS)
 	case '*':
 		p.move(1)
-		return NewToken(p, token.ASTERISK)
+		return NewToken(p, token.MUL)
 	case '/':
 		// comment
 		ch2 := p.peekStr(2)
@@ -270,13 +270,13 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 			return p.getRangeComment()
 		}
 		p.move(1)
-		return NewToken(p, token.SLASH)
+		return NewToken(p, token.DIV)
 	case '%':
 		p.move(1)
-		return NewToken(p, token.PERCENT)
+		return NewToken(p, token.MOD)
 	case '^':
 		p.move(1)
-		return NewToken(p, token.CIRCUMFLEX)
+		return NewToken(p, token.EXP)
 	// カッコ
 	case '(':
 		p.move(1)
