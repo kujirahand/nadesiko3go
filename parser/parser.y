@@ -25,42 +25,27 @@ import (
   nodelist  node.TNodeList
 }
 
-%type<node> program sentences sentence eos callfunc args 
+%type<node> program sentence eos callfunc 
 %type<node> expr value comp factor term pri_expr high_expr and_or_expr
 %type<node> let_stmt
-%type<node> if_stmt if_comp block 
+%type<node> if_stmt if_comp 
 %type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt comment_stmt foreach_stmt
 %type<node> def_function def_args
 %type<node> json_value variable
 %type<jsonkv> json_hash
 %type<token> json_key
-%type<nodelist> json_array varindex
+%type<nodelist> sentences json_array varindex args block
 __TOKENS_LIST__
 
 %%
 
 // --- program ---
-program
-	: sentences
-	{
-		$$ = $1
-		yylex.(*Lexer).result = $$    
-	}
+program : sentences { $$ = $1; yylex.(*Lexer).result = $$ }
 
 sentences
-  : sentence
-  {
-    n := node.NewNodeSentence($1.GetFileInfo())
-    n.Append($1)
-    $$ = n
-  }
-  | sentences sentence
-  {
-    n, _ := $1.(node.TNodeSentence)
-    n.Append($2)
-    $$ = n
-  }
+  : sentence            { $$ = node.TNodeList{$1} }
+  | sentences sentence  { $$ = append($1, $2)     }
 
 sentence
   : eos
@@ -101,45 +86,17 @@ let_stmt
   }
 
 varindex
-  : LBRACKET expr RBRACKET
-  {
-    $$ = node.TNodeList{$2}
-  }
-  | varindex LBRACKET expr RBRACKET
-  {
-    $$ = append($1, $3)
-  }
+  : LBRACKET expr RBRACKET          { $$ = node.TNodeList{$2} }
+  | varindex LBRACKET expr RBRACKET { $$ = append($1, $3) }
 
 callfunc
-  : FUNC
-  {
-    $$ = node.NewNodeCallFunc($1)
-  }
-  | args FUNC
-  {
-    n := node.NewNodeCallFunc($2)
-    n.Args, _ = $1.(node.TNodeList)
-    $$ = n
-  }
-  | FUNC LPAREN args RPAREN
-  {
-    n := node.NewNodeCallFunc($1)
-    n.Args, _ = $3.(node.TNodeList)
-    $$ = n
-  }
+  : FUNC                    { $$ = node.NewNodeCallFunc($1, nil) }
+  | args FUNC               { $$ = node.NewNodeCallFunc($2, $1) }
+  | FUNC LPAREN args RPAREN { $$ = node.NewNodeCallFunc($1, $3) }
 
 args
-  : expr
-  {
-    n := node.TNodeList{ $1 }
-    $$ = n
-  }
-  | args expr
-  {
-    args, _ := $1.(node.TNodeList)
-    n := append(args, $2)
-    $$ = n
-  }
+  : expr        { $$ = node.TNodeList{ $1 } }
+  | args expr   { $$ = append($1, $2)       }
 
 // --- calc ---
 value
@@ -299,6 +256,12 @@ if_stmt
 
 if_comp
   : expr 
+  /*
+  | expr expr
+  {
+    $$ = node.NewNodeOperatorStr("==", $1, $2)
+  }
+  */
 
 block
   : sentences 

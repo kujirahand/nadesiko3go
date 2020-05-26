@@ -9,11 +9,11 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	if len(tt) == 0 {
 		return tt
 	}
-	formatter := NewFormatter(tt)
-	p.insertSyntaxMarker(formatter)
-	p.checkIF(formatter)
-	p.checkDefFunc(formatter)
-	return formatter.GetTokens()
+	man := NewTokensManager(tt)
+	p.insertSyntaxMarker(man)
+	p.checkIF(man)
+	p.checkDefFunc(man)
+	return man.GetTokens()
 }
 
 // checkDefFunc : 関数定義を調べる

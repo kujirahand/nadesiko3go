@@ -11,8 +11,8 @@ type TokensManager struct {
 	length int
 }
 
-// NewFormatter : トークン列を整形するために使う構造体を初期化
-func NewFormatter(tt token.Tokens) *TokensManager {
+// NewTokensManager : トークン列を整形するために使う構造体を初期化
+func NewTokensManager(tt token.Tokens) *TokensManager {
 	formatter := TokensManager{
 		tokens: tt,
 		index:  0,

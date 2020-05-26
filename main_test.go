@@ -13,6 +13,10 @@ func TestMain(t *testing.T) {
 	_eval(t, "1に2を足して3を足して表示;表示ログ", "6")
 }
 
+func TestFunc(t *testing.T) {
+	_eval(t, "N=1と2を足す;N", "3")
+}
+
 func TestSyntax(t *testing.T) {
 	_eval(t, "N=0;[1,2,3]を反復,N=N+対象。N", "6")
 }

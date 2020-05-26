@@ -241,6 +241,18 @@ func NewNodeOperator(op *token.Token, left Node, right Node) TNodeOperator {
 	return p
 }
 
+// NewNodeOperatorStr : TNodeOperatorを返す
+func NewNodeOperatorStr(op string, left Node, right Node) TNodeOperator {
+	p := TNodeOperator{
+		Left:     left,
+		Right:    right,
+		Operator: op,
+		Josi:     right.GetJosi(),
+		FileInfo: right.GetFileInfo(),
+	}
+	return p
+}
+
 // TNodeSentence : TNodeSentence
 type TNodeSentence struct {
 	Node
@@ -293,12 +305,12 @@ func (n TNodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeCallFunc) GetJosi() string { return n.Josi }
 
 // NewNodeCallFunc : 関数呼び出しのノードを返す
-func NewNodeCallFunc(t *token.Token) TNodeCallFunc {
+func NewNodeCallFunc(t *token.Token, args TNodeList) TNodeCallFunc {
 	node := TNodeCallFunc{
 		Name:     t.Literal,
+		Args:     args,
 		FileInfo: t.FileInfo,
 	}
-	node.Args = []Node{}
 	return node
 }
 
