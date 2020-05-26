@@ -33,6 +33,11 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddVarValue("NULL", value.NewValueNull())
 	sys.AddVarValue("未定義", value.NewValueNull())
 	sys.AddVar("エラーメッセージ", "")
+	sys.AddConst("対象", "")
+	sys.AddConst("対象キー", "")
+	sys.AddConstInt("回数", 0)
+	sys.AddConstValue("空配列", value.NewValueArray())
+	sys.AddConstValue("空ハッシュ", value.NewValueHash())
 	/// 四則演算
 	sys.AddFunc("足", core.DefArgs{{"と", "に"}, {"を"}}, add) // AにBを足す | たす
 	sys.AddFunc("引", core.DefArgs{{"から"}, {"を"}}, sub)     // AからBを引く | ひく

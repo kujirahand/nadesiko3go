@@ -96,6 +96,13 @@ func (sys *Core) AddConstInt(name string, v int) int {
 	return -1
 }
 
+// AddConstValue : システムに変数を登録
+func (sys *Core) AddConstValue(name string, v value.Value) int {
+	sys.Global.Set(name, &v)
+	v.IsFreeze = true
+	return -1
+}
+
 // AddVar : システムに変数を登録
 func (sys *Core) AddVar(name, v string) int {
 	val := value.NewValueStr(v)

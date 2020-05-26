@@ -316,114 +316,11 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 	case '●':
 		p.move(1)
 		return NewToken(p, token.DEF_FUNC)
+	case '#':
+		p.move(1)
+		return p.getLineComment()
 	}
-
 	return nil
-}
-
-// formatTokenList : トークン
-func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
-	if len(tt) == 0 {
-		return tt
-	}
-	// goyaccのために Markerを挿入
-	// WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
-	// 同じく,FOR_BEGINを挿入
-	var tWord *token.Token = nil
-	i, mk, isMosi := 0, 0, false
-	isDefFunc, isParen, funcName := false, false, ""
-	p.FuncNames = map[string]bool{}
-	nextType := func() token.TType {
-		if (i + 1) < len(tt) {
-			return tt[i+1].Type
-		}
-		return token.UNKNOWN
-	}
-	for i < len(tt) {
-		t := tt[i]
-		switch t.Type {
-		case token.LF, token.EOS:
-			mk = i + 1
-			if isDefFunc {
-				isDefFunc = false
-				if funcName != "" {
-					p.FuncNames[funcName] = true
-					funcName = ""
-				}
-			}
-		case token.WORD:
-			if t.Josi == "に" || t.Josi == "へ" {
-				tWord = t
-			}
-			if isDefFunc && !isParen {
-				funcName = t.Literal
-			}
-		case token.LET:
-			p.line = t.FileInfo.Line
-			tWord.Type = token.WORD_REF
-			tt = token.TokensInsert(tt, mk,
-				NewToken(p, token.LET_BEGIN))
-			i += 2
-			continue
-		case token.AIDA:
-			p.line = t.FileInfo.Line
-			tt = token.TokensInsert(tt, mk,
-				NewToken(p, token.WHILE_BEGIN))
-			i += 2
-			continue
-		case token.FOR:
-			p.line = t.FileInfo.Line
-			if nextType() != token.LF {
-				t.Type = token.FOR_SINGLE
-			}
-			// 繰り返し変数が指定されている場合
-			tRef := tt[mk]
-			if tRef.Type == token.WORD &&
-				(tRef.Josi == "を" || tRef.Josi == "で") {
-				tRef.Type = token.WORD_REF
-			}
-			// マーカーを挿入
-			tt = token.TokensInsert(tt, mk,
-				NewToken(p, token.FOR_BEGIN))
-			i += 2
-			continue
-		case token.KAI:
-			if nextType() != token.LF {
-				t.Type = token.KAI_SINGLE
-			}
-			// マーカーを挿入
-			p.line = t.FileInfo.Line
-			tt = token.TokensInsert(tt, mk,
-				NewToken(p, token.KAI_BEGIN))
-			i += 2
-			continue
-		case token.IF:
-			isMosi = true
-		case token.EQ:
-			if isMosi {
-				t.Type = token.EQEQ
-				t.Literal = "=="
-			}
-		case token.THEN, token.THEN_SINGLE:
-			if nextType() != token.LF {
-				t.Type = token.THEN_SINGLE
-			}
-			isMosi = false
-		case token.ELSE:
-			if nextType() != token.LF {
-				t.Type = token.ELSE_SINGLE
-			}
-		case token.DEF_FUNC:
-			isDefFunc = true
-		case token.LPAREN:
-			isParen = true
-		case token.RPAREN:
-			isParen = false
-		}
-		//
-		i++
-	}
-	return tt
 }
 
 // SetAutoHalf : Set AutoHalf

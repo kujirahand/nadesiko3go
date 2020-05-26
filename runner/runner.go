@@ -255,6 +255,10 @@ func runLet(n *node.Node) (*value.Value, error) {
 		vv := sys.Scopes.Get(cl.Var)
 		if vv != nil {
 			vv.SetValue(val)
+			if vv.IsFreeze {
+				return nil, RuntimeError(fmt.Sprintf(
+					"定数『%s』は変更できません。", cl.Var), n)
+			}
 		} else {
 			sys.Scopes.SetTopVars(cl.Var, val)
 		}
