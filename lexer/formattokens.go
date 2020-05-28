@@ -13,7 +13,46 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 	p.insertSyntaxMarker(man)
 	p.checkIF(man)
 	p.checkDefFunc(man)
+	p.checkBeginFunc(man)
 	return man.GetTokens()
+}
+
+// checkBeginFunc : 関数定義を調べる
+func (p *Lexer) checkBeginFunc(f *TokensManager) {
+	// ref: insertSyntaxMarker <--- LET(代入)
+	f.MoveTo(0)
+	for f.IsLive() {
+		t := f.Peek()
+		if t.Type == token.EQ || t.Type == token.IF {
+			markerPos := f.GetIndex() + 1
+			// 次のトークンに助詞があれば、それは呼び出し
+			f.Next() // skip "=" or "もし"
+			// カッコがあれば
+			if f.PeekType() == token.LPAREN {
+				f.Next() // skip '('
+				lv := 1
+				for f.IsLive() {
+					if f.PeekType() == token.RPAREN {
+						lv--
+						if lv == 0 {
+							break
+						}
+					} else if f.PeekType() == token.LPAREN {
+						lv++
+					}
+					f.Next()
+				}
+			}
+			// VALUE or ")"
+			t = f.Peek()
+			if t != nil && t.Josi != "" {
+				f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
+				f.MoveTo(2)
+				continue
+			}
+		}
+		f.Next()
+	}
 }
 
 // checkDefFunc : 関数定義を調べる
@@ -73,6 +112,14 @@ func (p *Lexer) checkIF(f *TokensManager) {
 			if f.PeekNextType() != token.LF {
 				t.Type = token.ELSE_SINGLE
 			}
+		}
+		// たらればを確認
+		if p.tararebaJosi[t.Josi] {
+			then := p.newMarker(t, token.THEN)
+			then.Literal = t.Josi
+			t.Josi = ""
+			f.Insert(f.GetIndex()+1, then)
+			continue
 		}
 		f.Next()
 	}

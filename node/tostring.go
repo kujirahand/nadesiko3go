@@ -32,9 +32,12 @@ var nodeTypeNames = map[NType]string{
 func ToString(n Node, level int) string {
 	indent := ""
 	for i := 0; i < level; i++ {
-		indent += "|-"
+		indent += "|  "
 	}
-	s := fmt.Sprintf("%03d: %s {%s}",
+	if n == nil {
+		return indent + "(null)"
+	}
+	s := fmt.Sprintf("+ %03d: %s {%s}",
 		n.GetFileInfo().Line,
 		nodeTypeNames[n.GetType()],
 		n.GetJosi())
@@ -111,10 +114,15 @@ func ToString(n Node, level int) string {
 		s += fmt.Sprintf("id=%d", n.(TNodeContinue).LoopID)
 	case Break:
 		s += fmt.Sprintf("id=%d", n.(TNodeBreak).LoopID)
+	case Return:
+		nn := n.(TNodeReturn)
+		s += fmt.Sprintf("id=%d", nn.LoopID)
+		ss += ToString(nn.Arg, level+1) + " --- ここまで「戻る」の引数\n"
 	case DefFunc:
 		nn := n.(TNodeDefFunc)
 		s += fmt.Sprintf(" %s", nn.Word)
-		ss += ToString(nn.Args, level+1) + "\n"
+		ss += ToString(nn.Args, level+1) + " --- ここまで引数\n"
+		ss += ToString(nn.Block, level+1) + " --- ここまでブロック\n"
 	case JSONArray:
 		nn := n.(TNodeJSONArray)
 		ss += ToString(nn.Items, level+1) + "\n"

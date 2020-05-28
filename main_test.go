@@ -13,8 +13,19 @@ func TestMain(t *testing.T) {
 	_eval(t, "1に2を足して3を足して表示;表示ログ", "6")
 }
 
-func TestFunc(t *testing.T) {
-	_eval(t, "N=1と2を足す;N", "3")
+func TestCallFunc(t *testing.T) {
+	_eval(t, "N=(1と2を足す);N", "3")
+	_eval(t, "A=3;B=5;N=((A-1)とBを足す);N", "7")
+}
+
+func TestDeffFunc(t *testing.T) {
+	_eval(t, "●(AとBを)ADDとは\nそれはA+B\nここまで。\n1と2をADD", "3")
+	_eval(t, "●(AとBを)ABCとは\nC=A*2;D=B*3;それはC+D\nここまで。\n1と2をABC", "8")
+	_eval(t, "●(Aで)ABCとは\nA+1で戻る\nここまで。\n3でABC", "4")
+}
+
+func TestDeffFunc2(t *testing.T) {
+	_eval2(t, "●(Aで)ABCとは\nもしA<1ならばAで戻る。((A-1)でABC)+Aで戻る。\nここまで。\n10でABC", "55")
 }
 
 func TestSyntax(t *testing.T) {
@@ -31,6 +42,17 @@ func TestJSON(t *testing.T) {
 	_eval(t, "C=[[1,2,3],[11,22,33],[111,222,333]];C[1][2]", "33")
 	_eval(t, "D=[1,2];D[1]=1;D", "[1,1]")
 	_eval(t, "E={'a':30};E['a']=1;E", "{\"a\":1}")
+}
+
+func _eval2(t *testing.T, code, expected string) {
+	sys := eval.InitSystem()
+	sys.IsDebug = true
+	eval.Eval("表示ログ=「」")
+	v, _ := eval.Eval(code)
+	rv := v.ToString()
+	if rv != expected {
+		t.Errorf("main: %s != %s", rv, expected)
+	}
 }
 
 func _eval(t *testing.T, code, expected string) {

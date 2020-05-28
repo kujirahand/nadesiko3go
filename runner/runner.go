@@ -35,7 +35,7 @@ func RuntimeError(msg string, n *node.Node) error {
 func runNodeList(nodes node.TNodeList) (*value.Value, error) {
 	var lastValue *value.Value = nil
 	for _, n := range nodes {
-		if sys.BreakID >= 0 || sys.ContinueID >= 0 {
+		if sys.BreakID >= 0 || sys.ContinueID >= 0 || sys.ReturnID >= 0 {
 			break
 		}
 		v, err := runNode(&n)
@@ -322,13 +322,21 @@ func runIf(n *node.Node) (*value.Value, error) {
 	if err != nil {
 		return nil, RuntimeError("『もし』構文の条件式でエラー。", n)
 	}
-	if expr == nil {
-		return runNode(&ni.FalseNode)
+	var exprBool bool = false
+	if expr != nil {
+		exprBool = expr.ToBool()
 	}
-	if expr.ToBool() {
-		return runNode(&ni.TrueNode)
+	// 真偽ブロックを実行
+	if exprBool {
+		if ni.TrueNode != nil {
+			return runNode(&ni.TrueNode)
+		}
+	} else {
+		if ni.FalseNode != nil {
+			return runNode(&ni.FalseNode)
+		}
 	}
-	return runNode(&ni.FalseNode)
+	return nil, nil
 }
 
 func runLet(n *node.Node) (*value.Value, error) {
@@ -424,32 +432,33 @@ func runWord(n *node.Node) (*value.Value, error) {
 	return val, nil
 }
 
-func runCallFunc(n *node.Node) (*value.Value, error) {
-	cf := (*n).(node.TNodeCallFunc)
+func getFunc(cf *node.TNodeCallFunc) (*value.Value, error) {
 	// 関数の実態を得る
-	funcV := cf.Cache
-	if funcV == nil {
-		funcV = sys.Scopes.Get(cf.Name)
-		cf.Cache = funcV
+	if cf.Cache != nil {
+		return cf.Cache, nil
 	}
+	// 関数を得る
+	funcV := sys.Scopes.Get(cf.Name)
+	cf.Cache = funcV
 	// 変数が見当たらない
 	if funcV == nil {
-		msgu := fmt.Sprintf("関数『%s』は未定義。", cf.Name)
-		return nil, RuntimeError(msgu, n)
+		msgu := fmt.Errorf("関数『%s』は未定義。", cf.Name)
+		return nil, msgu
 	}
 	// 関数ではない？
 	if !funcV.IsFunction() {
-		msgn := fmt.Sprintf("『%s』は関数ではい。", cf.Name)
-		return nil, RuntimeError(msgn, n)
+		msgn := fmt.Errorf("『%s』は関数ではい。", cf.Name)
+		return nil, msgn
 	}
-	// args
+	return funcV, nil
+}
+
+func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (value.TArray, error) {
+	// 関数の引数を得る
 	defArgs := sys.JosiList[funcV.Tag]       // 定義
 	args := make(value.TArray, len(defArgs)) // 関数に与える値
-	nodeArgs := cf.Args                      // ノードの値
 	usedArgs := make([]bool, len(nodeArgs))  // ノードを利用したか(同じ助詞が二つある場合)
-	for bi := 0; bi < len(usedArgs); bi++ {
-		usedArgs[bi] = false
-	}
+	// 引数を取得する
 	for i, josiList := range defArgs {
 		for _, josi := range josiList {
 			for k, nodeJosi := range nodeArgs {
@@ -462,8 +471,8 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 				usedArgs[k] = true
 				argResult, err1 := runNode(&nodeJosi)
 				if err1 != nil {
-					msg := fmt.Sprintf("関数『%s』の引数でエラー。", cf.Name)
-					return nil, RuntimeError(err1.Error()+msg, n)
+					msg := fmt.Errorf("関数『%s』引数でエラー。%s", fname, err1.Error())
+					return nil, msg
 				}
 				if argResult != nil {
 					args[i] = argResult
@@ -476,8 +485,8 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	// 引数のチェック (1) 漏れなくcf.Args内のノードを評価したか
 	for ci, b := range usedArgs {
 		if b == false {
-			msgArg := fmt.Sprintf("関数『%s』の第%d引数の間違い。", cf.Name, ci)
-			return nil, RuntimeError(msgArg, n)
+			msgArg := fmt.Errorf("関数『%s』の第%d引数の間違い。", fname, ci)
+			return nil, msgArg
 		}
 	}
 	// 引数のチェック (2) 関数定義引数(defArgs)と数が合っているか？
@@ -488,31 +497,51 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			args[0] = sys.Sore
 		} else {
-			return nil, RuntimeError(fmt.Sprintf("関数『%s』で引数の数が違います。", cf.Name), n)
+			return nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
 		}
 	}
+	return args, nil
+}
+
+func callUserFunc(funcV *value.Value, args value.TArray) (*value.Value, error) {
+	// User func
+	userFuncIndex := funcV.Tag
+	userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
+	// Open Local Scope
+	sys.Scopes.Open()
+	// スコープにローカル変数を挿入
+	scope := sys.Scopes.GetTopScope()
+	for i, v := range userNode.ArgNames {
+		scope.Set(v, args[i])
+	}
+	sys.LoopLevel++
+	result, err := runNode(&userNode.Block)
+	sys.LoopLevel--
+	sys.ReturnID = -1
+	sys.Scopes.Close()
+	// エラーがあった時
+	if err == nil {
+		result = sys.Sore
+	}
+	return result, err
+}
+
+func runCallFunc(n *node.Node) (*value.Value, error) {
+	cf := (*n).(node.TNodeCallFunc)
+	// 関数を得る
+	funcV, err := getFunc(&cf)
+	if err != nil {
+		return nil, err
+	}
+	// 引数を得る
+	args, err := getFuncArgs(cf.Name, funcV, cf.Args)
 	// 関数を実行
-	var result *value.Value = nil
-	var err2 error = nil
-	if funcV.Type == value.UserFunc {
-		// User func
-		index := funcV.Tag
-		userNode := node.UserFunc[index].(node.TNodeDefFunc)
-		sys.Scopes.Open()
-		// スコープにローカル変数を挿入
-		scope := sys.Scopes.GetTopScope()
-		for i, v := range userNode.ArgNames {
-			scope.Set(v, args[i])
-		}
-		sys.LoopLevel++
-		result, err2 = runNode(&userNode.Block)
-		sys.LoopLevel--
-		sys.Scopes.Close()
-	} else {
-		// Go func
-		f := funcV.Value.(value.TFunction)
-		result, err2 = f(args)
+	if funcV.Type == value.UserFunc { // ユーザー関数の場合
+		return callUserFunc(funcV, args)
 	}
+	// Go native func
+	f := funcV.Value.(value.TFunction)
+	result, err2 := f(args)
 	// 結果をそれに覚える
 	if result != nil {
 		sys.Sore.SetValue(result)
@@ -625,6 +654,9 @@ func runReturn(n *node.Node) (*value.Value, error) {
 	nn := (*n).(node.TNodeReturn)
 	if nn.Arg != nil {
 		result, err = runNode(&nn.Arg)
+		if result != nil {
+			sys.Sore.SetValue(result)
+		}
 	}
 	sys.ReturnID = sys.LoopLevel
 	return result, err

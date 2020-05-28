@@ -67,6 +67,7 @@ const (
 	TEISU          = "定数"
 	INCLUDE        = "取込"
 	LET_BEGIN      = "代入(単文)"
+	BEGIN_CALLFUNC = "ここから関数呼出"
 	ERROR_TRY      = "エラー監視"
 	ERROR          = "エラー"
 	DEF_FUNC       = "関数"

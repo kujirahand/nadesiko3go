@@ -15,7 +15,10 @@ diff $TEST_DIR/fizzbuzz-out.txt $TEST_DIR/fizzbuzz-result.txt
 rm -f $FILE_FIZZBUZZ
 echo "--- basic ---"
 $EXE $TEST_DIR/basic.nako3
+echo "--- func_test ---"
 $EXE $TEST_DIR/func_test.nako3
+echo "--- loop_test ---"
 $EXE $TEST_DIR/loop_test.nako3
+echo "ok"
 
 

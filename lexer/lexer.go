@@ -13,14 +13,15 @@ import (
 
 // Lexer : Lexer struct
 type Lexer struct {
-	src        []rune
-	index      int
-	line       int
-	fileNo     int
-	autoHalf   bool
-	renbunJosi map[string]bool
-	tokens     *token.Tokens
-	FuncNames  map[string]bool
+	src          []rune
+	index        int
+	line         int
+	fileNo       int
+	autoHalf     bool
+	renbunJosi   map[string]bool
+	tararebaJosi map[string]bool
+	tokens       *token.Tokens
+	FuncNames    map[string]bool
 }
 
 // NewLexer : NewLexer
@@ -36,6 +37,11 @@ func NewLexer(source string, fileNo int) *Lexer {
 	p.renbunJosi = map[string]bool{}
 	for _, josi := range token.JosiRenbun {
 		p.renbunJosi[josi] = true
+	}
+	// たられば助詞を初期化
+	p.tararebaJosi = map[string]bool{}
+	for _, josi := range token.JosiTarareba {
+		p.tararebaJosi[josi] = true
 	}
 	return &p
 }
@@ -562,7 +568,7 @@ func (p *Lexer) getWord() *token.Token {
 		}
 
 		// word ...
-		if runeutil.IsWordRune(c) {
+		if runeutil.IsWordRune(c) || runeutil.IsDigit(c) {
 			s += string(c)
 			p.move(1)
 			continue

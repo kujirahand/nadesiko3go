@@ -32,11 +32,11 @@ import (
 %type<node> if_stmt if_comp 
 %type<node> repeat_stmt loop_ctrl
 %type<node> for_stmt while_stmt comment_stmt foreach_stmt
-%type<node> def_function def_args
+%type<node> def_function
 %type<node> json_value variable
 %type<jsonkv> json_hash
 %type<token> json_key
-%type<nodelist> sentences json_array varindex args block
+%type<nodelist> sentences json_array varindex args block def_args
 __TOKENS_LIST__
 
 // 演算子の順序
@@ -81,6 +81,8 @@ let_stmt
   | WORD varindex EQ expr       { $$ = node.NewNodeLet($1, $2, $4)  }
   | LET_BEGIN WORD_REF expr LET { $$ = node.NewNodeLet($2, nil, $3) }
   | LET_BEGIN expr WORD_REF LET { $$ = node.NewNodeLet($3, nil, $2) }
+  | WORD EQ BEGIN_CALLFUNC callfunc            { $$ = node.NewNodeLet($1, nil, $4) }
+  | WORD varindex EQ BEGIN_CALLFUNC callfunc   { $$ = node.NewNodeLet($1, $2, $5)  }
 
 varindex
   : LBRACKET expr RBRACKET          { $$ = node.TNodeList{$2} }
@@ -110,8 +112,8 @@ variable
 
 expr
   : value
-  | expr AND expr   { $$ = node.NewNodeOperator($2, $1, $3) }
-  | expr OR expr    { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr AND expr       { $$ = node.NewNodeOperator($2, $1, $3) }
+  | expr OR expr        { $$ = node.NewNodeOperator($2, $1, $3) }
   | expr EQEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
   | expr NTEQ expr      { $$ = node.NewNodeOperator($2, $1, $3) }
   | expr GT expr        { $$ = node.NewNodeOperator($2, $1, $3) }
@@ -126,108 +128,15 @@ expr
   | expr EXP expr       { $$ = node.NewNodeOperator($2, $1, $3) }
   | expr STR_PLUS expr  { $$ = node.NewNodeOperator($2, $1, $3) }
   | LPAREN expr RPAREN  { $$ = node.NewNodeCalc($3, $2) }
-/*
-expr
-  : and_or_expr
-
-and_or_expr
-  : comp
-  | and_or_expr AND comp
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | and_or_expr OR comp
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-
-comp
-  : factor
-  | comp EQEQ factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | comp NTEQ factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | comp GT factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | comp GTEQ factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | comp LT factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | comp LTEQ factor
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-
-factor
-  : term
-  | factor STR_PLUS term
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | factor PLUS term
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | factor MINUS term
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-
-term
-  : pri_expr
-  | term ASTERISK pri_expr
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | term SLASH pri_expr
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-  | term PERCENT pri_expr
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-
-pri_expr
-  : high_expr
-  | pri_expr CIRCUMFLEX high_expr
-  {
-    $$ = node.NewNodeOperator($2, $1, $3)
-  }
-
-high_expr
-  : value
-  | LPAREN expr RPAREN
-  {
-    $$ = node.NewNodeCalc($3, $2)
-  }
-*/
+  | LPAREN callfunc RPAREN { $$ = node.NewNodeCalc($3, $2) }
 
 json_value
   : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2) }
   | LBRACE json_hash RBRACE      { $$ = node.NewNodeJSONHash($1, $2) }
 
 json_array
-  : expr
-  {
-    $$ = node.NewNodeList()
-    $$ = append($$, $1)
-  }
-  | json_array expr
-  {
-    $1 = append($1, $2)
-    $$ = $1
-  }
+  : expr            { $$ = node.TNodeList{$1} }
+  | json_array expr { $$ = append($1, $2)     }
 
 json_key
   : STRING
@@ -247,8 +156,6 @@ json_hash
     $$ = $1
   }
 
-
-
 // --- if ---
 if_stmt
   : IF if_comp THEN_SINGLE sentence ELSE_SINGLE sentence
@@ -257,7 +164,7 @@ if_stmt
   }
   | IF if_comp THEN_SINGLE sentence
   {
-    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $4, nil)
   }
   | IF if_comp THEN block ELSE_SINGLE sentence
   {
@@ -269,35 +176,22 @@ if_stmt
   }
   | IF if_comp THEN block END
   {
-    $$ = node.NewNodeIf($1, $2, $4, node.NewNodeNop($1))
+    $$ = node.NewNodeIf($1, $2, $4, nil)
   }
 
 if_comp
-  : expr 
-  /*
-  | expr expr
-  {
-    $$ = node.NewNodeOperatorStr("==", $1, $2)
-  }
-  */
+  : expr
+  | BEGIN_CALLFUNC callfunc { $$ = $2 }
 
 block
   : sentences 
 
 // --- loop ---
 loop_ctrl
-  : CONTINUE {
-    $$ = node.NewNodeContinue($1, 0)
-  }
-  | BREAK {
-    $$ = node.NewNodeBreak($1, 0)
-  }
-  | RETURN {
-    $$ = node.NewNodeReturn($1, nil, 0)
-  }
-  | expr RETURN {
-    $$ = node.NewNodeReturn($2, $1, 0)
-  }
+  : CONTINUE    { $$ = node.NewNodeContinue($1, 0) }
+  | BREAK       { $$ = node.NewNodeBreak($1, 0) }
+  | RETURN      { $$ = node.NewNodeReturn($1, nil, 0) }
+  | expr RETURN { $$ = node.NewNodeReturn($2, $1, 0) }
 
 repeat_stmt
   : KAI_BEGIN expr KAI_SINGLE sentence
@@ -362,20 +256,8 @@ def_function
   }
 
 def_args
-  : WORD
-  {
-    w := node.NewNodeWord($1, nil)
-    nl := node.NewNodeList()
-    nl = append(nl, w)
-    $$ = nl
-  }
-  | def_args WORD
-  {
-    w := node.NewNodeWord($2, nil)
-    nl := $1.(node.TNodeList)
-    nl = append(nl, w)
-    $$ = nl
-  }
+  : WORD          { $$ = node.TNodeList{ node.NewNodeWord($1, nil) } }
+  | def_args WORD { $$ = append($1, node.NewNodeWord($2, nil)) }
 
 %%
 
