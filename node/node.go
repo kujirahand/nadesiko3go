@@ -50,6 +50,8 @@ const (
 	JSONArray
 	// JSONHash : hash
 	JSONHash
+	// DefVar : 変数宣言
+	DefVar
 )
 
 // Node : Node Interface
@@ -680,11 +682,54 @@ func (n TNodeForeach) GetFileInfo() core.TFileInfo { return n.FileInfo }
 // GetJosi : 助詞を取得
 func (n TNodeForeach) GetJosi() string { return n.Josi }
 
-// NewNodeForeach :
+// NewNodeForeach : 反復ノードの生成
 func NewNodeForeach(t *token.Token, expr Node, block Node) TNodeForeach {
 	node := TNodeForeach{
 		Expr:     expr,
 		Block:    block,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// TNodeDefVar : 変数の宣言
+type TNodeDefVar struct {
+	Node
+	Name     string
+	Expr     Node
+	IsConst  bool
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+// GetType : 型情報取得
+func (n TNodeDefVar) GetType() NType { return DefVar }
+
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeDefVar) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeDefVar) GetJosi() string { return n.Josi }
+
+// NewNodeDefVar : 変数宣言
+func NewNodeDefVar(t *token.Token, expr Node) TNodeDefVar {
+	node := TNodeDefVar{
+		Name:     t.Literal,
+		Expr:     expr,
+		IsConst:  false,
+		Josi:     t.Josi,
+		FileInfo: t.FileInfo,
+	}
+	return node
+}
+
+// NewNodeDefConst : 定数宣言
+func NewNodeDefConst(t *token.Token, expr Node) TNodeDefVar {
+	node := TNodeDefVar{
+		Name:     t.Literal,
+		Expr:     expr,
+		IsConst:  true,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}

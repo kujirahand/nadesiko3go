@@ -22,10 +22,11 @@ func TestDeffFunc(t *testing.T) {
 	_eval(t, "●(AとBを)ADDとは\nそれはA+B\nここまで。\n1と2をADD", "3")
 	_eval(t, "●(AとBを)ABCとは\nC=A*2;D=B*3;それはC+D\nここまで。\n1と2をABC", "8")
 	_eval(t, "●(Aで)ABCとは\nA+1で戻る\nここまで。\n3でABC", "4")
+	_eval(t, "●(Aで)ABCとは\nもしA<1ならばAで戻る。((A-1)でABC)+Aで戻る。\nここまで。\n10でABC", "55")
 }
 
 func TestDeffFunc2(t *testing.T) {
-	_eval2(t, "●(Aで)ABCとは\nもしA<1ならばAで戻る。((A-1)でABC)+Aで戻る。\nここまで。\n10でABC", "55")
+	_eval2(t, "1に2を足す", "3")
 }
 
 func TestSyntax(t *testing.T) {
@@ -48,7 +49,10 @@ func _eval2(t *testing.T, code, expected string) {
 	sys := eval.InitSystem()
 	sys.IsDebug = true
 	eval.Eval("表示ログ=「」")
-	v, _ := eval.Eval(code)
+	v, err := eval.Eval(code)
+	if err != nil {
+		t.Errorf("error: %s / code: %s", err.Error(), code)
+	}
 	rv := v.ToString()
 	if rv != expected {
 		t.Errorf("main: %s != %s", rv, expected)
@@ -57,7 +61,10 @@ func _eval2(t *testing.T, code, expected string) {
 
 func _eval(t *testing.T, code, expected string) {
 	eval.Eval("表示ログ=「」")
-	v, _ := eval.Eval(code)
+	v, err := eval.Eval(code)
+	if err != nil {
+		t.Errorf("error: %s / code: %s", err.Error(), code)
+	}
 	rv := v.ToString()
 	if rv != expected {
 		t.Errorf("main: %s != %s", rv, expected)

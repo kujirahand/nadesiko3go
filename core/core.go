@@ -85,58 +85,58 @@ func (p *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 }
 
 // AddConst : システムに定数を登録
-func (sys *Core) AddConst(name, v string) int {
+func (p *Core) AddConst(name, v string) int {
 	val := value.NewValueStr(v)
 	val.IsFreeze = true
-	sys.Global.Set(name, &val)
+	p.Global.Set(name, &val)
 	return -1
 }
 
 // AddConstInt : システムに定数を登録
-func (sys *Core) AddConstInt(name string, v int) int {
+func (p *Core) AddConstInt(name string, v int) int {
 	val := value.NewValueInt(int64(v))
 	val.IsFreeze = true
-	sys.Global.Set(name, &val)
+	p.Global.Set(name, &val)
 	return -1
 }
 
 // AddConstValue : システムに変数を登録
-func (sys *Core) AddConstValue(name string, v value.Value) int {
-	sys.Global.Set(name, &v)
+func (p *Core) AddConstValue(name string, v value.Value) int {
+	p.Global.Set(name, &v)
 	v.IsFreeze = true
 	return -1
 }
 
 // AddVar : システムに変数を登録
-func (sys *Core) AddVar(name, v string) int {
+func (p *Core) AddVar(name, v string) int {
 	val := value.NewValueStr(v)
-	sys.Global.Set(name, &val)
+	p.Global.Set(name, &val)
 	return -1
 }
 
 // AddVarInt : システムに整数型の値を登録
-func (sys *Core) AddVarInt(name string, v int) int {
+func (p *Core) AddVarInt(name string, v int) int {
 	val := value.NewValueInt(int64(v))
-	sys.Global.Set(name, &val)
+	p.Global.Set(name, &val)
 	return -1
 }
 
 // AddVarValue : システムに変数を登録
-func (sys *Core) AddVarValue(name string, v value.Value) int {
-	sys.Global.Set(name, &v)
+func (p *Core) AddVarValue(name string, v value.Value) int {
+	p.Global.Set(name, &v)
 	return -1
 }
 
 // AddFunc : システムにGo関数を登録する
-func (sys *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
+func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
 	val := value.NewValueFunc(f)
-	return sys.addFuncCustom(name, args, val)
+	return p.addFuncCustom(name, args, val)
 }
 
 // AddUserFunc : システムにユーザー関数を登録する
-func (sys *Core) AddUserFunc(name string, args DefArgs) int {
+func (p *Core) AddUserFunc(name string, args DefArgs) int {
 	val := value.NewValueUserFunc(-1)
-	tag := sys.addFuncCustom(name, args, val)
+	tag := p.addFuncCustom(name, args, val)
 	val.Value = tag
 	return tag
 }

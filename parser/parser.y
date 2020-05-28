@@ -83,6 +83,10 @@ let_stmt
   | LET_BEGIN expr WORD_REF LET { $$ = node.NewNodeLet($3, nil, $2) }
   | WORD EQ BEGIN_CALLFUNC callfunc            { $$ = node.NewNodeLet($1, nil, $4) }
   | WORD varindex EQ BEGIN_CALLFUNC callfunc   { $$ = node.NewNodeLet($1, $2, $5)  }
+  | WORD HENSU EQ expr  { $$ = node.NewNodeDefVar($1, $4) }
+  | WORD HENSU          { $$ = node.NewNodeDefVar($1, nil) }
+  | WORD TEISU EQ expr  { $$ = node.NewNodeDefConst($1, $4) }
+  | WORD TEISU          { $$ = node.NewNodeDefConst($1, nil) }
 
 varindex
   : LBRACKET expr RBRACKET          { $$ = node.TNodeList{$2} }

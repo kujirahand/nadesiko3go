@@ -1,6 +1,8 @@
 package scope
 
-import "github.com/kujirahand/nadesiko3go/value"
+import (
+	"github.com/kujirahand/nadesiko3go/value"
+)
 
 // Scope : Scope
 type Scope struct {
@@ -40,7 +42,6 @@ func NewScopeList() *TScopeList {
 // GetGlobal : Get Global
 func (p *TScopeList) GetGlobal() *Scope {
 	return p.Items[0]
-
 }
 
 // Open : Open Scope

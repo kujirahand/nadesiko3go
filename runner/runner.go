@@ -74,6 +74,8 @@ func runNode(n *node.Node) (*value.Value, error) {
 		return runWord(n)
 	case node.Let:
 		return runLet(n)
+	case node.DefVar:
+		return runDefVar(n)
 	case node.If:
 		return runIf(n)
 	case node.Repeat:
@@ -400,6 +402,33 @@ func runLet(n *node.Node) (*value.Value, error) {
 	return val, nil
 }
 
+func runDefVar(n *node.Node) (*value.Value, error) {
+	cl := (*n).(node.TNodeDefVar)
+
+	// 代入先の変数を得る
+	scope := sys.Scopes.GetTopScope()
+	if scope.Get(cl.Name) != nil {
+		k := "変数"
+		if cl.IsConst {
+			k = "定数"
+		}
+		return nil, RuntimeError(fmt.Sprintf("既に%s『%s』が存在します。", k, cl.Name), n)
+	}
+	varV := value.NewValueNullPtr()
+	varV.IsFreeze = cl.IsConst
+	scope.Set(cl.Name, varV)
+
+	// 変数に代入する値を評価する
+	if cl.Expr != nil {
+		val, err := runNode(&cl.Expr)
+		if err != nil {
+			return nil, err
+		}
+		varV.SetValue(val)
+	}
+	return varV, nil
+}
+
 func runWord(n *node.Node) (*value.Value, error) {
 	cw := (*n).(node.TNodeWord)
 	// 関数の実態を得る
@@ -514,13 +543,14 @@ func callUserFunc(funcV *value.Value, args value.TArray) (*value.Value, error) {
 	for i, v := range userNode.ArgNames {
 		scope.Set(v, args[i])
 	}
+	// 実行
 	sys.LoopLevel++
 	result, err := runNode(&userNode.Block)
 	sys.LoopLevel--
 	sys.ReturnID = -1
+	// ローカルスコープを破棄
 	sys.Scopes.Close()
-	// エラーがあった時
-	if err == nil {
+	if err == nil { // エラーがなれば結果をセット
 		result = sys.Sore
 	}
 	return result, err
