@@ -258,6 +258,10 @@ def_function
   {
     $$ = node.NewNodeDefFunc($5, $3, $7)
   }
+  | DEF_FUNC FUNC LPAREN def_args RPAREN LF block END
+  {
+    $$ = node.NewNodeDefFunc($2, $4, $7)
+  }
 
 def_args
   : WORD          { $$ = node.TNodeList{ node.NewNodeWord($1, nil) } }
