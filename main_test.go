@@ -26,7 +26,7 @@ func TestDeffFunc(t *testing.T) {
 }
 
 func TestDeffFunc2(t *testing.T) {
-	_eval2(t, "1に2を足す", "3")
+	_eval2(t, "●(Aの)BBB\nそれはA*2\nここまで\n3のBBB;", "6")
 }
 
 func TestSyntax(t *testing.T) {

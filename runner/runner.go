@@ -42,7 +42,9 @@ func runNodeList(nodes node.TNodeList) (*value.Value, error) {
 		if err != nil {
 			return v, err
 		}
-		lastValue = v
+		if v != nil {
+			lastValue = v
+		}
 	}
 	return lastValue, nil
 }
@@ -352,11 +354,13 @@ func runLet(n *node.Node) (*value.Value, error) {
 
 	// 普通に変数に代入する場合
 	if cl.Index == nil || len(cl.Index) == 0 {
-		// 既にこのレベル以下に変数がある？
-		nameValue := sys.Scopes.Get(cl.Name)
-		if nameValue == nil { // 変数がなければ作る
+		// 現在のレベルに変数があるか
+		localScope := sys.Scopes.GetTopScope()
+		// 現在のレベルに変数を生成
+		nameValue := localScope.Get(cl.Name)
+		if nameValue == nil {
 			nameValue = value.NewValueNullPtr()
-			sys.Scopes.GetTopScope().Set(cl.Name, nameValue)
+			localScope.Set(cl.Name, nameValue)
 		}
 		if nameValue.IsFreeze {
 			return nil, RuntimeError(fmt.Sprintf(
@@ -543,16 +547,22 @@ func callUserFunc(funcV *value.Value, args value.TArray) (*value.Value, error) {
 	for i, v := range userNode.ArgNames {
 		scope.Set(v, args[i])
 	}
+	// ローカルスコープに「それ」を配置
+	tmpSore := sys.Sore
+	localSore := value.NewValueNullPtr()
+	scope.Set("それ", localSore)
+	scope.Set("そう", localSore)
+	sys.Sore = localSore
 	// 実行
 	sys.LoopLevel++
 	result, err := runNode(&userNode.Block)
 	sys.LoopLevel--
 	sys.ReturnID = -1
 	// ローカルスコープを破棄
+	result = localSore
 	sys.Scopes.Close()
-	if err == nil { // エラーがなれば結果をセット
-		result = sys.Sore
-	}
+	sys.Sore = tmpSore
+	sys.Sore.SetValue(localSore)
 	return result, err
 }
 
