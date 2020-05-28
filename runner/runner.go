@@ -302,8 +302,8 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 			break
 		}
 		// 「それ」と「回数」を更新
-		sys.Sore.SetInt(int64(i + 1))   // それ
-		kaisuHensu.SetInt(int64(i + 1)) // 回数
+		sys.Sore.SetInt(int(i + 1))   // それ
+		kaisuHensu.SetInt(int(i + 1)) // 回数
 		// 実行
 		lastValue, errNode = runNode(&ni.Block)
 		if errNode != nil {

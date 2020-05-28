@@ -57,12 +57,12 @@ func NewValueNullPtr() *Value {
 }
 
 // NewValueInt : 整数型を返す
-func NewValueInt(v int64) Value {
+func NewValueInt(v int) Value {
 	return Value{Type: Int, Value: v}
 }
 
 // NewValueIntPtr : 整数型を生成してそのポインタを返す
-func NewValueIntPtr(v int64) *Value {
+func NewValueIntPtr(v int) *Value {
 	vv := NewValueInt(v)
 	return &vv
 }
@@ -136,10 +136,10 @@ func NewValueByType(vtype Type, s string) Value {
 func (v *Value) ToBool() bool {
 	switch v.Type {
 	case Int:
-		i := v.Value.(int64)
+		i := v.Value.(int)
 		return (i != 0)
 	case Float:
-		i := int64(v.Value.(float64))
+		i := int(v.Value.(float64))
 		return (i != 0)
 	case Str:
 		s := v.Value.(string)
@@ -151,12 +151,12 @@ func (v *Value) ToBool() bool {
 }
 
 // ToInt : 整数型に変換
-func (v *Value) ToInt() int64 {
+func (v *Value) ToInt() int {
 	switch v.Type {
 	case Int:
-		return v.Value.(int64)
+		return v.Value.(int)
 	case Float:
-		return int64(v.Value.(float64))
+		return int(v.Value.(float64))
 	case Str:
 		return StrToInt(v.Value.(string))
 	case Bool:
@@ -171,7 +171,7 @@ func (v *Value) ToInt() int64 {
 func (v *Value) ToFloat() float64 {
 	switch v.Type {
 	case Int:
-		return float64(v.Value.(int64))
+		return float64(v.Value.(int))
 	case Float:
 		return v.Value.(float64)
 	case Str:
@@ -196,7 +196,7 @@ func (v *Value) IsNumber() bool {
 }
 
 // SetInt : 整数を設定
-func (v *Value) SetInt(value int64) {
+func (v *Value) SetInt(value int) {
 	v.Type = Int
 	v.Value = value
 }
@@ -244,7 +244,7 @@ func (v *Value) ToString() string {
 	}
 	switch v.Type {
 	case Int:
-		return IntToStr(v.Value.(int64))
+		return IntToStr(v.Value.(int))
 	case Float:
 		return FloatToStr(v.Value.(float64))
 	case Str:
@@ -271,7 +271,7 @@ func (v *Value) ToJSONString() string {
 	}
 	switch v.Type {
 	case Int:
-		return IntToStr(v.Value.(int64))
+		return IntToStr(v.Value.(int))
 	case Float:
 		return FloatToStr(v.Value.(float64))
 	case Str:

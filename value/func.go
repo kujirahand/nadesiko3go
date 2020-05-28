@@ -12,8 +12,8 @@ func (v *Value) ToRunes() []rune {
 }
 
 // IntToStr : 整数を文字列に
-func IntToStr(i int64) string {
-	return strconv.FormatInt(i, 10)
+func IntToStr(i int) string {
+	return strconv.FormatInt(int64(i), 10)
 }
 
 // FloatToStr : 実数を文字列に
@@ -22,9 +22,9 @@ func FloatToStr(f float64) string {
 }
 
 // StrToInt : StrToInt
-func StrToInt(s string) int64 {
+func StrToInt(s string) int {
 	i, _ := strconv.ParseInt(s, 10, 64)
-	return i
+	return int(i)
 }
 
 // StrToFloat : StrToFloat

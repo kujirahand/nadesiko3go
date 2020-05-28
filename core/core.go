@@ -94,7 +94,7 @@ func (p *Core) AddConst(name, v string) int {
 
 // AddConstInt : システムに定数を登録
 func (p *Core) AddConstInt(name string, v int) int {
-	val := value.NewValueInt(int64(v))
+	val := value.NewValueInt(int(v))
 	val.IsFreeze = true
 	p.Global.Set(name, &val)
 	return -1
@@ -116,7 +116,7 @@ func (p *Core) AddVar(name, v string) int {
 
 // AddVarInt : システムに整数型の値を登録
 func (p *Core) AddVarInt(name string, v int) int {
-	val := value.NewValueInt(int64(v))
+	val := value.NewValueInt(int(v))
 	p.Global.Set(name, &val)
 	return -1
 }

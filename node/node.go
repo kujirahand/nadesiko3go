@@ -198,7 +198,7 @@ func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
 // NewNodeConstInt : 整数型のConstノードを返す
 func NewNodeConstInt(t *token.Token, num int) TNodeConst {
 	node := TNodeConst{
-		Value:    value.NewValueInt(int64(num)),
+		Value:    value.NewValueInt(int(num)),
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
