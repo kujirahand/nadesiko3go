@@ -252,6 +252,9 @@ func (p *Lexer) checkFlagToken(c rune) *token.Token {
 		}
 		p.move(1)
 		return NewToken(p, token.NOT)
+	case '≠':
+		p.move(1)
+		return NewToken(p, token.NTEQ)
 	// 算術演算子
 	case '&':
 		p.move(1)
