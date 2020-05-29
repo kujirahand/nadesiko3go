@@ -6,6 +6,34 @@ import (
 	"github.com/kujirahand/nadesiko3go/eval"
 )
 
+func TestBasic2a(t *testing.T) {
+	_eval2(t, "1+2", "3")
+	_eval2(t, "1+2*3", "7")
+	_eval2(t, "A=1;B=2;C=A+B;C", "3")
+	_eval2(t, "A=1+2*3;A", "7")
+	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+	_eval2(t, "C=0;もしC=1ならば\nC=30\n違えば\nC=40;ここまで;C", "40")
+	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
+	_eval2(t, "C=0;I=0;(I<=10)の間;C=C+I;I=I+1;ここまで;C", "55")
+}
+
+func TestBasic2(t *testing.T) {
+	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+}
+
+func _eval2(t *testing.T, code, expected string) {
+	sys := eval.InitSystem()
+	sys.IsDebug = true
+	v, err := eval.Eval2(code)
+	if err != nil {
+		t.Errorf("error: %s / code: %s", err.Error(), code)
+	}
+	rv := v.ToString()
+	if rv != expected {
+		t.Errorf("main: %s != %s", rv, expected)
+	}
+}
+
 func TestMain(t *testing.T) {
 	_eval(t, "1+2", "3")
 	_eval(t, "1+2*3", "7")
@@ -26,7 +54,7 @@ func TestDeffFunc(t *testing.T) {
 }
 
 func TestDeffFunc2(t *testing.T) {
-	_eval2(t, "●(Aの)BBB\nそれはA*2\nここまで\n3のBBB;", "6")
+	_eval(t, "●(Aの)BBB\nそれはA*2\nここまで\n3のBBB;", "6")
 }
 
 func TestSyntax(t *testing.T) {
@@ -45,7 +73,7 @@ func TestJSON(t *testing.T) {
 	_eval(t, "E={'a':30};E['a']=1;E", "{\"a\":1}")
 }
 
-func _eval2(t *testing.T, code, expected string) {
+func _evalDebug(t *testing.T, code, expected string) {
 	sys := eval.InitSystem()
 	sys.IsDebug = true
 	eval.Eval("表示ログ=「」")

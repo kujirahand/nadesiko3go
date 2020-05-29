@@ -20,6 +20,7 @@ func main() {
 		println("[Options]")
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")
+		println("  -c\tOpCode Mode")
 		return
 	}
 	sys := eval.InitSystem()
@@ -37,6 +38,10 @@ func main() {
 			}
 			if v == "-e" {
 				sys.RunMode = core.EvalCode
+				continue
+			}
+			if v == "-c" {
+				sys.IsOpMode = true
 				continue
 			}
 		}

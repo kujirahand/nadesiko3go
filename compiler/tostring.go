@@ -1,0 +1,54 @@
+package compiler
+
+import (
+	"fmt"
+)
+
+var codeNames = map[int]string{
+	NOP:             "NOP",
+	MoveR:           "MoveR",
+	ConstO:          "ConstO",
+	SetLocal:        "SetLocal",
+	GetLocal:        "GetLocal",
+	Add:             "Add",
+	Sub:             "Sub",
+	Mul:             "Mul",
+	Div:             "Div",
+	Mod:             "Mod",
+	Gt:              "Gt",
+	GtEq:            "GtEq",
+	Lt:              "Lt",
+	LtEq:            "LtEq",
+	EqEq:            "EqEq",
+	NtEq:            "NtEq",
+	Jump:            "Jump",
+	JumpIfTrue:      "JumpIfTrue",
+	JumpLabel:       "JumpLabel",
+	JumpLabelIfTrue: "JumpLabelIfTrue",
+	DefLabel:        "DefLabel",
+	IncLocal:        "IncLocal",
+	IncReg:          "IncReg",
+	NotReg:          "NotReg",
+}
+
+// ToString : コードを返す
+func (p *TCompiler) ToString(code *TCode) string {
+	typeName := codeNames[code.Type]
+	if typeName == "" {
+		typeName = fmt.Sprintf("(TypeUnknown:%d)", code.Type)
+	}
+	param := fmt.Sprintf("%d,%d,%d", code.A, code.B, code.C)
+	desc := code.Memo + " "
+	switch code.Type {
+	}
+	return typeName + "\t" + param + " " + desc
+}
+
+// CodesToString : コード一覧を文字列にする
+func (p *TCompiler) CodesToString(codes []*TCode) string {
+	res := ""
+	for i, v := range codes {
+		res += fmt.Sprintf("%03d: %s\n", i, p.ToString(v))
+	}
+	return res
+}

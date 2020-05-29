@@ -6,24 +6,70 @@ import (
 
 // Scope : Scope
 type Scope struct {
-	Vars *value.THash
+	// Values : slice of Value
+	values []*value.Value
+	// Names : link to Values
+	names map[string]int
 }
 
 // NewScope : Create Scope
 func NewScope() *Scope {
-	s := Scope{}
-	s.Vars = &value.THash{}
+	s := Scope{
+		values: []*value.Value{},
+		names:  map[string]int{},
+	}
 	return &s
 }
 
 // Get : Get Variable
 func (s *Scope) Get(key string) *value.Value {
-	return s.Vars.Get(key)
+	i, ok := s.names[key]
+	if ok {
+		return s.values[i]
+	}
+	return nil
 }
 
 // Set : Set Variable
-func (s *Scope) Set(key string, v *value.Value) {
-	s.Vars.Set(key, v)
+func (s *Scope) Set(key string, v *value.Value) int {
+	i, ok := s.names[key]
+	if ok {
+		s.values[i] = v
+		return i
+	}
+	index := s.Length()
+	s.names[key] = index
+	s.values = append(s.values, v)
+	return index
+}
+
+// GetByIndex : Get Value By Index
+func (s *Scope) GetByIndex(index int) *value.Value {
+	return s.values[index]
+}
+
+// GetNameByIndex : Get Value By Index
+func (s *Scope) GetNameByIndex(index int) string {
+	for i, v := range s.names {
+		if v == index {
+			return i
+		}
+	}
+	return ""
+}
+
+// GetIndexByName : Get Value Index By Name
+func (s *Scope) GetIndexByName(name string) int {
+	i, ok := s.names[name]
+	if ok {
+		return i
+	}
+	return -1
+}
+
+// Length : Get var count
+func (s *Scope) Length() int {
+	return len(s.values)
 }
 
 // TScopeList : Scope Object
@@ -62,7 +108,7 @@ func (p *TScopeList) Find(key string) (*value.Value, int) {
 	i := len(p.Items) - 1
 	for i >= 0 {
 		scope := p.Items[i]
-		v := scope.Vars.Get(key)
+		v := scope.Get(key)
 		if v != nil {
 			return v, i
 		}
@@ -86,4 +132,9 @@ func (p *TScopeList) GetTopScope() *Scope {
 func (p *TScopeList) SetTopVars(key string, v *value.Value) {
 	scope := p.GetTopScope()
 	scope.Set(key, v)
+}
+
+// IsTopGlobal : Only Global?
+func (p *TScopeList) IsTopGlobal() bool {
+	return (len(p.Items) == 1)
 }
