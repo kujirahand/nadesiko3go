@@ -42,6 +42,8 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.rcount = 0
 	p.index = 0
 	p.sys = sys
+	p.scope = sys.Scopes.GetTopScope()
+	p.reg = &p.scope.Reg
 	return &p
 }
 
@@ -658,7 +660,6 @@ func (p *TCompiler) fixLabels(codes []*TCode) {
 		if v.Type == DefLabel {
 			lbl := p.Labels[v.A]
 			lbl.addr = i
-			println("label[", v.A, "]=", lbl.memo, lbl.addr)
 		}
 	}
 	// ラベルジャンプから相対ジャンプへ変更

@@ -30,11 +30,10 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-		println("RUN=", p.index, p.ToString(code))
+		// println("RUN=", p.index, p.ToString(code))
 		switch code.Type {
 		case ConstO:
 			p.regSet(A, p.Consts[B])
-			println("ConstO", A, B, "Reg[", A, "]=", p.regGet(A).ToString())
 		case MoveR:
 			p.regSet(A, p.regGet(B))
 		case SetLocal:
@@ -44,7 +43,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		case GetLocal:
 			p.regSet(A, p.scope.GetByIndex(B))
 			lastValue = p.regGet(A)
-			//println("GetLocal", A, "Reg[A]=", p.regGet(A).ToString())
 		case SetGlobal:
 			g := p.sys.Scopes.GetGlobal()
 			varV := g.GetByIndex(A)
@@ -59,7 +57,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v := value.Add(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
 			lastValue = &v
-			// println("Add", A, B, C, "Reg[", A, "]=", v.ToString())
 		case Sub:
 			v := value.Sub(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
@@ -68,7 +65,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v := value.Mul(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
 			lastValue = &v
-			// println("Mul", A, B, C, "Reg[", A, "]=", v.ToString())
 		case Div:
 			v := value.Div(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
@@ -89,7 +85,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v := value.Gt(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
 			lastValue = &v
-			//println("Gt", A, B, C, "Reg[", A, "]=", v.ToString(), "B=", p.regGet(B).ToString(), "C=", p.regGet(C).ToString())
 		case GtEq:
 			v := value.GtEq(p.regGet(B), p.regGet(C))
 			p.regSet(A, &v)
@@ -104,7 +99,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v := value.LtEq(bv, cv)
 			p.regSet(A, &v)
 			lastValue = &v
-			println("LtEq", A, B, C, "Reg[", A, "]=", v.ToString(), "B=", bv.ToString(), "C=", cv.ToString())
 		case IncReg:
 			v := p.regGet(A)
 			v.SetInt(v.ToInt() + 1)
@@ -113,7 +107,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v.SetInt(v.ToInt() + 1)
 		case NotReg:
 			p.regGet(A).SetBool(!p.regGet(A).ToBool())
-			println("NotReg", A, "=", p.regGet(A).ToString())
 		// label
 		case DefLabel:
 			//nop
@@ -124,20 +117,17 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			expr := p.regGet(A)
 			if expr != nil && expr.ToBool() {
 				p.move(B)
-				// println("JUMP +", B)
 				continue
 			}
 		case NewArray:
 			a := value.NewValueArray()
 			p.regSet(A, &a)
-			println("@@", p.reg.ToString())
 		case AppendArray:
 			a := p.regGet(A)
 			if a.Type != value.Array {
 				return nil, p.RuntimeError("[SYSTEM] AppendArray")
 			}
 			a.ArrayAppend(p.regGet(B))
-			println("@@", p.reg.ToString())
 		case CallFunc:
 			res, err := p.runCallFunc(code)
 			if err != nil {
@@ -174,7 +164,6 @@ func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 	}
 	// args
 	args := argV.Value.(value.TArray)
-	println("argV=" + argV.ToJSONString())
 	// call system func
 	fn := funcV.Value.(value.TFunction)
 	res, err := fn(args)
@@ -195,16 +184,18 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 	retAddr := p.regGet(metaRegReturnAddr).ToInt()
 	retReg := p.regGet(metaRegReturnValue).ToInt()
 	// Close Scope
-	for i, v := range p.sys.Scopes.Items {
-		println("@@[REG]", i, "=", v.Reg.ToJSONString())
-	}
-	println("--- close scope ---")
+	/*
+		for i, v := range p.sys.Scopes.Items {
+			println("@@[REG]", i, "=", v.Reg.ToJSONString())
+		}
+	*/
+	// println("--- close scope ---")
 	p.sys.Scopes.Close()
 	p.scope = p.sys.Scopes.GetTopScope()
 	p.reg = &(p.scope.Reg)
 	// Set Result
 	p.regSet(retReg, retValue)
-	println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
+	// println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
 	return retAddr, retValue
 }
 
@@ -213,8 +204,6 @@ func (p *TCompiler) procUserCallFunc(code *TCode) int {
 	label := p.Labels[code.B]
 	argV := p.regGet(code.C)
 	// open scope
-	println("--- before open --- ", p.reg.ToJSONString())
-	println("--- open scope --- index=", p.index)
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
 	p.reg = &scope.Reg
@@ -222,7 +211,6 @@ func (p *TCompiler) procUserCallFunc(code *TCode) int {
 	scope.Set("それ", value.NewValueNullPtr())
 	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(p.index+1))
 	scope.Reg.Set(metaRegReturnValue, value.NewValueIntPtr(code.A))
-	println(scope.ToStringValues())
 	// 変数を登録する
 	if argV != nil && argV.Type == value.Array {
 		args := argV.Value.(value.TArray)
@@ -232,10 +220,6 @@ func (p *TCompiler) procUserCallFunc(code *TCode) int {
 		}
 	}
 	cur := label.addr
-	// Scope
-	for i, v := range p.sys.Scopes.Items {
-		println("@@[REG]", i, "=", v.Reg.ToJSONString())
-	}
 	return cur
 }
 
