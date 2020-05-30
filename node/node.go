@@ -573,7 +573,8 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) TNodeDefFunc {
 		}
 	}
 	// Add System
-	funcID := core.GetSystem().AddUserFunc(word, a)
+	sys := core.GetSystem()
+	funcID := sys.AddUserFunc(word, a)
 	UserFunc[funcID] = node
 	return node
 }

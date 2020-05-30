@@ -66,12 +66,28 @@ func CompileError(msg string, n *node.Node) error {
 
 // Compile : コンパイル
 func (p *TCompiler) Compile(n *node.Node) error {
+	labelMainBegin := p.makeLabel("MAIN_BEGIN")
+	c := []*TCode{p.makeJump(labelMainBegin)}
+	// 最初にユーザー関数を定義する
+	for _, v := range p.sys.UserFuncs {
+		funcID := v.IValue
+		println("compile=", funcID)
+		nodeDef := node.UserFunc[funcID]
+		cDef, eDef := p.convDefFunc(&nodeDef)
+		if eDef != nil {
+			return CompileError(eDef.Error(), &nodeDef)
+		}
+		c = append(c, cDef...)
+	}
+	// MAIN
+	c = append(c, labelMainBegin)
 	codes, err := p.convNode(n)
 	if err != nil {
 		return err
 	}
-	p.fixLabels(codes)
-	p.Codes = codes
+	c = append(c, codes...)
+	p.fixLabels(c)
+	p.Codes = c
 	return nil
 }
 
@@ -79,8 +95,7 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 	if n == nil {
 		return nil, nil
 	}
-	ntype := (*n).GetType()
-	switch ntype {
+	switch (*n).GetType() {
 	case node.Nop:
 		return nil, nil
 	case node.Word:
@@ -106,7 +121,7 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 	case node.CallFunc:
 		return p.convCallFunc(n)
 	case node.DefFunc:
-		return p.convDefFunc(n)
+		return nil, nil // 関数定義は Compile で最初に行う
 	}
 	println("[SYSTEM ERROR] Compile " + node.ToString(*n, 0))
 	// panic(-1)
@@ -236,14 +251,20 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 
 func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	cf := (*n).(node.TNodeCallFunc)
-	tmpRcount := p.rcount
-	labelCallFunc := p.makeLabel("CALL_FUNC_BEGIN:" + cf.Name)
-	c := []*TCode{labelCallFunc}
+	c := []*TCode{}
+
 	// 関数を得る
 	funcV, err := p.getFunc(cf.Name)
 	if err != nil {
 		return nil, err
 	}
+	// ユーザー関数の場合
+	if funcV.Type == value.UserFunc {
+		return p.callUserFunc(cf, funcV)
+	}
+
+	tmpRcount := p.rcount
+
 	// 引数を得る
 	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
 	if err != nil {
@@ -251,9 +272,6 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	}
 	c = append(c, cArgs...)
 	// 関数を実行
-	if funcV.Type == value.UserFunc { // ユーザー関数の場合
-		return p.callUserFunc(cf.Name, funcV, argIndex)
-	}
 	// システム関数
 	funcRes := p.rcount
 	p.rcount++
@@ -265,9 +283,10 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 
 // ユーザー関数の呼び出しに関して
 // 既に関数の内容がパースされているので、初回関数呼び出し時に先に関数の実体をバイトコードに変換してしまう
-func (p *TCompiler) callUserFunc(funcName string, funcV *value.Value, argIndex int) ([]*TCode, error) {
+func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*TCode, error) {
 	c := []*TCode{}
 	// 関数定義が必要か
+	funcName := cf.Name
 	funcLabel, funcDefined := p.UserFuncLabel[funcName]
 	if !funcDefined {
 		userFuncIndex := funcV.Tag
@@ -281,7 +300,12 @@ func (p *TCompiler) callUserFunc(funcName string, funcV *value.Value, argIndex i
 		c = append(c, cDef...)
 		funcLabel = p.UserFuncLabel[funcName]
 	}
-	// call func code
+	// 関数呼び出し
+	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
+	if err != nil {
+		return nil, err
+	}
+	c = append(c, cArgs...)
 	c = append(c, NewCodeMemo(CallUserFunc, p.rcount, funcLabel, argIndex, funcName))
 	p.rcount++
 	return c, nil
@@ -602,7 +626,7 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 }
 
 func (p *TCompiler) makeLabel(memo string) *TCode {
-	c := TCode{Type: DefLabel, Memo: memo}
+	c := TCode{Type: DefLabel, Memo: "■ " + memo}
 	lbl := TCodeLabel{code: &c, memo: memo, addr: -1}
 	c.A = len(p.Labels) // ラベル番号
 	p.Labels = append(p.Labels, &lbl)

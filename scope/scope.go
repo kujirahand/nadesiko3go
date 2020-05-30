@@ -6,17 +6,20 @@ import (
 
 // Scope : Scope
 type Scope struct {
-	// Values : slice of Value
-	values []*value.Value
-	// Names : link to Values
+	// values : slice of Value
+	values value.TArray
+	// names : link to Values
 	names map[string]int
+	// reg : レジスタ
+	reg value.TArray
 }
 
 // NewScope : Create Scope
 func NewScope() *Scope {
 	s := Scope{
-		values: []*value.Value{},
+		values: value.TArray{},
 		names:  map[string]int{},
+		reg:    value.TArray{},
 	}
 	return &s
 }

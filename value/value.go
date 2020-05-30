@@ -354,7 +354,7 @@ func (v *Value) ArraySet(idx int, val *Value) {
 		v.Value = TArray{&cv}
 	}
 	a := v.Value.(TArray)
-	a[idx] = val
+	a.Set(idx, val)
 }
 
 // ArrayGet : get value from array
@@ -363,7 +363,7 @@ func (v *Value) ArrayGet(idx int) *Value {
 		return nil
 	}
 	a := v.Value.(TArray)
-	return a[idx]
+	return a.Get(idx)
 }
 
 // ArrayAppend : Append value to array

@@ -23,6 +23,24 @@ func (p *TArray) Length() int {
 	return len(*p)
 }
 
+// Set : 配列に値を設定
+func (p *TArray) Set(index int, val *Value) {
+	// 要素を拡張
+	for index >= len(*p) {
+		*p = append(*p, NewValueNullPtr())
+	}
+	// 値を設定
+	(*p)[index] = val
+}
+
+// Get : 配列の値を取得
+func (p *TArray) Get(index int) *Value {
+	if index >= len(*p) {
+		return nil
+	}
+	return (*p)[index]
+}
+
 // SplitString : 文字列から配列を作る
 func SplitString(src, splitter string) TArray {
 	a := TArray{}

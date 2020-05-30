@@ -179,6 +179,9 @@ func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 
 func (p *TCompiler) procReturn(code *TCode) int {
 	scope := p.sys.Scopes.GetTopScope()
+	if scope == p.sys.Global {
+		println("[SYSTEMエラー] スコープが壊れています")
+	}
 	retValue := p.Reg[code.A]
 	retAddr := scope.Get(metaKeyReturnAddr).ToInt()
 	retReg := scope.Get(metaKeyReturnReg).ToInt()

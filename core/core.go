@@ -40,6 +40,7 @@ type Core struct {
 	ReturnID   int
 	LoopLevel  int
 	JosiList   []DefArgs // システム関数の助詞情報を記憶する
+	UserFuncs  value.TArray
 }
 
 var sys *Core = nil
@@ -65,6 +66,7 @@ func NewCore() *Core {
 	c.ContinueID = -1
 	c.ReturnID = -1
 	c.LoopLevel = 0
+	c.UserFuncs = value.TArray{}
 	return &c
 }
 
@@ -138,6 +140,7 @@ func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
 func (p *Core) AddUserFunc(name string, args DefArgs) int {
 	val := value.NewValueUserFunc(-1)
 	tag := p.addFuncCustom(name, args, val)
-	val.Value = tag
+	val.IValue = tag
+	p.UserFuncs = append(p.UserFuncs, &val)
 	return tag
 }
