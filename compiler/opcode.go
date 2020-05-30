@@ -16,6 +16,8 @@ const (
 	SetLocal
 	// GetLocal A,B : R[A] = Scope[B]
 	GetLocal
+	// FindVar A, B : R[A] = FindVar(CONSTS[B])
+	FindVar
 	// IncReg A : R[A]++
 	IncReg
 	// IncLocal A : Scope[A]++
@@ -58,7 +60,7 @@ const (
 	NotReg
 	// NewArray A : R[A] = NewArray
 	NewArray
-	// SetArrayElem A B C : (R[A])[ R[B] ] = R[C]
+	// SetArrayElem A B : R[A].Value = R[B]
 	SetArrayElem
 	// AppendArray A B : (R[A]).append(R[B])
 	AppendArray
@@ -66,6 +68,10 @@ const (
 	GetArrayElem
 	// GetArrayElemI A B C : R[A] = (R[B])[ C ]
 	GetArrayElemI
+	// NewHash A : R[A] = NewHash
+	NewHash
+	// SetHash A B C : (R[A]).HashSet(CONSTS[B], C)
+	SetHash
 	// CallFunc A B C : R[A] = call(fn=CONSTS[B], args=R[C])
 	CallFunc
 	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], args=R[C])

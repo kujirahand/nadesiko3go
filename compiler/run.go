@@ -52,6 +52,11 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			g := p.sys.Scopes.GetGlobal()
 			p.regSet(A, g.GetByIndex(B))
 			lastValue = p.regGet(A)
+		case FindVar:
+			name := p.Consts[B].ToString()
+			v, _ := p.sys.Scopes.Find(name)
+			p.regSet(A, v)
+			lastValue = v
 		// Calc
 		case Add:
 			v := value.Add(p.regGet(B), p.regGet(C))
@@ -133,13 +138,32 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			b := p.regGet(B)
 			c := p.regGet(C)
 			if b.Type == value.Array {
-				v = b.ArrayGet(c.ToInt())
+				idx := c.ToInt()
+				v = b.ArrayGet(idx)
+				if v == nil { // 値がなければ作る
+					v = value.NewValueNullPtr()
+					b.ArraySet(idx, v)
+				}
 				p.regSet(A, v)
 			} else if b.Type == value.Hash {
 				v = b.HashGet(c.ToString())
 				p.regSet(A, v)
 			}
 			lastValue = v
+		case SetArrayElem:
+			v := p.regGet(A)
+			if v != nil {
+				v.SetValue(p.regGet(B))
+				lastValue = v
+			}
+		case SetHash:
+			h := p.regGet(A)
+			key := p.Consts[B].ToString()
+			if h != nil {
+				h.HashSet(key, p.regGet(C))
+			}
+			println(h.ToJSONString())
+			lastValue = h
 		case CallFunc:
 			res, err := p.runCallFunc(code)
 			if err != nil {

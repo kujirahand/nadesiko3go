@@ -117,6 +117,8 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convReturn(n)
 	case node.JSONArray:
 		return p.convJSONArray(n)
+	case node.JSONHash:
+		return p.convJSONHash(n)
 	case node.DefFunc:
 		return nil, nil // 関数定義は Compile で最初に行う
 	}
@@ -304,7 +306,6 @@ func (p *TCompiler) convJSONArray(n *node.Node) ([]*TCode, error) {
 	c := []*TCode{}
 	arrayIndex := p.regNext()
 	c = append(c, NewCode(NewArray, arrayIndex, 0, 0))
-	println("arrayIndex=", arrayIndex)
 	for _, vNode := range nn.Items {
 		cVal, eVal := p.convNode(&vNode)
 		if eVal != nil {
@@ -313,7 +314,23 @@ func (p *TCompiler) convJSONArray(n *node.Node) ([]*TCode, error) {
 		c = append(c, cVal...)
 		c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
 	}
-	println("regTop=", p.regTop())
+	return c, nil
+}
+
+func (p *TCompiler) convJSONHash(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeJSONHash)
+	c := []*TCode{}
+	arrayIndex := p.regNext()
+	c = append(c, NewCode(NewHash, arrayIndex, 0, 0))
+	for name, vNode := range nn.Items {
+		cVal, eVal := p.convNode(&vNode)
+		if eVal != nil {
+			return nil, CompileError("JSONHash:"+eVal.Error(), n)
+		}
+		ci := p.appendConstsStr(name)
+		c = append(c, cVal...)
+		c = append(c, NewCode(SetHash, arrayIndex, ci, p.regBack()))
+	}
 	return c, nil
 }
 
@@ -436,30 +453,59 @@ func (p *TCompiler) makeSetLocal(name string) *TCode {
 }
 
 func (p *TCompiler) makeGetLocal(name string) *TCode {
+	// (1) ローカルスコープを探す
 	scope := p.scope
+	A := p.regNext()
 	B := scope.GetIndexByName(name)
 	if B < 0 {
-		scope.Set(name, value.NewValueNullPtr())
-		B = scope.GetIndexByName(name)
+		// (2) 現在のスコープよりも上のスコープを探す
+		scopeVar, level := p.sys.Scopes.Find(name)
+		if scopeVar != nil { // 上の階層にある
+			if scopeVar != nil && level == 0 { // Globalにある
+				B := p.sys.Global.GetIndexByName(name)
+				return NewCodeMemo(GetGlobal, A, B, 0, name)
+			}
+			ci := p.appendConstsStr(name)
+			return NewCodeMemo(FindVar, A, ci, 0, name)
+		}
+		// (3) NULLを値として戻す
+		idxNull := p.appendConsts(value.NewValueNullPtr())
+		return NewCodeMemo(ConstO, A, idxNull, 0, "未定義の変数:"+name)
 	}
-	A := p.regNext()
-	return NewCodeMemo(GetLocal, A, B, 0, name)
+	return NewCodeMemo(GetLocal, A, B, 0, name) // ローカル変数
 }
 
 func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeLet)
 	// value
-	codes, err := p.convNode(&nn.ValueNode)
+	c, err := p.convNode(&nn.ValueNode)
 	if err != nil {
 		return nil, CompileError("『"+nn.Name+"』の代入でエラー", n)
 	}
-	// SetLocal
+	valueR := p.regTop() - 1
+
+	// SetLocal (Indexがない場合)
 	if nn.Index == nil || len(nn.Index) == 0 {
-		codes = append(codes, p.makeSetLocal(nn.Name))
-		return codes, nil
+		c = append(c, p.makeSetLocal(nn.Name))
+		return c, nil
 	}
+
+	// Indexがある場合
+	c = append(c, p.makeGetLocal(nn.Name))
+	varR := p.regTop() - 1
+	for _, exprNode := range nn.Index {
+		cExpr, errExpr := p.convNode(&exprNode)
+		if errExpr != nil {
+			return nil, CompileError("変数『"+nn.Name+"』への代入で添字の評価。"+errExpr.Error(), n)
+		}
+		c = append(c, cExpr...)
+		idxR := p.regTop() - 1
+		c = append(c, NewCodeMemo(GetArrayElem, varR, varR, idxR, "代入における要素取得"))
+	}
+	c = append(c, NewCodeMemo(SetArrayElem, varR, valueR, 0, nn.Name+"への代入"))
+
 	// TODO : index
-	return nil, nil
+	return c, nil
 }
 
 func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
@@ -536,11 +582,27 @@ func (p *TCompiler) convNodeList(n *node.Node) ([]*TCode, error) {
 	return codes, nil
 }
 
+func (p *TCompiler) appendConstsStr(s string) int {
+	// 同じ値があるか調べる
+	for i, v := range p.Consts {
+		if v.Type == value.Str && v.ToString() == s {
+			return i
+		}
+	}
+	// なければ追加
+	val := value.NewValueStr(s)
+	idx := len(p.Consts)
+	p.Consts = append(p.Consts, &val)
+	return idx
+}
+
 func (p *TCompiler) appendConsts(val *value.Value) int {
 	// 同じ値があるか調べる
 	for i, v := range p.Consts {
 		if v.Type == val.Type {
 			switch v.Type {
+			case value.Null:
+				return i
 			case value.Int:
 				if v.ToInt() == val.ToInt() {
 					return i

@@ -18,10 +18,13 @@ func TestBasic2a(t *testing.T) {
 	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
 	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
 	_eval2(t, "C=[1,2,3];C[1]", "2")
+	_eval2(t, "C=[[0,1,2],[3,4,5],[6,7,8]];C[0][1]", "1")
+	_eval2(t, "C=[[0,1,2],[3,4,5],[6,7,8]];C[0][1]=8;C[0][1]", "8")
+	_eval2(t, "C={'a':1,'b':2};C['a']", "1")
 }
 
 func TestBasic2(t *testing.T) {
-	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+	_eval2(t, "C={'a':1,'b':2};C['a']", "1")
 }
 
 func _eval2(t *testing.T, code, expected string) {
