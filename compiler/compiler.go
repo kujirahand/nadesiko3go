@@ -25,7 +25,6 @@ type TCompiler struct {
 	UserFuncLabel map[string]int // 何番目のLabelsにリンクするか
 	reg           *value.TArray  // 実行時に使うレジスタ
 	scope         *scope.Scope   // メインスコープ
-	rcount        int
 	index         int
 	length        int
 	Line          int
@@ -39,7 +38,6 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.Consts = value.TArray{}
 	p.Labels = []*TCodeLabel{}
 	p.UserFuncLabel = map[string]int{}
-	p.rcount = 0
 	p.index = 0
 	p.sys = sys
 	p.scope = sys.Scopes.GetTopScope()
@@ -117,6 +115,8 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convCallFunc(n)
 	case node.Return:
 		return p.convReturn(n)
+	case node.JSONArray:
+		return p.convJSONArray(n)
 	case node.DefFunc:
 		return nil, nil // 関数定義は Compile で最初に行う
 	}
@@ -167,20 +167,17 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	localSore := value.NewValueNullPtr()
 	scope.Set("それ", localSore)
 	// Block
-	tmpRCount := p.rcount
-	p.rcount = scope.Index
 	cBlock, errBlock := p.convNode(&userNode.Block)
 	if errBlock != nil {
 		return nil, errBlock
 	}
 	c = append(c, cBlock...)
 	c = append(c, p.makeGetLocal("それ"))
-	c = append(c, NewCode(Return, p.rcount-1, 0, 0))
+	c = append(c, NewCode(Return, p.regBack(), 0, 0))
 	c = append(c, labelEnd)
 	// Close Local Scope
 	p.sys.Scopes.Close()
 	p.scope = p.sys.Scopes.GetTopScope()
-	p.rcount = tmpRCount
 	return c, nil
 }
 
@@ -205,11 +202,10 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 	defArgs := p.sys.JosiList[funcV.Tag]    // 定義
 	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
 	// 引数を取得する
-	arrayIndex := p.rcount
+	arrayIndex := p.regNext()
 	c := []*TCode{
 		NewCodeMemo(NewArray, arrayIndex, 0, 0, "配列生成←関数の引数:"+fname),
 	}
-	p.rcount++
 	for _, josiList := range defArgs {
 		for _, josi := range josiList {
 			for k, nodeJosi := range nodeArgs {
@@ -226,7 +222,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 					return -1, nil, msg
 				}
 				c = append(c, cArg...)
-				argIndex := p.rcount - 1
+				argIndex := p.regBack()
 				c = append(c, NewCodeMemo(AppendArray, arrayIndex, argIndex, 0, "引数追加"))
 			}
 		}
@@ -245,8 +241,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			c = append(c, p.makeGetLocal("それ"))
-			c = append(c, NewCode(AppendArray, arrayIndex, p.rcount-1, 0))
-			p.rcount--
+			c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
 		} else {
 			return -1, nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
 		}
@@ -268,7 +263,7 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 		return p.callUserFunc(cf, funcV)
 	}
 
-	tmpRcount := p.rcount
+	tmpRcount := p.regTop()
 
 	// 引数を得る
 	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
@@ -278,11 +273,10 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	c = append(c, cArgs...)
 	// 関数を実行
 	// システム関数
-	funcRes := p.rcount
-	p.rcount++
+	funcRes := p.regTop()
 	fconstI := p.appendConsts(funcV)
 	c = append(c, NewCodeMemo(CallFunc, funcRes, fconstI, argIndex, cf.Name))
-	p.rcount = tmpRcount
+	p.scope.Index = tmpRcount
 	return c, nil
 }
 
@@ -301,8 +295,25 @@ func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*
 		return nil, err
 	}
 	c = append(c, cArgs...)
-	c = append(c, NewCodeMemo(CallUserFunc, p.rcount, funcLabel, argIndex, funcName))
-	p.rcount++
+	c = append(c, NewCodeMemo(CallUserFunc, p.regNext(), funcLabel, argIndex, funcName))
+	return c, nil
+}
+
+func (p *TCompiler) convJSONArray(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeJSONArray)
+	c := []*TCode{}
+	arrayIndex := p.regNext()
+	c = append(c, NewCode(NewArray, arrayIndex, 0, 0))
+	println("arrayIndex=", arrayIndex)
+	for _, vNode := range nn.Items {
+		cVal, eVal := p.convNode(&vNode)
+		if eVal != nil {
+			return nil, CompileError("JSONArray:"+eVal.Error(), n)
+		}
+		c = append(c, cVal...)
+		c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
+	}
+	println("regTop=", p.regTop())
 	return c, nil
 }
 
@@ -318,7 +329,7 @@ func (p *TCompiler) convReturn(n *node.Node) ([]*TCode, error) {
 	} else {
 		c = append(c, p.makeGetLocal("それ"))
 	}
-	c = append(c, NewCodeMemo(Return, p.rcount-1, 0, 0, "戻る"))
+	c = append(c, NewCodeMemo(Return, p.regBack(), 0, 0, "戻る"))
 	return c, nil
 }
 
@@ -338,9 +349,9 @@ func (p *TCompiler) convWhile(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("『間』構文の条件文で。"+errExpr.Error(), n)
 	}
 	c = append(c, cExpr...)
-	c = append(c, NewCode(NotReg, p.rcount-1, 0, 0))
-	c = append(c, p.makeJumpIfTrue(p.rcount-1, labelEnd))
-	p.rcount--
+	whileExprReg := p.regBack()
+	c = append(c, NewCode(NotReg, whileExprReg, 0, 0))
+	c = append(c, p.makeJumpIfTrue(whileExprReg, labelEnd))
 	// block
 	cBlock, errBlock := p.convNode(&nn.Block)
 	if errBlock != nil {
@@ -362,8 +373,7 @@ func (p *TCompiler) convIf(n *node.Node) ([]*TCode, error) {
 	labelEndIF := p.makeLabel("IF_END")
 	labelTrueBegin := p.makeLabel("IF_TRUE_BEGIN")
 	c = append(c, cExpr...)
-	c = append(c, p.makeJumpIfTrue(p.rcount-1, labelTrueBegin))
-	p.rcount--
+	c = append(c, p.makeJumpIfTrue(p.regBack(), labelTrueBegin))
 
 	if nn.FalseNode != nil {
 		cFalse, errFalse := p.convNode(&nn.FalseNode)
@@ -388,16 +398,30 @@ func (p *TCompiler) convIf(n *node.Node) ([]*TCode, error) {
 
 func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeWord)
+	c := []*TCode{}
 	// 現在のスコープに変数があるか
 	scope := p.scope
-	A := p.rcount
-	p.rcount++
-	B := scope.GetIndexByName(nn.Name)
-	if B < 0 {
+	toReg := p.regNext()
+	varNo := scope.GetIndexByName(nn.Name)
+	if varNo < 0 {
 		v := value.NewValueNullPtr()
-		B = scope.Set(nn.Name, v)
+		varNo = scope.Set(nn.Name, v)
 	}
-	return []*TCode{NewCodeMemo(GetLocal, A, B, 0, nn.Name)}, nil
+	c = append(c, NewCodeMemo(GetLocal, toReg, varNo, 0, nn.Name))
+	// 配列アクセス
+	if nn.Index != nil {
+		for _, vNode := range nn.Index {
+			cExpr, eExpr := p.convNode(&vNode)
+			if eExpr != nil {
+				return nil, CompileError("添字の評価。"+eExpr.Error(), n)
+			}
+			c = append(c, cExpr...)
+			exprReg := p.regTop() - 1
+			code := NewCode(GetArrayElem, toReg, toReg, exprReg)
+			c = append(c, code)
+		}
+	}
+	return c, nil
 }
 
 func (p *TCompiler) makeSetLocal(name string) *TCode {
@@ -407,8 +431,7 @@ func (p *TCompiler) makeSetLocal(name string) *TCode {
 		scope.Set(name, value.NewValueNullPtr())
 		A = scope.GetIndexByName(name)
 	}
-	B := p.rcount - 1
-	p.rcount--
+	B := p.regBack()
 	return NewCodeMemo(SetLocal, A, B, 0, name)
 }
 
@@ -419,8 +442,7 @@ func (p *TCompiler) makeGetLocal(name string) *TCode {
 		scope.Set(name, value.NewValueNullPtr())
 		B = scope.GetIndexByName(name)
 	}
-	A := p.rcount
-	p.rcount++
+	A := p.regNext()
 	return NewCodeMemo(GetLocal, A, B, 0, name)
 }
 
@@ -442,9 +464,11 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 
 func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeFor)
-	tmpRCount := p.rcount
+
+	tmpRCount := p.regTop()
 	labelForBegin := p.makeLabel("FOR_BEGIN")
 	c := []*TCode{labelForBegin}
+
 	// varNo
 	varName := nn.Word
 	if varName == "" {
@@ -457,18 +481,15 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("『繰返』構文の引数で。"+errTo.Error(), n)
 	}
 	c = append(c, toCodes...)
-	toR := p.rcount - 1
+	toR := p.regTop() - 1
 
-	// From
+	// WORD = FROM
 	fromCodes, errFrom := p.convNode(&nn.FromNode)
 	if errFrom != nil {
 		return nil, CompileError("『繰返』構文の引数で。"+errTo.Error(), n)
 	}
 	c = append(c, fromCodes...)
-
-	// WORD = fromR
-	initVarCodes := p.makeSetLocal(varName)
-	c = append(c, initVarCodes)
+	c = append(c, p.makeSetLocal(varName))
 
 	// cond : IF WORD > TO then goto BlockEnd
 	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
@@ -477,10 +498,10 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 
 	c = append(c, labelCond)
 	c = append(c, cGetLocal)
-	varR := p.rcount - 1
-	c = append(c, NewCodeMemo(Gt, p.rcount, varR, toR, "VAR > TO"))
-	c = append(c, p.makeJumpIfTrue(p.rcount, labelBlockEnd))
-	p.rcount--
+	varR := p.regTop() - 1
+	varExpr := p.regBack()
+	c = append(c, NewCodeMemo(Gt, varExpr, varR, toR, "VAR > TO"))
+	c = append(c, p.makeJumpIfTrue(varExpr, labelBlockEnd))
 
 	// Block
 	blockCodes, errBlock := p.convNode(&nn.Block)
@@ -492,7 +513,7 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
 	p.fixLabels(c)
-	p.rcount = tmpRCount
+	p.scope.Index = tmpRCount
 	return c, nil
 }
 
@@ -551,33 +572,32 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 	// push const
 	cindex := len(p.Consts)
 	p.Consts = append(p.Consts, &v)
-	constO := NewCodeMemo(ConstO, p.rcount, cindex, 0, "="+v.ToString())
-	p.rcount++
+	constO := NewCodeMemo(ConstO, p.regNext(), cindex, 0, "="+v.ToString())
 	codes := []*TCode{constO}
 	return codes, nil
 }
 
 func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 	op := (*n).(node.TNodeOperator)
-	tmpRCount := p.rcount
+	tmpRCount := p.regTop()
 	// Right node
 	r, errR := p.convNode(&op.Right)
 	if errR != nil {
 		return nil, CompileError("演算エラー", n)
 	}
-	pcR := p.rcount - 1
+	pcR := p.regTop() - 1
 	// Left node
 	l, errL := p.convNode(&op.Left)
 	if errL != nil {
 		return nil, CompileError("演算エラー", n)
 	}
-	pcL := p.rcount - 1
+	pcL := p.regTop() - 1
 	res := []*TCode{}
 	res = append(res, r...)
 	res = append(res, l...)
 	//
 	toindex := tmpRCount
-	p.rcount = toindex + 1
+	p.scope.Index = toindex + 1
 	switch op.Operator {
 	case "+":
 		res = append(res, NewCode(Add, toindex, pcL, pcR))

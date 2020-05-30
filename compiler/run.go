@@ -128,6 +128,18 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 				return nil, p.RuntimeError("[SYSTEM] AppendArray")
 			}
 			a.ArrayAppend(p.regGet(B))
+		case GetArrayElem:
+			var v *value.Value = nil
+			b := p.regGet(B)
+			c := p.regGet(C)
+			if b.Type == value.Array {
+				v = b.ArrayGet(c.ToInt())
+				p.regSet(A, v)
+			} else if b.Type == value.Hash {
+				v = b.HashGet(c.ToString())
+				p.regSet(A, v)
+			}
+			lastValue = v
 		case CallFunc:
 			res, err := p.runCallFunc(code)
 			if err != nil {
@@ -249,6 +261,8 @@ func (p *TCompiler) moveToTop() {
 	p.length = len(p.Codes)
 }
 
+// --- レジスタ操作 ---
+
 func (p *TCompiler) regSet(index int, val *value.Value) {
 	p.reg.Set(index, val)
 	// println("[REG]SET = " + p.reg.ToString())
@@ -257,4 +271,19 @@ func (p *TCompiler) regSet(index int, val *value.Value) {
 func (p *TCompiler) regGet(index int) *value.Value {
 	// println("[REG]GET = " + p.reg.ToString())
 	return p.reg.Get(index)
+}
+
+func (p *TCompiler) regTop() int {
+	return p.scope.Index
+}
+
+func (p *TCompiler) regNext() int {
+	i := p.scope.Index
+	p.scope.Index++
+	return i
+}
+
+func (p *TCompiler) regBack() int {
+	p.scope.Index--
+	return p.scope.Index
 }

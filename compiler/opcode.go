@@ -58,14 +58,14 @@ const (
 	NotReg
 	// NewArray A : R[A] = NewArray
 	NewArray
-	// SetArray A B C : (R[A])[ R[B] ] = R[C]
-	SetArray
-	// AppendArray A B : (R[A]).append(R[C])
+	// SetArrayElem A B C : (R[A])[ R[B] ] = R[C]
+	SetArrayElem
+	// AppendArray A B : (R[A]).append(R[B])
 	AppendArray
-	// GetArray A B C : R[A] = (R[B])[ R[C] ]
-	GetArray
-	// GetArrayI A B C : R[A] = (R[B])[ C ]
-	GetArrayI
+	// GetArrayElem A B C : R[A] = (R[B])[ R[C] ]
+	GetArrayElem
+	// GetArrayElemI A B C : R[A] = (R[B])[ C ]
+	GetArrayElemI
 	// CallFunc A B C : R[A] = call(fn=CONSTS[B], args=R[C])
 	CallFunc
 	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], args=R[C])

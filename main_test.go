@@ -16,6 +16,8 @@ func TestBasic2a(t *testing.T) {
 	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
 	_eval2(t, "C=0;I=0;(I<=10)の間;C=C+I;I=I+1;ここまで;C", "55")
 	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
+	_eval2(t, "C=[1,2,3];C[1]", "2")
 }
 
 func TestBasic2(t *testing.T) {
