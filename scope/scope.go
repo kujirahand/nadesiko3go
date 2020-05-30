@@ -91,9 +91,10 @@ func (p *TScopeList) GetGlobal() *Scope {
 }
 
 // Open : Open Scope
-func (p *TScopeList) Open() {
+func (p *TScopeList) Open() *Scope {
 	s := NewScope()
 	p.Items = append(p.Items, s)
+	return s
 }
 
 // Close : Close Scope

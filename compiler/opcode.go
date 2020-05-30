@@ -30,7 +30,7 @@ const (
 	JumpLabel
 	// JumpLabelIfTrue A B : if A then PC = LABELS[B]
 	JumpLabelIfTrue
-	// DefLabel A : LABELS[A] = PC
+	// DefLabel A : LABELS[A] = addr
 	DefLabel
 	// Add A,B,C : R[A] = R[B] + R[C]
 	Add
@@ -56,6 +56,22 @@ const (
 	NtEq
 	// NotReg A : R[A] = !R[A]
 	NotReg
+	// NewArray A : R[A] = NewArray
+	NewArray
+	// SetArray A B C : (R[A])[ R[B] ] = R[C]
+	SetArray
+	// AppendArray A B : (R[A]).append(R[C])
+	AppendArray
+	// GetArray A B C : R[A] = (R[B])[ R[C] ]
+	GetArray
+	// GetArrayI A B C : R[A] = (R[B])[ C ]
+	GetArrayI
+	// CallFunc A B C : R[A] = call(fn=CONSTS[B], args=R[C])
+	CallFunc
+	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], args=R[C])
+	CallUserFunc
+	// Retruen A : return R[A]
+	Return
 )
 
 // TCode : コードを表す構造体

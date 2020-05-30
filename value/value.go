@@ -365,3 +365,13 @@ func (v *Value) ArrayGet(idx int) *Value {
 	a := v.Value.(TArray)
 	return a[idx]
 }
+
+// ArrayAppend : Append value to array
+func (v *Value) ArrayAppend(val *Value) {
+	if v.Type != Array {
+		v.Type = Array
+		cv := NewValueStr(v.ToString())
+		v.Value = TArray{&cv}
+	}
+	v.Value = append(v.Value.(TArray), val)
+}

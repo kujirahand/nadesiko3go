@@ -6,6 +6,17 @@ import (
 	"github.com/kujirahand/nadesiko3go/value"
 )
 
+const (
+	metaKeyReturnAddr = "__ReturnAddr"
+	metaKeyReturnReg  = "__ReturnReg"
+)
+
+// RuntimeError : 実行時エラーを生成
+func (p *TCompiler) RuntimeError(msg string) error {
+	e := fmt.Errorf("[実行時エラー] (%d) %s", p.Line, msg)
+	return e
+}
+
 // Run : 実行する
 func (p *TCompiler) Run() (*value.Value, error) {
 	p.moveToTop()
@@ -13,7 +24,7 @@ func (p *TCompiler) Run() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-		println("RUN=" + p.ToString(code))
+		println("RUN=", p.index, p.ToString(code))
 		switch code.Type {
 		case ConstO:
 			p.Reg[A] = p.Consts[B]
@@ -113,12 +124,88 @@ func (p *TCompiler) Run() (*value.Value, error) {
 				// println("JUMP +", B)
 				continue
 			}
+		case NewArray:
+			a := value.NewValueArray()
+			p.Reg[A] = &a
+		case AppendArray:
+			a := p.Reg[A]
+			if a.Type != value.Array {
+				return nil, p.RuntimeError("[SYSTEM] AppendArray")
+			}
+			a.ArrayAppend(p.Reg[B])
+			println("append", a.ToJSONString())
+		case CallFunc:
+			res, err := p.runCallFunc(code)
+			if err != nil {
+				return nil, err
+			}
+			p.Reg[A] = res
+			lastValue = res
+		case CallUserFunc:
+			cur := p.procUserCallFunc(code)
+			p.moveTo(cur)
+			continue
+		case Return:
+			cur := p.procReturn(code)
+			p.moveTo(cur)
 		default:
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
 		p.next() // next code
 	}
 	return lastValue, nil
+}
+
+func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
+	// get func
+	funcV := p.Consts[code.B]
+	argV := p.Reg[code.C]
+	if funcV.Type == value.UserFunc {
+		return nil, p.RuntimeError("[SYSTEM ERROR:ユーザー関数をシステム関数として呼んだ]")
+	}
+	// args
+	args := argV.Value.(value.TArray)
+	println("argV=" + argV.ToJSONString())
+	// call system func
+	fn := funcV.Value.(value.TFunction)
+	res, err := fn(args)
+	if err != nil {
+		return nil, p.RuntimeError("関数実行中のエラー。" + err.Error())
+	}
+	p.Reg[code.A] = res
+	p.sys.Scopes.SetTopVars("それ", res)
+	return res, nil
+}
+
+func (p *TCompiler) procReturn(code *TCode) int {
+	scope := p.sys.Scopes.GetTopScope()
+	retValue := p.Reg[code.A]
+	retAddr := scope.Get(metaKeyReturnAddr).ToInt()
+	retReg := scope.Get(metaKeyReturnReg).ToInt()
+	p.sys.Scopes.Close()
+	p.Reg[retReg] = retValue
+	return retAddr
+}
+
+func (p *TCompiler) procUserCallFunc(code *TCode) int {
+	// get func
+	label := p.Labels[code.B]
+	argV := p.Reg[code.C]
+	// open scope
+	scope := p.sys.Scopes.Open()
+	scope.Set(metaKeyReturnAddr, value.NewValueIntPtr(p.index+1))
+	scope.Set(metaKeyReturnReg, value.NewValueIntPtr(code.A))
+	scope.Set("それ", value.NewValueNullPtr())
+	// 変数を登録する
+	if argV != nil && argV.Type == value.Array {
+		args := argV.Value.(value.TArray)
+		for i, v := range args {
+			name := label.argNames[i]
+			scope.Set(name, v)
+		}
+	}
+	cur := label.addr
+	return cur
 }
 
 // --- index(カーソル)の移動 ---
@@ -130,14 +217,16 @@ func (p *TCompiler) move(n int) {
 	p.index += n
 }
 
+func (p *TCompiler) moveTo(n int) {
+	p.index = n
+}
+
 func (p *TCompiler) moveNext() {
 	p.index++
 }
 
-func (p *TCompiler) next() *TCode {
-	v := p.Codes[p.index]
+func (p *TCompiler) next() {
 	p.index++
-	return v
 }
 
 func (p *TCompiler) isLive() bool {

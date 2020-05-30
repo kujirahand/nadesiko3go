@@ -29,6 +29,14 @@ var codeNames = map[int]string{
 	IncLocal:        "IncLocal",
 	IncReg:          "IncReg",
 	NotReg:          "NotReg",
+	NewArray:        "NewArray",
+	SetArray:        "SetArray",
+	AppendArray:     "AppendArray",
+	GetArray:        "GetArray",
+	GetArrayI:       "GetArrayI",
+	CallFunc:        "CallFunc",
+	CallUserFunc:    "CallUserFunc",
+	Return:          "Return",
 }
 
 // ToString : コードを返す
@@ -41,7 +49,7 @@ func (p *TCompiler) ToString(code *TCode) string {
 	desc := code.Memo + " "
 	switch code.Type {
 	}
-	return typeName + "\t" + param + " " + desc
+	return fmt.Sprintf("%12s %s %s", typeName, param, desc)
 }
 
 // CodesToString : コード一覧を文字列にする
