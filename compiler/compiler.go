@@ -5,12 +5,8 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/node"
+	"github.com/kujirahand/nadesiko3go/scope"
 	"github.com/kujirahand/nadesiko3go/value"
-)
-
-const (
-	// RegSize : レジスタサイズ
-	RegSize = 10
 )
 
 // TCodeLabel : ジャンプ用のラベル管理
@@ -25,9 +21,10 @@ type TCodeLabel struct {
 type TCompiler struct {
 	Codes         []*TCode
 	Consts        value.TArray
-	Reg           []*value.Value
 	Labels        []*TCodeLabel
 	UserFuncLabel map[string]int // 何番目のLabelsにリンクするか
+	reg           *value.TArray  // 実行時に使うレジスタ
+	scope         *scope.Scope   // メインスコープ
 	rcount        int
 	index         int
 	length        int
@@ -45,10 +42,6 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.rcount = 0
 	p.index = 0
 	p.sys = sys
-
-	// レジスタ領域を初期化
-	p.Reg = make([]*value.Value, RegSize)
-
 	return &p
 }
 
@@ -120,6 +113,8 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convCalc(n)
 	case node.CallFunc:
 		return p.convCallFunc(n)
+	case node.Return:
+		return p.convReturn(n)
 	case node.DefFunc:
 		return nil, nil // 関数定義は Compile で最初に行う
 	}
@@ -153,9 +148,14 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	userFuncIndex := funcV.Tag
 	userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
 	// Open Local Scope
-	p.sys.Scopes.Open()
-	// スコープにローカル変数を挿入
-	scope := p.sys.Scopes.GetTopScope()
+	scope := p.sys.Scopes.Open()
+	p.scope = scope
+	// 変数の登録(順番に注意)
+	scope.Set("それ", value.NewValueNullPtr())
+	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(-1))
+	scope.Reg.Set(metaRegReturnValue, value.NewValueIntPtr(-1))
+	scope.Index = 2
+	// スコープにローカル変数を挿入 (順番が重要)
 	for _, name := range userNode.ArgNames {
 		scope.Set(name, value.NewValueNullPtr())
 		args = append(args, name)
@@ -166,6 +166,7 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	scope.Set("それ", localSore)
 	// Block
 	tmpRCount := p.rcount
+	p.rcount = scope.Index
 	cBlock, errBlock := p.convNode(&userNode.Block)
 	if errBlock != nil {
 		return nil, errBlock
@@ -174,7 +175,9 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	c = append(c, p.makeGetLocal("それ"))
 	c = append(c, NewCode(Return, p.rcount-1, 0, 0))
 	c = append(c, labelEnd)
+	// Close Local Scope
 	p.sys.Scopes.Close()
+	p.scope = p.sys.Scopes.GetTopScope()
 	p.rcount = tmpRCount
 	return c, nil
 }
@@ -281,24 +284,14 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	return c, nil
 }
 
-// ユーザー関数の呼び出しに関して
-// 既に関数の内容がパースされているので、初回関数呼び出し時に先に関数の実体をバイトコードに変換してしまう
+// callUserFunc : ユーザー関数の呼び出しを生成
 func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*TCode, error) {
 	c := []*TCode{}
-	// 関数定義が必要か
 	funcName := cf.Name
 	funcLabel, funcDefined := p.UserFuncLabel[funcName]
 	if !funcDefined {
-		userFuncIndex := funcV.Tag
-		userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
-		// 関数定義を行う
-		n := node.Node(userNode)
-		cDef, errDef := p.convDefFunc(&n)
-		if errDef != nil {
-			return nil, errDef
-		}
-		c = append(c, cDef...)
-		funcLabel = p.UserFuncLabel[funcName]
+		n := node.Node(cf)
+		return nil, CompileError("[SYSTEM] 関数定義に失敗している", &n)
 	}
 	// 関数呼び出し
 	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
@@ -308,6 +301,22 @@ func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*
 	c = append(c, cArgs...)
 	c = append(c, NewCodeMemo(CallUserFunc, p.rcount, funcLabel, argIndex, funcName))
 	p.rcount++
+	return c, nil
+}
+
+func (p *TCompiler) convReturn(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeReturn)
+	c := []*TCode{}
+	if nn.Arg != nil {
+		cArg, errArg := p.convNode(&nn.Arg)
+		if errArg != nil {
+			return nil, CompileError("『戻る』の引数にて。"+errArg.Error(), n)
+		}
+		c = append(c, cArg...)
+	} else {
+		c = append(c, p.makeGetLocal("それ"))
+	}
+	c = append(c, NewCodeMemo(Return, p.rcount-1, 0, 0, "戻る"))
 	return c, nil
 }
 
@@ -378,7 +387,7 @@ func (p *TCompiler) convIf(n *node.Node) ([]*TCode, error) {
 func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeWord)
 	// 現在のスコープに変数があるか
-	scope := p.sys.Scopes.GetTopScope()
+	scope := p.scope
 	A := p.rcount
 	p.rcount++
 	B := scope.GetIndexByName(nn.Name)
@@ -390,7 +399,7 @@ func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 }
 
 func (p *TCompiler) makeSetLocal(name string) *TCode {
-	scope := p.sys.Scopes.GetTopScope()
+	scope := p.scope
 	A := scope.GetIndexByName(name)
 	if A < 0 {
 		scope.Set(name, value.NewValueNullPtr())
@@ -402,7 +411,7 @@ func (p *TCompiler) makeSetLocal(name string) *TCode {
 }
 
 func (p *TCompiler) makeGetLocal(name string) *TCode {
-	scope := p.sys.Scopes.GetTopScope()
+	scope := p.scope
 	B := scope.GetIndexByName(name)
 	if B < 0 {
 		scope.Set(name, value.NewValueNullPtr())
@@ -619,8 +628,8 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 		return nil, err
 	}
 	if sys.IsDebug {
-		println("[compile]")
 		println(p.CodesToString(p.Codes))
+		println("[Run Code]")
 	}
 	return p.Run()
 }

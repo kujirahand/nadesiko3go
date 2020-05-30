@@ -30,7 +30,7 @@ type Core struct {
 	MainFile   string
 	Code       string
 	RunMode    TRunMode
-	Scopes     *scope.TScopeList
+	Scopes     scope.TScopeList
 	Global     *scope.Scope
 	Sore       *value.Value
 	Taisyo     *value.Value
@@ -59,7 +59,7 @@ func NewCore() *Core {
 	c := Core{}
 	c.IsDebug = false
 	c.RunMode = MainFile
-	c.Scopes = scope.NewScopeList()
+	c.Scopes = scope.NewScopeList() // 最初のスコープも自動的に得られる
 	c.Global = c.Scopes.GetGlobal()
 	c.JosiList = []DefArgs{}
 	c.BreakID = -1

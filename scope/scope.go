@@ -4,14 +4,21 @@ import (
 	"github.com/kujirahand/nadesiko3go/value"
 )
 
+const (
+	// DefRegCap : レジスタ初期サイズ
+	DefRegCap = 256
+)
+
 // Scope : Scope
 type Scope struct {
 	// values : slice of Value
 	values value.TArray
 	// names : link to Values
 	names map[string]int
-	// reg : レジスタ
-	reg value.TArray
+	// Reg : レジスタ
+	Reg value.TArray
+	// Index : レジスタ末尾管理用
+	Index int
 }
 
 // NewScope : Create Scope
@@ -19,7 +26,8 @@ func NewScope() *Scope {
 	s := Scope{
 		values: value.TArray{},
 		names:  map[string]int{},
-		reg:    value.TArray{},
+		Reg:    make(value.TArray, 0, DefRegCap),
+		Index:  0,
 	}
 	return &s
 }
@@ -75,17 +83,38 @@ func (s *Scope) Length() int {
 	return len(s.values)
 }
 
+// ToStringRegs : To string
+func (s *Scope) ToStringRegs() string {
+	res := s.Reg.ToJSONString()
+	return res
+}
+
+// GetHash : 変数と値をハッシュ形式で得る(但しパフォーマンスを考慮していないのでGet/Setメソッドで使うこと)
+func (s *Scope) GetHash() value.THash {
+	h := value.THash{}
+	for name, i := range s.names {
+		h[name] = s.values[i]
+	}
+	return h
+}
+
+// ToStringValues : Get reg
+func (s *Scope) ToStringValues() string {
+	h := s.GetHash()
+	return h.ToJSONString()
+}
+
 // TScopeList : Scope Object
 type TScopeList struct {
 	Items []*Scope
 }
 
 // NewScopeList : Create ScopeObj
-func NewScopeList() *TScopeList {
+func NewScopeList() TScopeList {
 	p := TScopeList{}
 	p.Items = []*Scope{}
 	p.Open() // make global scope
-	return &p
+	return p
 }
 
 // GetGlobal : Get Global
