@@ -10,6 +10,7 @@ var codeNames = map[int]string{
 	ConstO:          "ConstO",
 	SetLocal:        "SetLocal",
 	GetLocal:        "GetLocal",
+	SetSore:         "SetSore",
 	FindVar:         "FindVar",
 	Add:             "Add",
 	Sub:             "Sub",
@@ -22,6 +23,9 @@ var codeNames = map[int]string{
 	LtEq:            "LtEq",
 	EqEq:            "EqEq",
 	NtEq:            "NtEq",
+	Exp:             "Exp",
+	And:             "And",
+	Or:              "Or",
 	Jump:            "Jump",
 	JumpIfTrue:      "JumpIfTrue",
 	JumpLabel:       "JumpLabel",
@@ -40,6 +44,8 @@ var codeNames = map[int]string{
 	CallFunc:        "CallFunc",
 	CallUserFunc:    "CallUserFunc",
 	Return:          "Return",
+	Length:          "Length",
+	Foreach:         "Foreach",
 }
 
 // ToString : コードを返す

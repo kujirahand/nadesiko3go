@@ -18,6 +18,8 @@ const (
 	GetLocal
 	// FindVar A, B : R[A] = FindVar(CONSTS[B])
 	FindVar
+	// SetSore A : Sore = R[A]
+	SetSore
 	// IncReg A : R[A]++
 	IncReg
 	// IncLocal A : Scope[A]++
@@ -56,8 +58,16 @@ const (
 	EqEq
 	// NtEq A,B,C : R[A] = R[B] != R[C]
 	NtEq
+	// Exp A,B,C : R[A] = R[B] ^ R[C]
+	Exp
+	// And A,B,C : R[A] = R[B] && R[C]
+	And
+	// Or A,B,C : R[A] = R[B] || R[C]
+	Or
 	// NotReg A : R[A] = !R[A]
 	NotReg
+	// Length A B : R[A] = Len(R[B])
+	Length
 	// NewArray A : R[A] = NewArray
 	NewArray
 	// SetArrayElem A B : R[A].Value = R[B]
@@ -72,6 +82,8 @@ const (
 	NewHash
 	// SetHash A B C : (R[A]).HashSet(CONSTS[B], C)
 	SetHash
+	// Foreach A B C : FOREACH isContinue:A expr:B counter:C -> それ|対象|対象キーの値を更新
+	Foreach
 	// CallFunc A B C : R[A] = call(fn=CONSTS[B], args=R[C])
 	CallFunc
 	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], args=R[C])

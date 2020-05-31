@@ -29,6 +29,7 @@ type TCompiler struct {
 	length        int
 	Line          int
 	sys           *core.Core
+	forNest       int
 }
 
 // NewCompier : コンパイラオブジェクトを生成
@@ -119,6 +120,8 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convJSONArray(n)
 	case node.JSONHash:
 		return p.convJSONHash(n)
+	case node.Foreach:
+		return p.convForeach(n)
 	case node.DefFunc:
 		return nil, nil // 関数定義は Compile で最初に行う
 	}
@@ -317,6 +320,49 @@ func (p *TCompiler) convJSONArray(n *node.Node) ([]*TCode, error) {
 	return c, nil
 }
 
+func (p *TCompiler) makeConstInt(reg, v int) *TCode {
+	ci := p.appendConstsInt(v)
+	return &TCode{Type: ConstO, A: reg, B: ci, Memo: "=" + value.IntToStr(v)}
+}
+
+func (p *TCompiler) convForeach(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeForeach)
+	tmpRCount := p.regTop()
+	c := []*TCode{p.makeLabel("FOREACH_BEGIN")}
+	labelEnd := p.makeLabel("FOREACH_END")
+	// expr
+	cExpr, errExpr := p.convNode(&nn.Expr)
+	if errExpr != nil {
+		return nil, CompileError("反復の条件式で。"+errExpr.Error(), n)
+	}
+	c = append(c, cExpr...)
+	rExpr := p.regTop() - 1
+	// len(expr)
+	// rLenExpr := p.regNext()
+	// c = append(c, NewCodeMemo(Length, rLenExpr, rExpr, 0, "LEN_EXPR"))
+	// $N=0
+	rI := p.regNext()
+	c = append(c, p.makeConstInt(rI, 0))
+	// COND
+	labelCond := p.makeLabel("FOREACH_COND")
+	c = append(c, labelCond)
+	// $N >= len(expr) IfTrue=>END
+	rCond := p.regTop()
+	// FOREACH isContinue:A expr:B counter:C
+	c = append(c, NewCodeMemo(Foreach, rCond, rExpr, rI, "反復"))
+	c = append(c, p.makeJumpIfTrue(rCond, labelEnd))
+	// body
+	cBody, errBody := p.convNode(&nn.Block)
+	if errBody != nil {
+		return nil, CompileError("『反復』ブロックで。"+errBody.Error(), n)
+	}
+	c = append(c, cBody...)
+	c = append(c, p.makeJump(labelCond))
+	c = append(c, labelEnd)
+	p.scope.Index = tmpRCount
+	return c, nil
+}
+
 func (p *TCompiler) convJSONHash(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeJSONHash)
 	c := []*TCode{}
@@ -452,6 +498,10 @@ func (p *TCompiler) makeSetLocal(name string) *TCode {
 	return NewCodeMemo(SetLocal, A, B, 0, name)
 }
 
+func (p *TCompiler) makeSetSore(reg int) *TCode {
+	return NewCode(SetSore, reg, 0, 0)
+}
+
 func (p *TCompiler) makeGetLocal(name string) *TCode {
 	// (1) ローカルスコープを探す
 	scope := p.scope
@@ -510,7 +560,6 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 
 func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeFor)
-
 	tmpRCount := p.regTop()
 	labelForBegin := p.makeLabel("FOR_BEGIN")
 	c := []*TCode{labelForBegin}
@@ -518,8 +567,17 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	// varNo
 	varName := nn.Word
 	if varName == "" {
-		varName = "対象"
+		varName = "__FOR_I" + value.IntToStr(p.forNest)
+		p.forNest++
 	}
+
+	// WORD = From
+	fromCodes, errFrom := p.convNode(&nn.FromNode)
+	if errFrom != nil {
+		return nil, CompileError("『繰返』構文の引数で。"+errFrom.Error(), n)
+	}
+	c = append(c, fromCodes...)
+	c = append(c, p.makeSetLocal(varName))
 
 	// To
 	toCodes, errTo := p.convNode(&nn.ToNode)
@@ -529,25 +587,21 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	c = append(c, toCodes...)
 	toR := p.regTop() - 1
 
-	// WORD = FROM
-	fromCodes, errFrom := p.convNode(&nn.FromNode)
-	if errFrom != nil {
-		return nil, CompileError("『繰返』構文の引数で。"+errTo.Error(), n)
-	}
-	c = append(c, fromCodes...)
-	c = append(c, p.makeSetLocal(varName))
-
 	// cond : IF WORD > TO then goto BlockEnd
 	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
 	labelCond := p.makeLabel("FOR_COND")
-	cGetLocal := p.makeGetLocal(varName)
-
 	c = append(c, labelCond)
-	c = append(c, cGetLocal)
+
+	getLoopVar := p.makeGetLocal(varName)
+	c = append(c, getLoopVar)
 	varR := p.regTop() - 1
-	varExpr := p.regBack()
+
+	varExpr := p.regTop()
 	c = append(c, NewCodeMemo(Gt, varExpr, varR, toR, "VAR > TO"))
 	c = append(c, p.makeJumpIfTrue(varExpr, labelBlockEnd))
+
+	// それに値を設定
+	c = append(c, p.makeSetSore(varR))
 
 	// Block
 	blockCodes, errBlock := p.convNode(&nn.Block)
@@ -555,7 +609,7 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("『繰返』構文にて。"+errBlock.Error(), n)
 	}
 	c = append(c, blockCodes...)
-	c = append(c, NewCode(IncLocal, cGetLocal.B, 0, 0)) // WORD++
+	c = append(c, NewCode(IncLocal, getLoopVar.B, 0, 0)) // WORD++
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
 	p.fixLabels(c)
@@ -580,6 +634,20 @@ func (p *TCompiler) convNodeList(n *node.Node) ([]*TCode, error) {
 		codes = append(codes, res...)
 	}
 	return codes, nil
+}
+
+func (p *TCompiler) appendConstsInt(num int) int {
+	// 同じ値があるか調べる
+	for i, v := range p.Consts {
+		if v.Type == value.Int && v.ToInt() == num {
+			return i
+		}
+	}
+	// なければ追加
+	val := value.NewValueInt(num)
+	idx := len(p.Consts)
+	p.Consts = append(p.Consts, &val)
+	return idx
 }
 
 func (p *TCompiler) appendConstsStr(s string) int {

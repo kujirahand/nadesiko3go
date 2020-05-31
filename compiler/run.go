@@ -104,14 +104,40 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			v := value.LtEq(bv, cv)
 			p.regSet(A, &v)
 			lastValue = &v
+		case Exp:
+			bv := p.regGet(B)
+			cv := p.regGet(C)
+			v := value.Exp(bv, cv)
+			p.regSet(A, &v)
+			lastValue = &v
+		case And:
+			bv := p.regGet(B)
+			cv := p.regGet(C)
+			v := value.And(bv, cv)
+			p.regSet(A, &v)
+			lastValue = &v
+		case Or:
+			bv := p.regGet(B)
+			cv := p.regGet(C)
+			v := value.Or(bv, cv)
+			p.regSet(A, &v)
+			lastValue = &v
 		case IncReg:
-			v := p.regGet(A)
-			v.SetInt(v.ToInt() + 1)
+			v := value.NewValueInt(p.regGet(A).ToInt() + 1)
+			p.regSet(A, &v)
+			lastValue = &v
 		case IncLocal:
 			v := p.scope.GetByIndex(A)
 			v.SetInt(v.ToInt() + 1)
+			lastValue = v
 		case NotReg:
-			p.regGet(A).SetBool(!p.regGet(A).ToBool())
+			v := value.Not(p.regGet(A))
+			p.regSet(A, &v)
+			lastValue = &v
+		case SetSore:
+			v := p.regGet(A)
+			p.scope.Set("それ", v)
+			lastValue = v
 		// label
 		case DefLabel:
 			//nop
@@ -124,6 +150,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 				p.move(B)
 				continue
 			}
+		// Array/Hash
 		case NewArray:
 			a := value.NewValueArray()
 			p.regSet(A, &a)
@@ -164,6 +191,12 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			}
 			println(h.ToJSONString())
 			lastValue = h
+		case Length:
+			vb := p.regGet(B)
+			va := value.NewValueInt(vb.Length())
+			p.regSet(A, &va)
+			lastValue = &va
+			// FUNC
 		case CallFunc:
 			res, err := p.runCallFunc(code)
 			if err != nil {
@@ -183,6 +216,16 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.moveTo(cur)
 			lastValue = ret
 			continue
+		case Foreach: // FOREACH isContinue:A expr:B counter:C
+			exprV := p.regGet(B)
+			lengI := exprV.Length()
+			cntrI := p.regGet(C).ToInt()
+			elemV := exprV.ArrayGet(cntrI)
+			p.sys.Scopes.SetTopVars("それ", elemV)
+			p.sys.Scopes.SetTopVars("対象", elemV)
+			p.regSet(C, value.NewValueIntPtr(cntrI+1))
+			condV := value.NewValueBool(cntrI >= lengI)
+			p.regSet(A, &condV)
 		default:
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}

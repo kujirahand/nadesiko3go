@@ -179,6 +179,22 @@ func (v *Value) ToFloat() float64 {
 	return 0
 }
 
+// Length : 要素の長さ
+func (v *Value) Length() int {
+	if v == nil {
+		return 0
+	}
+	switch v.Type {
+	case Array:
+		a := v.Value.(TArray)
+		return a.Length()
+	case Hash:
+		h := v.Value.(THash)
+		return h.Length()
+	}
+	return 0
+}
+
 // IsNumber : 数値？
 func (v *Value) IsNumber() bool {
 	switch v.Type {

@@ -213,3 +213,8 @@ func Or(l, r *Value) Value {
 	boolRight := r.ToBool()
 	return NewValueBool(boolLeft || boolRight)
 }
+
+// Not : Not
+func Not(r *Value) Value {
+	return NewValueBool(!r.ToBool())
+}
