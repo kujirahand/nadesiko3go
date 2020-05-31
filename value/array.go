@@ -12,6 +12,14 @@ func NewTArray() TArray {
 	}
 }
 
+// NewTArrayDef : TArrayを生成
+func NewTArrayDef(items TValueItems) TArray {
+	return TArray{
+		Items:  items,
+		length: 10,
+	}
+}
+
 // ToString : 文字列に変換
 func (p *TArray) ToString() string {
 	return p.ToJSONString()

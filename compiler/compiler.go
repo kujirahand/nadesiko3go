@@ -36,7 +36,18 @@ type TCompiler struct {
 func NewCompier(sys *core.Core) *TCompiler {
 	p := TCompiler{}
 	p.Codes = []*TCode{}
-	p.Consts = value.NewTArray()
+	p.Consts = value.NewTArrayDef(value.TValueItems{
+		value.NewValueIntPtr(0),
+		value.NewValueIntPtr(1),
+		value.NewValueIntPtr(2),
+		value.NewValueIntPtr(3),
+		value.NewValueIntPtr(4),
+		value.NewValueIntPtr(5),
+		value.NewValueIntPtr(6),
+		value.NewValueIntPtr(7),
+		value.NewValueIntPtr(8),
+		value.NewValueIntPtr(9),
+	})
 	p.Labels = []*TCodeLabel{}
 	p.UserFuncLabel = map[string]int{}
 	p.index = 0
@@ -638,6 +649,9 @@ func (p *TCompiler) convNodeList(n *node.Node) ([]*TCode, error) {
 
 func (p *TCompiler) appendConstsInt(num int) int {
 	// 同じ値があるか調べる
+	if num < 10 { // 10以下なら最初に強制的に作成した
+		return num
+	}
 	for i, v := range p.Consts.Items {
 		if v.Type == value.Int && v.ToInt() == num {
 			return i
@@ -700,11 +714,17 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 	op := (*n).(node.TNodeConst)
 	v := op.Value
 	// push const
-	cindex := p.Consts.Length()
-	p.Consts.Append(&v)
-	constO := NewCodeMemo(ConstO, p.regNext(), cindex, 0, "="+v.ToString())
-	codes := []*TCode{constO}
-	return codes, nil
+	regI := p.regNext()
+	switch v.Type {
+	case value.Int:
+		return []*TCode{p.makeConstInt(regI, v.ToInt())}, nil
+	case value.Str:
+		ci := p.appendConstsStr(v.ToString())
+		return []*TCode{NewCodeMemo(ConstO, regI, ci, 0, "="+v.ToString())}, nil
+	default:
+		ci := p.appendConsts(&v)
+		return []*TCode{NewCodeMemo(ConstO, regI, ci, 0, "="+v.ToString())}, nil
+	}
 }
 
 func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
