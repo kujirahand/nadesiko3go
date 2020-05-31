@@ -36,3 +36,12 @@ func (p *THash) ToJSONString() string {
 func (p *THash) Length() int {
 	return len(*p)
 }
+
+// Keys : get keys
+func (p *THash) Keys() []string {
+	r := make([]string, 0, p.Length())
+	for k := range *p {
+		r = append(r, k)
+	}
+	return r
+}

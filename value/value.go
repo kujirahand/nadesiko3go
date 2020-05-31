@@ -79,6 +79,12 @@ func NewValueStr(v string) Value {
 	return Value{Type: Str, Value: v}
 }
 
+// NewValueStrPtr : 文字列を生成
+func NewValueStrPtr(v string) *Value {
+	s := NewValueStr(v)
+	return &s
+}
+
 // NewValueBytes : []byteを生成
 func NewValueBytes(v []byte) Value {
 	return Value{Type: Bytes, Value: v}
@@ -360,6 +366,15 @@ func (v *Value) HashGet(key string) *Value {
 	}
 	vh := v.Value.(THash)
 	return vh[key]
+}
+
+// HashKeys : get keys
+func (v *Value) HashKeys() []string {
+	if v.Type != Hash {
+		return []string{}
+	}
+	vh := v.Value.(THash)
+	return vh.Keys()
 }
 
 // ArraySet : Set value to array
