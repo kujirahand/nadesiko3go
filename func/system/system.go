@@ -90,8 +90,8 @@ func nteq(args value.TArray) (*value.Value, error) {
 
 func calc(op rune, args value.TArray) (*value.Value, error) {
 	var v value.Value
-	l := args[0]
-	r := args[1]
+	l := args.Get(0)
+	r := args.Get(1)
 	switch op {
 	case '+':
 		v = value.Add(l, r)

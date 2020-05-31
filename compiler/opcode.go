@@ -84,9 +84,9 @@ const (
 	SetHash
 	// Foreach A B C : FOREACH isContinue:A expr:B counter:C -> それ|対象|対象キーの値を更新
 	Foreach
-	// CallFunc A B C : R[A] = call(fn=CONSTS[B], args=R[C])
+	// CallFunc A B C : R[A] = call(fn=CONSTS[B], argStart=R[C])
 	CallFunc
-	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], args=R[C])
+	// CallUserFunc A B C : R[A] = call(fn=LABELS[B], argStart=R[C])
 	CallUserFunc
 	// Retruen A : return R[A]
 	Return

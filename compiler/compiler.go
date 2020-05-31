@@ -36,7 +36,7 @@ type TCompiler struct {
 func NewCompier(sys *core.Core) *TCompiler {
 	p := TCompiler{}
 	p.Codes = []*TCode{}
-	p.Consts = value.TArray{}
+	p.Consts = value.NewTArray()
 	p.Labels = []*TCodeLabel{}
 	p.UserFuncLabel = map[string]int{}
 	p.index = 0
@@ -63,7 +63,7 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	labelMainBegin := p.makeLabel("MAIN_BEGIN")
 	c := []*TCode{p.makeJump(labelMainBegin)}
 	// 最初にユーザー関数を定義する
-	for _, v := range p.sys.UserFuncs {
+	for _, v := range p.sys.UserFuncs.Items {
 		funcID := v.IValue
 		println("compile=", funcID)
 		nodeDef := node.UserFunc[funcID]
@@ -207,9 +207,9 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 	defArgs := p.sys.JosiList[funcV.Tag]    // 定義
 	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
 	// 引数を取得する
-	arrayIndex := p.regNext()
+	arrayIndex := p.regTop()
 	c := []*TCode{
-		NewCodeMemo(NewArray, arrayIndex, 0, 0, "配列生成←関数の引数:"+fname),
+		// NewCodeMemo(NewArray, arrayIndex, 0, 0, "配列生成←関数の引数:"+fname),
 	}
 	for _, josiList := range defArgs {
 		for _, josi := range josiList {
@@ -227,8 +227,8 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 					return -1, nil, msg
 				}
 				c = append(c, cArg...)
-				argIndex := p.regBack()
-				c = append(c, NewCodeMemo(AppendArray, arrayIndex, argIndex, 0, "引数追加"))
+				// argIndex := p.regBack()
+				// c = append(c, NewCodeMemo(AppendArray, arrayIndex, argIndex, 0, fname+"の引数追加"))
 			}
 		}
 	}
@@ -246,7 +246,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			c = append(c, p.makeGetLocal("それ"))
-			c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
+			// c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
 		} else {
 			return -1, nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
 		}
@@ -638,35 +638,35 @@ func (p *TCompiler) convNodeList(n *node.Node) ([]*TCode, error) {
 
 func (p *TCompiler) appendConstsInt(num int) int {
 	// 同じ値があるか調べる
-	for i, v := range p.Consts {
+	for i, v := range p.Consts.Items {
 		if v.Type == value.Int && v.ToInt() == num {
 			return i
 		}
 	}
 	// なければ追加
 	val := value.NewValueInt(num)
-	idx := len(p.Consts)
-	p.Consts = append(p.Consts, &val)
+	idx := p.Consts.Length()
+	p.Consts.Append(&val)
 	return idx
 }
 
 func (p *TCompiler) appendConstsStr(s string) int {
 	// 同じ値があるか調べる
-	for i, v := range p.Consts {
+	for i, v := range p.Consts.Items {
 		if v.Type == value.Str && v.ToString() == s {
 			return i
 		}
 	}
 	// なければ追加
 	val := value.NewValueStr(s)
-	idx := len(p.Consts)
-	p.Consts = append(p.Consts, &val)
+	idx := p.Consts.Length()
+	p.Consts.Append(&val)
 	return idx
 }
 
 func (p *TCompiler) appendConsts(val *value.Value) int {
 	// 同じ値があるか調べる
-	for i, v := range p.Consts {
+	for i, v := range p.Consts.Items {
 		if v.Type == val.Type {
 			switch v.Type {
 			case value.Null:
@@ -691,8 +691,8 @@ func (p *TCompiler) appendConsts(val *value.Value) int {
 		}
 	}
 	// なければ追加
-	idx := len(p.Consts)
-	p.Consts = append(p.Consts, val)
+	idx := p.Consts.Length()
+	p.Consts.Append(val)
 	return idx
 }
 
@@ -700,8 +700,8 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 	op := (*n).(node.TNodeConst)
 	v := op.Value
 	// push const
-	cindex := len(p.Consts)
-	p.Consts = append(p.Consts, &v)
+	cindex := p.Consts.Length()
+	p.Consts.Append(&v)
 	constO := NewCodeMemo(ConstO, p.regNext(), cindex, 0, "="+v.ToString())
 	codes := []*TCode{constO}
 	return codes, nil
@@ -756,7 +756,7 @@ func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 }
 
 func (p *TCompiler) getConstNoByID(id string, canCreate bool) int {
-	for i, v := range p.Consts {
+	for i, v := range p.Consts.Items {
 		if v.Type == value.Str {
 			if v.ToString() == id {
 				return i
@@ -766,9 +766,9 @@ func (p *TCompiler) getConstNoByID(id string, canCreate bool) int {
 	if !canCreate {
 		return -1
 	}
-	resIndex := len(p.Consts)
+	resIndex := p.Consts.Length()
 	vv := value.NewValueStr(id)
-	p.Consts = append(p.Consts, &vv)
+	p.Consts.Append(&vv)
 	return resIndex
 }
 

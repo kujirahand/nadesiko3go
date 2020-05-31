@@ -19,7 +19,7 @@ func RegisterFunction(sys *core.Core) {
 
 // OpenBinFile : バイナリ読む
 func OpenBinFile(args value.TArray) (*value.Value, error) {
-	f := args[0].ToString()
+	f := args.Get(0).ToString()
 	bin, err := ioutil.ReadFile(f)
 	if err != nil {
 		return nil, fmt.Errorf("ファイルが読めません。file=" + f)
@@ -30,7 +30,7 @@ func OpenBinFile(args value.TArray) (*value.Value, error) {
 
 // OpenFile : 読む
 func OpenFile(args value.TArray) (*value.Value, error) {
-	f := args[0].ToString()
+	f := args.Get(0).ToString()
 	text, err := ioutil.ReadFile(f)
 	if err != nil {
 		return nil, fmt.Errorf("ファイルが読めません。file=" + f)
@@ -41,11 +41,11 @@ func OpenFile(args value.TArray) (*value.Value, error) {
 
 // Println : 表示
 func Println(args value.TArray) (*value.Value, error) {
-	if len(args) == 0 {
+	if args.Length() == 0 {
 		return nil, nil
 	}
 	// 引数を評価
-	v := args[0]
+	v := args.Get(0)
 	s := v.ToString()
 	// 表示ログに追加
 	sys := core.GetSystem()

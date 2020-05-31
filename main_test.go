@@ -27,7 +27,7 @@ func TestBasic2a(t *testing.T) {
 }
 
 func TestBasic2(t *testing.T) {
-	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
+	_eval2(t, "1と2を足して表示;表示ログ", "3")
 }
 
 func _eval2(t *testing.T, code, expected string) {

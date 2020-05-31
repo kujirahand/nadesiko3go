@@ -30,10 +30,11 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-		// println("RUN=", p.index, p.ToString(code))
+		// println("*RUN=", p.index, p.ToString(code))
 		switch code.Type {
 		case ConstO:
-			p.regSet(A, p.Consts[B])
+			p.regSet(A, p.Consts.Get(B))
+			// println(" (reg) " + p.scope.ToStringRegs())
 		case MoveR:
 			p.regSet(A, p.regGet(B))
 		case SetLocal:
@@ -53,7 +54,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.regSet(A, g.GetByIndex(B))
 			lastValue = p.regGet(A)
 		case FindVar:
-			name := p.Consts[B].ToString()
+			name := p.Consts.Get(B).ToString()
 			v, _ := p.sys.Scopes.Find(name)
 			p.regSet(A, v)
 			lastValue = v
@@ -185,7 +186,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			}
 		case SetHash:
 			h := p.regGet(A)
-			key := p.Consts[B].ToString()
+			key := p.Consts.Get(B).ToString()
 			if h != nil {
 				h.HashSet(key, p.regGet(C))
 			}
@@ -205,7 +206,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.regSet(A, res)
 			lastValue = res
 		case CallUserFunc:
-			cur := p.procUserCallFunc(code)
+			cur := p.procCallUserFunc(code)
 			p.moveTo(cur)
 			continue
 		case Return:
@@ -269,15 +270,20 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 
 func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 	// get func
-	funcV := p.Consts[code.B]
-	argV := p.regGet(code.C)
+	funcV := p.Consts.Get(code.B)
+	// argV := p.regGet(code.C)
+	// args := argV.Value.(value.TArray)
 	if funcV.Type == value.UserFunc {
 		return nil, p.RuntimeError("[SYSTEM ERROR:ユーザー関数をシステム関数として呼んだ]")
 	}
-	// args
-	args := argV.Value.(value.TArray)
 	// call system func
+	argCount := len(p.sys.JosiList[funcV.Tag])
 	fn := funcV.Value.(value.TFunction)
+	// args
+	args := value.NewTArray()
+	for i := 0; i < argCount; i++ {
+		args.Append(p.regGet(code.C + i))
+	}
 	res, err := fn(args)
 	if err != nil {
 		return nil, p.RuntimeError("関数実行中のエラー。" + err.Error())
@@ -296,12 +302,6 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 	retAddr := p.regGet(metaRegReturnAddr).ToInt()
 	retReg := p.regGet(metaRegReturnValue).ToInt()
 	// Close Scope
-	/*
-		for i, v := range p.sys.Scopes.Items {
-			println("@@[REG]", i, "=", v.Reg.ToJSONString())
-		}
-	*/
-	// println("--- close scope ---")
 	p.sys.Scopes.Close()
 	p.scope = p.sys.Scopes.GetTopScope()
 	p.reg = &(p.scope.Reg)
@@ -311,10 +311,11 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 	return retAddr, retValue
 }
 
-func (p *TCompiler) procUserCallFunc(code *TCode) int {
+func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	// get func
 	label := p.Labels[code.B]
-	argV := p.regGet(code.C)
+	argIndex := code.C
+	oldScope := p.scope
 	// open scope
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
@@ -324,12 +325,9 @@ func (p *TCompiler) procUserCallFunc(code *TCode) int {
 	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(p.index+1))
 	scope.Reg.Set(metaRegReturnValue, value.NewValueIntPtr(code.A))
 	// 変数を登録する
-	if argV != nil && argV.Type == value.Array {
-		args := argV.Value.(value.TArray)
-		for i, v := range args {
-			name := label.argNames[i]
-			scope.Set(name, v)
-		}
+	for i, name := range label.argNames {
+		v := oldScope.Reg.Get(argIndex + i)
+		scope.Set(name, v)
 	}
 	cur := label.addr
 	return cur

@@ -229,7 +229,7 @@ func runForeach(n *node.Node) (*value.Value, error) {
 		exprValue = &tmp
 	}
 	if exprValue.Type == value.Array { // --- 配列の場合
-		for _, v := range exprValue.ToArray() {
+		for _, v := range exprValue.ToArrayItems() {
 			if canBreakInLoop() {
 				break
 			}
@@ -486,11 +486,11 @@ func getFunc(cf *node.TNodeCallFunc) (*value.Value, error) {
 	return funcV, nil
 }
 
-func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (value.TArray, error) {
+func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (*value.TArray, error) {
 	// 関数の引数を得る
-	defArgs := sys.JosiList[funcV.Tag]       // 定義
-	args := make(value.TArray, len(defArgs)) // 関数に与える値
-	usedArgs := make([]bool, len(nodeArgs))  // ノードを利用したか(同じ助詞が二つある場合)
+	defArgs := sys.JosiList[funcV.Tag]      // 定義
+	args := value.NewTArray()               // 関数に与える値
+	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
 	// 引数を取得する
 	for i, josiList := range defArgs {
 		for _, josi := range josiList {
@@ -508,9 +508,9 @@ func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (val
 					return nil, msg
 				}
 				if argResult != nil {
-					args[i] = argResult
+					args.Set(i, argResult)
 				} else {
-					args[i] = value.NewValueNullPtr()
+					args.Set(i, value.NewValueNullPtr())
 				}
 			}
 		}
@@ -528,15 +528,15 @@ func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (val
 	if len(nodeArgs) != len(defArgs) {
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
-			args[0] = sys.Sore
+			args.Set(0, sys.Sore)
 		} else {
 			return nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
 		}
 	}
-	return args, nil
+	return &args, nil
 }
 
-func callUserFunc(funcV *value.Value, args value.TArray) (*value.Value, error) {
+func callUserFunc(funcV *value.Value, args *value.TArray) (*value.Value, error) {
 	// User func
 	userFuncIndex := funcV.Tag
 	userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
@@ -545,7 +545,7 @@ func callUserFunc(funcV *value.Value, args value.TArray) (*value.Value, error) {
 	// スコープにローカル変数を挿入
 	scope := sys.Scopes.GetTopScope()
 	for i, v := range userNode.ArgNames {
-		scope.Set(v, args[i])
+		scope.Set(v, args.Get(i))
 	}
 	// ローカルスコープに「それ」を配置
 	tmpSore := sys.Sore
@@ -581,7 +581,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	}
 	// Go native func
 	f := funcV.Value.(value.TFunction)
-	result, err2 := f(args)
+	result, err2 := f(*args)
 	// 結果をそれに覚える
 	if result != nil {
 		sys.Sore.SetValue(result)

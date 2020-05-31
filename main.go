@@ -8,9 +8,11 @@ import (
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/eval"
 	"github.com/kujirahand/nadesiko3go/value"
+	//"github.com/pkg/profile"
 )
 
 func main() {
+	//defer profile.Start().Stop()
 	// check arguments
 	if len(os.Args) < 2 {
 		println("# nadesiko3go ver." + core.NadesikoVersion)

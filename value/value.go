@@ -38,8 +38,14 @@ type Value struct {
 	IsFreeze bool
 }
 
+// TValueItems : 値のスライス
+type TValueItems []*Value
+
 // TArray : 配列型の型
-type TArray []*Value
+type TArray struct {
+	Items  TValueItems
+	length int
+}
 
 // THash : ハッシュ型の型
 type THash map[string]*Value
@@ -111,7 +117,7 @@ func NewValueUserFunc(v int) Value {
 
 // NewValueArray : 配列を生成
 func NewValueArray() Value {
-	return Value{Type: Array, Value: TArray{}}
+	return Value{Type: Array, Value: NewTArray()}
 }
 
 // NewValueHash : ハッシュを生成
@@ -292,7 +298,7 @@ func (v *Value) ToString() string {
 		h := v.Value.(THash)
 		return h.ToString()
 	}
-	return ""
+	return v.ToJSONString()
 }
 
 // ToJSONString : Convert to JSON string
@@ -318,16 +324,29 @@ func (v *Value) ToJSONString() string {
 	case Hash:
 		h := v.Value.(THash)
 		return h.ToString()
+	case Function:
+		return "\"[Function]\""
+	case UserFunc:
+		return "\"[UserFunction]\""
 	}
 	return ""
 }
 
 // ToArray : to array
-func (v *Value) ToArray() TArray {
+func (v *Value) ToArray() *TArray {
 	if v.Type != Array {
 		return nil
 	}
-	return v.Value.(TArray)
+	a := v.Value.(TArray)
+	return &a
+}
+
+// ToArrayItems : to array
+func (v *Value) ToArrayItems() []*Value {
+	if v.Type != Array {
+		return nil
+	}
+	return v.Value.(TArray).Items
 }
 
 // ToHash : to hash
@@ -342,11 +361,11 @@ func (v *Value) ToHash() THash {
 func (v *Value) Append(val *Value) int {
 	if v.Type != Array {
 		v.Type = Array
-		v.Value = TArray{}
+		v.Value = NewTArray()
 	}
-	b := append(v.Value.(TArray), val)
-	v.Value = b
-	return len(b)
+	a := v.Value.(TArray)
+	a.Append(val)
+	return a.Length()
 }
 
 // HashSet : append value to hash value
@@ -382,7 +401,9 @@ func (v *Value) ArraySet(idx int, val *Value) {
 	if v.Type != Array {
 		v.Type = Array
 		cv := NewValueStr(v.ToString())
-		v.Value = TArray{&cv}
+		a := NewTArray()
+		a.Append(&cv)
+		v.Value = a
 	}
 	a := v.Value.(TArray)
 	a.Set(idx, val)
@@ -402,7 +423,10 @@ func (v *Value) ArrayAppend(val *Value) {
 	if v.Type != Array {
 		v.Type = Array
 		cv := NewValueStr(v.ToString())
-		v.Value = TArray{&cv}
+		a := NewTArray()
+		a.Append(&cv)
+		v.Value = a
 	}
-	v.Value = append(v.Value.(TArray), val)
+	a := v.Value.(TArray)
+	a.Append(val)
 }

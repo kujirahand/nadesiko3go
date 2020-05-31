@@ -24,9 +24,9 @@ type Scope struct {
 // NewScope : Create Scope
 func NewScope() *Scope {
 	s := Scope{
-		values: value.TArray{},
+		values: value.NewTArray(),
 		names:  map[string]int{},
-		Reg:    make(value.TArray, 0, DefRegCap),
+		Reg:    value.NewTArray(),
 		Index:  0,
 	}
 	return &s
@@ -36,7 +36,7 @@ func NewScope() *Scope {
 func (s *Scope) Get(key string) *value.Value {
 	i, ok := s.names[key]
 	if ok {
-		return s.values[i]
+		return s.values.Get(i)
 	}
 	return nil
 }
@@ -45,18 +45,18 @@ func (s *Scope) Get(key string) *value.Value {
 func (s *Scope) Set(key string, v *value.Value) int {
 	i, ok := s.names[key]
 	if ok {
-		s.values[i] = v
+		s.values.Set(i, v)
 		return i
 	}
 	index := s.Length()
 	s.names[key] = index
-	s.values = append(s.values, v)
+	s.values.Append(v)
 	return index
 }
 
 // GetByIndex : Get Value By Index
 func (s *Scope) GetByIndex(index int) *value.Value {
-	return s.values[index]
+	return s.values.Get(index)
 }
 
 // GetNameByIndex : Get Value By Index
@@ -80,7 +80,7 @@ func (s *Scope) GetIndexByName(name string) int {
 
 // Length : Get var count
 func (s *Scope) Length() int {
-	return len(s.values)
+	return s.values.Length()
 }
 
 // ToStringRegs : To string
@@ -93,7 +93,7 @@ func (s *Scope) ToStringRegs() string {
 func (s *Scope) GetHash() value.THash {
 	h := value.THash{}
 	for name, i := range s.names {
-		h[name] = s.values[i]
+		h[name] = s.values.Get(i)
 	}
 	return h
 }
