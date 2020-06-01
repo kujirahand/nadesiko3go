@@ -35,7 +35,7 @@ type Value struct {
 	IValue   int
 	FValue   float64
 	Tag      int
-	IsFreeze bool
+	IsFreeze bool // 不変な値(immutable)かどうか
 }
 
 // TArrayItems : 値のスライス
@@ -98,6 +98,12 @@ func NewValueIntPtr(v int) *Value {
 // NewValueFloat : 実数型を生成
 func NewValueFloat(v float64) Value {
 	return Value{Type: Float, FValue: v}
+}
+
+// NewValueFloatPtr : 実数型を生成
+func NewValueFloatPtr(v float64) *Value {
+	f := NewValueFloat(v)
+	return &f
 }
 
 // NewValueStr : 文字列を生成

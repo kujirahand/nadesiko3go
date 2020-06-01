@@ -12,8 +12,6 @@ var ReservedToken = []string{
 	"もし",
 	"反復",
 	"●",
-	"回",
-	"間",
 }
 
 // ReservedWord : 予約語

@@ -162,6 +162,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		case NewArray:
 			a := value.NewValueArray()
 			p.regSet(A, &a)
+			lastValue = &a
 		case AppendArray:
 			a := p.regGet(A)
 			b := p.regGet(B)
@@ -235,6 +236,8 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 				return nil, err
 			}
 			lastValue = v
+		case Print:
+			println("[PRINT]", p.regGet(A).ToString())
 		default:
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
@@ -395,4 +398,22 @@ func (p *TCompiler) regNext() int {
 func (p *TCompiler) regBack() int {
 	p.scope.Index--
 	return p.scope.Index
+}
+
+func (p *TCompiler) loopBegin(continueLabel, breakLabel *TCode) {
+	// backup
+	p.loopLabels = append(p.loopLabels, p.continueLabel, p.breakLabel)
+	// new value
+	p.continueLabel = continueLabel
+	p.breakLabel = breakLabel
+}
+func (p *TCompiler) loopEnd() {
+	// recover value
+	labelCount := len(p.loopLabels)
+	if labelCount >= 2 {
+		p.continueLabel = p.loopLabels[labelCount-2]
+		p.breakLabel = p.loopLabels[labelCount-1]
+		// pop 2 items
+		p.loopLabels = p.loopLabels[0 : labelCount-2]
+	}
 }

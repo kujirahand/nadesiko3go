@@ -30,6 +30,9 @@ type TCompiler struct {
 	Line          int
 	sys           *core.Core
 	forNest       int
+	breakLabel    *TCode   // for Break
+	continueLabel *TCode   // for Continue
+	loopLabels    []*TCode // for Break / Continue
 }
 
 // NewCompier : コンパイラオブジェクトを生成
@@ -54,6 +57,7 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.sys = sys
 	p.scope = sys.Scopes.GetTopScope()
 	p.reg = p.scope.Reg
+	p.loopLabels = []*TCode{}
 	return &p
 }
 
@@ -115,6 +119,8 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convConst(n)
 	case node.Let:
 		return p.convLet(n)
+	case node.DefVar:
+		return p.convDefVar(n)
 	case node.For:
 		return p.convFor(n)
 	case node.If:
@@ -133,12 +139,56 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 		return p.convJSONHash(n)
 	case node.Foreach:
 		return p.convForeach(n)
+	case node.Continue:
+		return p.convContinue(n)
+	case node.Break:
+		return p.convBreak(n)
 	case node.DefFunc:
 		return nil, nil // 関数定義は Compile で最初に行う
+	case node.Repeat:
+		return p.convRepeat(n)
 	}
 	println("[SYSTEM ERROR] Compile " + node.ToString(*n, 0))
 	// panic(-1)
 	return nil, nil
+}
+
+func (p *TCompiler) convRepeat(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeRepeat)
+	labelCond := p.makeLabel("REPEAT_COND")
+	labelEnd := p.makeLabel("REPEAT_END")
+	p.loopBegin(labelCond, labelEnd)
+	c := []*TCode{p.makeLabel("REPEAT_BEGIN")}
+	tmpRegIndex := p.scope.Index
+	// init
+	cExpr, errExpr := p.convNode(&nn.Expr)
+	if errExpr != nil {
+		return nil, CompileError("『回』の回数式。"+errExpr.Error(), n)
+	}
+	regExpr := p.regTop() - 1
+	c = append(c, cExpr...)
+	regLoop := p.regNext()
+	c = append(c, p.makeConstInt(regLoop, 1))
+	// cond : expr < regLoop
+	c = append(c, labelCond)
+	regResult := p.regNext()
+	c = append(c, NewCode(Lt, regResult, regExpr, regLoop))
+	c = append(c, p.makeJumpIfTrue(regResult, labelEnd))
+	// set 回数
+	c = append(c, p.makeSetLocalReg("回数", regLoop))
+	// block
+	cBlock, errBlock := p.convNode(&nn.Block)
+	if errBlock != nil {
+		return nil, errBlock
+	}
+	c = append(c, cBlock...)
+	// inc
+	c = append(c, NewCode(IncReg, regLoop, 0, 0))
+	c = append(c, p.makeJump(labelCond))
+	c = append(c, labelEnd)
+	p.scope.Index = tmpRegIndex
+	p.loopEnd()
+	return c, nil
 }
 
 func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
@@ -340,7 +390,9 @@ func (p *TCompiler) convForeach(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeForeach)
 	tmpRCount := p.regTop()
 	c := []*TCode{p.makeLabel("FOREACH_BEGIN")}
+	labelCond := p.makeLabel("FOREACH_COND")
 	labelEnd := p.makeLabel("FOREACH_END")
+	p.loopBegin(labelCond, labelEnd)
 	// expr
 	cExpr, errExpr := p.convNode(&nn.Expr)
 	if errExpr != nil {
@@ -348,16 +400,11 @@ func (p *TCompiler) convForeach(n *node.Node) ([]*TCode, error) {
 	}
 	c = append(c, cExpr...)
 	rExpr := p.regTop() - 1
-	// len(expr)
-	// rLenExpr := p.regNext()
-	// c = append(c, NewCodeMemo(Length, rLenExpr, rExpr, 0, "LEN_EXPR"))
-	// $N=0
+	// Init Loop Counter
 	rI := p.regNext()
 	c = append(c, p.makeConstInt(rI, 0))
 	// COND
-	labelCond := p.makeLabel("FOREACH_COND")
 	c = append(c, labelCond)
-	// $N >= len(expr) IfTrue=>END
 	rCond := p.regTop()
 	// FOREACH isContinue:A expr:B counter:C
 	c = append(c, NewCodeMemo(Foreach, rCond, rExpr, rI, "反復"))
@@ -371,6 +418,7 @@ func (p *TCompiler) convForeach(n *node.Node) ([]*TCode, error) {
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelEnd)
 	p.scope.Index = tmpRCount
+	p.loopEnd()
 	return c, nil
 }
 
@@ -407,6 +455,26 @@ func (p *TCompiler) convReturn(n *node.Node) ([]*TCode, error) {
 	return c, nil
 }
 
+func (p *TCompiler) convContinue(n *node.Node) ([]*TCode, error) {
+	if p.continueLabel == nil {
+		return nil, CompileError("突然『続ける』が指定されました。繰り返しの中で使ってください。", n)
+	}
+	c := []*TCode{
+		p.makeJump(p.continueLabel),
+	}
+	return c, nil
+}
+
+func (p *TCompiler) convBreak(n *node.Node) ([]*TCode, error) {
+	if p.breakLabel == nil {
+		return nil, CompileError("突然『抜ける』が指定されました。繰り返しの中で使ってください。", n)
+	}
+	c := []*TCode{
+		p.makeJump(p.breakLabel),
+	}
+	return c, nil
+}
+
 func (p *TCompiler) convCalc(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeCalc)
 	return p.convNode(&nn.Child)
@@ -416,6 +484,7 @@ func (p *TCompiler) convWhile(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeWhile)
 	labelBegin := p.makeLabel("WHILE_BEGIN")
 	labelEnd := p.makeLabel("WHILE_END")
+	p.loopBegin(labelBegin, labelEnd)
 	c := []*TCode{labelBegin}
 	// expr
 	cExpr, errExpr := p.convNode(&nn.Expr)
@@ -434,6 +503,7 @@ func (p *TCompiler) convWhile(n *node.Node) ([]*TCode, error) {
 	c = append(c, cBlock...)
 	c = append(c, p.makeJump(labelBegin))
 	c = append(c, labelEnd)
+	p.loopEnd()
 	return c, nil
 }
 
@@ -498,15 +568,19 @@ func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 	return c, nil
 }
 
-func (p *TCompiler) makeSetLocal(name string) *TCode {
+func (p *TCompiler) makeSetLocalReg(name string, reg int) *TCode {
 	scope := p.scope
 	A := scope.GetIndexByName(name)
 	if A < 0 {
 		scope.Set(name, value.NewValueNullPtr())
 		A = scope.GetIndexByName(name)
 	}
+	return NewCodeMemo(SetLocal, A, reg, 0, name)
+}
+
+func (p *TCompiler) makeSetLocal(name string) *TCode {
 	B := p.regBack()
-	return NewCodeMemo(SetLocal, A, B, 0, name)
+	return p.makeSetLocalReg(name, B)
 }
 
 func (p *TCompiler) makeSetSore(reg int) *TCode {
@@ -536,23 +610,64 @@ func (p *TCompiler) makeGetLocal(name string) *TCode {
 	return NewCodeMemo(GetLocal, A, B, 0, name) // ローカル変数
 }
 
+func (p *TCompiler) convDefVar(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeDefVar)
+	varName := nn.Name
+	c := []*TCode{}
+	regExpr := -1
+	// Value
+	if nn.Expr != nil {
+		cExpr, err := p.convNode(&nn.Expr)
+		if err != nil {
+			return nil, CompileError("『"+varName+"』の定義でエラー", n)
+		}
+		c = append(c, cExpr...)
+		regExpr = p.regTop() - 1
+	} else {
+		c = append(c, p.makeConstInt(0, p.regTop()))
+		regExpr = p.regTop()
+	}
+	// var
+	varV := p.scope.Get(varName)
+	if varV != nil {
+		return nil, CompileError(fmt.Sprintf("定数『%s』の宣言で既に変数が存在します。", varName), n)
+	}
+	val := value.NewValueNull()
+	val.IsFreeze = true
+	p.scope.Set(varName, &val)
+	noVar := p.scope.GetIndexByName(varName)
+	c = append(c, NewCodeMemo(SetLocal, noVar, regExpr, 0, "定数:"+varName))
+	p.regBack()
+	return c, nil
+}
+
 func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeLet)
+	varName := nn.Name
 	// value
 	c, err := p.convNode(&nn.ValueNode)
 	if err != nil {
-		return nil, CompileError("『"+nn.Name+"』の代入でエラー", n)
+		return nil, CompileError("『"+varName+"』の代入でエラー", n)
 	}
 	valueR := p.regTop() - 1
 
 	// SetLocal (Indexがない場合)
 	if nn.Index == nil || len(nn.Index) == 0 {
-		c = append(c, p.makeSetLocal(nn.Name))
+		varV := p.scope.Get(varName)
+		if varV == nil {
+			varV = value.NewValueNullPtr()
+			p.scope.Set(varName, varV)
+		}
+		// 定数チェック
+		if varV.IsFreeze {
+			return nil, CompileError(fmt.Sprintf("定数『%s』には代入できません。", varName), n)
+		}
+		c = append(c, p.makeSetLocal(varName))
 		return c, nil
 	}
 
 	// Indexがある場合
-	c = append(c, p.makeGetLocal(nn.Name))
+	c = append(c, p.makeGetLocal(varName))
 	varR := p.regTop() - 1
 	for _, exprNode := range nn.Index {
 		cExpr, errExpr := p.convNode(&exprNode)
@@ -601,6 +716,8 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	// cond : IF WORD > TO then goto BlockEnd
 	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
 	labelCond := p.makeLabel("FOR_COND")
+	labelContinue := p.makeLabel("FONR_CONTINUE")
+	p.loopBegin(labelContinue, labelBlockEnd)
 	c = append(c, labelCond)
 
 	getLoopVar := p.makeGetLocal(varName)
@@ -615,15 +732,19 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	c = append(c, p.makeSetSore(varR))
 
 	// Block
+	p.breakLabel = labelBlockEnd
+	p.continueLabel = labelCond
 	blockCodes, errBlock := p.convNode(&nn.Block)
 	if errBlock != nil {
 		return nil, CompileError("『繰返』構文にて。"+errBlock.Error(), n)
 	}
 	c = append(c, blockCodes...)
+	c = append(c, labelContinue)
 	c = append(c, NewCode(IncLocal, getLoopVar.B, 0, 0)) // WORD++
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
 	p.scope.Index = tmpRCount
+	p.loopEnd()
 	return c, nil
 }
 

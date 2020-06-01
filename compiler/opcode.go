@@ -1,6 +1,6 @@
 package compiler
 
-// OPCODE 64bit (Type:8bit, A:16bit, B:16bit, C:16bit)
+// OPCODE
 const (
 	// NOP : 何もしない
 	NOP = iota
@@ -90,6 +90,8 @@ const (
 	CallUserFunc
 	// Retruen A : return R[A]
 	Return
+	// Print A : PRINT R[A] for DEBUG
+	Print
 )
 
 // TCode : コードを表す構造体
