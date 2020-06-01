@@ -10,9 +10,9 @@ const (
 	ConstO
 	// SetGlobal A,B : Vars[ CONSTS[A] ] = R[B]
 	SetGlobal
-	// GetGlobal A,B : R[A] = Vars[ CONSTS[B] ]
+	// GetGlobal A,B : R[A] = scope.values[ CONSTS[B] ]
 	GetGlobal
-	// SetLocal A, B: Scope[A] = R[B]
+	// SetLocal A, B: scope.values[A] = R[B]
 	SetLocal
 	// GetLocal A,B : R[A] = Scope[B]
 	GetLocal

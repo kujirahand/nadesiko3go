@@ -19,6 +19,8 @@ type Scope struct {
 	Reg *value.TArray
 	// Index : レジスタ末尾管理用
 	Index int
+	// Level : スコープのレベル
+	Level int
 }
 
 // NewScope : Create Scope
@@ -61,6 +63,9 @@ func (s *Scope) GetByIndex(index int) *value.Value {
 
 // SetByIndex : Set Value
 func (s *Scope) SetByIndex(index int, val *value.Value) {
+	for index >= s.values.Length() {
+		s.values.Append(value.NewValueNullPtr())
+	}
 	s.values.Items[index] = val
 }
 
@@ -130,6 +135,7 @@ func (p *TScopeList) GetGlobal() *Scope {
 // Open : Open Scope
 func (p *TScopeList) Open() *Scope {
 	s := NewScope()
+	s.Level = len(p.Items)
 	p.Items = append(p.Items, s)
 	return s
 }

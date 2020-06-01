@@ -53,6 +53,26 @@ type THash map[string]*Value
 // TFunction : 関数型の型
 type TFunction func(args *TArray) (*Value, error)
 
+var valueTypeStr = map[Type]string{
+	Null:     "Null",
+	Int:      "Int",
+	Float:    "Float",
+	Str:      "Str",
+	Bool:     "Bool",
+	Array:    "Array",
+	Hash:     "Hash",
+	Function: "Function",
+	UserFunc: "UserFinc",
+	Bytes:    "Bytes",
+}
+
+// TypeToStr : value.Type を文字列に変換
+func TypeToStr(t Type) string {
+	return valueTypeStr[t]
+}
+
+// --- NewValueXXX ---
+
 // NewValueNull : NULL型の値を返す
 func NewValueNull() Value {
 	return Value{Type: Null}
@@ -257,9 +277,10 @@ func (v *Value) SetValue(value *Value) {
 		v.Tag = 0
 		return
 	}
-	// Copy Type and Tag
+	// Copy Meta
 	v.Type = value.Type
 	v.Tag = value.Tag
+	// Copy Value
 	switch value.Type {
 	case Int, Bool:
 		v.IValue = value.IValue

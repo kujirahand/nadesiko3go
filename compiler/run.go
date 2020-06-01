@@ -30,7 +30,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-		println("*RUN=", p.index, p.ToString(code))
+		// println("*RUN=", p.index, p.ToString(code))
 		switch code.Type {
 		case ConstO:
 			p.regSet(A, p.Consts.Get(B).Clone())
@@ -39,11 +39,15 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.regSet(A, p.regGet(B))
 		case SetLocal:
 			varV := p.scope.GetByIndex(A)
+			if varV == nil { // はじめての代入なら値を生成
+				varV = value.NewValueNullPtr()
+				p.scope.SetByIndex(A, varV)
+			}
 			valV := p.regGet(B)
-			// println("@@", valV.ToJSONString())
-			// fmt.Printf("%#v\n", valV)
 			varV.SetValue(valV)
 			lastValue = varV
+			//println("@@", valV.ToJSONString())
+			//fmt.Printf("%#v\n", valV)
 		case GetLocal:
 			p.regSet(A, p.scope.GetByIndex(B))
 			lastValue = p.regGet(A)
@@ -234,6 +238,8 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		default:
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
+		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
+		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())
 		p.moveNext()
 	}
 	return lastValue, nil
@@ -312,7 +318,7 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 	// Set Result
 	p.regSet(retReg, retValue)
 	p.scope.Set("それ", retValue)
-	println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
+	// println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
 	return retAddr, retValue
 }
 
