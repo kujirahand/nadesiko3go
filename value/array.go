@@ -5,15 +5,15 @@ import (
 )
 
 // NewTArray : TArrayを生成
-func NewTArray() TArray {
-	return TArray{
-		Items:  []*Value{},
+func NewTArray() *TArray {
+	return &TArray{
+		Items:  TArrayItems{},
 		length: 0,
 	}
 }
 
 // NewTArrayDef : TArrayを生成
-func NewTArrayDef(items TValueItems) TArray {
+func NewTArrayDef(items TArrayItems) TArray {
 	return TArray{
 		Items:  items,
 		length: 10,
@@ -36,6 +36,7 @@ func (p *TArray) ToJSONString() string {
 
 // Length : 配列の長さを返す
 func (p *TArray) Length() int {
+	p.length = len(p.Items)
 	return p.length
 }
 
@@ -43,7 +44,7 @@ func (p *TArray) Length() int {
 func (p *TArray) Set(index int, val *Value) {
 	// 要素を拡張
 	for index >= p.length {
-		p.Items = append(p.Items, &Value{Type: Null})
+		p.Items = append(p.Items, nil)
 		p.length++
 	}
 	// 値を設定
@@ -51,21 +52,23 @@ func (p *TArray) Set(index int, val *Value) {
 }
 
 // Append : 配列を追加
-func (p *TArray) Append(val *Value) {
+func (p *TArray) Append(val *Value) int {
 	p.Items = append(p.Items, val)
 	p.length++
+	return p.length
 }
 
 // Get : 配列の値を取得
 func (p *TArray) Get(index int) *Value {
 	if index >= p.length {
+		// panic("TArray.Get.index" + IntToStr(index) + "/" + IntToStr(p.length))
 		return nil
 	}
 	return p.Items[index]
 }
 
 // SplitString : 文字列から配列を作る
-func SplitString(src, splitter string) TArray {
+func SplitString(src, splitter string) *TArray {
 	a := NewTArray()
 	sa := strings.Split(src, splitter)
 	for _, v := range sa {

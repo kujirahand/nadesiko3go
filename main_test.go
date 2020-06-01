@@ -22,12 +22,14 @@ func TestBasic2a(t *testing.T) {
 	_eval2(t, "C=[[0,1,2],[3,4,5],[6,7,8]];C[0][1]=8;C[0][1]", "8")
 	_eval2(t, "C={'a':1,'b':2};C['a']", "1")
 	_eval2(t, "C=0;1から10まで繰り返す,C=C+それ;C", "55")
-	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "7")
+	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
 	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
+	_eval2(t, "1と2を足して表示;表示ログ", "3")
 }
 
 func TestBasic2(t *testing.T) {
-	_eval2(t, "1と2を足して表示;表示ログ", "3")
+	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
+	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
 }
 
 func _eval2(t *testing.T, code, expected string) {
@@ -39,7 +41,7 @@ func _eval2(t *testing.T, code, expected string) {
 	}
 	rv := v.ToString()
 	if rv != expected {
-		t.Errorf("main: %s != %s", rv, expected)
+		t.Errorf("main@[%s] %s != %s", code, rv, expected)
 	}
 }
 

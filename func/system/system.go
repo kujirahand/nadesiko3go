@@ -54,41 +54,41 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("等", core.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
 }
 
-func add(args value.TArray) (*value.Value, error) {
+func add(args *value.TArray) (*value.Value, error) {
 	return calc('+', args)
 }
-func sub(args value.TArray) (*value.Value, error) {
+func sub(args *value.TArray) (*value.Value, error) {
 	return calc('-', args)
 }
-func mul(args value.TArray) (*value.Value, error) {
+func mul(args *value.TArray) (*value.Value, error) {
 	return calc('*', args)
 }
-func div(args value.TArray) (*value.Value, error) {
+func div(args *value.TArray) (*value.Value, error) {
 	return calc('/', args)
 }
-func mod(args value.TArray) (*value.Value, error) {
+func mod(args *value.TArray) (*value.Value, error) {
 	return calc('%', args)
 }
-func gt(args value.TArray) (*value.Value, error) {
+func gt(args *value.TArray) (*value.Value, error) {
 	return calc('>', args)
 }
-func gteq(args value.TArray) (*value.Value, error) {
+func gteq(args *value.TArray) (*value.Value, error) {
 	return calc('≧', args)
 }
-func lt(args value.TArray) (*value.Value, error) {
+func lt(args *value.TArray) (*value.Value, error) {
 	return calc('<', args)
 }
-func lteq(args value.TArray) (*value.Value, error) {
+func lteq(args *value.TArray) (*value.Value, error) {
 	return calc('≦', args)
 }
-func eqeq(args value.TArray) (*value.Value, error) {
+func eqeq(args *value.TArray) (*value.Value, error) {
 	return calc('=', args)
 }
-func nteq(args value.TArray) (*value.Value, error) {
+func nteq(args *value.TArray) (*value.Value, error) {
 	return calc('≠', args)
 }
 
-func calc(op rune, args value.TArray) (*value.Value, error) {
+func calc(op rune, args *value.TArray) (*value.Value, error) {
 	var v value.Value
 	l := args.Get(0)
 	r := args.Get(1)

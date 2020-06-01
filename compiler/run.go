@@ -21,7 +21,7 @@ func (p *TCompiler) RuntimeError(msg string) error {
 func (p *TCompiler) Run() (*value.Value, error) {
 	p.moveToTop()
 	p.scope = p.sys.Scopes.GetTopScope()
-	p.reg = &p.scope.Reg
+	p.reg = p.scope.Reg
 	return p.runCode()
 }
 
@@ -30,16 +30,19 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-		// println("*RUN=", p.index, p.ToString(code))
+		println("*RUN=", p.index, p.ToString(code))
 		switch code.Type {
 		case ConstO:
-			p.regSet(A, p.Consts.Get(B))
+			p.regSet(A, p.Consts.Get(B).Clone())
 			// println(" (reg) " + p.scope.ToStringRegs())
 		case MoveR:
 			p.regSet(A, p.regGet(B))
 		case SetLocal:
 			varV := p.scope.GetByIndex(A)
-			varV.SetValue(p.regGet(B))
+			valV := p.regGet(B)
+			// println("@@", valV.ToJSONString())
+			// fmt.Printf("%#v\n", valV)
+			varV.SetValue(valV)
 			lastValue = varV
 		case GetLocal:
 			p.regSet(A, p.scope.GetByIndex(B))
@@ -157,10 +160,11 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.regSet(A, &a)
 		case AppendArray:
 			a := p.regGet(A)
+			b := p.regGet(B)
 			if a.Type != value.Array {
 				return nil, p.RuntimeError("[SYSTEM] AppendArray")
 			}
-			a.ArrayAppend(p.regGet(B))
+			a.Append(b)
 		case GetArrayElem:
 			var v *value.Value = nil
 			b := p.regGet(B)
@@ -190,7 +194,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			if h != nil {
 				h.HashSet(key, p.regGet(C))
 			}
-			println(h.ToJSONString())
+			// println(h.ToJSONString())
 			lastValue = h
 		case Length:
 			vb := p.regGet(B)
@@ -239,20 +243,20 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 	// FOREACH isContinue:A expr:B counter:C
 	A, B, C := code.A, code.B, code.C
 	exprV := p.regGet(B)
-	cntrI := p.regGet(C).ToInt()
-	lengI := exprV.Length()
-	condB := (cntrI < lengI)
+	i := p.regGet(C).ToInt()
+	clen := exprV.Length()
+	condB := (i < clen)
 	var lastValue *value.Value = nil
 	if condB {
 		if exprV.Type == value.Array {
-			elemV := exprV.ArrayGet(cntrI)
+			elemV := exprV.ArrayGet(i)
 			p.sys.Scopes.SetTopVars("それ", elemV)
 			p.sys.Scopes.SetTopVars("対象", elemV)
 			lastValue = elemV
 		} else if exprV.Type == value.Hash {
 			keys := exprV.HashKeys()
-			k := keys[cntrI]
-			println("foreack,k=", k, "/", len(keys), "=", lengI)
+			k := keys[i]
+			// println("foreack,k=", k, "/", len(keys), "=", clen)
 			v := exprV.HashGet(k)
 			p.sys.Scopes.SetTopVars("それ", v)
 			p.sys.Scopes.SetTopVars("対象", v)
@@ -262,7 +266,7 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 			condB = false
 		}
 	}
-	p.regSet(C, value.NewValueIntPtr(cntrI+1))
+	p.regSet(C, value.NewValueIntPtr(i+1))
 	condV := value.NewValueBool(!condB)
 	p.regSet(A, &condV)
 	return lastValue, nil
@@ -304,10 +308,11 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 	// Close Scope
 	p.sys.Scopes.Close()
 	p.scope = p.sys.Scopes.GetTopScope()
-	p.reg = &(p.scope.Reg)
+	p.reg = p.scope.Reg
 	// Set Result
 	p.regSet(retReg, retValue)
-	// println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
+	p.scope.Set("それ", retValue)
+	println("RETURN,reg=", p.reg.ToJSONString(), "/Back=", retAddr)
 	return retAddr, retValue
 }
 
@@ -319,7 +324,7 @@ func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	// open scope
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
-	p.reg = &scope.Reg
+	p.reg = scope.Reg
 	// 登録する順番に注意
 	scope.Set("それ", value.NewValueNullPtr())
 	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(p.index+1))

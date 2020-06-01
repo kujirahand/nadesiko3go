@@ -12,11 +12,11 @@ const (
 // Scope : Scope
 type Scope struct {
 	// values : slice of Value
-	values value.TArray
+	values *value.TArray
 	// names : link to Values
 	names map[string]int
 	// Reg : レジスタ
-	Reg value.TArray
+	Reg *value.TArray
 	// Index : レジスタ末尾管理用
 	Index int
 }
@@ -57,6 +57,11 @@ func (s *Scope) Set(key string, v *value.Value) int {
 // GetByIndex : Get Value By Index
 func (s *Scope) GetByIndex(index int) *value.Value {
 	return s.values.Get(index)
+}
+
+// SetByIndex : Set Value
+func (s *Scope) SetByIndex(index int, val *value.Value) {
+	s.values.Items[index] = val
 }
 
 // GetNameByIndex : Get Value By Index

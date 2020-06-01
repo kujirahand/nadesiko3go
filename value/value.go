@@ -38,12 +38,12 @@ type Value struct {
 	IsFreeze bool
 }
 
-// TValueItems : 値のスライス
-type TValueItems []*Value
+// TArrayItems : 値のスライス
+type TArrayItems []*Value
 
 // TArray : 配列型の型
 type TArray struct {
-	Items  TValueItems
+	Items  TArrayItems
 	length int
 }
 
@@ -51,7 +51,7 @@ type TArray struct {
 type THash map[string]*Value
 
 // TFunction : 関数型の型
-type TFunction func(args TArray) (*Value, error)
+type TFunction func(args *TArray) (*Value, error)
 
 // NewValueNull : NULL型の値を返す
 func NewValueNull() Value {
@@ -117,7 +117,10 @@ func NewValueUserFunc(v int) Value {
 
 // NewValueArray : 配列を生成
 func NewValueArray() Value {
-	return Value{Type: Array, Value: NewTArray()}
+	return Value{
+		Type:  Array,
+		Value: NewTArray(),
+	}
 }
 
 // NewValueHash : ハッシュを生成
@@ -198,7 +201,7 @@ func (v *Value) Length() int {
 	}
 	switch v.Type {
 	case Array:
-		a := v.Value.(TArray)
+		a := v.Value.(*TArray)
 		return a.Length()
 	case Hash:
 		h := v.Value.(THash)
@@ -292,7 +295,7 @@ func (v *Value) ToString() string {
 		}
 		return "偽"
 	case Array:
-		a := v.Value.(TArray)
+		a := v.Value.(*TArray)
 		return a.ToJSONString()
 	case Hash:
 		h := v.Value.(THash)
@@ -319,7 +322,7 @@ func (v *Value) ToJSONString() string {
 		}
 		return "false"
 	case Array:
-		a := v.Value.(TArray)
+		a := v.Value.(*TArray)
 		return a.ToJSONString()
 	case Hash:
 		h := v.Value.(THash)
@@ -337,8 +340,8 @@ func (v *Value) ToArray() *TArray {
 	if v.Type != Array {
 		return nil
 	}
-	a := v.Value.(TArray)
-	return &a
+	a := v.Value.(*TArray)
+	return a
 }
 
 // ToArrayItems : to array
@@ -346,7 +349,7 @@ func (v *Value) ToArrayItems() []*Value {
 	if v.Type != Array {
 		return nil
 	}
-	return v.Value.(TArray).Items
+	return v.Value.(*TArray).Items
 }
 
 // ToHash : to hash
@@ -361,11 +364,14 @@ func (v *Value) ToHash() THash {
 func (v *Value) Append(val *Value) int {
 	if v.Type != Array {
 		v.Type = Array
-		v.Value = NewTArray()
+		cv := NewValueStr(v.ToString())
+		a := NewTArray()
+		a.Append(&cv)
+		v.Value = a
 	}
-	a := v.Value.(TArray)
-	a.Append(val)
-	return a.Length()
+	a := v.Value.(*TArray)
+	alen := a.Append(val)
+	return alen
 }
 
 // HashSet : append value to hash value
@@ -405,7 +411,7 @@ func (v *Value) ArraySet(idx int, val *Value) {
 		a.Append(&cv)
 		v.Value = a
 	}
-	a := v.Value.(TArray)
+	a := v.Value.(*TArray)
 	a.Set(idx, val)
 }
 
@@ -414,19 +420,47 @@ func (v *Value) ArrayGet(idx int) *Value {
 	if v.Type != Array {
 		return nil
 	}
-	a := v.Value.(TArray)
+	a := v.Value.(*TArray)
 	return a.Get(idx)
 }
 
-// ArrayAppend : Append value to array
-func (v *Value) ArrayAppend(val *Value) {
-	if v.Type != Array {
-		v.Type = Array
-		cv := NewValueStr(v.ToString())
-		a := NewTArray()
-		a.Append(&cv)
-		v.Value = a
+// Clone : clone value
+func (v *Value) Clone() *Value {
+	if v == nil {
+		return NewValueNullPtr()
 	}
-	a := v.Value.(TArray)
-	a.Append(val)
+	var res *Value = nil
+	// Clone basic data
+	switch v.Type {
+	case Int:
+		res = NewValueIntPtr(v.ToInt())
+	case Float:
+		f := NewValueFloat(v.FValue)
+		res = &f
+	case Str:
+		return NewValueStrPtr(v.ToString())
+	case Array:
+		va := NewValueArray()
+		a := va.Value.(*TArray)
+		for _, v := range a.Items {
+			va.Append(v.Clone())
+		}
+		res = &va
+	case Hash:
+		vh := NewValueHash()
+		h := vh.Value.(THash)
+		for key, val := range h {
+			vh.HashSet(key, val.Clone())
+		}
+		res = &vh
+	default:
+		tmp := NewValueNull()
+		tmp.Type = v.Type
+		tmp.Value = v.Value
+		res = &tmp
+	}
+	// clone other meta data
+	res.Tag = v.Tag
+	res.IsFreeze = v.IsFreeze
+	return res
 }

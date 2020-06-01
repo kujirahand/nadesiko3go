@@ -36,7 +36,7 @@ type TCompiler struct {
 func NewCompier(sys *core.Core) *TCompiler {
 	p := TCompiler{}
 	p.Codes = []*TCode{}
-	p.Consts = value.NewTArrayDef(value.TValueItems{
+	p.Consts = value.NewTArrayDef(value.TArrayItems{
 		value.NewValueIntPtr(0),
 		value.NewValueIntPtr(1),
 		value.NewValueIntPtr(2),
@@ -53,7 +53,7 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.index = 0
 	p.sys = sys
 	p.scope = sys.Scopes.GetTopScope()
-	p.reg = &p.scope.Reg
+	p.reg = p.scope.Reg
 	return &p
 }
 
@@ -623,7 +623,6 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	c = append(c, NewCode(IncLocal, getLoopVar.B, 0, 0)) // WORD++
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
-	p.fixLabels(c)
 	p.scope.Index = tmpRCount
 	return c, nil
 }

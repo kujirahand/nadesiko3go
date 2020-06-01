@@ -533,7 +533,7 @@ func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (*va
 			return nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
 		}
 	}
-	return &args, nil
+	return args, nil
 }
 
 func callUserFunc(funcV *value.Value, args *value.TArray) (*value.Value, error) {
@@ -581,7 +581,7 @@ func runCallFunc(n *node.Node) (*value.Value, error) {
 	}
 	// Go native func
 	f := funcV.Value.(value.TFunction)
-	result, err2 := f(*args)
+	result, err2 := f(args)
 	// 結果をそれに覚える
 	if result != nil {
 		sys.Sore.SetValue(result)

@@ -18,7 +18,7 @@ func RegisterFunction(sys *core.Core) {
 }
 
 // OpenBinFile : バイナリ読む
-func OpenBinFile(args value.TArray) (*value.Value, error) {
+func OpenBinFile(args *value.TArray) (*value.Value, error) {
 	f := args.Get(0).ToString()
 	bin, err := ioutil.ReadFile(f)
 	if err != nil {
@@ -29,7 +29,7 @@ func OpenBinFile(args value.TArray) (*value.Value, error) {
 }
 
 // OpenFile : 読む
-func OpenFile(args value.TArray) (*value.Value, error) {
+func OpenFile(args *value.TArray) (*value.Value, error) {
 	f := args.Get(0).ToString()
 	text, err := ioutil.ReadFile(f)
 	if err != nil {
@@ -40,7 +40,7 @@ func OpenFile(args value.TArray) (*value.Value, error) {
 }
 
 // Println : 表示
-func Println(args value.TArray) (*value.Value, error) {
+func Println(args *value.TArray) (*value.Value, error) {
 	if args.Length() == 0 {
 		return nil, nil
 	}
