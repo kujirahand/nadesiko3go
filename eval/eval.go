@@ -36,9 +36,6 @@ func Eval(code string) (*value.Value, error) {
 
 // ExecCode : コードを実行する
 func ExecCode(sys *core.Core, code string) (*value.Value, error) {
-	if sys.IsOpMode {
-		return ExecCode2(sys, code)
-	}
 	if sys.IsDebug {
 		println("[Lexer]")
 	}
@@ -64,11 +61,11 @@ func Eval2(code string) (*value.Value, error) {
 	sys := InitSystem()
 	sys.Code = code
 	sys.MainFile = "-e"
-	return ExecCode2(sys, sys.Code)
+	return ExecBytecode(sys, sys.Code)
 }
 
-// ExecCode2 : コードを実行する
-func ExecCode2(sys *core.Core, code string) (*value.Value, error) {
+// ExecBytecode : コードを実行する
+func ExecBytecode(sys *core.Core, code string) (*value.Value, error) {
 	if sys.IsDebug {
 		println("[Lexer]")
 	}

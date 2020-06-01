@@ -30,12 +30,12 @@ const (
 
 // Value : Value
 type Value struct {
-	Type     Type
-	Value    interface{}
-	IValue   int
-	FValue   float64
-	Tag      int
-	IsFreeze bool // 不変な値(immutable)かどうか
+	Type    Type
+	Value   interface{}
+	IValue  int
+	FValue  float64
+	Tag     int
+	IsConst bool // 不変な値(immutable)かどうか
 }
 
 // TArrayItems : 値のスライス
@@ -488,6 +488,6 @@ func (v *Value) Clone() *Value {
 	}
 	// clone other meta data
 	res.Tag = v.Tag
-	res.IsFreeze = v.IsFreeze
+	res.IsConst = v.IsConst
 	return res
 }

@@ -416,4 +416,5 @@ func (p *TCompiler) loopEnd() {
 		// pop 2 items
 		p.loopLabels = p.loopLabels[0 : labelCount-2]
 	}
+	//println("@@@", len(p.loopLabels))
 }

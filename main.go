@@ -8,11 +8,11 @@ import (
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/eval"
 	"github.com/kujirahand/nadesiko3go/value"
-	"github.com/pkg/profile"
+	// "github.com/pkg/profile"
 )
 
 func main() {
-	defer profile.Start().Stop()
+	// defer profile.Start().Stop()
 	// check arguments
 	if len(os.Args) < 2 {
 		println("# nadesiko3go ver." + core.NadesikoVersion)
@@ -22,7 +22,6 @@ func main() {
 		println("[Options]")
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")
-		println("  -c\tOpCode Mode")
 		return
 	}
 	sys := eval.InitSystem()
@@ -40,10 +39,6 @@ func main() {
 			}
 			if v == "-e" {
 				sys.RunMode = core.EvalCode
-				continue
-			}
-			if v == "-c" {
-				sys.IsOpMode = true
 				continue
 			}
 		}
@@ -76,13 +71,13 @@ func runMainFile(sys *core.Core) {
 			sys.MainFile)
 		return
 	}
-	ret, err := eval.ExecCode(sys, string(code))
+	ret, err := eval.ExecBytecode(sys, string(code))
 	outputResult(ret, err)
 }
 
 func runEvalCode(sys *core.Core) {
 	sys.MainFile = "-e"
-	ret, err := eval.ExecCode(sys, sys.Code)
+	ret, err := eval.ExecBytecode(sys, sys.Code)
 	outputResult(ret, err)
 }
 

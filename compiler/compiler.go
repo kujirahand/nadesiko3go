@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/node"
@@ -64,6 +65,7 @@ func NewCompier(sys *core.Core) *TCompiler {
 // CompileError : コンパイルエラー
 func CompileError(msg string, n *node.Node) error {
 	var e error
+	msg = strings.ReplaceAll(msg, "[コンパイルエラー] ", "")
 	if n != nil {
 		fi := (*n).GetFileInfo()
 		e = fmt.Errorf("[コンパイルエラー] (%d) %s", fi.Line, msg)
@@ -80,7 +82,6 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	// 最初にユーザー関数を定義する
 	for _, v := range p.sys.UserFuncs.Items {
 		funcID := v.IValue
-		println("compile=", funcID)
 		nodeDef := node.UserFunc[funcID]
 		cDef, eDef := p.convDefFunc(&nodeDef)
 		if eDef != nil {
@@ -157,7 +158,8 @@ func (p *TCompiler) convRepeat(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeRepeat)
 	labelCond := p.makeLabel("REPEAT_COND")
 	labelEnd := p.makeLabel("REPEAT_END")
-	p.loopBegin(labelCond, labelEnd)
+	labelCotinue := p.makeLabel("REPEAT_CONTINUE")
+	p.loopBegin(labelCotinue, labelEnd)
 	c := []*TCode{p.makeLabel("REPEAT_BEGIN")}
 	tmpRegIndex := p.scope.Index
 	// init
@@ -183,6 +185,7 @@ func (p *TCompiler) convRepeat(n *node.Node) ([]*TCode, error) {
 	}
 	c = append(c, cBlock...)
 	// inc
+	c = append(c, labelCotinue) // continue point
 	c = append(c, NewCode(IncReg, regLoop, 0, 0))
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelEnd)
@@ -633,7 +636,7 @@ func (p *TCompiler) convDefVar(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError(fmt.Sprintf("定数『%s』の宣言で既に変数が存在します。", varName), n)
 	}
 	val := value.NewValueNull()
-	val.IsFreeze = true
+	val.IsConst = nn.IsConst // Immutable?
 	p.scope.Set(varName, &val)
 	noVar := p.scope.GetIndexByName(varName)
 	c = append(c, NewCodeMemo(SetLocal, noVar, regExpr, 0, "定数:"+varName))
@@ -659,7 +662,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 			p.scope.Set(varName, varV)
 		}
 		// 定数チェック
-		if varV.IsFreeze {
+		if varV.IsConst {
 			return nil, CompileError(fmt.Sprintf("定数『%s』には代入できません。", varName), n)
 		}
 		c = append(c, p.makeSetLocal(varName))
@@ -714,9 +717,9 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	toR := p.regTop() - 1
 
 	// cond : IF WORD > TO then goto BlockEnd
-	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
 	labelCond := p.makeLabel("FOR_COND")
 	labelContinue := p.makeLabel("FONR_CONTINUE")
+	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
 	p.loopBegin(labelContinue, labelBlockEnd)
 	c = append(c, labelCond)
 
@@ -879,6 +882,8 @@ func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 		res = append(res, NewCode(Div, toindex, pcL, pcR))
 	case "%":
 		res = append(res, NewCode(Mod, toindex, pcL, pcR))
+	case "^":
+		res = append(res, NewCode(Exp, toindex, pcL, pcR))
 	case "==":
 		res = append(res, NewCode(EqEq, toindex, pcL, pcR))
 	case "!=":
