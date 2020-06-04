@@ -37,6 +37,9 @@ func main() {
 				sys.IsDebug = true
 				continue
 			}
+			if v == "-c" {
+				sys.IsCompile = true
+			}
 			if v == "-e" {
 				sys.RunMode = core.EvalCode
 				continue

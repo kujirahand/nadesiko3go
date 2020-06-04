@@ -26,6 +26,7 @@ type DefArgs [][]string
 // Core : なでしこのコアシステム情報
 type Core struct {
 	IsDebug    bool
+	IsCompile  bool
 	MainFile   string
 	Code       string
 	RunMode    TRunMode

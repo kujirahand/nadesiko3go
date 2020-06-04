@@ -28,7 +28,7 @@ func TestBasic2a(t *testing.T) {
 }
 
 func TestBasic2(t *testing.T) {
-	_eval2(t, "2^3", "8")
+	_eval2(t, "C=0;1から10まで繰り返す,C=C+それ;C", "55")
 }
 
 func _eval2(t *testing.T, code, expected string) {

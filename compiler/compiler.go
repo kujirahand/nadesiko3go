@@ -463,7 +463,7 @@ func (p *TCompiler) convContinue(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("突然『続ける』が指定されました。繰り返しの中で使ってください。", n)
 	}
 	c := []*TCode{
-		p.makeJump(p.continueLabel),
+		p.makeJumpWithMemo(p.continueLabel, "(CONTINUE)"),
 	}
 	return c, nil
 }
@@ -690,8 +690,6 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	nn := (*n).(node.TNodeFor)
 	tmpRCount := p.regTop()
-	labelForBegin := p.makeLabel("FOR_BEGIN")
-	c := []*TCode{labelForBegin}
 
 	// varNo
 	varName := nn.Word
@@ -699,6 +697,9 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 		varName = "__FOR_I" + value.IntToStr(p.forNest)
 		p.forNest++
 	}
+
+	labelForBegin := p.makeLabel("FOR_BEGIN:" + varName)
+	c := []*TCode{labelForBegin}
 
 	// WORD = From
 	fromCodes, errFrom := p.convNode(&nn.FromNode)
@@ -717,9 +718,9 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	toR := p.regTop() - 1
 
 	// cond : IF WORD > TO then goto BlockEnd
-	labelCond := p.makeLabel("FOR_COND")
-	labelContinue := p.makeLabel("FONR_CONTINUE")
-	labelBlockEnd := p.makeLabel("FOR_BLOCK_END")
+	labelCond := p.makeLabel("FOR_COND:" + varName)
+	labelContinue := p.makeLabel("FOR_CONTINUE:" + varName)
+	labelBlockEnd := p.makeLabel("FOR_BLOCK_END:" + varName)
 	p.loopBegin(labelContinue, labelBlockEnd)
 	c = append(c, labelCond)
 
@@ -732,18 +733,20 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	c = append(c, p.makeJumpIfTrue(varExpr, labelBlockEnd))
 
 	// それに値を設定
-	c = append(c, p.makeSetSore(varR))
+	c = append(c, p.makeGetLocal(varName))
+	c = append(c, p.makeSetSore(p.regTop()-1))
+	p.regBack()
 
 	// Block
 	p.breakLabel = labelBlockEnd
-	p.continueLabel = labelCond
+	p.continueLabel = labelContinue
 	blockCodes, errBlock := p.convNode(&nn.Block)
 	if errBlock != nil {
 		return nil, CompileError("『繰返』構文にて。"+errBlock.Error(), n)
 	}
 	c = append(c, blockCodes...)
 	c = append(c, labelContinue)
-	c = append(c, NewCode(IncLocal, getLoopVar.B, 0, 0)) // WORD++
+	c = append(c, NewCodeMemo(IncLocal, getLoopVar.B, 0, 0, "FOR_INC:"+varName)) // WORD++
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
 	p.scope.Index = tmpRCount
@@ -842,8 +845,12 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 	case value.Int:
 		return []*TCode{p.makeConstInt(regI, v.ToInt())}, nil
 	case value.Str:
+		codeType := ConstO
+		if op.IsExtend {
+			codeType = ExString
+		}
 		ci := p.appendConstsStr(v.ToString())
-		return []*TCode{NewCodeMemo(ConstO, regI, ci, 0, "="+v.ToString())}, nil
+		return []*TCode{NewCodeMemo(codeType, regI, ci, 0, "="+v.ToString())}, nil
 	default:
 		ci := p.appendConsts(&v)
 		return []*TCode{NewCodeMemo(ConstO, regI, ci, 0, "="+v.ToString())}, nil
@@ -896,6 +903,10 @@ func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 		res = append(res, NewCode(Lt, toindex, pcL, pcR))
 	case "<=":
 		res = append(res, NewCode(LtEq, toindex, pcL, pcR))
+	case "かつ":
+		res = append(res, NewCode(And, toindex, pcL, pcR))
+	case "または":
+		res = append(res, NewCode(Or, toindex, pcL, pcR))
 	}
 	return res, nil
 }
@@ -925,8 +936,11 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 		return nil, err
 	}
 	if sys.IsDebug {
-		println(p.CodesToString(p.Codes))
-		println("[Run Code]")
+		fmt.Println(p.CodesToString(p.Codes))
+		fmt.Println("[Run Code]")
+	}
+	if sys.IsCompile {
+		return nil, nil
 	}
 	return p.Run()
 }
@@ -942,6 +956,12 @@ func (p *TCompiler) makeLabel(memo string) *TCode {
 func (p *TCompiler) makeJump(code *TCode) *TCode {
 	c := TCode{Type: JumpLabel, A: code.A, Memo: "GoTo:" + p.Labels[code.A].memo}
 	return &c
+}
+
+func (p *TCompiler) makeJumpWithMemo(code *TCode, memo string) *TCode {
+	c := p.makeJump(code)
+	c.Memo = memo + ">" + c.Memo
+	return c
 }
 
 func (p *TCompiler) makeJumpIfTrue(exprR int, code *TCode) *TCode {
@@ -964,10 +984,12 @@ func (p *TCompiler) fixLabels(codes []*TCode) {
 			v.Type = Jump
 			lbl := p.Labels[v.A]
 			v.A = lbl.addr - i
+			v.Memo += ">Goto:" + lbl.memo
 		case JumpLabelIfTrue:
 			v.Type = JumpIfTrue
 			lbl := p.Labels[v.B]
 			v.B = lbl.addr - i
+			v.Memo += ">Goto:" + lbl.memo
 		}
 	}
 }

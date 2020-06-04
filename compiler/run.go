@@ -34,7 +34,8 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		switch code.Type {
 		case ConstO:
 			p.regSet(A, p.Consts.Get(B).Clone())
-			// println(" (reg) " + p.scope.ToStringRegs())
+		case ExString:
+			p.regSet(A, p.runExString(p.Consts.Get(B).ToString()))
 		case MoveR:
 			p.regSet(A, p.regGet(B))
 		case SetLocal:
@@ -51,6 +52,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		case GetLocal:
 			p.regSet(A, p.scope.GetByIndex(B))
 			lastValue = p.regGet(A)
+			// println("@@value=", lastValue.ToJSONString())
 		case SetGlobal:
 			g := p.sys.Scopes.GetGlobal()
 			varV := g.GetByIndex(A)
@@ -246,6 +248,40 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		p.moveNext()
 	}
 	return lastValue, nil
+}
+
+func (p *TCompiler) runExString(s string) *value.Value {
+	res := ""
+	varName := ""
+	isEx := false
+	src := []rune(s)
+	i := 0
+	for i < len(src) {
+		c := src[i]
+		if !isEx {
+			if c == '{' {
+				isEx = true
+				i++
+				continue
+			}
+			res += string(c)
+			i++
+			continue
+		}
+		if c == '}' {
+			isEx = false
+			v, _ := p.sys.Scopes.Find(varName)
+			if v != nil {
+				res += v.ToString()
+			}
+			i++
+			continue
+		}
+		varName += string(c)
+		i++
+		continue
+	}
+	return value.NewValueStrPtr(res)
 }
 
 func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {

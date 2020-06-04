@@ -8,6 +8,8 @@ const (
 	MoveR
 	// ConstO A,B : R[A] = CONSTS[B]
 	ConstO
+	// ExString A,B : R[A] = ExString(CONSTS[B])
+	ExString
 	// SetGlobal A,B : Vars[ CONSTS[A] ] = R[B]
 	SetGlobal
 	// GetGlobal A,B : R[A] = scope.values[ CONSTS[B] ]
