@@ -293,6 +293,7 @@ type TNodeCallFunc struct {
 	Args     TNodeList
 	Name     string
 	Cache    *value.Value
+	UseJosi  bool
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -307,10 +308,11 @@ func (n TNodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeCallFunc) GetJosi() string { return n.Josi }
 
 // NewNodeCallFunc : 関数呼び出しのノードを返す
-func NewNodeCallFunc(t *token.Token, args TNodeList) TNodeCallFunc {
+func NewNodeCallFunc(t *token.Token, args TNodeList, useJosi bool) TNodeCallFunc {
 	node := TNodeCallFunc{
 		Name:     t.Literal,
 		Args:     args,
+		UseJosi:  useJosi,
 		FileInfo: t.FileInfo,
 	}
 	return node

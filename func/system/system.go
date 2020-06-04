@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
@@ -52,6 +53,35 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("超", core.DefArgs{{"が"}, {""}}, gt)        // AがB超か | ちょう
 	sys.AddFunc("未満", core.DefArgs{{"が"}, {""}}, lt)       // AがB未満か | みまん
 	sys.AddFunc("等", core.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
+	// 型変換
+	sys.AddFunc("変数型確認", core.DefArgs{{"の"}}, typeOf) // 値Vの型を返す | かたかくにん
+	sys.AddFunc("TYPEOF", core.DefArgs{{""}}, typeOf) // 値Vの型を返す | かたかくにん
+	// 文字列処理
+	sys.AddFunc("置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
+	sys.AddFunc("単置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+	sys.AddFunc("文字目", core.DefArgs{{"の"}, {""}, {"へ", "に"}}, replaceStr1time)        // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func typeOf(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	res := value.TypeToStr(v.Type)
+	return value.NewValueStrPtr(res), nil
+}
+
+func replaceStr1time(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	b := args.Get(2).ToString()
+	s2 := strings.Replace(s, a, b, 1)
+	return value.NewValueStrPtr(s2), nil
+}
+
+func replaceStr(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	b := args.Get(2).ToString()
+	s2 := strings.ReplaceAll(s, a, b)
+	return value.NewValueStrPtr(s2), nil
 }
 
 func add(args *value.TArray) (*value.Value, error) {

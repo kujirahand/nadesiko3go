@@ -47,6 +47,7 @@ var codeNames = map[int]string{
 	Length:          "Length",
 	Foreach:         "Foreach",
 	ExString:        "ExString",
+	FileInfo:        "FileInfo",
 }
 
 // ToString : コードを返す

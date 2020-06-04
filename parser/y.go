@@ -1084,19 +1084,19 @@ yydefault:
 		yyDollar = yyS[yypt-1 : yypt+1]
 //line _parser_generated.y:96
 		{
-			yyVAL.node = node.NewNodeCallFunc(yyDollar[1].token, nil)
+			yyVAL.node = node.NewNodeCallFunc(yyDollar[1].token, nil, false)
 		}
 	case 32:
 		yyDollar = yyS[yypt-2 : yypt+1]
 //line _parser_generated.y:97
 		{
-			yyVAL.node = node.NewNodeCallFunc(yyDollar[2].token, yyDollar[1].nodelist)
+			yyVAL.node = node.NewNodeCallFunc(yyDollar[2].token, yyDollar[1].nodelist, true)
 		}
 	case 33:
 		yyDollar = yyS[yypt-4 : yypt+1]
 //line _parser_generated.y:98
 		{
-			yyVAL.node = node.NewNodeCallFunc(yyDollar[1].token, yyDollar[3].nodelist)
+			yyVAL.node = node.NewNodeCallFunc(yyDollar[1].token, yyDollar[3].nodelist, false)
 		}
 	case 34:
 		yyDollar = yyS[yypt-1 : yypt+1]

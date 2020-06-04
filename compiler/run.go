@@ -32,6 +32,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		A, B, C := code.A, code.B, code.C
 		// println("*RUN=", p.index, p.ToString(code))
 		switch code.Type {
+		case FileInfo:
+			p.FileNo = A
+			p.Line = B
 		case ConstO:
 			p.regSet(A, p.Consts.Get(B).Clone())
 		case ExString:

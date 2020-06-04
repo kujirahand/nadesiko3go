@@ -28,6 +28,7 @@ type TCompiler struct {
 	scope         *scope.Scope   // メインスコープ
 	index         int
 	length        int
+	FileNo        int
 	Line          int
 	sys           *core.Core
 	forNest       int
@@ -107,7 +108,7 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 	}
 	switch (*n).GetType() {
 	case node.Nop:
-		return nil, nil
+		return p.convNop(n)
 	case node.Word:
 		return p.convWord(n)
 	case node.TypeNodeList:
@@ -152,6 +153,13 @@ func (p *TCompiler) convNode(n *node.Node) ([]*TCode, error) {
 	println("[SYSTEM ERROR] Compile " + node.ToString(*n, 0))
 	// panic(-1)
 	return nil, nil
+}
+
+func (p *TCompiler) convNop(n *node.Node) ([]*TCode, error) {
+	nn := (*n).(node.TNodeNop)
+	return []*TCode{
+		NewCode(FileInfo, nn.FileInfo.FileNo, nn.FileInfo.Line, 0),
+	}, nil
 }
 
 func (p *TCompiler) convRepeat(n *node.Node) ([]*TCode, error) {
@@ -266,7 +274,7 @@ func (p *TCompiler) getFunc(name string) (*value.Value, error) {
 	return funcV, nil
 }
 
-func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (int, []*TCode, error) {
+func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList, useJosi bool) (int, []*TCode, error) {
 	// 関数の引数を得る
 	defArgs := p.sys.JosiList[funcV.Tag]    // 定義
 	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
@@ -281,8 +289,10 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 				if usedArgs[k] {
 					continue
 				}
-				if josi != nodeJosi.GetJosi() { // 助詞が一致しない
-					continue
+				if useJosi {
+					if josi != nodeJosi.GetJosi() { // 助詞が一致しない
+						continue
+					}
 				}
 				usedArgs[k] = true
 				cArg, err1 := p.convNode(&nodeJosi)
@@ -299,7 +309,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 	// 引数のチェック (1) 漏れなくcf.Args内のノードを評価したか
 	for ci, b := range usedArgs {
 		if b == false {
-			msgArg := fmt.Errorf("関数『%s』の第%d引数の間違い。", fname, ci)
+			msgArg := fmt.Errorf("関数『%s』の第%d引数の間違い。", fname, (ci + 1))
 			return -1, nil, msgArg
 		}
 	}
@@ -325,7 +335,7 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	// 関数を得る
 	funcV, err := p.getFunc(cf.Name)
 	if err != nil {
-		return nil, err
+		return nil, CompileError(err.Error(), n)
 	}
 	// ユーザー関数の場合
 	if funcV.Type == value.UserFunc {
@@ -335,17 +345,17 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	tmpRcount := p.regTop()
 
 	// 引数を得る
-	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
+	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args, cf.UseJosi)
 	if err != nil {
-		return nil, err
+		return nil, CompileError(err.Error(), n)
 	}
 	c = append(c, cArgs...)
 	// 関数を実行
 	// システム関数
-	funcRes := p.regTop()
+	p.scope.Index = tmpRcount
+	funcRes := tmpRcount
 	fconstI := p.appendConsts(funcV)
 	c = append(c, NewCodeMemo(CallFunc, funcRes, fconstI, argIndex, cf.Name))
-	p.scope.Index = tmpRcount
 	return c, nil
 }
 
@@ -359,7 +369,7 @@ func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*
 		return nil, CompileError("[SYSTEM] 関数定義に失敗している", &n)
 	}
 	// 関数呼び出し
-	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args)
+	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args, cf.UseJosi)
 	if err != nil {
 		return nil, err
 	}
@@ -583,6 +593,10 @@ func (p *TCompiler) makeSetLocalReg(name string, reg int) *TCode {
 
 func (p *TCompiler) makeSetLocal(name string) *TCode {
 	B := p.regBack()
+	if B <= 0 {
+		B = 0
+		p.scope.Index = 0
+	}
 	return p.makeSetLocalReg(name, B)
 }
 
@@ -653,6 +667,10 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("『"+varName+"』の代入でエラー", n)
 	}
 	valueR := p.regTop() - 1
+	println("valueR=", valueR)
+	if valueR < 0 {
+		valueR = 0
+	}
 
 	// SetLocal (Indexがない場合)
 	if nn.Index == nil || len(nn.Index) == 0 {
@@ -665,7 +683,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 		if varV.IsConst {
 			return nil, CompileError(fmt.Sprintf("定数『%s』には代入できません。", varName), n)
 		}
-		c = append(c, p.makeSetLocal(varName))
+		c = append(c, p.makeSetLocalReg(varName, valueR))
 		return c, nil
 	}
 

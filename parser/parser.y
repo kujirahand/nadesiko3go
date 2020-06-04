@@ -93,9 +93,9 @@ varindex
   | varindex LBRACKET expr RBRACKET { $$ = append($1, $3) }
 
 callfunc
-  : FUNC                    { $$ = node.NewNodeCallFunc($1, nil) }
-  | args FUNC               { $$ = node.NewNodeCallFunc($2, $1) }
-  | FUNC LPAREN args RPAREN { $$ = node.NewNodeCallFunc($1, $3) }
+  : FUNC                    { $$ = node.NewNodeCallFunc($1, nil, false) }
+  | args FUNC               { $$ = node.NewNodeCallFunc($2, $1, true) }
+  | FUNC LPAREN args RPAREN { $$ = node.NewNodeCallFunc($1, $3, false) }
 
 args
   : expr        { $$ = node.TNodeList{ $1 } }

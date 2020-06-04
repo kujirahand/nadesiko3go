@@ -4,6 +4,8 @@ package compiler
 const (
 	// NOP : 何もしない
 	NOP = iota
+	// FileInfo A, B : fileno:A, lineno:B
+	FileInfo
 	// MoveR A,B : R[A] = R[B]
 	MoveR
 	// ConstO A,B : R[A] = CONSTS[B]
