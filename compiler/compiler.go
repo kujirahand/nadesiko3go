@@ -667,7 +667,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError("『"+varName+"』の代入でエラー", n)
 	}
 	valueR := p.regTop() - 1
-	println("valueR=", valueR)
+	// println("valueR=", valueR)
 	if valueR < 0 {
 		valueR = 0
 	}
