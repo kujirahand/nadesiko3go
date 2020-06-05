@@ -23,11 +23,12 @@ func (p *Lexer) checkBeginFunc(f *TokensManager) {
 	f.MoveTo(0)
 	for f.IsLive() {
 		t := f.Peek()
+		// 代入文やもし文での関数呼び出しをチェック
 		if t.Type == token.EQ || t.Type == token.IF {
 			markerPos := f.GetIndex() + 1
 			// 次のトークンに助詞があれば、それは呼び出し
 			f.Next() // skip "=" or "もし"
-			// カッコがあれば
+			// カッコがあればその中は飛ばす
 			if f.PeekType() == token.LPAREN {
 				f.Next() // skip '('
 				lv := 1
@@ -45,10 +46,23 @@ func (p *Lexer) checkBeginFunc(f *TokensManager) {
 			}
 			// VALUE or ")"
 			t = f.Peek()
-			if t != nil && t.Josi != "" {
-				f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
-				f.MoveTo(2)
-				continue
+			if t != nil {
+				if t.Josi != "" || f.PeekNextType() == token.LPAREN {
+					f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
+					f.MoveTo(2)
+					continue
+				}
+			}
+		}
+		// EOS + WORD + LPARENの組み合わせは関数呼び出しである
+		if t.Type == token.WORD || t.Type == token.FUNC {
+			markerPos := f.GetIndex()
+			if f.PeekNextType() == token.LPAREN {
+				prevT := f.PeekPrevType()
+				if prevT == token.UNKNOWN || prevT == token.EOS {
+					f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
+					f.MoveTo(2)
+				}
 			}
 		}
 		f.Next()

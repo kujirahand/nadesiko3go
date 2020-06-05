@@ -1,6 +1,7 @@
 package io
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,12 +12,35 @@ import (
 
 // RegisterFunction : 関数を登録
 func RegisterFunction(sys *core.Core) {
-	sys.AddFunc("表示", core.DefArgs{{"の", "を", "と"}}, Println)     // 文字列Sを表示 | ひょうじ
-	sys.AddVar("表示ログ", "")                                        // 表示した内容 | ひょうじろぐ
+	// コマンドラインと標準入出力
+	sys.AddConstValue("コマンドライン", getCommandline())            // コマンドライン引数を保持 | こまんどらいん
+	sys.AddFunc("表示", core.DefArgs{{"の", "を", "と"}}, Println) // 文字列Sを表示 | ひょうじ
+	sys.AddVar("表示ログ", "")                                    // 表示した内容 | ひょうじろぐ
+	sys.AddFunc("尋", core.DefArgs{{"と", "を"}}, ask)           // 標準入力から入力を得る | たずねる
+	// ファイル読み書き
 	sys.AddFunc("開", core.DefArgs{{"を", "から"}}, OpenFile)         // ファイルFの内容を全部読む | ひらく
 	sys.AddFunc("読", core.DefArgs{{"を", "から"}}, OpenFile)         // ファイルFの内容を全部読む | よむ
 	sys.AddFunc("バイナリ読", core.DefArgs{{"を", "から"}}, OpenBinFile)  // ファイルFの内容をバイナリで全部読む | ばいなりよむ
-	sys.AddFunc("保存", core.DefArgs{{"を"}, {"に", "へ"}}, WriteFile) // SをファイルFに保存 | ほぞん
+	sys.AddFunc("保存", core.DefArgs{{"を"}, {"に", "へ"}}, WriteFile) // SをファイルFに保存 |
+}
+
+// WriteFile : ファイルを保存する
+func ask(args *value.TArray) (*value.Value, error) {
+	msg := args.Get(0).ToString()
+	fmt.Print(msg + " ")
+	stdin := bufio.NewScanner(os.Stdin)
+	stdin.Scan()
+	text := stdin.Text()
+	return value.NewValueStrPtr(text), nil
+}
+
+// コマンドライン
+func getCommandline() value.Value {
+	v := value.NewValueArray()
+	for _, arg := range os.Args {
+		v.Append(value.NewValueStrPtr(arg))
+	}
+	return v
 }
 
 // WriteFile : ファイルを保存する

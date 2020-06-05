@@ -86,6 +86,18 @@ func (p *TokensManager) PeekNextType() token.TType {
 	return t.Type
 }
 
+// PeekPrevType : 前のトークンタイプを得る
+func (p *TokensManager) PeekPrevType() token.TType {
+	if p.index <= 0 {
+		return token.UNKNOWN
+	}
+	t := p.Get(p.index - 1)
+	if t == nil {
+		return token.UNKNOWN
+	}
+	return t.Type
+}
+
 // Get : 指定インデックスのトークンを得る
 func (p *TokensManager) Get(index int) *token.Token {
 	return p.tokens[index]
