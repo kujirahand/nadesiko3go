@@ -17,8 +17,8 @@ func main() {
 	if len(os.Args) < 2 {
 		println("# nadesiko3go ver." + core.NadesikoVersion)
 		println("[USAGE]")
-		println("  nadesiko3go -e \"source\"")
-		println("  nadesiko3go file.nako3")
+		println("  cnako3go -e \"source\"")
+		println("  cnako3go file.nako3")
 		println("[Options]")
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")

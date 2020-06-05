@@ -4,7 +4,7 @@
 PATH=母艦パスを「../token」で相対パス展開。
 PATH_IN=「{PATH}/token.go」
 PATH_OUT=「{母艦パス}/extract_token.txt」
-PATH_PARSER_Y=「{母艦パス}/parser.y」
+PATH_PARSER_Y=「{母艦パス}/parser.go.y」
 PATH_PARSER_GEN_Y=「{母艦パス}/_parser_generated.y」
 
 FLG=０
