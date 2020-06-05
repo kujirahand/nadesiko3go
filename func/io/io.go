@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
@@ -21,10 +23,23 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("開", core.DefArgs{{"を", "から"}}, OpenFile)         // ファイルFの内容を全部読む | ひらく
 	sys.AddFunc("読", core.DefArgs{{"を", "から"}}, OpenFile)         // ファイルFの内容を全部読む | よむ
 	sys.AddFunc("バイナリ読", core.DefArgs{{"を", "から"}}, OpenBinFile)  // ファイルFの内容をバイナリで全部読む | ばいなりよむ
-	sys.AddFunc("保存", core.DefArgs{{"を"}, {"に", "へ"}}, WriteFile) // SをファイルFに保存 |
+	sys.AddFunc("保存", core.DefArgs{{"を"}, {"に", "へ"}}, WriteFile) // SをファイルFに保存 | ほぞん
+	// プロセス
+	sys.AddFunc("OS取得", core.DefArgs{}, getOS)  // OSの種類を返す | OSしゅとく
+	sys.AddFunc("秒待", core.DefArgs{{""}}, wait) // N秒待つ | びょうまつ
 }
 
-// WriteFile : ファイルを保存する
+func wait(args *value.TArray) (*value.Value, error) {
+	sec := args.Get(0).ToFloat()
+	msec := int64(sec * 1000)
+	time.Sleep(time.Duration(msec) * time.Millisecond)
+	return nil, nil
+}
+
+func getOS(args *value.TArray) (*value.Value, error) {
+	return value.NewValueStrPtr(runtime.GOOS), nil
+}
+
 func ask(args *value.TArray) (*value.Value, error) {
 	msg := args.Get(0).ToString()
 	fmt.Print(msg + " ")
