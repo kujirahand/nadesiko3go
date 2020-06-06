@@ -308,14 +308,22 @@ func (n TNodeCallFunc) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeCallFunc) GetJosi() string { return n.Josi }
 
 // NewNodeCallFunc : 関数呼び出しのノードを返す
-func NewNodeCallFunc(t *token.Token, args TNodeList, useJosi bool) TNodeCallFunc {
+func NewNodeCallFunc(t *token.Token, args TNodeList) TNodeCallFunc {
 	node := TNodeCallFunc{
 		Name:     t.Literal,
 		Args:     args,
-		UseJosi:  useJosi,
 		FileInfo: t.FileInfo,
+		UseJosi:  true,
 	}
 	return node
+}
+
+// NewNodeCallFuncCStyle : 関数呼び出しのノードを返す(Cスタイル)
+func NewNodeCallFuncCStyle(t *token.Token, args TNodeList, t2 *token.Token) TNodeCallFunc {
+	n := NewNodeCallFunc(t, args)
+	n.UseJosi = false
+	n.Josi = t2.Josi
+	return n
 }
 
 // TNodeWord : 変数を表すノード

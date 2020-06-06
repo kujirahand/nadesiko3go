@@ -81,8 +81,6 @@ let_stmt
   | WORD varindex EQ expr       { $$ = node.NewNodeLet($1, $2, $4)  }
   | LET_BEGIN WORD_REF expr LET { $$ = node.NewNodeLet($2, nil, $3) }
   | LET_BEGIN expr WORD_REF LET { $$ = node.NewNodeLet($3, nil, $2) }
-  | WORD EQ BEGIN_CALLFUNC callfunc            { $$ = node.NewNodeLet($1, nil, $4) }
-  | WORD varindex EQ BEGIN_CALLFUNC callfunc   { $$ = node.NewNodeLet($1, $2, $5)  }
   | WORD HENSU EQ expr  { $$ = node.NewNodeDefVar($1, $4) }
   | WORD HENSU          { $$ = node.NewNodeDefVar($1, nil) }
   | WORD TEISU EQ expr  { $$ = node.NewNodeDefConst($1, $4) }
@@ -93,9 +91,9 @@ varindex
   | varindex LBRACKET expr RBRACKET { $$ = append($1, $3) }
 
 callfunc
-  : FUNC                    { $$ = node.NewNodeCallFunc($1, nil, false) }
-  | args FUNC               { $$ = node.NewNodeCallFunc($2, $1, true) }
-  | FUNC LPAREN args RPAREN { $$ = node.NewNodeCallFunc($1, $3, false) }
+  : FUNC                    { $$ = node.NewNodeCallFunc($1, nil) }
+  | args FUNC               { $$ = node.NewNodeCallFunc($2, $1) }
+  | FUNC LPAREN args RPAREN { $$ = node.NewNodeCallFuncCStyle($1, $3, $4) }
 
 args
   : expr        { $$ = node.TNodeList{ $1 } }
@@ -133,6 +131,8 @@ expr
   | expr STR_PLUS expr  { $$ = node.NewNodeOperator($2, $1, $3) }
   | LPAREN expr RPAREN  { $$ = node.NewNodeCalc($3, $2) }
   | LPAREN callfunc RPAREN { $$ = node.NewNodeCalc($3, $2) }
+  | BEGIN_CALLFUNC callfunc { $$ = $2 }
+
 
 json_value
   : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2) }
@@ -185,7 +185,6 @@ if_stmt
 
 if_comp
   : expr
-  | BEGIN_CALLFUNC callfunc { $$ = $2 }
 
 block
   : sentences 
