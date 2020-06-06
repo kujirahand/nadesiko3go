@@ -11,26 +11,37 @@ func TestBasic2a(t *testing.T) {
 	_eval2(t, "1+2*3", "7")
 	_eval2(t, "A=1;B=2;C=A+B;C", "3")
 	_eval2(t, "A=1+2*3;A", "7")
+}
+
+func TestLoop(t *testing.T) {
 	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+	_eval2(t, "C=0;I=0;(I<=10)の間;C=C+I;I=I+1;ここまで;C", "55")
+	_eval2(t, "C=0;1から10まで繰り返す,C=C+それ;C", "55")
+	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
+	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
+}
+
+func TestIf(t *testing.T) {
 	_eval2(t, "C=0;もしC=1ならば\nC=30\n違えば\nC=40;ここまで;C", "40")
 	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
-	_eval2(t, "C=0;I=0;(I<=10)の間;C=C+I;I=I+1;ここまで;C", "55")
-	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
+}
+func TestArray(t *testing.T) {
 	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
 	_eval2(t, "C=[1,2,3];C[1]", "2")
 	_eval2(t, "C=[[0,1,2],[3,4,5],[6,7,8]];C[0][1]", "1")
 	_eval2(t, "C=[[0,1,2],[3,4,5],[6,7,8]];C[0][1]=8;C[0][1]", "8")
 	_eval2(t, "C={'a':1,'b':2};C['a']", "1")
-	_eval2(t, "C=0;1から10まで繰り返す,C=C+それ;C", "55")
-	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
-	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
-	_eval2(t, "1と2を足して表示;表示ログ", "3")
-	_eval2(t, "C=足す(1,2);C", "3")
 }
 
-func TestBasic2(t *testing.T) {
-	//_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
+func TestFunc(t *testing.T) {
+	_eval2(t, "1と2を足して表示;表示ログ", "3")
+	_eval2(t, "C=足す(1,2);C", "3")
 	_eval2(t, "足す(1,2)を表示;表示ログ", "3")
+}
+
+func TestTemp(t *testing.T) {
+	//_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
+	_eval2(t, "C=0;Iを1から10まで繰り返す\nJを1から2まで繰り返す\nC=C+I;ここまで;ここまで;C", "110")
 }
 
 func _eval2(t *testing.T, code, expected string) {

@@ -145,26 +145,27 @@ func (p *Lexer) insertSyntaxMarker(f *TokensManager) {
 	//		WORD(に|へ)exprを代入→LET_BEGIN WORD expr LET
 	// 		同じく,FOR_BEGINなど、を挿入
 	var tLetWord *token.Token = nil
-	makerPos := 0
+	markerPos := 0
 	f.MoveTo(0)
 	for f.IsLive() {
 		t := f.Peek()
 		p.line = t.FileInfo.Line
 		switch t.Type {
 		case token.LF, token.EOS:
-			makerPos = f.GetIndex() + 1
+			markerPos = f.GetIndex() + 1
 		case token.WORD:
 			if t.Josi == "に" || t.Josi == "へ" {
 				tLetWord = t
 			}
 		case token.LET:
 			tLetWord.Type = token.WORD_REF
-			f.Insert(makerPos, p.newMarker(t, token.LET_BEGIN))
+			f.Insert(markerPos, p.newMarker(t, token.LET_BEGIN))
 			f.Move(2)
 			continue
 		case token.AIDA:
-			f.Insert(makerPos, p.newMarker(t, token.WHILE_BEGIN))
+			f.Insert(markerPos, p.newMarker(t, token.WHILE_BEGIN))
 			f.Move(2)
+			markerPos = f.GetIndex()
 			continue
 		case token.FOREACH:
 			// 単文・複文の確認
@@ -172,30 +173,33 @@ func (p *Lexer) insertSyntaxMarker(f *TokensManager) {
 				t.Type = token.FOREACH_SINGLE
 			}
 			// マーカーを挿入
-			f.Insert(makerPos, p.newMarker(t, token.FOREACH_BEGIN))
+			f.Insert(markerPos, p.newMarker(t, token.FOREACH_BEGIN))
 			f.Move(2)
+			markerPos = f.GetIndex()
 			continue
 		case token.FOR:
 			if f.PeekNextType() != token.LF {
 				t.Type = token.FOR_SINGLE
 			}
 			// 繰り返し文で変数が指定されている場合
-			tRef := f.Get(makerPos)
+			tRef := f.Get(markerPos)
 			if tRef.Type == token.WORD &&
 				(tRef.Josi == "を" || tRef.Josi == "で") {
 				tRef.Type = token.WORD_REF
 			}
 			// マーカーを挿入
-			f.Insert(makerPos, p.newMarker(t, token.FOR_BEGIN))
+			f.Insert(markerPos, p.newMarker(t, token.FOR_BEGIN))
 			f.Move(2)
+			markerPos = f.GetIndex()
 			continue
 		case token.KAI:
 			if f.PeekNextType() != token.LF {
 				t.Type = token.KAI_SINGLE
 			}
 			// マーカーを挿入
-			f.Insert(makerPos, p.newMarker(t, token.KAI_BEGIN))
+			f.Insert(markerPos, p.newMarker(t, token.KAI_BEGIN))
 			f.Move(2)
+			markerPos = f.GetIndex()
 			continue
 		}
 		f.Next()
