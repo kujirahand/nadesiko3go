@@ -32,6 +32,21 @@ func (p *THash) ToJSONString() string {
 	return "{" + strings.Join(a, ",") + "}"
 }
 
+// ToJSONStringFormat : to json string
+func (p *THash) ToJSONStringFormat(level int) string {
+	tab := ""
+	for i := 0; i < level; i++ {
+		tab += "  "
+	}
+	a := []string{}
+	for key, val := range *p {
+		sval := val.ToJSONStringFormat(level + 1)
+		s := fmt.Sprintf(tab+"  \"%s\": %s", key, strings.TrimSpace(sval))
+		a = append(a, s)
+	}
+	return tab + "{\n" + strings.Join(a, ",\n") + "\n" + tab + "}"
+}
+
 // Length : get value count
 func (p *THash) Length() int {
 	return len(*p)

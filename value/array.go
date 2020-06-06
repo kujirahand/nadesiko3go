@@ -34,6 +34,28 @@ func (p *TArray) ToJSONString() string {
 	return "[" + strings.Join(a, ",") + "]"
 }
 
+// ToJSONStringFormat : To JSON String
+func (p *TArray) ToJSONStringFormat(level int) string {
+	tab := ""
+	for i := 0; i < level; i++ {
+		tab += "  "
+	}
+	a := []string{}
+	allsimple := true
+	for _, val := range p.Items {
+		a = append(a, tab+val.ToJSONStringFormat(level+1))
+		if !val.IsSimpleValue() {
+			allsimple = false
+		}
+	}
+	res := tab + "[\n" + strings.Join(a, ",\n") + "\n" + tab + "]"
+	// simple?
+	if len(res) < 60 && allsimple {
+		return tab + p.ToJSONString()
+	}
+	return res
+}
+
 // Length : 配列の長さを返す
 func (p *TArray) Length() int {
 	p.length = len(p.Items)

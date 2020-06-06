@@ -1238,13 +1238,13 @@ yydefault:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser/_parser_generated.y:138
 		{
-			yyVAL.node = node.NewNodeJSONArray(yyDollar[1].token, yyDollar[2].nodelist)
+			yyVAL.node = node.NewNodeJSONArray(yyDollar[1].token, yyDollar[2].nodelist, yyDollar[3].token)
 		}
 	case 61:
 		yyDollar = yyS[yypt-3 : yypt+1]
 //line parser/_parser_generated.y:139
 		{
-			yyVAL.node = node.NewNodeJSONHash(yyDollar[1].token, yyDollar[2].jsonkv)
+			yyVAL.node = node.NewNodeJSONHash(yyDollar[1].token, yyDollar[2].jsonkv, yyDollar[3].token)
 		}
 	case 62:
 		yyDollar = yyS[yypt-1 : yypt+1]

@@ -636,12 +636,13 @@ func (n TNodeJSONArray) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeJSONArray) GetJosi() string { return n.Josi }
 
 // NewNodeJSONArray : array node
-func NewNodeJSONArray(t *token.Token, items TNodeList) TNodeJSONArray {
+func NewNodeJSONArray(t *token.Token, items TNodeList, t2 *token.Token) TNodeJSONArray {
 	node := TNodeJSONArray{
 		Items:    items,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
+	node.Josi = t2.Josi
 	return node
 }
 
@@ -666,12 +667,13 @@ func (n TNodeJSONHash) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeJSONHash) GetJosi() string { return n.Josi }
 
 // NewNodeJSONHash : json hash node
-func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue) TNodeJSONHash {
+func NewNodeJSONHash(t *token.Token, items JSONHashKeyValue, t2 *token.Token) TNodeJSONHash {
 	node := TNodeJSONHash{
 		Items:    items,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}
+	node.Josi = t2.Josi
 	return node
 }
 

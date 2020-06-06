@@ -25,6 +25,13 @@ func IsDigit(c rune) bool {
 	return rune('0') <= c && c <= rune('9')
 }
 
+// IsHexDigit : Is rune Digit?
+func IsHexDigit(c rune) bool {
+	return InRange(c, int('0'), int('9')) ||
+		InRange(c, int('a'), int('f')) ||
+		InRange(c, int('A'), int('F'))
+}
+
 // IsFlag : Is rune Flag?
 func IsFlag(c rune) bool {
 	return InRange(c, 0x21, 0x2F) ||

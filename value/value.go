@@ -131,6 +131,12 @@ func NewValueBool(v bool) Value {
 	return Value{Type: Bool, IValue: i}
 }
 
+// NewValueBoolPtr : 真偽値
+func NewValueBoolPtr(v bool) *Value {
+	p := NewValueBool(v)
+	return &p
+}
+
 // NewValueFunc : 関数オブジェクトを生成
 func NewValueFunc(v TFunction) Value {
 	return Value{Type: Function, Value: v}
@@ -310,6 +316,8 @@ func (v *Value) ToString() string {
 		return ""
 	}
 	switch v.Type {
+	case Null:
+		return ""
 	case Int:
 		return IntToStr(v.IValue)
 	case Float:
@@ -331,12 +339,27 @@ func (v *Value) ToString() string {
 	return v.ToJSONString()
 }
 
+// IsSimpleValue : is simple value?
+func (v *Value) IsSimpleValue() bool {
+	if v == nil {
+		return true
+	}
+	switch v.Type {
+	case Null, Int, Float, Str, Bool:
+		return true
+	default:
+		return false
+	}
+}
+
 // ToJSONString : Convert to JSON string
 func (v *Value) ToJSONString() string {
 	if v == nil {
 		return "undefined"
 	}
 	switch v.Type {
+	case Null:
+		return "null"
 	case Int:
 		return IntToStr(v.IValue)
 	case Float:
@@ -344,7 +367,7 @@ func (v *Value) ToJSONString() string {
 	case Str:
 		return "\"" + EncodeStrToJSON(v.Value.(string)) + "\""
 	case Bool:
-		if true {
+		if v.ToBool() {
 			return "true"
 		}
 		return "false"
@@ -360,6 +383,27 @@ func (v *Value) ToJSONString() string {
 		return "\"[UserFunction]\""
 	}
 	return ""
+}
+
+// ToJSONStringFormat : Convert to JSON string
+func (v *Value) ToJSONStringFormat(level int) string {
+	tab := ""
+	for i := 0; i < level; i++ {
+		tab += "  "
+	}
+	if v == nil {
+		return "undefined"
+	}
+	switch v.Type {
+	case Array:
+		a := v.Value.(*TArray)
+		return a.ToJSONStringFormat(level)
+	case Hash:
+		h := v.Value.(THash)
+		return h.ToJSONStringFormat(level)
+	default:
+		return tab + v.ToJSONString()
+	}
 }
 
 // ToArray : to array

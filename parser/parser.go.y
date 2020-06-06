@@ -135,8 +135,8 @@ expr
 
 
 json_value
-  : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2) }
-  | LBRACE json_hash RBRACE      { $$ = node.NewNodeJSONHash($1, $2) }
+  : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2, $3) }
+  | LBRACE json_hash RBRACE      { $$ = node.NewNodeJSONHash($1, $2, $3) }
 
 json_array
   : expr            { $$ = node.TNodeList{$1} }

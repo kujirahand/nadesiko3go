@@ -59,7 +59,31 @@ func RegisterFunction(sys *core.Core) {
 	// 文字列処理
 	sys.AddFunc("置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
-	sys.AddFunc("文字目", core.DefArgs{{"の"}, {""}, {"へ", "に"}}, replaceStr1time)        // 一度だけSのAをBに置換して返す | たんちかん
+	// JSON
+	sys.AddFunc("JSONエンコード", core.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
+	sys.AddFunc("JSONエンコード整形", core.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
+	sys.AddFunc("JSONデコード", core.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
+}
+
+func jsonEncode(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	js := v.ToJSONString()
+	return value.NewValueStrPtr(js), nil
+}
+
+func jsonEncodeFormat(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	js := v.ToJSONStringFormat(0)
+	return value.NewValueStrPtr(js), nil
+}
+
+func jsonDecode(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return value.NewValueNullPtr(), nil
+	}
+	return JSONDecode(s)
 }
 
 func typeOf(args *value.TArray) (*value.Value, error) {
