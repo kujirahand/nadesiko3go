@@ -59,10 +59,69 @@ func RegisterFunction(sys *core.Core) {
 	// 文字列処理
 	sys.AddFunc("置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+	// CSV操作
+	sys.AddFunc("CSV取得", core.DefArgs{{"を", "の", "で"}}, getCSV) // CSV形式のデータstrを強制的に二次元配列に変換して返す | CSVしゅとく
+	sys.AddFunc("TSV取得", core.DefArgs{{"を", "の", "で"}}, getTSV) // TSV形式のデータstrを強制的に二次元配列に変換して返す | TSVしゅとく
+	sys.AddFunc("表CSV変換", core.DefArgs{{"を"}}, convToCSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
+	sys.AddFunc("表TSV変換", core.DefArgs{{"を"}}, convToTSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
 	// JSON
 	sys.AddFunc("JSONエンコード", core.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONエンコード整形", core.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONデコード", core.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
+}
+
+func getCSV(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return GetCSVToValue(v.ToString(), ','), nil
+}
+func getTSV(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return GetCSVToValue(v.ToString(), '\t'), nil
+}
+
+func csvQuote(s string) string {
+	s = strings.ReplaceAll(s, "\"", "\"\"")
+	s = "\"" + s + "\""
+	return s
+}
+
+func toCsv(v *value.Value, splitter string) string {
+	if v.Type != value.Array {
+		return csvQuote(v.ToString())
+	}
+	csv := ""
+	for i := 0; i < v.Length(); i++ {
+		row := v.ArrayGet(i)
+		if row.Type != value.Array {
+			csv += csvQuote(row.ToString()) + "\r\n"
+		}
+		maxCols := 0
+		for j := 0; j < row.Length(); j++ {
+			col := row.ArrayGet(j)
+			if col.Length() > maxCols {
+				maxCols = col.Length()
+			}
+		}
+		for j := 0; j < maxCols; j++ {
+			col := row.ArrayGet(j)
+			csv += col.ToString()
+			if j != (maxCols - 1) {
+				csv += splitter
+			}
+		}
+		csv += "\r\n"
+	}
+	return csv
+}
+
+func convToCSV(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return value.NewValueStrPtr(toCsv(v, ",")), nil
+}
+
+func convToTSV(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return value.NewValueStrPtr(toCsv(v, "\t")), nil
 }
 
 func jsonEncode(args *value.TArray) (*value.Value, error) {

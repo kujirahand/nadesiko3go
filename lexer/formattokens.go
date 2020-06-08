@@ -19,6 +19,9 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 
 // checkBeginFunc : 関数定義を調べる
 func (p *Lexer) checkBeginFunc(f *TokensManager) {
+	// TODO:
+	// FUNC LPAREN => CFUNC LPAREN
+
 	// ref: insertSyntaxMarker <--- LET(代入)
 	f.MoveTo(0)
 	for f.IsLive() {
@@ -47,6 +50,8 @@ func (p *Lexer) checkBeginFunc(f *TokensManager) {
 			// VALUE or ")"
 			t = f.Peek()
 			if t != nil {
+				// もし、FUNC()ならば
+				// IF . FUNC ( )
 				if t.Josi != "" || f.PeekNextType() == token.LPAREN {
 					f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
 					f.MoveTo(2)
@@ -60,8 +65,11 @@ func (p *Lexer) checkBeginFunc(f *TokensManager) {
 			if f.PeekNextType() == token.LPAREN {
 				prevT := f.PeekPrevType()
 				if prevT == token.UNKNOWN || prevT == token.EOS {
-					f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
-					f.MoveTo(2)
+					t2 := f.Get(markerPos)
+					if t2.Type != token.BEGIN_CALLFUNC {
+						f.Insert(markerPos, p.newMarker(t, token.BEGIN_CALLFUNC))
+						f.MoveTo(2)
+					}
 				}
 			}
 		}

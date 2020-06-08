@@ -19,6 +19,10 @@ func TestBase2(t *testing.T) {
 	comp(t, "[\\x4e\\x47\\x54']", "[\"NGT\"]")
 }
 
+func TestCSV(t *testing.T) {
+	compCSV(t, "1,2,3\n4,5,6", "[[\"1\",\"2\",\"3\"],[\"4\",\"5\",\"6\"]]")
+}
+
 func comp(t *testing.T, json, expected string) {
 	v, err := JSONDecode(json)
 	if err != nil {
@@ -27,6 +31,14 @@ func comp(t *testing.T, json, expected string) {
 	}
 	jsonv := v.ToJSONString()
 	if jsonv != expected {
-		t.Errorf("error : [%s] != [%s]", jsonv, expected)
+		t.Errorf("error : %s != %s", jsonv, expected)
+	}
+}
+
+func compCSV(t *testing.T, csv, expected string) {
+	v := GetCSVToValue(csv, ',')
+	jsonv := v.ToJSONString()
+	if jsonv != expected {
+		t.Errorf("error : %s != %s", jsonv, expected)
 	}
 }

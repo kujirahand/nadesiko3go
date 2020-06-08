@@ -155,6 +155,12 @@ func NewValueArray() Value {
 	}
 }
 
+// NewValueArrayPtr : 配列を生成
+func NewValueArrayPtr() *Value {
+	v := NewValueArray()
+	return &v
+}
+
 // NewValueHash : ハッシュを生成
 func NewValueHash() Value {
 	return Value{Type: Hash, Value: THash{}}
