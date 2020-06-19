@@ -72,11 +72,13 @@ func RegisterFunction(sys *core.Core) {
 
 func getCSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
-	return GetCSVToValue(v.ToString(), ','), nil
+	vv := GetCSVToValue(v.ToString(), ',')
+	return &vv, nil
 }
 func getTSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
-	return GetCSVToValue(v.ToString(), '\t'), nil
+	vv := GetCSVToValue(v.ToString(), '\t')
+	return &vv, nil
 }
 
 func csvQuote(s string) string {
