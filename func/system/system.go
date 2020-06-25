@@ -82,7 +82,7 @@ func getTSV(args *value.TArray) (*value.Value, error) {
 }
 
 func csvQuote(s string) string {
-	s = strings.ReplaceAll(s, "\"", "\"\"")
+	s = strings.Replace(s, "\"", "\"\"", 0)
 	s = "\"" + s + "\""
 	return s
 }
@@ -165,7 +165,7 @@ func replaceStr(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
 	a := args.Get(1).ToString()
 	b := args.Get(2).ToString()
-	s2 := strings.ReplaceAll(s, a, b)
+	s2 := strings.Replace(s, a, b, 0)
 	return value.NewValueStrPtr(s2), nil
 }
 

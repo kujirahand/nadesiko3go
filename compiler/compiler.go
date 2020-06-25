@@ -66,7 +66,7 @@ func NewCompier(sys *core.Core) *TCompiler {
 // CompileError : コンパイルエラー
 func CompileError(msg string, n *node.Node) error {
 	var e error
-	msg = strings.ReplaceAll(msg, "[コンパイルエラー] ", "")
+	msg = strings.Replace(msg, "[コンパイルエラー] ", "", 0)
 	if n != nil {
 		fi := (*n).GetFileInfo()
 		e = fmt.Errorf("[コンパイルエラー] (%d) %s", fi.Line, msg)
