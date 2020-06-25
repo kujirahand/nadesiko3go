@@ -10,8 +10,8 @@ import (
 func GetCSVToValue(csv string, splitter rune) value.Value {
 	res := value.NewValueArray()
 	// 改行コードを統一
-	csv = strings.ReplaceAll(csv, "\r\n", "\n")
-	csv = strings.ReplaceAll(csv, "\r", "\n")
+	csv = strings.Replace(csv, "\r\n", "\n", 0)
+	csv = strings.Replace(csv, "\r", "\n", 0)
 	// 解析開始
 	cols := value.NewValueArrayPtr()
 	col := ""
