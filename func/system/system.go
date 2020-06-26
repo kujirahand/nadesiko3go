@@ -72,8 +72,15 @@ func RegisterFunction(sys *core.Core) {
 	// 日時
 	sys.AddFunc("今", core.DefArgs{}, getNow)    // 現在時刻を返す | いま
 	sys.AddFunc("今日", core.DefArgs{}, getToday) // 今日の日付を返す | きょう
+	// 配列
+	sys.AddFunc("要素数", core.DefArgs{{"の"}}, countV) // Sの要素数を得る | ようそすう
 }
 
+func countV(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	sz := v.Length()
+	return value.NewValueIntPtr(sz), nil
+}
 func getCSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	vv := GetCSVToValue(v.ToString(), ',')

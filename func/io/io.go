@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/core"
@@ -27,6 +29,70 @@ func RegisterFunction(sys *core.Core) {
 	// プロセス
 	sys.AddFunc("OS取得", core.DefArgs{}, getOS)  // OSの種類を返す | OSしゅとく
 	sys.AddFunc("秒待", core.DefArgs{{""}}, wait) // N秒待つ | びょうまつ
+	// パス操作
+	sys.AddConst("母艦パス", getBokanPath())                           // スクリプトのパスを保持 | ぼかんぱす
+	sys.AddFunc("ファイル名抽出", core.DefArgs{{"から", "の"}}, basename)    // N秒待つ | びょうまつ
+	sys.AddFunc("パス抽出", core.DefArgs{{"から", "の"}}, dirname)        // Fのパスを返す | ぱすちゅうしゅつ
+	sys.AddFunc("相対パス展開", core.DefArgs{{"を"}, {"で"}}, relatepath)  // 相対パス展開 | そうたいぱすてんかい
+	sys.AddFunc("絶対パス変換", core.DefArgs{{"から", "を", "の"}}, abspath) // 絶対パス変換 | ぜったいぱすへんかん
+}
+
+func abspath(args *value.TArray) (*value.Value, error) {
+	f := args.Get(0).ToString()
+	path, err := filepath.Abs(f)
+	if err != nil {
+		path = f
+	}
+	return value.NewValueStrPtr(path), nil
+}
+
+func getBokanPath() string {
+	s := filepath.Dir(core.GetSystem().MainFile)
+	return s
+}
+
+func basename(args *value.TArray) (*value.Value, error) {
+	f := args.Get(0).ToString()
+	path := filepath.Base(f)
+	return value.NewValueStrPtr(path), nil
+}
+func dirname(args *value.TArray) (*value.Value, error) {
+	f := args.Get(0).ToString()
+	path := filepath.Dir(f)
+	return value.NewValueStrPtr(path), nil
+}
+func relatepath(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0).ToString()
+	b := args.Get(1).ToString()
+	a = filepath.FromSlash(a)
+	b = filepath.FromSlash(b)
+	alist := strings.Split(a, "/")
+	blist := strings.Split(b, "/")
+	result := []string{}
+	// 階層を昇る場合
+	for _, v := range blist {
+		if v == ".." {
+			alist = alist[:len(alist)-1] // 末尾削除
+			continue
+		}
+		if v == "." {
+			continue
+		}
+		break
+	}
+	// aのパスを追加
+	for _, v := range alist {
+		result = append(result, v)
+	}
+	// bの追加文を追加
+	for _, v := range blist {
+		if v == "" || v == "." || v == ".." {
+			continue
+		}
+		result = append(result, v)
+	}
+	r := strings.Join(result, "/")
+	return value.NewValueStrPtr(r), nil
 }
 
 func wait(args *value.TArray) (*value.Value, error) {

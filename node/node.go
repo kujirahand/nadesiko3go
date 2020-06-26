@@ -634,6 +634,9 @@ func (n TNodeJSONArray) GetJosi() string { return n.Josi }
 
 // NewNodeJSONArray : array node
 func NewNodeJSONArray(t *token.Token, items TNodeList, t2 *token.Token) TNodeJSONArray {
+	if items == nil {
+		items = NewNodeList()
+	}
 	node := TNodeJSONArray{
 		Items:    items,
 		Josi:     t.Josi,

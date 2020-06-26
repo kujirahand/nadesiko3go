@@ -135,6 +135,7 @@ expr
 
 json_value
   : LBRACKET json_array RBRACKET { $$ = node.NewNodeJSONArray($1, $2, $3) }
+  | LBRACKET RBRACKET            { $$ = node.NewNodeJSONArray($1, nil, $2) }
   | LBRACE json_hash RBRACE      { $$ = node.NewNodeJSONHash($1, $2, $3) }
 
 json_array

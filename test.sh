@@ -20,6 +20,8 @@ diff $TEST_DIR/fizzbuzz-out.txt $TEST_DIR/fizzbuzz-result.txt
 rm -f $FILE_FIZZBUZZ
 echo "--- fib ---"
 $EXE $TEST_DIR/fib.nako3
+echo "--- func_io ---"
+$EXE $TEST_DIR/func_io.nako3
 
 echo "ok"
 
