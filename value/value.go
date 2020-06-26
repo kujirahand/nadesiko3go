@@ -32,8 +32,6 @@ const (
 type Value struct {
 	Type    Type
 	Value   interface{}
-	IValue  int
-	FValue  float64
 	Tag     int
 	IsConst bool // 不変な値(immutable)かどうか
 }
@@ -86,7 +84,7 @@ func NewValueNullPtr() *Value {
 
 // NewValueInt : 整数型を返す
 func NewValueInt(v int) Value {
-	return Value{Type: Int, IValue: v}
+	return Value{Type: Int, Value: v}
 }
 
 // NewValueIntPtr : 整数型を生成してそのポインタを返す
@@ -97,7 +95,7 @@ func NewValueIntPtr(v int) *Value {
 
 // NewValueFloat : 実数型を生成
 func NewValueFloat(v float64) Value {
-	return Value{Type: Float, FValue: v}
+	return Value{Type: Float, Value: v}
 }
 
 // NewValueFloatPtr : 実数型を生成
@@ -128,7 +126,7 @@ func NewValueBool(v bool) Value {
 	if v {
 		i = 1
 	}
-	return Value{Type: Bool, IValue: i}
+	return Value{Type: Bool, Value: i}
 }
 
 // NewValueBoolPtr : 真偽値
@@ -195,7 +193,7 @@ func NewValueByType(vtype Type, s string) Value {
 func (v *Value) ToBool() bool {
 	switch v.Type {
 	case Int, Bool:
-		return (v.IValue != 0)
+		return (v.Value.(int) != 0)
 	case Float:
 		i := v.ToInt()
 		return (i != 0)
@@ -210,9 +208,9 @@ func (v *Value) ToBool() bool {
 func (v *Value) ToInt() int {
 	switch v.Type {
 	case Int, Bool:
-		return v.IValue
+		return v.Value.(int)
 	case Float:
-		return int(v.FValue)
+		return int(v.Value.(float64))
 	case Str:
 		return StrToInt(v.Value.(string))
 	}
@@ -223,9 +221,9 @@ func (v *Value) ToInt() int {
 func (v *Value) ToFloat() float64 {
 	switch v.Type {
 	case Int, Bool:
-		return float64(v.IValue)
+		return float64(v.Value.(int))
 	case Float:
-		return v.FValue
+		return v.Value.(float64)
 	case Str:
 		return StrToFloat(v.Value.(string))
 	}
@@ -262,13 +260,13 @@ func (v *Value) IsNumber() bool {
 // SetInt : 整数を設定
 func (v *Value) SetInt(value int) {
 	v.Type = Int
-	v.IValue = value
+	v.Value = value
 }
 
 // SetFloat : 実数を設定
 func (v *Value) SetFloat(value float64) {
 	v.Type = Float
-	v.FValue = value
+	v.Value = value
 }
 
 // SetStr : 文字列を設定
@@ -281,9 +279,9 @@ func (v *Value) SetStr(value string) {
 func (v *Value) SetBool(value bool) {
 	v.Type = Bool
 	if value {
-		v.IValue = 1
+		v.Value = 1
 	} else {
-		v.IValue = 0
+		v.Value = 0
 	}
 }
 
@@ -301,9 +299,9 @@ func (v *Value) SetValue(value *Value) {
 	// Copy Value
 	switch value.Type {
 	case Int, Bool:
-		v.IValue = value.IValue
+		v.Value = value.Value.(int)
 	case Float:
-		v.FValue = value.FValue
+		v.Value = value.Value.(float64)
 	case Str:
 		v.Value = value.Value
 	default:
@@ -325,13 +323,13 @@ func (v *Value) ToString() string {
 	case Null:
 		return ""
 	case Int:
-		return IntToStr(v.IValue)
+		return IntToStr(v.Value.(int))
 	case Float:
-		return FloatToStr(v.FValue)
+		return FloatToStr(v.Value.(float64))
 	case Str:
 		return v.Value.(string)
 	case Bool:
-		if v.IValue != 0 {
+		if v.Value.(int) != 0 {
 			return "真"
 		}
 		return "偽"
@@ -367,9 +365,9 @@ func (v *Value) ToJSONString() string {
 	case Null:
 		return "null"
 	case Int:
-		return IntToStr(v.IValue)
+		return IntToStr(v.Value.(int))
 	case Float:
-		return FloatToStr(v.FValue)
+		return FloatToStr(v.Value.(float64))
 	case Str:
 		return "\"" + EncodeStrToJSON(v.Value.(string)) + "\""
 	case Bool:
@@ -512,7 +510,7 @@ func (v *Value) Clone() *Value {
 	case Int:
 		res = NewValueIntPtr(v.ToInt())
 	case Float:
-		f := NewValueFloat(v.FValue)
+		f := NewValueFloat(v.Value.(float64))
 		res = &f
 	case Str:
 		return NewValueStrPtr(v.ToString())

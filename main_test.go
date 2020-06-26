@@ -27,7 +27,12 @@ func TestLoop(t *testing.T) {
 }
 
 func TestIf(t *testing.T) {
-	_eval2(t, "C=0;もしC=1ならば\nC=30\n違えば\nC=40;ここまで;C", "40")
+	_eval2(t,
+		"C=0;もしC=1ならば\n"+
+			"　　C=30\n"+
+			"違えば\n"+
+			"　　C=40;\n"+
+			"ここまで;C", "40")
 	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
 	_eval2(t, "C=0;もしC=1ならば,C=30,違えば,C=50;C", "50")
 }

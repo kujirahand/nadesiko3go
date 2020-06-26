@@ -12,7 +12,10 @@ import (
 )
 
 func main() {
+	// pprof /var/xxx/cpu.pprof
+	// (pprof) svg
 	// defer profile.Start().Stop()
+
 	// check arguments
 	if len(os.Args) < 2 {
 		println("# nadesiko3go ver." + core.NadesikoVersion)

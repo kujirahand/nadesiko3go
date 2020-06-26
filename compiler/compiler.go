@@ -82,7 +82,7 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	c := []*TCode{p.makeJump(labelMainBegin)}
 	// 最初にユーザー関数を定義する
 	for _, v := range p.sys.UserFuncs.Items {
-		funcID := v.IValue
+		funcID := v.ToInt()
 		nodeDef := node.UserFunc[funcID]
 		cDef, eDef := p.convDefFunc(&nodeDef)
 		if eDef != nil {

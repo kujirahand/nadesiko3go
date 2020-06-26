@@ -140,7 +140,7 @@ func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
 func (p *Core) AddUserFunc(name string, args DefArgs) int {
 	val := value.NewValueUserFunc(-1)
 	tag := p.addFuncCustom(name, args, val)
-	val.IValue = tag
+	val.Value = tag
 	p.UserFuncs.Append(&val)
 	return tag
 }
