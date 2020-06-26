@@ -34,7 +34,7 @@ func TestIf(t *testing.T) {
 			"　　C=40;\n"+
 			"ここまで;C", "40")
 	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
-	_eval2(t, "C=0;もしC=1ならば,C=30,違えば,C=50;C", "50")
+	_eval2(t, "C=0;もしC=1ならば,C=30。違えば,C=50。C", "50")
 }
 func TestArray(t *testing.T) {
 	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
@@ -48,11 +48,11 @@ func TestFunc(t *testing.T) {
 	_eval2(t, "1と2を足して表示;表示ログ", "3")
 	_eval2(t, "C=足す(1,2);C", "3")
 	_eval2(t, "足す(1,2)を表示;表示ログ", "3")
-	_eval2(t, "C=1に2を足す;表示ログ", "3")
+	_eval2(t, "C=1に2を足す;C", "3")
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "C=1に2を足す;表示ログ", "3")
+	_eval2(t, "C=1に2を足す;C", "3")
 }
 
 func _eval2(t *testing.T, code, expected string) {
