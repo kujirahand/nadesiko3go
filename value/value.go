@@ -60,7 +60,7 @@ var valueTypeStr = map[Type]string{
 	Array:    "Array",
 	Hash:     "Hash",
 	Function: "Function",
-	UserFunc: "UserFinc",
+	UserFunc: "UserFunc",
 	Bytes:    "Bytes",
 }
 
@@ -141,8 +141,12 @@ func NewValueFunc(v TFunction) Value {
 }
 
 // NewValueUserFunc : ユーザー定義関数を生成
-func NewValueUserFunc(v int) Value {
-	return Value{Type: UserFunc, Value: v}
+func NewValueUserFunc(v interface{}) Value {
+	return Value{
+		Type:  UserFunc,
+		Value: v,  // Link to Node.TNodeDefFunc
+		Tag:   -1, // ArgsList Link
+	}
 }
 
 // NewValueArray : 配列を生成

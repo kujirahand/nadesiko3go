@@ -49,10 +49,11 @@ func TestFunc(t *testing.T) {
 	_eval2(t, "C=足す(1,2);C", "3")
 	_eval2(t, "足す(1,2)を表示;表示ログ", "3")
 	_eval2(t, "C=1に2を足す;C", "3")
+	_eval2(t, "(1に2を足)を表示;表示ログ", "3")
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "C=1に2を足す;C", "3")
+	_eval2(t, "1に2を足を表示", "3")
 }
 
 func _eval2(t *testing.T, code, expected string) {

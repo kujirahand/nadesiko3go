@@ -25,7 +25,8 @@ const (
 	//__BEGIN_TOKEN__
 	UNKNOWN        = "UNKNOWN"
 	COMMENT        = "COMMENT"
-	FUNC           = "FUNC"
+	FUNC           = "関数呼出"
+	FUNC_JOSI      = "関数呼出(助詞)"
 	EOF            = "EOF"
 	LF             = "LF"
 	EOS            = "EOS"

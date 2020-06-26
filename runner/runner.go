@@ -538,8 +538,7 @@ func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (*va
 
 func callUserFunc(funcV *value.Value, args *value.TArray) (*value.Value, error) {
 	// User func
-	userFuncIndex := funcV.Tag
-	userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
+	userNode := funcV.Value.(node.TNodeDefFunc)
 	// Open Local Scope
 	sys.Scopes.Open()
 	// スコープにローカル変数を挿入

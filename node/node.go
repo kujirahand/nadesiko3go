@@ -78,9 +78,6 @@ func NewNodeList() TNodeList {
 	return TNodeList{}
 }
 
-// UserFunc : ユーザー関数の一覧
-var UserFunc = map[int]Node{}
-
 // TNodeNop : NOP
 type TNodeNop struct {
 	Node
@@ -314,6 +311,7 @@ func NewNodeCallFunc(t *token.Token, args TNodeList) TNodeCallFunc {
 		Args:     args,
 		FileInfo: t.FileInfo,
 		UseJosi:  true,
+		Josi:     t.Josi,
 	}
 	return node
 }
@@ -584,8 +582,7 @@ func NewNodeDefFunc(t *token.Token, args Node, block Node) TNodeDefFunc {
 	}
 	// Add System
 	sys := core.GetSystem()
-	funcID := sys.AddUserFunc(word, a)
-	UserFunc[funcID] = node
+	sys.AddUserFunc(word, a, node)
 	return node
 }
 

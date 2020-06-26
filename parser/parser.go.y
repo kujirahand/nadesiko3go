@@ -130,6 +130,7 @@ expr
   | LPAREN expr RPAREN  { $$ = node.NewNodeCalc($3, $2) }
   | LPAREN callfunc RPAREN { $$ = node.NewNodeCalc($3, $2) }
   | BEGIN_CALLFUNC callfunc { $$ = $2 }
+  | FUNC_JOSI { $$ = node.NewNodeCallFunc($1, nil) }
 
 
 json_value

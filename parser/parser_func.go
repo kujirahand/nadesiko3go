@@ -82,6 +82,10 @@ func (l *Lexer) Lex(lval *yySymType) int {
 			result = FUNC
 			t.Type = token.FUNC
 		}
+		// 助詞のある関数？
+		if result == FUNC && t.Josi != "" {
+			result = FUNC_JOSI
+		}
 	}
 	l.lastToken = t
 	if l.sys.IsDebug {

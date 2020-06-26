@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
@@ -68,6 +69,9 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("JSONエンコード", core.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONエンコード整形", core.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONデコード", core.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
+	// 日時
+	sys.AddFunc("今", core.DefArgs{}, getNow)    // 現在時刻を返す | いま
+	sys.AddFunc("今日", core.DefArgs{}, getToday) // 今日の日付を返す | きょう
 }
 
 func getCSV(args *value.TArray) (*value.Value, error) {
@@ -234,4 +238,15 @@ func calc(op rune, args *value.TArray) (*value.Value, error) {
 		return nil, fmt.Errorf("system.calc link error")
 	}
 	return &v, nil
+}
+
+func getNow(args *value.TArray) (*value.Value, error) {
+	t := time.Now()
+	s := t.Format("15:04:05")
+	return value.NewValueStrPtr(s), nil
+}
+func getToday(args *value.TArray) (*value.Value, error) {
+	t := time.Now()
+	s := t.Format("2006/01/02")
+	return value.NewValueStrPtr(s), nil
 }

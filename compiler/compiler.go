@@ -82,11 +82,11 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	c := []*TCode{p.makeJump(labelMainBegin)}
 	// 最初にユーザー関数を定義する
 	for _, v := range p.sys.UserFuncs.Items {
-		funcID := v.ToInt()
-		nodeDef := node.UserFunc[funcID]
-		cDef, eDef := p.convDefFunc(&nodeDef)
+		nodeDef := v.Value.(node.TNodeDefFunc)
+		var n node.Node = nodeDef
+		cDef, eDef := p.convDefFunc(&n)
 		if eDef != nil {
-			return CompileError(eDef.Error(), &nodeDef)
+			return CompileError(eDef.Error(), &n)
 		}
 		c = append(c, cDef...)
 	}
@@ -218,14 +218,8 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	codeLabel := p.Labels[labelBegin.A]
 	args := []string{}
 
-	// 関数名を取得
-	funcV, err := p.getFunc(funcName)
-	if err != nil {
-		return nil, err
-	}
 	// User func
-	userFuncIndex := funcV.Tag
-	userNode := node.UserFunc[userFuncIndex].(node.TNodeDefFunc)
+	userNode := nn
 	// Open Local Scope
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
@@ -322,7 +316,13 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 			c = append(c, p.makeGetLocal("それ"))
 			// c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
 		} else {
-			return -1, nil, fmt.Errorf("関数『%s』で引数の数が違います。", fname)
+			if len(nodeArgs) < len(defArgs) {
+				return -1, nil, fmt.Errorf(
+					"関数『%s』で引数の数が多すぎます。"+
+						"引数を確認してください。"+
+						"あるいは、関数に複文が指定されている可能性があります。", fname)
+			}
+			return -1, nil, fmt.Errorf("関数『%s』で引数の数が不足しています。", fname)
 		}
 	}
 	return arrayIndex, c, nil

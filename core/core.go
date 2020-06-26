@@ -137,10 +137,9 @@ func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
 }
 
 // AddUserFunc : システムにユーザー関数を登録する
-func (p *Core) AddUserFunc(name string, args DefArgs) int {
-	val := value.NewValueUserFunc(-1)
-	tag := p.addFuncCustom(name, args, val)
-	val.Value = tag
-	p.UserFuncs.Append(&val)
+func (p *Core) AddUserFunc(name string, args DefArgs, node interface{}) int {
+	userFuncVal := value.NewValueUserFunc(node)
+	tag := p.addFuncCustom(name, args, userFuncVal)
+	p.UserFuncs.Append(&userFuncVal)
 	return tag
 }

@@ -11,6 +11,7 @@ func getTokenNo(token_type token.TType) int {
   case token.UNKNOWN: return UNKNOWN
   case token.COMMENT: return COMMENT
   case token.FUNC: return FUNC
+  case token.FUNC_JOSI: return FUNC_JOSI
   case token.EOF: return EOF
   case token.LF: return LF
   case token.EOS: return EOS
