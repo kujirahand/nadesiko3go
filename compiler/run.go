@@ -73,80 +73,80 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		// Calc
 		case Add:
 			v := value.Add(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Sub:
 			v := value.Sub(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Mul:
 			v := value.Mul(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Div:
 			v := value.Div(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Mod:
 			v := value.Mod(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case EqEq:
 			v := value.EqEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case NtEq:
 			v := value.NtEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Gt:
 			v := value.Gt(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case GtEq:
 			v := value.GtEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Lt:
 			v := value.Lt(p.regGet(B), p.regGet(C))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case LtEq:
 			bv := p.regGet(B)
 			cv := p.regGet(C)
 			v := value.LtEq(bv, cv)
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Exp:
 			bv := p.regGet(B)
 			cv := p.regGet(C)
 			v := value.Exp(bv, cv)
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case And:
 			bv := p.regGet(B)
 			cv := p.regGet(C)
 			v := value.And(bv, cv)
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case Or:
 			bv := p.regGet(B)
 			cv := p.regGet(C)
 			v := value.Or(bv, cv)
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case IncReg:
-			v := value.NewValueInt(p.regGet(A).ToInt() + 1)
-			p.regSet(A, &v)
-			lastValue = &v
+			v := value.NewValueIntPtr(p.regGet(A).ToInt() + 1)
+			p.regSet(A, v)
+			lastValue = v
 		case IncLocal:
 			v := p.scope.GetByIndex(A)
 			v.SetInt(v.ToInt() + 1)
 			lastValue = v
 		case NotReg:
 			v := value.Not(p.regGet(A))
-			p.regSet(A, &v)
-			lastValue = &v
+			p.regSet(A, v)
+			lastValue = v
 		case SetSore:
 			v := p.regGet(A)
 			p.scope.Set("それ", v)

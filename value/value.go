@@ -1,5 +1,9 @@
 package value
 
+// idea
+// プロファイラを見ると、NewValueXXXのコストが高いので、分別して破棄しないようにして値を再利用するように
+// Int / Float の計算を Floatにまとめて、数値同士の演算を高速化する（？）
+
 import "strings"
 
 // Type : valueの型
@@ -41,8 +45,7 @@ type TArrayItems []*Value
 
 // TArray : 配列型の型
 type TArray struct {
-	Items  TArrayItems
-	length int
+	Items TArrayItems
 }
 
 // THash : ハッシュ型の型
@@ -71,48 +74,53 @@ func TypeToStr(t Type) string {
 
 // --- NewValueXXX ---
 
-// NewValueNull : NULL型の値を返す
-func NewValueNull() Value {
-	return Value{Type: Null}
-}
-
 // NewValueNullPtr : NULL型の値を生成し、そのポインタを返す
 func NewValueNullPtr() *Value {
-	p := NewValueNull()
-	return &p
+	ga := GetGabadgeMan()
+	p := ga.NewValue()
+	return p
 }
 
 // NewValueInt : 整数型を返す
 func NewValueInt(v int) Value {
-	return Value{Type: Int, Value: v}
+	p := NewValueIntPtr(v)
+	return *p
 }
 
 // NewValueIntPtr : 整数型を生成してそのポインタを返す
 func NewValueIntPtr(v int) *Value {
-	vv := NewValueInt(v)
-	return &vv
-}
-
-// NewValueFloat : 実数型を生成
-func NewValueFloat(v float64) Value {
-	return Value{Type: Float, Value: v}
+	p := NewValueNullPtr()
+	p.Type = Int
+	p.Value = v
+	return p
 }
 
 // NewValueFloatPtr : 実数型を生成
 func NewValueFloatPtr(v float64) *Value {
-	f := NewValueFloat(v)
-	return &f
+	p := NewValueNullPtr()
+	p.Type = Float
+	p.Value = v
+	return p
 }
 
-// NewValueStr : 文字列を生成
-func NewValueStr(v string) Value {
-	return Value{Type: Str, Value: v}
+// NewValueFloat : 実数型を生成
+func NewValueFloat(v float64) Value {
+	p := NewValueFloatPtr(v)
+	return *p
 }
 
 // NewValueStrPtr : 文字列を生成
 func NewValueStrPtr(v string) *Value {
-	s := NewValueStr(v)
-	return &s
+	p := NewValueNullPtr()
+	p.Type = Str
+	p.Value = v
+	return p
+}
+
+// NewValueStr : 文字列を生成
+func NewValueStr(v string) Value {
+	p := NewValueStrPtr(v)
+	return *p
 }
 
 // NewValueBytes : []byteを生成
@@ -122,17 +130,20 @@ func NewValueBytes(v []byte) Value {
 
 // NewValueBool : 真偽値
 func NewValueBool(v bool) Value {
-	i := 0
-	if v {
-		i = 1
-	}
-	return Value{Type: Bool, Value: i}
+	p := NewValueBoolPtr(v)
+	return *p
 }
 
 // NewValueBoolPtr : 真偽値
 func NewValueBoolPtr(v bool) *Value {
-	p := NewValueBool(v)
-	return &p
+	i := 0
+	if v {
+		i = 1
+	}
+	p := NewValueNullPtr()
+	p.Type = Bool
+	p.Value = i
+	return p
 }
 
 // NewValueFunc : 関数オブジェクトを生成
@@ -440,7 +451,7 @@ func (v *Value) ToHash() THash {
 }
 
 // Append : append value to array value
-func (v *Value) Append(val *Value) int {
+func (v *Value) Append(val *Value) {
 	if v.Type != Array {
 		v.Type = Array
 		cv := NewValueStr(v.ToString())
@@ -449,8 +460,7 @@ func (v *Value) Append(val *Value) int {
 		v.Value = a
 	}
 	a := v.Value.(*TArray)
-	alen := a.Append(val)
-	return alen
+	a.Append(val)
 }
 
 // HashSet : append value to hash value
@@ -514,8 +524,7 @@ func (v *Value) Clone() *Value {
 	case Int:
 		res = NewValueIntPtr(v.ToInt())
 	case Float:
-		f := NewValueFloat(v.Value.(float64))
-		res = &f
+		res = NewValueFloatPtr(v.Value.(float64))
 	case Str:
 		return NewValueStrPtr(v.ToString())
 	case Array:
@@ -533,10 +542,10 @@ func (v *Value) Clone() *Value {
 		}
 		res = &vh
 	default:
-		tmp := NewValueNull()
+		tmp := NewValueNullPtr()
 		tmp.Type = v.Type
 		tmp.Value = v.Value
-		res = &tmp
+		res = tmp
 	}
 	// clone other meta data
 	res.Tag = v.Tag

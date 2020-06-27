@@ -97,6 +97,7 @@ func (p *Lexer) Split() token.Tokens {
 		// 連文に対処
 		if t.Josi != "" {
 			if p.renbunJosi[t.Josi] == true {
+				t.Josi = "" // 連文助詞があったので、そこでEOSを追加して助詞を空にする
 				p.line = t.FileInfo.Line
 				tt = append(tt, t)
 				tt = append(tt, NewToken(p, token.EOS))

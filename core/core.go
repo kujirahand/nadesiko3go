@@ -125,8 +125,8 @@ func (p *Core) AddVarInt(name string, v int) int {
 }
 
 // AddVarValue : システムに変数を登録
-func (p *Core) AddVarValue(name string, v value.Value) int {
-	p.Global.Set(name, &v)
+func (p *Core) AddVarValue(name string, v *value.Value) int {
+	p.Global.Set(name, v)
 	return -1
 }
 

@@ -30,10 +30,10 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddConst("波カッコ閉", "}")
 	sys.AddConstInt("OK", 1)
 	sys.AddConstInt("NG", 0)
-	sys.AddVarValue("PI", value.NewValueFloat(float64(math.Pi)))
+	sys.AddVarValue("PI", value.NewValueFloatPtr(float64(math.Pi)))
 	sys.AddConst("空", "")
-	sys.AddVarValue("NULL", value.NewValueNull())
-	sys.AddVarValue("未定義", value.NewValueNull())
+	sys.AddVarValue("NULL", value.NewValueNullPtr())
+	sys.AddVarValue("未定義", value.NewValueNullPtr())
 	sys.AddVar("エラーメッセージ", "")
 	sys.AddVar("それ", "")
 	sys.AddVar("そう", "") // alias "それ" ... SetSoreLinkで処理
@@ -215,7 +215,7 @@ func nteq(args *value.TArray) (*value.Value, error) {
 }
 
 func calc(op rune, args *value.TArray) (*value.Value, error) {
-	var v value.Value
+	var v *value.Value
 	l := args.Get(0)
 	r := args.Get(1)
 	switch op {
@@ -244,7 +244,7 @@ func calc(op rune, args *value.TArray) (*value.Value, error) {
 	default:
 		return nil, fmt.Errorf("system.calc link error")
 	}
-	return &v, nil
+	return v, nil
 }
 
 func getNow(args *value.TArray) (*value.Value, error) {

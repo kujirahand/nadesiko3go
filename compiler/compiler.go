@@ -649,9 +649,9 @@ func (p *TCompiler) convDefVar(n *node.Node) ([]*TCode, error) {
 	if varV != nil {
 		return nil, CompileError(fmt.Sprintf("定数『%s』の宣言で既に変数が存在します。", varName), n)
 	}
-	val := value.NewValueNull()
+	val := value.NewValueNullPtr()
 	val.IsConst = nn.IsConst // Immutable?
-	p.scope.Set(varName, &val)
+	p.scope.Set(varName, val)
 	noVar := p.scope.GetIndexByName(varName)
 	c = append(c, NewCodeMemo(SetLocal, noVar, regExpr, 0, "定数:"+varName))
 	p.regBack()

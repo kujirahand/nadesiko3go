@@ -33,7 +33,7 @@ import (
 %type<node> def_function
 %type<node> json_value variable
 %type<jsonkv> json_hash
-%type<token> json_key
+%type<token> json_key def_func_name
 %type<nodelist> sentences json_array varindex args block def_args
 __TOKENS_LIST__
 
@@ -249,16 +249,20 @@ for_stmt
     $$ = node.NewNodeFor($5, $2.Literal, $3, $4, $6)
   }
 
+def_func_name
+  : FUNC
+  | FUNC_JOSI
+
 def_function
-  : DEF_FUNC FUNC LF block END
+  : DEF_FUNC def_func_name LF block END
   {
     $$ = node.NewNodeDefFunc($2, node.NewNodeList(), $4)
   }
-  | DEF_FUNC LPAREN def_args RPAREN FUNC LF block END
+  | DEF_FUNC LPAREN def_args RPAREN def_func_name LF block END
   {
     $$ = node.NewNodeDefFunc($5, $3, $7)
   }
-  | DEF_FUNC FUNC LPAREN def_args RPAREN LF block END
+  | DEF_FUNC def_func_name LPAREN def_args RPAREN LF block END
   {
     $$ = node.NewNodeDefFunc($2, $4, $7)
   }

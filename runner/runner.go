@@ -1,5 +1,9 @@
 package runner
 
+// (memo) Node をそのまま実行する方式で実行するインタプリタ方式の場合に利用
+// ただし、現状利用していない
+// 後日削除予定
+
 import (
 	"fmt"
 
@@ -595,7 +599,7 @@ func runSentence(n *node.Node) (*value.Value, error) {
 
 func runOperator(n *node.Node) (*value.Value, error) {
 	op := (*n).(node.TNodeOperator)
-	var v value.Value
+	var v *value.Value
 	r, err1 := runNode(&op.Right)
 	if err1 != nil {
 		return nil, RuntimeError(err1.Error()+"演算"+op.Operator, n)
@@ -605,12 +609,12 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(err1.Error()+"演算"+op.Operator, n)
 	}
 	if r == nil {
-		rNull := value.NewValueNull()
-		r = &rNull
+		rNull := value.NewValueNullPtr()
+		r = rNull
 	}
 	if l == nil {
-		rNull := value.NewValueNull()
-		l = &rNull
+		rNull := value.NewValueNullPtr()
+		l = rNull
 	}
 	switch op.Operator {
 	case "&":
@@ -648,7 +652,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(
 			"(システム)未定義の演算子。"+op.Operator, n)
 	}
-	return &v, nil
+	return v, nil
 }
 
 func runJSONArray(n *node.Node) (*value.Value, error) {
