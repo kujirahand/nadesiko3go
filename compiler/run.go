@@ -30,7 +30,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
+
 		// println("*RUN=", p.index, p.ToString(code))
+
 		switch code.Type {
 		case FileInfo:
 			p.FileNo = A
@@ -50,11 +52,13 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			valV := p.regGet(B)
 			varV.SetValue(valV)
 			lastValue = varV
-			//println("@@", valV.ToJSONString())
-			//fmt.Printf("%#v\n", valV)
+
+			// println("SetLocal=@", valV.ToJSONString())
+			// fmt.Printf("%#v\n", valV)
 		case GetLocal:
 			p.regSet(A, p.scope.GetByIndex(B))
 			lastValue = p.regGet(A)
+
 			// println("@@value=", lastValue.ToJSONString())
 		case SetGlobal:
 			g := p.sys.Scopes.GetGlobal()
@@ -208,9 +212,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			lastValue = h
 		case Length:
 			vb := p.regGet(B)
-			va := value.NewValueInt(vb.Length())
-			p.regSet(A, &va)
-			lastValue = &va
+			va := value.NewValueIntPtr(vb.Length())
+			p.regSet(A, va)
+			lastValue = va
 			// FUNC
 		case CallFunc:
 			res, err := p.runCallFunc(code)
@@ -315,8 +319,8 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 		}
 	}
 	p.regSet(C, value.NewValueIntPtr(i+1))
-	condV := value.NewValueBool(!condB)
-	p.regSet(A, &condV)
+	condV := value.NewValueBoolPtr(!condB)
+	p.regSet(A, condV)
 	return lastValue, nil
 }
 
@@ -416,7 +420,7 @@ func (p *TCompiler) moveToTop() {
 
 func (p *TCompiler) regSet(index int, val *value.Value) {
 	p.reg.Set(index, val)
-	// println("[REG]SET = " + p.reg.ToString())
+	println("[REG]SET = " + p.reg.ToString())
 }
 
 func (p *TCompiler) regGet(index int) *value.Value {

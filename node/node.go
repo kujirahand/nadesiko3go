@@ -166,7 +166,7 @@ func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
 // TNodeConst : Const
 type TNodeConst struct {
 	Node
-	Value    value.Value
+	Value    *value.Value
 	IsExtend bool
 	Josi     string
 	FileInfo core.TFileInfo
@@ -195,7 +195,7 @@ func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
 // NewNodeConstInt : 整数型のConstノードを返す
 func NewNodeConstInt(t *token.Token, num int) TNodeConst {
 	node := TNodeConst{
-		Value:    value.NewValueInt(int(num)),
+		Value:    value.NewValueIntPtr(int(num)),
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}

@@ -45,7 +45,7 @@ type TArrayItems []*Value
 
 // TArray : 配列型の型
 type TArray struct {
-	Items TArrayItems
+	items TArrayItems
 }
 
 // THash : ハッシュ型の型
@@ -81,12 +81,6 @@ func NewValueNullPtr() *Value {
 	return p
 }
 
-// NewValueInt : 整数型を返す
-func NewValueInt(v int) Value {
-	p := NewValueIntPtr(v)
-	return *p
-}
-
 // NewValueIntPtr : 整数型を生成してそのポインタを返す
 func NewValueIntPtr(v int) *Value {
 	p := NewValueNullPtr()
@@ -103,12 +97,6 @@ func NewValueFloatPtr(v float64) *Value {
 	return p
 }
 
-// NewValueFloat : 実数型を生成
-func NewValueFloat(v float64) Value {
-	p := NewValueFloatPtr(v)
-	return *p
-}
-
 // NewValueStrPtr : 文字列を生成
 func NewValueStrPtr(v string) *Value {
 	p := NewValueNullPtr()
@@ -117,21 +105,9 @@ func NewValueStrPtr(v string) *Value {
 	return p
 }
 
-// NewValueStr : 文字列を生成
-func NewValueStr(v string) Value {
-	p := NewValueStrPtr(v)
-	return *p
-}
-
 // NewValueBytes : []byteを生成
 func NewValueBytes(v []byte) Value {
 	return Value{Type: Bytes, Value: v}
-}
-
-// NewValueBool : 真偽値
-func NewValueBool(v bool) Value {
-	p := NewValueBoolPtr(v)
-	return *p
 }
 
 // NewValueBoolPtr : 真偽値
@@ -180,27 +156,27 @@ func NewValueHash() Value {
 }
 
 // NewValueByType : タイプに応じた値を生成する
-func NewValueByType(vtype Type, s string) Value {
+func NewValueByType(vtype Type, s string) *Value {
 	switch vtype {
 	case Null:
-		return Value{Type: Null, Value: nil}
+		return NewValueNullPtr()
 	case Int:
-		return NewValueInt(StrToInt(s))
+		return NewValueIntPtr(StrToInt(s))
 	case Float:
 		// IntにできるならIntに変換
 		if strings.Index(s, ".") >= 0 {
-			return NewValueFloat(StrToFloat(s))
+			return NewValueFloatPtr(StrToFloat(s))
 		}
-		return NewValueInt(StrToInt(s))
+		return NewValueIntPtr(StrToInt(s))
 	case Str:
-		return NewValueStr(s)
+		return NewValueStrPtr(s)
 	case Bool:
 		if s == "" {
-			return NewValueBool(false)
+			return NewValueBoolPtr(false)
 		}
-		return NewValueBool(true)
+		return NewValueBoolPtr(true)
 	default:
-		return Value{Type: vtype, Value: s}
+		return NewValueNullPtr()
 	}
 }
 
@@ -270,6 +246,20 @@ func (v *Value) IsNumber() bool {
 		return true
 	}
 	return false
+}
+
+// Clear : クリア
+func (v *Value) Clear() {
+	switch v.Type {
+	case Array:
+		a := v.Value.(TArray)
+		a.Clear()
+	case Hash:
+		h := v.Value.(THash)
+		h.Clear()
+	}
+	v.Type = Null
+	v.Value = nil
 }
 
 // SetInt : 整数を設定
@@ -439,7 +429,7 @@ func (v *Value) ToArrayItems() []*Value {
 	if v.Type != Array {
 		return nil
 	}
-	return v.Value.(*TArray).Items
+	return v.Value.(*TArray).GetItems()
 }
 
 // ToHash : to hash
@@ -454,9 +444,9 @@ func (v *Value) ToHash() THash {
 func (v *Value) Append(val *Value) {
 	if v.Type != Array {
 		v.Type = Array
-		cv := NewValueStr(v.ToString())
+		cv := NewValueStrPtr(v.ToString())
 		a := NewTArray()
-		a.Append(&cv)
+		a.Append(cv)
 		v.Value = a
 	}
 	a := v.Value.(*TArray)
@@ -495,9 +485,9 @@ func (v *Value) HashKeys() []string {
 func (v *Value) ArraySet(idx int, val *Value) {
 	if v.Type != Array {
 		v.Type = Array
-		cv := NewValueStr(v.ToString())
+		cv := NewValueStrPtr(v.ToString())
 		a := NewTArray()
-		a.Append(&cv)
+		a.Append(cv)
 		v.Value = a
 	}
 	a := v.Value.(*TArray)
@@ -530,7 +520,7 @@ func (v *Value) Clone() *Value {
 	case Array:
 		va := NewValueArray()
 		a := va.Value.(*TArray)
-		for _, v := range a.Items {
+		for _, v := range a.items {
 			va.Append(v.Clone())
 		}
 		res = &va

@@ -154,8 +154,8 @@ func OpenFile(args *value.TArray) (*value.Value, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ファイルが読めません。file=" + f)
 	}
-	vText := value.NewValueStr(string(text))
-	return &vText, nil
+	vText := value.NewValueStrPtr(string(text))
+	return vText, nil
 }
 
 // Println : 表示

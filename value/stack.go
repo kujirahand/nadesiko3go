@@ -22,10 +22,10 @@ func NewValueStack() *TValueStack {
 }
 
 // Push : push value
-func (stack *TValueStack) Push(val Value) int {
+func (stack *TValueStack) Push(val *Value) int {
 	// new node
 	n := TNode{
-		v:    &val,
+		v:    val,
 		next: nil,
 	}
 	// add last

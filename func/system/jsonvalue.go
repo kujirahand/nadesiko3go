@@ -233,5 +233,5 @@ func (p *jsonParser) getNumber() (*value.Value, error) {
 		break
 	}
 	v := value.NewValueByType(value.Float, s)
-	return &v, nil
+	return v, nil
 }

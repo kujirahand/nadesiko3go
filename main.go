@@ -25,6 +25,7 @@ func main() {
 		println("[Options]")
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")
+		println("  -S\tDo not run")
 		return
 	}
 	sys := eval.InitSystem()

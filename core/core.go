@@ -89,17 +89,17 @@ func (p *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 
 // AddConst : システムに定数を登録
 func (p *Core) AddConst(name, v string) int {
-	val := value.NewValueStr(v)
+	val := value.NewValueStrPtr(v)
 	val.IsConst = true
-	p.Global.Set(name, &val)
+	p.Global.Set(name, val)
 	return -1
 }
 
 // AddConstInt : システムに定数を登録
 func (p *Core) AddConstInt(name string, v int) int {
-	val := value.NewValueInt(int(v))
+	val := value.NewValueIntPtr(int(v))
 	val.IsConst = true
-	p.Global.Set(name, &val)
+	p.Global.Set(name, val)
 	return -1
 }
 
@@ -112,15 +112,15 @@ func (p *Core) AddConstValue(name string, v value.Value) int {
 
 // AddVar : システムに変数を登録
 func (p *Core) AddVar(name, v string) int {
-	val := value.NewValueStr(v)
-	p.Global.Set(name, &val)
+	val := value.NewValueStrPtr(v)
+	p.Global.Set(name, val)
 	return -1
 }
 
 // AddVarInt : システムに整数型の値を登録
 func (p *Core) AddVarInt(name string, v int) int {
-	val := value.NewValueInt(int(v))
-	p.Global.Set(name, &val)
+	val := value.NewValueIntPtr(int(v))
+	p.Global.Set(name, val)
 	return -1
 }
 

@@ -7,15 +7,30 @@ import (
 // NewTArray : TArrayを生成
 func NewTArray() *TArray {
 	return &TArray{
-		Items: TArrayItems{},
+		items: TArrayItems{},
 	}
 }
 
 // NewTArrayDef : TArrayを生成
 func NewTArrayDef(items TArrayItems) TArray {
 	return TArray{
-		Items: items,
+		items: items,
 	}
+}
+
+// GetItems : スライスを返す
+func (p *TArray) GetItems() TArrayItems {
+	return p.items
+}
+
+// Clear : Clear Data
+func (p *TArray) Clear() {
+	for _, v := range p.items {
+		if v != nil {
+			Free(v)
+		}
+	}
+	p.items = TArrayItems{}
 }
 
 // ToString : 文字列に変換
@@ -26,7 +41,7 @@ func (p *TArray) ToString() string {
 // ToJSONString : To JSON String
 func (p *TArray) ToJSONString() string {
 	a := []string{}
-	for _, val := range p.Items {
+	for _, val := range p.items {
 		a = append(a, val.ToJSONString())
 	}
 	return "[" + strings.Join(a, ",") + "]"
@@ -40,7 +55,7 @@ func (p *TArray) ToJSONStringFormat(level int) string {
 	}
 	a := []string{}
 	allsimple := true
-	for _, val := range p.Items {
+	for _, val := range p.items {
 		a = append(a, tab+val.ToJSONStringFormat(level+1))
 		if !val.IsSimpleValue() {
 			allsimple = false
@@ -56,23 +71,22 @@ func (p *TArray) ToJSONStringFormat(level int) string {
 
 // Length : 配列の長さを返す
 func (p *TArray) Length() int {
-	return len(p.Items)
+	return len(p.items)
 }
 
 // Set : 配列に値を設定
 func (p *TArray) Set(index int, val *Value) {
 	// 要素を拡張
 	for index >= p.Length() {
-		p.Items = append(p.Items, nil)
+		p.items = append(p.items, NewValueNullPtr())
 	}
 	// 値を設定
-	Free(p.Items[index])
-	p.Items[index] = val
+	p.items[index] = val
 }
 
 // Append : 配列を追加
 func (p *TArray) Append(val *Value) {
-	p.Items = append(p.Items, val)
+	p.items = append(p.items, val)
 }
 
 // Push : 配列を追加 (Appendのエイリアス)
@@ -86,7 +100,7 @@ func (p *TArray) Get(index int) *Value {
 		// panic("TArray.Get.index" + IntToStr(index) + "/" + IntToStr(p.length))
 		return nil
 	}
-	return p.Items[index]
+	return p.items[index]
 }
 
 // Pop : 末尾のデータを取り出す
@@ -95,8 +109,8 @@ func (p *TArray) Pop() *Value {
 	if plen == 0 {
 		return nil
 	}
-	result := p.Items[plen-1]
-	p.Items = p.Items[:plen-1]
+	result := p.items[plen-1]
+	p.items = p.items[:plen-1]
 	return result
 }
 

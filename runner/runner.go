@@ -133,9 +133,9 @@ func runFor(n *node.Node) (*value.Value, error) {
 		// できるだけ再利用
 		loopVar = sys.Global.Get(nn.Word)
 		if loopVar == nil {
-			newVar := value.NewValueInt(0)
-			sys.Global.Set(nn.Word, &newVar)
-			loopVar = &newVar
+			newVar := value.NewValueIntPtr(0)
+			sys.Global.Set(nn.Word, newVar)
+			loopVar = newVar
 		}
 	}
 	// LOOP
@@ -288,8 +288,8 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 	// 回数変数を取得
 	kaisuHensu := sys.Global.Get("回数")
 	if kaisuHensu == nil {
-		kaisuHensu := value.NewValueInt(1)
-		sys.Global.Set("回数", &kaisuHensu)
+		kaisuHensu := value.NewValueIntPtr(1)
+		sys.Global.Set("回数", kaisuHensu)
 	}
 	// 上のループの回数を得る
 	lastKaisu := kaisuHensu.ToInt()
@@ -708,7 +708,7 @@ func runReturn(n *node.Node) (*value.Value, error) {
 func runConst(n *node.Node) (*value.Value, error) {
 	nc := (*n).(node.TNodeConst)
 	if !nc.IsExtend {
-		return &nc.Value, nil
+		return nc.Value, nil
 	}
 	// 拡張
 	result := ""
@@ -739,6 +739,6 @@ func runConst(n *node.Node) (*value.Value, error) {
 			result += ev.ToString()
 		}
 	}
-	resultValue := value.NewValueStr(result)
-	return &resultValue, nil
+	resultValue := value.NewValueStrPtr(result)
+	return resultValue, nil
 }

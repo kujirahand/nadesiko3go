@@ -60,3 +60,11 @@ func (p *THash) Keys() []string {
 	}
 	return r
 }
+
+// Clear : Clear data
+func (p *THash) Clear() {
+	for k, v := range *p {
+		Free(v)
+		delete(*p, k)
+	}
+}

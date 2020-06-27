@@ -66,7 +66,7 @@ func (s *Scope) SetByIndex(index int, val *value.Value) {
 	for index >= s.values.Length() {
 		s.values.Append(value.NewValueNullPtr())
 	}
-	s.values.Items[index] = val
+	s.values.Set(index, val)
 }
 
 // GetNameByIndex : Get Value By Index

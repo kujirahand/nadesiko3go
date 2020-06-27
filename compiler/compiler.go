@@ -81,7 +81,7 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	labelMainBegin := p.makeLabel("MAIN_BEGIN")
 	c := []*TCode{p.makeJump(labelMainBegin)}
 	// 最初にユーザー関数を定義する
-	for _, v := range p.sys.UserFuncs.Items {
+	for _, v := range p.sys.UserFuncs.GetItems() {
 		nodeDef := v.Value.(node.TNodeDefFunc)
 		var n node.Node = nodeDef
 		cDef, eDef := p.convDefFunc(&n)
@@ -796,35 +796,35 @@ func (p *TCompiler) appendConstsInt(num int) int {
 	if num < 10 { // 10以下なら最初に強制的に作成した
 		return num
 	}
-	for i, v := range p.Consts.Items {
+	for i, v := range p.Consts.GetItems() {
 		if v.Type == value.Int && v.ToInt() == num {
 			return i
 		}
 	}
 	// なければ追加
-	val := value.NewValueInt(num)
+	val := value.NewValueIntPtr(num)
 	idx := p.Consts.Length()
-	p.Consts.Append(&val)
+	p.Consts.Append(val)
 	return idx
 }
 
 func (p *TCompiler) appendConstsStr(s string) int {
 	// 同じ値があるか調べる
-	for i, v := range p.Consts.Items {
+	for i, v := range p.Consts.GetItems() {
 		if v.Type == value.Str && v.ToString() == s {
 			return i
 		}
 	}
 	// なければ追加
-	val := value.NewValueStr(s)
+	val := value.NewValueStrPtr(s)
 	idx := p.Consts.Length()
-	p.Consts.Append(&val)
+	p.Consts.Append(val)
 	return idx
 }
 
 func (p *TCompiler) appendConsts(val *value.Value) int {
 	// 同じ値があるか調べる
-	for i, v := range p.Consts.Items {
+	for i, v := range p.Consts.GetItems() {
 		if v.Type == val.Type {
 			switch v.Type {
 			case value.Null:
@@ -870,7 +870,7 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 		ci := p.appendConstsStr(v.ToString())
 		return []*TCode{NewCodeMemo(codeType, regI, ci, 0, "="+v.ToString())}, nil
 	default:
-		ci := p.appendConsts(&v)
+		ci := p.appendConsts(v)
 		return []*TCode{NewCodeMemo(ConstO, regI, ci, 0, "="+v.ToString())}, nil
 	}
 }
@@ -930,7 +930,7 @@ func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 }
 
 func (p *TCompiler) getConstNoByID(id string, canCreate bool) int {
-	for i, v := range p.Consts.Items {
+	for i, v := range p.Consts.GetItems() {
 		if v.Type == value.Str {
 			if v.ToString() == id {
 				return i
@@ -941,8 +941,8 @@ func (p *TCompiler) getConstNoByID(id string, canCreate bool) int {
 		return -1
 	}
 	resIndex := p.Consts.Length()
-	vv := value.NewValueStr(id)
-	p.Consts.Append(&vv)
+	vv := value.NewValueStrPtr(id)
+	p.Consts.Append(vv)
 	return resIndex
 }
 
