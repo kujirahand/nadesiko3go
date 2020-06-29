@@ -420,7 +420,7 @@ func (p *TCompiler) moveToTop() {
 
 func (p *TCompiler) regSet(index int, val *value.Value) {
 	p.reg.Set(index, val)
-	println("[REG]SET = " + p.reg.ToString())
+	// println("[REG]SET = " + p.reg.ToString())
 }
 
 func (p *TCompiler) regGet(index int) *value.Value {
