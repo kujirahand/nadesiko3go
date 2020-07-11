@@ -26,231 +26,26 @@ func (p *TCompiler) Run() (*value.Value, error) {
 }
 
 func (p *TCompiler) runCode() (*value.Value, error) {
-	var lastValue *value.Value = nil
+	lastValue := value.NewNullPtr()
+	p.isJump = false
 	for p.isLive() {
 		code := p.peek()
-		A, B, C := code.A, code.B, code.C
-		// println("*RUN=", p.index, p.ToString(code))
-		switch code.Type {
-		case FileInfo:
-			p.FileNo = A
-			p.Line = B
-		case ConstO:
-			p.regSet(A, p.Consts.Get(B).Clone())
-		case ExString:
-			p.regSet(A, p.runExString(p.Consts.Get(B).ToString()))
-		case MoveR:
-			p.regSet(A, p.regGet(B))
-		case SetLocal:
-			varV := p.scope.GetByIndex(A)
-			if varV == nil { // はじめての代入なら値を生成
-				varV = value.NewNullPtr()
-				p.scope.SetByIndex(A, varV)
-			}
-			valV := p.regGet(B)
-			varV.SetValue(valV)
-			lastValue = varV
-
-			// println("SetLocal=@", valV.ToJSONString())
-			// fmt.Printf("%#v\n", valV)
-		case GetLocal:
-			p.regSet(A, p.scope.GetByIndex(B))
-			lastValue = p.regGet(A)
-
-			// println("@@value=", lastValue.ToJSONString())
-		case SetGlobal:
-			g := p.sys.Scopes.GetGlobal()
-			varV := g.GetByIndex(A)
-			varV.SetValue(p.regGet(B))
-			lastValue = varV
-		case GetGlobal:
-			g := p.sys.Scopes.GetGlobal()
-			p.regSet(A, g.GetByIndex(B))
-			lastValue = p.regGet(A)
-		case FindVar:
-			name := p.Consts.Get(B).ToString()
-			v, _ := p.sys.Scopes.Find(name)
-			p.regSet(A, v)
-			lastValue = v
-		// Calc
-		case Add:
-			v := value.Add(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Sub:
-			v := value.Sub(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Mul:
-			v := value.Mul(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Div:
-			v := value.Div(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Mod:
-			v := value.Mod(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case EqEq:
-			v := value.EqEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case NtEq:
-			v := value.NtEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Gt:
-			v := value.Gt(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case GtEq:
-			v := value.GtEq(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case Lt:
-			v := value.Lt(p.regGet(B), p.regGet(C))
-			p.regSet(A, v)
-			lastValue = v
-		case LtEq:
-			bv := p.regGet(B)
-			cv := p.regGet(C)
-			v := value.LtEq(bv, cv)
-			p.regSet(A, v)
-			lastValue = v
-		case Exp:
-			bv := p.regGet(B)
-			cv := p.regGet(C)
-			v := value.Exp(bv, cv)
-			p.regSet(A, v)
-			lastValue = v
-		case And:
-			bv := p.regGet(B)
-			cv := p.regGet(C)
-			v := value.And(bv, cv)
-			p.regSet(A, v)
-			lastValue = v
-		case Or:
-			bv := p.regGet(B)
-			cv := p.regGet(C)
-			v := value.Or(bv, cv)
-			p.regSet(A, v)
-			lastValue = v
-		case IncReg:
-			v := value.NewIntPtr(p.regGet(A).ToInt() + 1)
-			p.regSet(A, v)
-			lastValue = v
-		case IncLocal:
-			v := p.scope.GetByIndex(A)
-			v.SetInt(v.ToInt() + 1)
-			lastValue = v
-		case NotReg:
-			v := value.Not(p.regGet(A))
-			p.regSet(A, v)
-			lastValue = v
-		case SetSore:
-			v := p.regGet(A)
-			p.scope.Set("それ", v)
-			lastValue = v
-		// label
-		case DefLabel:
-			//nop
-		case Jump:
-			p.move(code.A)
-			continue
-		case JumpIfTrue:
-			expr := p.regGet(A)
-			if expr != nil && expr.ToBool() {
-				p.move(B)
-				continue
-			}
-		// Array/Hash
-		case NewArray:
-			a := value.NewArrayPtr()
-			p.regSet(A, a)
-			lastValue = a
-		case AppendArray:
-			a := p.regGet(A)
-			b := p.regGet(B)
-			if a.Type != value.Array {
-				return nil, p.RuntimeError("[SYSTEM] AppendArray")
-			}
-			a.Append(b)
-		case GetArrayElem:
-			var v *value.Value = nil
-			b := p.regGet(B)
-			c := p.regGet(C)
-			if b.Type == value.Array {
-				idx := c.ToInt()
-				v = b.ArrayGet(idx)
-				if v == nil { // 値がなければ作る
-					v = value.NewNullPtr()
-					b.ArraySet(idx, v)
-				}
-				p.regSet(A, v)
-			} else if b.Type == value.Hash {
-				v = b.HashGet(c.ToString())
-				p.regSet(A, v)
-			}
-			lastValue = v
-		case SetArrayElem:
-			v := p.regGet(A)
-			if v != nil {
-				v.SetValue(p.regGet(B))
-				lastValue = v
-			}
-		case SetHash:
-			h := p.regGet(A)
-			key := p.Consts.Get(B).ToString()
-			if h != nil {
-				h.HashSet(key, p.regGet(C))
-			}
-			// println(h.ToJSONString())
-			lastValue = h
-		case Length:
-			vb := p.regGet(B)
-			va := value.NewIntPtr(vb.Length())
-			p.regSet(A, va)
-			lastValue = va
-			// FUNC
-		case CallFunc:
-			res, err := p.runCallFunc(code)
-			if err != nil {
-				return nil, err
-			}
-			p.regSet(A, res)
-			// println("call=", res.ToString())
-			lastValue = res
-		case CallUserFunc:
-			cur := p.procCallUserFunc(code)
-			p.moveTo(cur)
-			continue
-		case Return:
-			cur, ret := p.procReturn(code)
-			if cur < 0 { // プログラム終了
-				return lastValue, nil
-			}
-			p.moveTo(cur)
-			lastValue = ret
-			continue
-		case NewHash:
-			v := value.NewHashPtr()
-			p.regSet(A, v)
-			lastValue = v
-		case Foreach:
-			v, err := p.runForeach(code)
-			if err != nil {
-				return nil, err
-			}
-			lastValue = v
-		case Print:
-			println("[PRINT]", p.regGet(A).ToString())
-		default:
+		f := codeFuncTable[code.Type]
+		if f == nil {
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
+		res, err := f(p, code)
+		if err != nil {
+			return nil, err
+		}
+		lastValue = res
+		// println("*RUN=", p.index, p.ToString(code))
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())
+		if p.isJump {
+			p.isJump = false
+			continue
+		}
 		p.moveNext()
 	}
 	return lastValue, nil

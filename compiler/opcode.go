@@ -98,6 +98,8 @@ const (
 	Print
 )
 
+// OPCODE:END
+
 // TCode : コードを表す構造体
 type TCode struct {
 	Type int

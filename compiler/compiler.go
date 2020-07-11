@@ -35,6 +35,7 @@ type TCompiler struct {
 	breakLabel    *TCode   // for Break
 	continueLabel *TCode   // for Continue
 	loopLabels    []*TCode // for Break / Continue
+	isJump        bool
 }
 
 // NewCompier : コンパイラオブジェクトを生成
