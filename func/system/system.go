@@ -41,8 +41,8 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddConst("対象", "")
 	sys.AddConst("対象キー", "")
 	sys.AddConstInt("回数", 0)
-	sys.AddConstValue("空配列", value.NewValueArray())
-	sys.AddConstValue("空ハッシュ", value.NewValueHash())
+	sys.AddConstValue("空配列", value.NewValueArrayPtr())
+	sys.AddConstValue("空ハッシュ", value.NewValueHashPtr())
 	/// 四則演算
 	sys.AddFunc("足", core.DefArgs{{"と", "に"}, {"を"}}, add) // AにBを足す | たす
 	sys.AddFunc("引", core.DefArgs{{"から"}, {"を"}}, sub)     // AからBを引く | ひく
@@ -139,12 +139,12 @@ func countV(args *value.TArray) (*value.Value, error) {
 func getCSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	vv := GetCSVToValue(v.ToString(), ',')
-	return &vv, nil
+	return vv, nil
 }
 func getTSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	vv := GetCSVToValue(v.ToString(), '\t')
-	return &vv, nil
+	return vv, nil
 }
 
 func csvQuote(s string) string {

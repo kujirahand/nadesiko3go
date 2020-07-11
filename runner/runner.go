@@ -230,7 +230,7 @@ func runForeach(n *node.Node) (*value.Value, error) {
 	// 文字列を指定したなら一行ずつ実行する
 	if exprValue.Type == value.Str {
 		tmp := value.NewValueArrayFromStr(exprValue.ToString(), "\n")
-		exprValue = &tmp
+		exprValue = tmp
 	}
 	if exprValue.Type == value.Array { // --- 配列の場合
 		for _, v := range exprValue.ToArrayItems() {
@@ -657,7 +657,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 
 func runJSONArray(n *node.Node) (*value.Value, error) {
 	nn := (*n).(node.TNodeJSONArray)
-	res := value.NewValueArray()
+	res := value.NewValueArrayPtr()
 	for i, vNode := range nn.Items {
 		val, err := runNode(&vNode)
 		if err != nil {
@@ -665,12 +665,12 @@ func runJSONArray(n *node.Node) (*value.Value, error) {
 		}
 		res.Append(val)
 	}
-	return &res, nil
+	return res, nil
 }
 
 func runJSONHash(n *node.Node) (*value.Value, error) {
 	nn := (*n).(node.TNodeJSONHash)
-	res := value.NewValueHash()
+	res := value.NewValueHashPtr()
 	for k, vNode := range nn.Items {
 		val, err := runNode(&vNode)
 		if err != nil {
@@ -678,7 +678,7 @@ func runJSONHash(n *node.Node) (*value.Value, error) {
 		}
 		res.HashSet(k, val)
 	}
-	return &res, nil
+	return res, nil
 }
 
 func runBreak(n *node.Node) (*value.Value, error) {

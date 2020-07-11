@@ -116,8 +116,8 @@ func ask(args *value.TArray) (*value.Value, error) {
 }
 
 // コマンドライン
-func getCommandline() value.Value {
-	v := value.NewValueArray()
+func getCommandline() *value.Value {
+	v := value.NewValueArrayPtr()
 	for _, arg := range os.Args {
 		v.Append(value.NewValueStrPtr(arg))
 	}

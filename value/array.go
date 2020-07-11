@@ -134,9 +134,9 @@ func SplitString(src, splitter string) *TArray {
 }
 
 // NewValueArrayFromStr : 文字列から配列型のValueを作る
-func NewValueArrayFromStr(src, splitter string) Value {
+func NewValueArrayFromStr(src, splitter string) *Value {
 	a := SplitString(src, splitter)
-	nv := NewValueArray()
+	nv := NewValueArrayPtr()
 	nv.Value = a
 	return nv
 }

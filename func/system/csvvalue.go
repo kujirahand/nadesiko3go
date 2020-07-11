@@ -7,8 +7,8 @@ import (
 )
 
 // GetCSVToValue : CSV文字列をValueに変換
-func GetCSVToValue(csv string, splitter rune) value.Value {
-	res := value.NewValueArray()
+func GetCSVToValue(csv string, splitter rune) *value.Value {
+	res := value.NewValueArrayPtr()
 	// 改行コードを統一
 	csv = strings.Replace(csv, "\r\n", "\n", 0)
 	csv = strings.Replace(csv, "\r", "\n", 0)

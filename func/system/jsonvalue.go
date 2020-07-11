@@ -93,13 +93,13 @@ func (p *jsonParser) skipSpace() {
 
 func (p *jsonParser) getArray() (*value.Value, error) {
 	p.i++ // skip "["
-	a := value.NewValueArray()
+	a := value.NewValueArrayPtr()
 	for p.isLive() {
 		p.skipSpace()
 		c := p.peek()
 		if c == ']' {
 			p.i++ // skip "]"
-			return &a, nil
+			return a, nil
 		}
 		v, err := p.parse()
 		//println(v.ToString())
@@ -114,22 +114,22 @@ func (p *jsonParser) getArray() (*value.Value, error) {
 		}
 		if p.peek() == ']' {
 			p.i++ // skip "]"
-			return &a, nil
+			return a, nil
 		}
 		return nil, fmt.Errorf("Arrayで']'がありません")
 	}
-	return &a, nil
+	return a, nil
 }
 
 func (p *jsonParser) getObject() (*value.Value, error) {
 	p.i++ // skip "{"
-	h := value.NewValueHash()
+	h := value.NewValueHashPtr()
 	for p.isLive() {
 		p.skipSpace()
 		c := p.peek()
 		if c == '}' {
 			p.i++ // skip "}"
-			return &h, nil
+			return h, nil
 		}
 		// key
 		key := ""
@@ -156,7 +156,7 @@ func (p *jsonParser) getObject() (*value.Value, error) {
 			p.i++
 		}
 	}
-	return &h, nil
+	return h, nil
 }
 
 func (p *jsonParser) getString(quote rune) (*value.Value, error) {

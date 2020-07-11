@@ -136,14 +136,6 @@ func NewValueUserFunc(v interface{}) Value {
 	}
 }
 
-// NewValueArray : 配列を生成
-func NewValueArray() Value {
-	return Value{
-		Type:  Array,
-		Value: NewTArray(),
-	}
-}
-
 // NewValueArrayPtr : 配列を生成
 func NewValueArrayPtr() *Value {
 	return &Value{
@@ -159,11 +151,6 @@ func NewValueArrayPtrFromStrings(sa []string) *Value {
 		a.Append(NewValueStrPtr(v))
 	}
 	return a
-}
-
-// NewValueHash : ハッシュを生成
-func NewValueHash() Value {
-	return Value{Type: Hash, Value: THash{}}
 }
 
 // NewValueHashPtr : ハッシュを生成
@@ -534,19 +521,19 @@ func (v *Value) Clone() *Value {
 	case Str:
 		return NewValueStrPtr(v.ToString())
 	case Array:
-		va := NewValueArray()
+		va := NewValueArrayPtr()
 		a := va.Value.(*TArray)
 		for _, v := range a.items {
 			va.Append(v.Clone())
 		}
-		res = &va
+		res = va
 	case Hash:
-		vh := NewValueHash()
+		vh := NewValueHashPtr()
 		h := vh.Value.(THash)
 		for key, val := range h {
 			vh.HashSet(key, val.Clone())
 		}
-		res = &vh
+		res = vh
 	default:
 		tmp := NewValueNullPtr()
 		tmp.Type = v.Type

@@ -169,9 +169,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			}
 		// Array/Hash
 		case NewArray:
-			a := value.NewValueArray()
-			p.regSet(A, &a)
-			lastValue = &a
+			a := value.NewValueArrayPtr()
+			p.regSet(A, a)
+			lastValue = a
 		case AppendArray:
 			a := p.regGet(A)
 			b := p.regGet(B)
@@ -236,9 +236,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			lastValue = ret
 			continue
 		case NewHash:
-			v := value.NewValueHash()
-			p.regSet(A, &v)
-			lastValue = &v
+			v := value.NewValueHashPtr()
+			p.regSet(A, v)
+			lastValue = v
 		case Foreach:
 			v, err := p.runForeach(code)
 			if err != nil {

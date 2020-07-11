@@ -104,8 +104,8 @@ func (p *Core) AddConstInt(name string, v int) int {
 }
 
 // AddConstValue : システムに変数を登録
-func (p *Core) AddConstValue(name string, v value.Value) int {
-	p.Global.Set(name, &v)
+func (p *Core) AddConstValue(name string, v *value.Value) int {
+	p.Global.Set(name, v)
 	v.IsConst = true
 	return -1
 }
