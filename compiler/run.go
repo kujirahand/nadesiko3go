@@ -46,7 +46,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		case SetLocal:
 			varV := p.scope.GetByIndex(A)
 			if varV == nil { // はじめての代入なら値を生成
-				varV = value.NewValueNullPtr()
+				varV = value.NewNullPtr()
 				p.scope.SetByIndex(A, varV)
 			}
 			valV := p.regGet(B)
@@ -140,7 +140,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			p.regSet(A, v)
 			lastValue = v
 		case IncReg:
-			v := value.NewValueIntPtr(p.regGet(A).ToInt() + 1)
+			v := value.NewIntPtr(p.regGet(A).ToInt() + 1)
 			p.regSet(A, v)
 			lastValue = v
 		case IncLocal:
@@ -169,7 +169,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			}
 		// Array/Hash
 		case NewArray:
-			a := value.NewValueArrayPtr()
+			a := value.NewArrayPtr()
 			p.regSet(A, a)
 			lastValue = a
 		case AppendArray:
@@ -187,7 +187,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 				idx := c.ToInt()
 				v = b.ArrayGet(idx)
 				if v == nil { // 値がなければ作る
-					v = value.NewValueNullPtr()
+					v = value.NewNullPtr()
 					b.ArraySet(idx, v)
 				}
 				p.regSet(A, v)
@@ -212,7 +212,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			lastValue = h
 		case Length:
 			vb := p.regGet(B)
-			va := value.NewValueIntPtr(vb.Length())
+			va := value.NewIntPtr(vb.Length())
 			p.regSet(A, va)
 			lastValue = va
 			// FUNC
@@ -236,7 +236,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 			lastValue = ret
 			continue
 		case NewHash:
-			v := value.NewValueHashPtr()
+			v := value.NewHashPtr()
 			p.regSet(A, v)
 			lastValue = v
 		case Foreach:
@@ -288,7 +288,7 @@ func (p *TCompiler) runExString(s string) *value.Value {
 		i++
 		continue
 	}
-	return value.NewValueStrPtr(res)
+	return value.NewStrPtr(res)
 }
 
 func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
@@ -312,14 +312,14 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 			v := exprV.HashGet(k)
 			p.sys.Scopes.SetTopVars("それ", v)
 			p.sys.Scopes.SetTopVars("対象", v)
-			p.sys.Scopes.SetTopVars("対象キー", value.NewValueStrPtr(k))
+			p.sys.Scopes.SetTopVars("対象キー", value.NewStrPtr(k))
 			lastValue = v
 		} else {
 			condB = false
 		}
 	}
-	p.regSet(C, value.NewValueIntPtr(i+1))
-	condV := value.NewValueBoolPtr(!condB)
+	p.regSet(C, value.NewIntPtr(i+1))
+	condV := value.NewBoolPtr(!condB)
 	p.regSet(A, condV)
 	return lastValue, nil
 }
@@ -378,9 +378,9 @@ func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	p.scope = scope
 	p.reg = scope.Reg
 	// 登録する順番に注意
-	scope.Set("それ", value.NewValueNullPtr())
-	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(p.index+1))
-	scope.Reg.Set(metaRegReturnValue, value.NewValueIntPtr(code.A))
+	scope.Set("それ", value.NewNullPtr())
+	scope.Reg.Set(metaRegReturnAddr, value.NewIntPtr(p.index+1))
+	scope.Reg.Set(metaRegReturnValue, value.NewIntPtr(code.A))
 	// 変数を登録する
 	for i, name := range label.argNames {
 		v := oldScope.Reg.Get(argIndex + i)

@@ -6,8 +6,8 @@ import (
 
 func TestStackSimple(t *testing.T) {
 	stack := NewValueStack()
-	stack.Push(NewValueIntPtr(30))
-	stack.Push(NewValueIntPtr(50))
+	stack.Push(NewIntPtr(30))
+	stack.Push(NewIntPtr(50))
 	v1 := stack.Pop()
 	if v1.ToInt() != 50 {
 		t.Errorf("stack.push/pop 50 != %d", v1.ToInt())
@@ -24,14 +24,14 @@ func TestStackSimple(t *testing.T) {
 func TestStack2(t *testing.T) {
 	stack := NewValueStack()
 	// push & pop
-	stack.Push(NewValueStrPtr("abc"))
+	stack.Push(NewStrPtr("abc"))
 	v1 := stack.Pop()
 	if v1.ToString() != "abc" {
 		t.Errorf("stack.push/pop")
 	}
-	stack.Push(NewValueStrPtr("ccc"))
-	stack.Push(NewValueStrPtr("bbb"))
-	stack.Push(NewValueStrPtr("aaa"))
+	stack.Push(NewStrPtr("ccc"))
+	stack.Push(NewStrPtr("bbb"))
+	stack.Push(NewStrPtr("aaa"))
 	if stack.Pop().ToString() != "aaa" {
 		t.Errorf("stack error aaa")
 	}

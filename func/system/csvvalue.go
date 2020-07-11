@@ -8,12 +8,12 @@ import (
 
 // GetCSVToValue : CSV文字列をValueに変換
 func GetCSVToValue(csv string, splitter rune) *value.Value {
-	res := value.NewValueArrayPtr()
+	res := value.NewArrayPtr()
 	// 改行コードを統一
 	csv = strings.Replace(csv, "\r\n", "\n", 0)
 	csv = strings.Replace(csv, "\r", "\n", 0)
 	// 解析開始
-	cols := value.NewValueArrayPtr()
+	cols := value.NewArrayPtr()
 	col := ""
 	insideQuote := false
 	// 最終的に改行を追加する
@@ -26,7 +26,7 @@ func GetCSVToValue(csv string, splitter rune) *value.Value {
 		c := src[i]
 		if !insideQuote {
 			if c == splitter {
-				pcol := value.NewValueStrPtr(col)
+				pcol := value.NewStrPtr(col)
 				cols.Append(pcol)
 				col = ""
 				i++
@@ -38,12 +38,12 @@ func GetCSVToValue(csv string, splitter rune) *value.Value {
 				continue
 			}
 			if c == '\n' {
-				pcol := value.NewValueStrPtr(col)
+				pcol := value.NewStrPtr(col)
 				cols.Append(pcol)
 				res.Append(cols)
 				println(res.ToJSONString())
 				col = ""
-				cols = value.NewValueArrayPtr()
+				cols = value.NewArrayPtr()
 				i++
 				continue
 			}

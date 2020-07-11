@@ -42,16 +42,16 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p := TCompiler{}
 	p.Codes = []*TCode{}
 	p.Consts = value.NewTArrayDef(value.TArrayItems{
-		value.NewValueIntPtr(0),
-		value.NewValueIntPtr(1),
-		value.NewValueIntPtr(2),
-		value.NewValueIntPtr(3),
-		value.NewValueIntPtr(4),
-		value.NewValueIntPtr(5),
-		value.NewValueIntPtr(6),
-		value.NewValueIntPtr(7),
-		value.NewValueIntPtr(8),
-		value.NewValueIntPtr(9),
+		value.NewIntPtr(0),
+		value.NewIntPtr(1),
+		value.NewIntPtr(2),
+		value.NewIntPtr(3),
+		value.NewIntPtr(4),
+		value.NewIntPtr(5),
+		value.NewIntPtr(6),
+		value.NewIntPtr(7),
+		value.NewIntPtr(8),
+		value.NewIntPtr(9),
 	})
 	p.Labels = []*TCodeLabel{}
 	p.UserFuncLabel = map[string]int{}
@@ -224,18 +224,18 @@ func (p *TCompiler) convDefFunc(n *node.Node) ([]*TCode, error) {
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
 	// 変数の登録(順番に注意)
-	scope.Set("それ", value.NewValueNullPtr())
-	scope.Reg.Set(metaRegReturnAddr, value.NewValueIntPtr(-1))
-	scope.Reg.Set(metaRegReturnValue, value.NewValueIntPtr(-1))
+	scope.Set("それ", value.NewNullPtr())
+	scope.Reg.Set(metaRegReturnAddr, value.NewIntPtr(-1))
+	scope.Reg.Set(metaRegReturnValue, value.NewIntPtr(-1))
 	scope.Index = 2
 	// スコープにローカル変数を挿入 (順番が重要)
 	for _, name := range userNode.ArgNames {
-		scope.Set(name, value.NewValueNullPtr())
+		scope.Set(name, value.NewNullPtr())
 		args = append(args, name)
 	}
 	codeLabel.argNames = args
 	// ローカルスコープに「それ」を配置
-	localSore := value.NewValueNullPtr()
+	localSore := value.NewNullPtr()
 	scope.Set("それ", localSore)
 	// Block
 	cBlock, errBlock := p.convNode(&userNode.Block)
@@ -561,7 +561,7 @@ func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 	toReg := p.regNext()
 	varNo := scope.GetIndexByName(nn.Name)
 	if varNo < 0 {
-		v := value.NewValueNullPtr()
+		v := value.NewNullPtr()
 		varNo = scope.Set(nn.Name, v)
 	}
 	c = append(c, NewCodeMemo(GetLocal, toReg, varNo, 0, nn.Name))
@@ -585,7 +585,7 @@ func (p *TCompiler) makeSetLocalReg(name string, reg int) *TCode {
 	scope := p.scope
 	A := scope.GetIndexByName(name)
 	if A < 0 {
-		scope.Set(name, value.NewValueNullPtr())
+		scope.Set(name, value.NewNullPtr())
 		A = scope.GetIndexByName(name)
 	}
 	return NewCodeMemo(SetLocal, A, reg, 0, name)
@@ -621,7 +621,7 @@ func (p *TCompiler) makeGetLocal(name string) *TCode {
 			return NewCodeMemo(FindVar, A, ci, 0, name)
 		}
 		// (3) NULLを値として戻す
-		idxNull := p.appendConsts(value.NewValueNullPtr())
+		idxNull := p.appendConsts(value.NewNullPtr())
 		return NewCodeMemo(ConstO, A, idxNull, 0, "未定義の変数:"+name)
 	}
 	return NewCodeMemo(GetLocal, A, B, 0, name) // ローカル変数
@@ -649,7 +649,7 @@ func (p *TCompiler) convDefVar(n *node.Node) ([]*TCode, error) {
 	if varV != nil {
 		return nil, CompileError(fmt.Sprintf("定数『%s』の宣言で既に変数が存在します。", varName), n)
 	}
-	val := value.NewValueNullPtr()
+	val := value.NewNullPtr()
 	val.IsConst = nn.IsConst // Immutable?
 	p.scope.Set(varName, val)
 	noVar := p.scope.GetIndexByName(varName)
@@ -676,7 +676,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 	if nn.Index == nil || len(nn.Index) == 0 {
 		varV := p.scope.Get(varName)
 		if varV == nil {
-			varV = value.NewValueNullPtr()
+			varV = value.NewNullPtr()
 			p.scope.Set(varName, varV)
 		}
 		// 定数チェック
@@ -802,7 +802,7 @@ func (p *TCompiler) appendConstsInt(num int) int {
 		}
 	}
 	// なければ追加
-	val := value.NewValueIntPtr(num)
+	val := value.NewIntPtr(num)
 	idx := p.Consts.Length()
 	p.Consts.Append(val)
 	return idx
@@ -816,7 +816,7 @@ func (p *TCompiler) appendConstsStr(s string) int {
 		}
 	}
 	// なければ追加
-	val := value.NewValueStrPtr(s)
+	val := value.NewStrPtr(s)
 	idx := p.Consts.Length()
 	p.Consts.Append(val)
 	return idx
@@ -941,7 +941,7 @@ func (p *TCompiler) getConstNoByID(id string, canCreate bool) int {
 		return -1
 	}
 	resIndex := p.Consts.Length()
-	vv := value.NewValueStrPtr(id)
+	vv := value.NewStrPtr(id)
 	p.Consts.Append(vv)
 	return resIndex
 }

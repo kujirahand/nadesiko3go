@@ -33,7 +33,7 @@ func (p *jsonParser) peek() rune {
 func (p *jsonParser) parse() (*value.Value, error) {
 	p.skipSpace()
 	if !p.isLive() {
-		return value.NewValueNullPtr(), nil
+		return value.NewNullPtr(), nil
 	}
 	c := p.peek()
 	// check
@@ -52,16 +52,16 @@ func (p *jsonParser) parse() (*value.Value, error) {
 	// check bool
 	if p.eq("true") {
 		p.i += len("true")
-		return value.NewValueBoolPtr(true), nil
+		return value.NewBoolPtr(true), nil
 	}
 	if p.eq("false") {
 		p.i += len("false")
-		return value.NewValueBoolPtr(false), nil
+		return value.NewBoolPtr(false), nil
 	}
 	// check null
 	if p.eq("null") {
 		p.i += len("null")
-		return value.NewValueNullPtr(), nil
+		return value.NewNullPtr(), nil
 	}
 	// error
 	return nil, fmt.Errorf("Unknown Char:" + string(c))
@@ -93,7 +93,7 @@ func (p *jsonParser) skipSpace() {
 
 func (p *jsonParser) getArray() (*value.Value, error) {
 	p.i++ // skip "["
-	a := value.NewValueArrayPtr()
+	a := value.NewArrayPtr()
 	for p.isLive() {
 		p.skipSpace()
 		c := p.peek()
@@ -123,7 +123,7 @@ func (p *jsonParser) getArray() (*value.Value, error) {
 
 func (p *jsonParser) getObject() (*value.Value, error) {
 	p.i++ // skip "{"
-	h := value.NewValueHashPtr()
+	h := value.NewHashPtr()
 	for p.isLive() {
 		p.skipSpace()
 		c := p.peek()
@@ -164,7 +164,7 @@ func (p *jsonParser) getString(quote rune) (*value.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	return value.NewValueStrPtr(s), nil
+	return value.NewStrPtr(s), nil
 }
 
 func (p *jsonParser) getStringRaw(quote rune) (string, error) {
@@ -232,6 +232,6 @@ func (p *jsonParser) getNumber() (*value.Value, error) {
 		}
 		break
 	}
-	v := value.NewValueByType(value.Float, s)
+	v := value.NewByType(value.Float, s)
 	return v, nil
 }

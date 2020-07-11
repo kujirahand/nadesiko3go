@@ -12,9 +12,9 @@ func TestSys1(t *testing.T) {
 	eq(t, urlAnalizeParams, value.NewTArrayFromStrings([]string{"http://example.com/?a=12%2F&b=45"}), "{\"a\":\"12/\",\"b\":\"45\"}")
 }
 func TestHashKeys(t *testing.T) {
-	h := value.NewValueHashPtr()
-	h.HashSet("a", value.NewValueIntPtr(11))
-	h.HashSet("b", value.NewValueIntPtr(22))
+	h := value.NewHashPtr()
+	h.HashSet("a", value.NewIntPtr(11))
+	h.HashSet("b", value.NewIntPtr(22))
 	a := value.NewTArray()
 	a.Append(h)
 	eq(t, hashKeys, a, "[\"a\",\"b\"]")

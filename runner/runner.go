@@ -133,7 +133,7 @@ func runFor(n *node.Node) (*value.Value, error) {
 		// できるだけ再利用
 		loopVar = sys.Global.Get(nn.Word)
 		if loopVar == nil {
-			newVar := value.NewValueIntPtr(0)
+			newVar := value.NewIntPtr(0)
 			sys.Global.Set(nn.Word, newVar)
 			loopVar = newVar
 		}
@@ -288,7 +288,7 @@ func runRepeat(n *node.Node) (*value.Value, error) {
 	// 回数変数を取得
 	kaisuHensu := sys.Global.Get("回数")
 	if kaisuHensu == nil {
-		kaisuHensu := value.NewValueIntPtr(1)
+		kaisuHensu := value.NewIntPtr(1)
 		sys.Global.Set("回数", kaisuHensu)
 	}
 	// 上のループの回数を得る
@@ -363,7 +363,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		// 現在のレベルに変数を生成
 		nameValue := localScope.Get(cl.Name)
 		if nameValue == nil {
-			nameValue = value.NewValueNullPtr()
+			nameValue = value.NewNullPtr()
 			localScope.Set(cl.Name, nameValue)
 		}
 		if nameValue.IsConst {
@@ -377,7 +377,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 	// 配列など参照に代入する場合
 	vv := sys.Scopes.Get(cl.Name)
 	if vv == nil { // 変数がなければ作る
-		vv = value.NewValueNullPtr()
+		vv = value.NewNullPtr()
 		sys.Scopes.SetTopVars(cl.Name, vv)
 	}
 	// 添字へのアクセス
@@ -422,7 +422,7 @@ func runDefVar(n *node.Node) (*value.Value, error) {
 		}
 		return nil, RuntimeError(fmt.Sprintf("既に%s『%s』が存在します。", k, cl.Name), n)
 	}
-	varV := value.NewValueNullPtr()
+	varV := value.NewNullPtr()
 	varV.IsConst = cl.IsConst
 	scope.Set(cl.Name, varV)
 
@@ -514,7 +514,7 @@ func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (*va
 				if argResult != nil {
 					args.Set(i, argResult)
 				} else {
-					args.Set(i, value.NewValueNullPtr())
+					args.Set(i, value.NewNullPtr())
 				}
 			}
 		}
@@ -552,7 +552,7 @@ func callUserFunc(funcV *value.Value, args *value.TArray) (*value.Value, error) 
 	}
 	// ローカルスコープに「それ」を配置
 	tmpSore := sys.Sore
-	localSore := value.NewValueNullPtr()
+	localSore := value.NewNullPtr()
 	scope.Set("それ", localSore)
 	scope.Set("そう", localSore)
 	sys.Sore = localSore
@@ -609,11 +609,11 @@ func runOperator(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(err1.Error()+"演算"+op.Operator, n)
 	}
 	if r == nil {
-		rNull := value.NewValueNullPtr()
+		rNull := value.NewNullPtr()
 		r = rNull
 	}
 	if l == nil {
-		rNull := value.NewValueNullPtr()
+		rNull := value.NewNullPtr()
 		l = rNull
 	}
 	switch op.Operator {
@@ -657,7 +657,7 @@ func runOperator(n *node.Node) (*value.Value, error) {
 
 func runJSONArray(n *node.Node) (*value.Value, error) {
 	nn := (*n).(node.TNodeJSONArray)
-	res := value.NewValueArrayPtr()
+	res := value.NewArrayPtr()
 	for i, vNode := range nn.Items {
 		val, err := runNode(&vNode)
 		if err != nil {
@@ -670,7 +670,7 @@ func runJSONArray(n *node.Node) (*value.Value, error) {
 
 func runJSONHash(n *node.Node) (*value.Value, error) {
 	nn := (*n).(node.TNodeJSONHash)
-	res := value.NewValueHashPtr()
+	res := value.NewHashPtr()
 	for k, vNode := range nn.Items {
 		val, err := runNode(&vNode)
 		if err != nil {
@@ -739,6 +739,6 @@ func runConst(n *node.Node) (*value.Value, error) {
 			result += ev.ToString()
 		}
 	}
-	resultValue := value.NewValueStrPtr(result)
+	resultValue := value.NewStrPtr(result)
 	return resultValue, nil
 }

@@ -89,7 +89,7 @@ func (p *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
 
 // AddConst : システムに定数を登録
 func (p *Core) AddConst(name, v string) int {
-	val := value.NewValueStrPtr(v)
+	val := value.NewStrPtr(v)
 	val.IsConst = true
 	p.Global.Set(name, val)
 	return -1
@@ -97,7 +97,7 @@ func (p *Core) AddConst(name, v string) int {
 
 // AddConstInt : システムに定数を登録
 func (p *Core) AddConstInt(name string, v int) int {
-	val := value.NewValueIntPtr(int(v))
+	val := value.NewIntPtr(int(v))
 	val.IsConst = true
 	p.Global.Set(name, val)
 	return -1
@@ -112,14 +112,14 @@ func (p *Core) AddConstValue(name string, v *value.Value) int {
 
 // AddVar : システムに変数を登録
 func (p *Core) AddVar(name, v string) int {
-	val := value.NewValueStrPtr(v)
+	val := value.NewStrPtr(v)
 	p.Global.Set(name, val)
 	return -1
 }
 
 // AddVarInt : システムに整数型の値を登録
 func (p *Core) AddVarInt(name string, v int) int {
-	val := value.NewValueIntPtr(int(v))
+	val := value.NewIntPtr(int(v))
 	p.Global.Set(name, val)
 	return -1
 }
@@ -132,13 +132,13 @@ func (p *Core) AddVarValue(name string, v *value.Value) int {
 
 // AddFunc : システムにGo関数を登録する
 func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
-	val := value.NewValueFunc(f)
+	val := value.NewFunc(f)
 	return p.addFuncCustom(name, args, val)
 }
 
 // AddUserFunc : システムにユーザー関数を登録する
 func (p *Core) AddUserFunc(name string, args DefArgs, node interface{}) int {
-	userFuncVal := value.NewValueUserFunc(node)
+	userFuncVal := value.NewUserFunc(node)
 	tag := p.addFuncCustom(name, args, userFuncVal)
 	p.UserFuncs.Append(&userFuncVal)
 	return tag

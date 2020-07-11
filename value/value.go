@@ -74,61 +74,61 @@ func TypeToStr(t Type) string {
 
 // --- NewValueXXX ---
 
-// NewValueNullPtr : NULL型の値を生成し、そのポインタを返す
-func NewValueNullPtr() *Value {
+// NewNullPtr : NULL型の値を生成し、そのポインタを返す
+func NewNullPtr() *Value {
 	ga := GetGabadgeMan()
 	p := ga.NewValue()
 	return p
 }
 
-// NewValueIntPtr : 整数型を生成してそのポインタを返す
-func NewValueIntPtr(v int) *Value {
-	p := NewValueNullPtr()
+// NewIntPtr : 整数型を生成してそのポインタを返す
+func NewIntPtr(v int) *Value {
+	p := NewNullPtr()
 	p.Type = Int
 	p.Value = v
 	return p
 }
 
-// NewValueFloatPtr : 実数型を生成
-func NewValueFloatPtr(v float64) *Value {
-	p := NewValueNullPtr()
+// NewFloatPtr : 実数型を生成
+func NewFloatPtr(v float64) *Value {
+	p := NewNullPtr()
 	p.Type = Float
 	p.Value = v
 	return p
 }
 
-// NewValueStrPtr : 文字列を生成
-func NewValueStrPtr(v string) *Value {
-	p := NewValueNullPtr()
+// NewStrPtr : 文字列を生成
+func NewStrPtr(v string) *Value {
+	p := NewNullPtr()
 	p.Type = Str
 	p.Value = v
 	return p
 }
 
-// NewValueBytes : []byteを生成
-func NewValueBytes(v []byte) Value {
+// NewBytes : []byteを生成
+func NewBytes(v []byte) Value {
 	return Value{Type: Bytes, Value: v}
 }
 
-// NewValueBoolPtr : 真偽値
-func NewValueBoolPtr(v bool) *Value {
+// NewBoolPtr : 真偽値
+func NewBoolPtr(v bool) *Value {
 	i := 0
 	if v {
 		i = 1
 	}
-	p := NewValueNullPtr()
+	p := NewNullPtr()
 	p.Type = Bool
 	p.Value = i
 	return p
 }
 
-// NewValueFunc : 関数オブジェクトを生成
-func NewValueFunc(v TFunction) Value {
+// NewFunc : 関数オブジェクトを生成
+func NewFunc(v TFunction) Value {
 	return Value{Type: Function, Value: v}
 }
 
-// NewValueUserFunc : ユーザー定義関数を生成
-func NewValueUserFunc(v interface{}) Value {
+// NewUserFunc : ユーザー定義関数を生成
+func NewUserFunc(v interface{}) Value {
 	return Value{
 		Type:  UserFunc,
 		Value: v,  // Link to Node.TNodeDefFunc
@@ -136,50 +136,50 @@ func NewValueUserFunc(v interface{}) Value {
 	}
 }
 
-// NewValueArrayPtr : 配列を生成
-func NewValueArrayPtr() *Value {
+// NewArrayPtr : 配列を生成
+func NewArrayPtr() *Value {
 	return &Value{
 		Type:  Array,
 		Value: NewTArray(),
 	}
 }
 
-// NewValueArrayPtrFromStrings : 配列を生成
-func NewValueArrayPtrFromStrings(sa []string) *Value {
-	a := NewValueArrayPtr()
+// NewArrayPtrFromStrings : 配列を生成
+func NewArrayPtrFromStrings(sa []string) *Value {
+	a := NewArrayPtr()
 	for _, v := range sa {
-		a.Append(NewValueStrPtr(v))
+		a.Append(NewStrPtr(v))
 	}
 	return a
 }
 
-// NewValueHashPtr : ハッシュを生成
-func NewValueHashPtr() *Value {
+// NewHashPtr : ハッシュを生成
+func NewHashPtr() *Value {
 	return &Value{Type: Hash, Value: THash{}}
 }
 
-// NewValueByType : タイプに応じた値を生成する
-func NewValueByType(vtype Type, s string) *Value {
+// NewByType : タイプに応じた値を生成する
+func NewByType(vtype Type, s string) *Value {
 	switch vtype {
 	case Null:
-		return NewValueNullPtr()
+		return NewNullPtr()
 	case Int:
-		return NewValueIntPtr(StrToInt(s))
+		return NewIntPtr(StrToInt(s))
 	case Float:
 		// IntにできるならIntに変換
 		if strings.Index(s, ".") >= 0 {
-			return NewValueFloatPtr(StrToFloat(s))
+			return NewFloatPtr(StrToFloat(s))
 		}
-		return NewValueIntPtr(StrToInt(s))
+		return NewIntPtr(StrToInt(s))
 	case Str:
-		return NewValueStrPtr(s)
+		return NewStrPtr(s)
 	case Bool:
 		if s == "" {
-			return NewValueBoolPtr(false)
+			return NewBoolPtr(false)
 		}
-		return NewValueBoolPtr(true)
+		return NewBoolPtr(true)
 	default:
-		return NewValueNullPtr()
+		return NewNullPtr()
 	}
 }
 
@@ -447,7 +447,7 @@ func (v *Value) ToHash() THash {
 func (v *Value) Append(val *Value) {
 	if v.Type != Array {
 		v.Type = Array
-		cv := NewValueStrPtr(v.ToString())
+		cv := NewStrPtr(v.ToString())
 		a := NewTArray()
 		a.Append(cv)
 		v.Value = a
@@ -488,7 +488,7 @@ func (v *Value) HashKeys() []string {
 func (v *Value) ArraySet(idx int, val *Value) {
 	if v.Type != Array {
 		v.Type = Array
-		cv := NewValueStrPtr(v.ToString())
+		cv := NewStrPtr(v.ToString())
 		a := NewTArray()
 		a.Append(cv)
 		v.Value = a
@@ -509,33 +509,33 @@ func (v *Value) ArrayGet(idx int) *Value {
 // Clone : clone value
 func (v *Value) Clone() *Value {
 	if v == nil {
-		return NewValueNullPtr()
+		return NewNullPtr()
 	}
 	var res *Value = nil
 	// Clone basic data
 	switch v.Type {
 	case Int:
-		res = NewValueIntPtr(v.ToInt())
+		res = NewIntPtr(v.ToInt())
 	case Float:
-		res = NewValueFloatPtr(v.Value.(float64))
+		res = NewFloatPtr(v.Value.(float64))
 	case Str:
-		return NewValueStrPtr(v.ToString())
+		return NewStrPtr(v.ToString())
 	case Array:
-		va := NewValueArrayPtr()
+		va := NewArrayPtr()
 		a := va.Value.(*TArray)
 		for _, v := range a.items {
 			va.Append(v.Clone())
 		}
 		res = va
 	case Hash:
-		vh := NewValueHashPtr()
+		vh := NewHashPtr()
 		h := vh.Value.(THash)
 		for key, val := range h {
 			vh.HashSet(key, val.Clone())
 		}
 		res = vh
 	default:
-		tmp := NewValueNullPtr()
+		tmp := NewNullPtr()
 		tmp.Type = v.Type
 		tmp.Value = v.Value
 		res = tmp

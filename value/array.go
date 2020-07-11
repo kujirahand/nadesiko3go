@@ -15,7 +15,7 @@ func NewTArray() *TArray {
 func NewTArrayFromStrings(s []string) *TArray {
 	p := NewTArray()
 	for _, v := range s {
-		p.Append(NewValueStrPtr(v))
+		p.Append(NewStrPtr(v))
 	}
 	return p
 }
@@ -87,7 +87,7 @@ func (p *TArray) Length() int {
 func (p *TArray) Set(index int, val *Value) {
 	// 要素を拡張
 	for index >= p.Length() {
-		p.items = append(p.items, NewValueNullPtr())
+		p.items = append(p.items, NewNullPtr())
 	}
 	// 値を設定
 	p.items[index] = val
@@ -128,7 +128,7 @@ func SplitString(src, splitter string) *TArray {
 	a := NewTArray()
 	sa := strings.Split(src, splitter)
 	for _, v := range sa {
-		a.Append(NewValueStrPtr(v))
+		a.Append(NewStrPtr(v))
 	}
 	return a
 }
@@ -136,7 +136,7 @@ func SplitString(src, splitter string) *TArray {
 // NewValueArrayFromStr : 文字列から配列型のValueを作る
 func NewValueArrayFromStr(src, splitter string) *Value {
 	a := SplitString(src, splitter)
-	nv := NewValueArrayPtr()
+	nv := NewArrayPtr()
 	nv.Value = a
 	return nv
 }

@@ -184,7 +184,7 @@ func (n TNodeConst) GetJosi() string { return n.Josi }
 // NewNodeConst : TNodeConstを返す
 func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
 	node := TNodeConst{
-		Value:    value.NewValueByType(vtype, t.Literal),
+		Value:    value.NewByType(vtype, t.Literal),
 		IsExtend: false,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
@@ -195,7 +195,7 @@ func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
 // NewNodeConstInt : 整数型のConstノードを返す
 func NewNodeConstInt(t *token.Token, num int) TNodeConst {
 	node := TNodeConst{
-		Value:    value.NewValueIntPtr(int(num)),
+		Value:    value.NewIntPtr(int(num)),
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
 	}

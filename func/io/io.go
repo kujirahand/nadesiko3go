@@ -43,7 +43,7 @@ func abspath(args *value.TArray) (*value.Value, error) {
 	if err != nil {
 		path = f
 	}
-	return value.NewValueStrPtr(path), nil
+	return value.NewStrPtr(path), nil
 }
 
 func getBokanPath() string {
@@ -54,12 +54,12 @@ func getBokanPath() string {
 func basename(args *value.TArray) (*value.Value, error) {
 	f := args.Get(0).ToString()
 	path := filepath.Base(f)
-	return value.NewValueStrPtr(path), nil
+	return value.NewStrPtr(path), nil
 }
 func dirname(args *value.TArray) (*value.Value, error) {
 	f := args.Get(0).ToString()
 	path := filepath.Dir(f)
-	return value.NewValueStrPtr(path), nil
+	return value.NewStrPtr(path), nil
 }
 func relatepath(args *value.TArray) (*value.Value, error) {
 	a := args.Get(0).ToString()
@@ -92,7 +92,7 @@ func relatepath(args *value.TArray) (*value.Value, error) {
 		result = append(result, v)
 	}
 	r := strings.Join(result, "/")
-	return value.NewValueStrPtr(r), nil
+	return value.NewStrPtr(r), nil
 }
 
 func wait(args *value.TArray) (*value.Value, error) {
@@ -103,7 +103,7 @@ func wait(args *value.TArray) (*value.Value, error) {
 }
 
 func getOS(args *value.TArray) (*value.Value, error) {
-	return value.NewValueStrPtr(runtime.GOOS), nil
+	return value.NewStrPtr(runtime.GOOS), nil
 }
 
 func ask(args *value.TArray) (*value.Value, error) {
@@ -112,14 +112,14 @@ func ask(args *value.TArray) (*value.Value, error) {
 	stdin := bufio.NewScanner(os.Stdin)
 	stdin.Scan()
 	text := stdin.Text()
-	return value.NewValueStrPtr(text), nil
+	return value.NewStrPtr(text), nil
 }
 
 // コマンドライン
 func getCommandline() *value.Value {
-	v := value.NewValueArrayPtr()
+	v := value.NewArrayPtr()
 	for _, arg := range os.Args {
-		v.Append(value.NewValueStrPtr(arg))
+		v.Append(value.NewStrPtr(arg))
 	}
 	return v
 }
@@ -143,7 +143,7 @@ func OpenBinFile(args *value.TArray) (*value.Value, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ファイルが読めません。file=" + f)
 	}
-	vText := value.NewValueBytes(bin) // TODO
+	vText := value.NewBytes(bin) // TODO
 	return &vText, nil
 }
 
@@ -154,7 +154,7 @@ func OpenFile(args *value.TArray) (*value.Value, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ファイルが読めません。file=" + f)
 	}
-	vText := value.NewValueStrPtr(string(text))
+	vText := value.NewStrPtr(string(text))
 	return vText, nil
 }
 

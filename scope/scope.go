@@ -64,7 +64,7 @@ func (s *Scope) GetByIndex(index int) *value.Value {
 // SetByIndex : Set Value
 func (s *Scope) SetByIndex(index int, val *value.Value) {
 	for index >= s.values.Length() {
-		s.values.Append(value.NewValueNullPtr())
+		s.values.Append(value.NewNullPtr())
 	}
 	s.values.Set(index, val)
 }

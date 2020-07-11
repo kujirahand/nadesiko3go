@@ -31,18 +31,18 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddConst("波カッコ閉", "}")
 	sys.AddConstInt("OK", 1)
 	sys.AddConstInt("NG", 0)
-	sys.AddVarValue("PI", value.NewValueFloatPtr(float64(math.Pi)))
+	sys.AddVarValue("PI", value.NewFloatPtr(float64(math.Pi)))
 	sys.AddConst("空", "")
-	sys.AddVarValue("NULL", value.NewValueNullPtr())
-	sys.AddVarValue("未定義", value.NewValueNullPtr())
+	sys.AddVarValue("NULL", value.NewNullPtr())
+	sys.AddVarValue("未定義", value.NewNullPtr())
 	sys.AddVar("エラーメッセージ", "")
 	sys.AddVar("それ", "")
 	sys.AddVar("そう", "") // alias "それ" ... SetSoreLinkで処理
 	sys.AddConst("対象", "")
 	sys.AddConst("対象キー", "")
 	sys.AddConstInt("回数", 0)
-	sys.AddConstValue("空配列", value.NewValueArrayPtr())
-	sys.AddConstValue("空ハッシュ", value.NewValueHashPtr())
+	sys.AddConstValue("空配列", value.NewArrayPtr())
+	sys.AddConstValue("空ハッシュ", value.NewHashPtr())
 	/// 四則演算
 	sys.AddFunc("足", core.DefArgs{{"と", "に"}, {"を"}}, add) // AにBを足す | たす
 	sys.AddFunc("引", core.DefArgs{{"から"}, {"を"}}, sub)     // AからBを引く | ひく
@@ -87,12 +87,12 @@ func RegisterFunction(sys *core.Core) {
 func hashKeys(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	keys := v.HashKeys()
-	a := value.NewValueArrayPtrFromStrings(keys)
+	a := value.NewArrayPtrFromStrings(keys)
 	return a, nil
 }
 func hashValues(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
-	a := value.NewValueArrayPtr()
+	a := value.NewArrayPtr()
 	keys := v.HashKeys()
 	for _, k := range keys {
 		v := v.HashGet(k)
@@ -107,12 +107,12 @@ func urlAnalizeParams(args *value.TArray) (*value.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	res := value.NewValueHashPtr()
+	res := value.NewHashPtr()
 	for key, val := range params.Query() {
 		if len(val) == 1 {
-			res.HashSet(key, value.NewValueStrPtr(val[0]))
+			res.HashSet(key, value.NewStrPtr(val[0]))
 		} else {
-			a := value.NewValueArrayPtrFromStrings(val)
+			a := value.NewArrayPtrFromStrings(val)
 			res.HashSet(key, a)
 		}
 	}
@@ -122,19 +122,19 @@ func urlAnalizeParams(args *value.TArray) (*value.Value, error) {
 func urlEncode(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	ve := url.QueryEscape(v.ToString())
-	return value.NewValueStrPtr(ve), nil
+	return value.NewStrPtr(ve), nil
 }
 
 func urlDecode(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	ve, _ := url.QueryUnescape(v.ToString())
-	return value.NewValueStrPtr(ve), nil
+	return value.NewStrPtr(ve), nil
 }
 
 func countV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	sz := v.Length()
-	return value.NewValueIntPtr(sz), nil
+	return value.NewIntPtr(sz), nil
 }
 func getCSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
@@ -184,31 +184,31 @@ func toCsv(v *value.Value, splitter string) string {
 
 func convToCSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
-	return value.NewValueStrPtr(toCsv(v, ",")), nil
+	return value.NewStrPtr(toCsv(v, ",")), nil
 }
 
 func convToTSV(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
-	return value.NewValueStrPtr(toCsv(v, "\t")), nil
+	return value.NewStrPtr(toCsv(v, "\t")), nil
 }
 
 func jsonEncode(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	js := v.ToJSONString()
-	return value.NewValueStrPtr(js), nil
+	return value.NewStrPtr(js), nil
 }
 
 func jsonEncodeFormat(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	js := v.ToJSONStringFormat(0)
-	return value.NewValueStrPtr(js), nil
+	return value.NewStrPtr(js), nil
 }
 
 func jsonDecode(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return value.NewValueNullPtr(), nil
+		return value.NewNullPtr(), nil
 	}
 	return JSONDecode(s)
 }
@@ -216,7 +216,7 @@ func jsonDecode(args *value.TArray) (*value.Value, error) {
 func typeOf(args *value.TArray) (*value.Value, error) {
 	v := args.Get(0)
 	res := value.TypeToStr(v.Type)
-	return value.NewValueStrPtr(res), nil
+	return value.NewStrPtr(res), nil
 }
 
 func replaceStr1time(args *value.TArray) (*value.Value, error) {
@@ -224,7 +224,7 @@ func replaceStr1time(args *value.TArray) (*value.Value, error) {
 	a := args.Get(1).ToString()
 	b := args.Get(2).ToString()
 	s2 := strings.Replace(s, a, b, 1)
-	return value.NewValueStrPtr(s2), nil
+	return value.NewStrPtr(s2), nil
 }
 
 func replaceStr(args *value.TArray) (*value.Value, error) {
@@ -232,7 +232,7 @@ func replaceStr(args *value.TArray) (*value.Value, error) {
 	a := args.Get(1).ToString()
 	b := args.Get(2).ToString()
 	s2 := strings.Replace(s, a, b, 0)
-	return value.NewValueStrPtr(s2), nil
+	return value.NewStrPtr(s2), nil
 }
 
 func add(args *value.TArray) (*value.Value, error) {
@@ -305,10 +305,10 @@ func calc(op rune, args *value.TArray) (*value.Value, error) {
 func getNow(args *value.TArray) (*value.Value, error) {
 	t := time.Now()
 	s := t.Format("15:04:05")
-	return value.NewValueStrPtr(s), nil
+	return value.NewStrPtr(s), nil
 }
 func getToday(args *value.TArray) (*value.Value, error) {
 	t := time.Now()
 	s := t.Format("2006/01/02")
-	return value.NewValueStrPtr(s), nil
+	return value.NewStrPtr(s), nil
 }
