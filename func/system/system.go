@@ -3,6 +3,7 @@ package system
 import (
 	"fmt"
 	"math"
+	"net/url"
 	"strings"
 	"time"
 
@@ -74,6 +75,60 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("今日", core.DefArgs{}, getToday) // 今日の日付を返す | きょう
 	// 配列
 	sys.AddFunc("要素数", core.DefArgs{{"の"}}, countV) // Sの要素数を得る | ようそすう
+	// URLエンコードとパラメータ
+	sys.AddFunc("URLエンコード", core.DefArgs{{"を", "の", "から"}}, urlEncode)          // 文字列SをURLエンコードして返す | URLえんこーど
+	sys.AddFunc("URLデコード", core.DefArgs{{"を", "の", "から"}}, urlDecode)           // 文字列SをURLデコードして返す | URLでこーど
+	sys.AddFunc("URLパラメータ解析", core.DefArgs{{"を", "の", "から"}}, urlAnalizeParams) // URLパラメータを解析してハッシュで返す| URLぱらめーたかいせき
+	// ハッシュ
+	sys.AddFunc("ハッシュキー列挙", core.DefArgs{{"の"}}, hashKeys)   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
+	sys.AddFunc("ハッシュ内容列挙", core.DefArgs{{"の"}}, hashValues) // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
+}
+
+func hashKeys(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	keys := v.HashKeys()
+	a := value.NewValueArrayPtrFromStrings(keys)
+	return a, nil
+}
+func hashValues(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	a := value.NewValueArrayPtr()
+	keys := v.HashKeys()
+	for _, k := range keys {
+		v := v.HashGet(k)
+		a.Append(v)
+	}
+	return a, nil
+}
+
+func urlAnalizeParams(args *value.TArray) (*value.Value, error) {
+	uri := args.Get(0).ToString()
+	params, err := url.Parse(uri)
+	if err != nil {
+		return nil, err
+	}
+	res := value.NewValueHashPtr()
+	for key, val := range params.Query() {
+		if len(val) == 1 {
+			res.HashSet(key, value.NewValueStrPtr(val[0]))
+		} else {
+			a := value.NewValueArrayPtrFromStrings(val)
+			res.HashSet(key, a)
+		}
+	}
+	return res, nil
+}
+
+func urlEncode(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	ve := url.QueryEscape(v.ToString())
+	return value.NewValueStrPtr(ve), nil
+}
+
+func urlDecode(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	ve, _ := url.QueryUnescape(v.ToString())
+	return value.NewValueStrPtr(ve), nil
 }
 
 func countV(args *value.TArray) (*value.Value, error) {

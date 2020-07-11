@@ -146,13 +146,29 @@ func NewValueArray() Value {
 
 // NewValueArrayPtr : 配列を生成
 func NewValueArrayPtr() *Value {
-	v := NewValueArray()
-	return &v
+	return &Value{
+		Type:  Array,
+		Value: NewTArray(),
+	}
+}
+
+// NewValueArrayPtrFromStrings : 配列を生成
+func NewValueArrayPtrFromStrings(sa []string) *Value {
+	a := NewValueArrayPtr()
+	for _, v := range sa {
+		a.Append(NewValueStrPtr(v))
+	}
+	return a
 }
 
 // NewValueHash : ハッシュを生成
 func NewValueHash() Value {
 	return Value{Type: Hash, Value: THash{}}
+}
+
+// NewValueHashPtr : ハッシュを生成
+func NewValueHashPtr() *Value {
+	return &Value{Type: Hash, Value: THash{}}
 }
 
 // NewValueByType : タイプに応じた値を生成する

@@ -11,6 +11,15 @@ func NewTArray() *TArray {
 	}
 }
 
+// NewTArrayFromStrings : TArrayを生成
+func NewTArrayFromStrings(s []string) *TArray {
+	p := NewTArray()
+	for _, v := range s {
+		p.Append(NewValueStrPtr(v))
+	}
+	return p
+}
+
 // NewTArrayDef : TArrayを生成
 func NewTArrayDef(items TArrayItems) TArray {
 	return TArray{
