@@ -57,7 +57,7 @@ func TestFunc(t *testing.T) {
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "1に2を足を表示", "3")
+	_eval2(t, "(「abc」の「a」を「b」に置換)を表示;表示ログ", "bbc")
 }
 
 func _eval2(t *testing.T, code, expected string) {

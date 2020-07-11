@@ -231,7 +231,7 @@ func replaceStr(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
 	a := args.Get(1).ToString()
 	b := args.Get(2).ToString()
-	s2 := strings.Replace(s, a, b, 0)
+	s2 := strings.Replace(s, a, b, -1)
 	return value.NewStrPtr(s2), nil
 }
 

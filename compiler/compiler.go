@@ -342,7 +342,7 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 		return p.callUserFunc(cf, funcV)
 	}
 
-	tmpRcount := p.regTop()
+	tmpRcount := p.regNext()
 
 	// 引数を得る
 	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args, cf.UseJosi)
@@ -352,10 +352,10 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	c = append(c, cArgs...)
 	// 関数を実行
 	// システム関数
-	p.scope.Index = tmpRcount
 	funcRes := tmpRcount
 	fconstI := p.appendConsts(funcV)
 	c = append(c, NewCodeMemo(CallFunc, funcRes, fconstI, argIndex, cf.Name))
+	p.scope.Index = tmpRcount
 	return c, nil
 }
 

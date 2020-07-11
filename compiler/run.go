@@ -30,9 +30,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	for p.isLive() {
 		code := p.peek()
 		A, B, C := code.A, code.B, code.C
-
 		// println("*RUN=", p.index, p.ToString(code))
-
 		switch code.Type {
 		case FileInfo:
 			p.FileNo = A
@@ -222,6 +220,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 				return nil, err
 			}
 			p.regSet(A, res)
+			// println("call=", res.ToString())
 			lastValue = res
 		case CallUserFunc:
 			cur := p.procCallUserFunc(code)
