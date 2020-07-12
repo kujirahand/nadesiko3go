@@ -36,7 +36,6 @@ type TCompiler struct {
 	continueLabel *TCode   // for Continue
 	loopLabels    []*TCode // for Break / Continue
 	isJump        bool
-	ValueStack    *value.TArray
 	lastRegNo     int
 }
 
@@ -63,7 +62,6 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.scope = sys.Scopes.GetTopScope()
 	p.reg = p.scope.Reg
 	p.loopLabels = []*TCode{}
-	p.ValueStack = value.NewTArray()
 	p.lastRegNo = -1
 	return &p
 }
@@ -300,7 +298,6 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 					return -1, nil, msg
 				}
 				c = append(c, cArg...)
-				c = append(c, NewCode(Push, p.lastRegNo, 0, 0))
 				// c = append(c, NewCodeMemo(AppendArray, arrayIndex, argIndex, 0, fname+"の引数追加"))
 			}
 		}
@@ -319,7 +316,6 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			c = append(c, p.makeGetLocal("それ"))
-			c = append(c, NewCode(Push, p.lastRegNo, 0, 0))
 		} else {
 			if len(nodeArgs) < len(defArgs) {
 				return -1, nil, fmt.Errorf(

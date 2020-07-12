@@ -54,8 +54,6 @@ var codeFuncTable = []TCodeFunc{
 	rcCallUserFunc,
 	rcReturn,
 	rcPrint,
-	rcPush,
-	rcPop,
 }
 
 // NOP : 何もしない
@@ -417,18 +415,4 @@ func rcReturn(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcPrint(p *TCompiler, code *TCode) (*value.Value, error) {
 	println("[PRINT]", p.regGet(code.A).ToString())
 	return nil, nil
-}
-
-// PUSH A : PUSH A to stack
-func rcPush(p *TCompiler, code *TCode) (*value.Value, error) {
-	v := p.regGet(code.A)
-	p.ValueStack.Append(v)
-	return nil, nil
-}
-
-// POP A : POP stack to R[A]
-func rcPop(p *TCompiler, code *TCode) (*value.Value, error) {
-	v := p.ValueStack.Pop()
-	p.regSet(code.A, v)
-	return v, nil
 }

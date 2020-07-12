@@ -122,8 +122,6 @@ func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
 func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 	// get func
 	funcV := p.Consts.Get(code.B)
-	// argV := p.regGet(code.C)
-	// args := argV.Value.(value.TArray)
 	if funcV.Type == value.UserFunc {
 		return nil, p.RuntimeError("[SYSTEM ERROR:ユーザー関数をシステム関数として呼んだ]")
 	}
@@ -133,10 +131,9 @@ func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 	// args
 	args := value.NewTArray()
 	for i := 0; i < argCount; i++ {
-		v := p.ValueStack.Pop()
+		v := p.regGet(code.C + i)
 		args.Append(v)
 	}
-	args.Reverse()
 	res, err := fn(args)
 	if err != nil {
 		return nil, p.RuntimeError("関数実行中のエラー。" + err.Error())
@@ -168,8 +165,8 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	// get func
 	label := p.Labels[code.B]
-	// argIndex := code.C
-	// oldScope := p.scope
+	argIndex := code.C
+	oldScope := p.scope
 	// open scope
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
@@ -178,20 +175,11 @@ func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	scope.Set("それ", value.NewNullPtr())
 	scope.Reg.Set(metaRegReturnAddr, value.NewIntPtr(p.index+1))
 	scope.Reg.Set(metaRegReturnValue, value.NewIntPtr(code.A))
-	// 引数分だけPOPして、ローカル変数に登録
-	plen := len(label.argNames)
-	for i := 0; i < plen; i++ {
-		v := p.ValueStack.Pop()
-		name := label.argNames[plen-i-1]
+	// 変数を登録する
+	for i, name := range label.argNames {
+		v := oldScope.Reg.Get(argIndex + i)
 		scope.Set(name, v)
 	}
-	/*
-		// 変数を登録する
-		for i, name := range label.argNames {
-			v := oldScope.Reg.Get(argIndex + i)
-			scope.Set(name, v)
-		}
-	*/
 	cur := label.addr
 	return cur
 }

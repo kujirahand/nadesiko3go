@@ -49,8 +49,6 @@ var codeNames = map[int]string{
 	ExString:        "ExString",
 	FileInfo:        "FileInfo",
 	Print:           "Print",
-	Push:            "Push",
-	Pop:             "Pop",
 }
 
 // ToString : コードを返す

@@ -96,10 +96,6 @@ const (
 	Return
 	// Print A : PRINT R[A] for DEBUG
 	Print
-	// PUSH A : PUSH A to stack
-	Push
-	// POP A : POP stack to R[A]
-	Pop
 )
 
 // OPCODE:END
