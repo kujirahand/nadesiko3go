@@ -61,6 +61,7 @@ var codeFuncTable = []TCodeFunc{
 
 // NOP : 何もしない
 func rcNOP(p *TCompiler, code *TCode) (*value.Value, error) {
+	p.moveNext()
 	return nil, nil
 }
 
@@ -68,12 +69,14 @@ func rcNOP(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcFileInfo(p *TCompiler, code *TCode) (*value.Value, error) {
 	p.FileNo = code.A
 	p.Line = code.B
+	p.moveNext()
 	return nil, nil
 }
 
 // MoveR A,B : R[A] = R[B]
 func rcMoveR(p *TCompiler, code *TCode) (*value.Value, error) {
 	p.regSet(code.A, p.regGet(code.B))
+	p.moveNext()
 	return nil, nil
 }
 
@@ -81,12 +84,14 @@ func rcMoveR(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcConstO(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.Consts.Get(code.B).Clone()
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
 // ExString A,B : R[A] = ExString(CONSTS[B])
 func rcExString(p *TCompiler, code *TCode) (*value.Value, error) {
 	p.regSet(code.A, p.runExString(p.Consts.Get(code.B).ToString()))
+	p.moveNext()
 	return nil, nil
 }
 
@@ -95,6 +100,7 @@ func rcSetGlobal(p *TCompiler, code *TCode) (*value.Value, error) {
 	g := p.sys.Scopes.GetGlobal()
 	varV := g.GetByIndex(code.A)
 	varV.SetValue(p.regGet(code.B))
+	p.moveNext()
 	return varV, nil
 }
 
@@ -102,6 +108,7 @@ func rcSetGlobal(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcGetGlobal(p *TCompiler, code *TCode) (*value.Value, error) {
 	g := p.sys.Scopes.GetGlobal()
 	p.regSet(code.A, g.GetByIndex(code.B))
+	p.moveNext()
 	return p.regGet(code.A), nil
 }
 
@@ -116,6 +123,7 @@ func rcSetLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 	varV.SetValue(valV)
 	// println("SetLocal=@", valV.ToJSONString())
 	// fmt.Printf("%#v\n", valV)
+	p.moveNext()
 	return varV, nil
 }
 
@@ -124,6 +132,7 @@ func rcGetLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 	p.regSet(code.A, p.scope.GetByIndex(code.B))
 	lastValue := p.regGet(code.A)
 	// println("@@value=", lastValue.ToJSONString())
+	p.moveNext()
 	return lastValue, nil
 }
 
@@ -132,6 +141,7 @@ func rcFindVar(p *TCompiler, code *TCode) (*value.Value, error) {
 	name := p.Consts.Get(code.B).ToString()
 	v, _ := p.sys.Scopes.Find(name)
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -139,6 +149,7 @@ func rcFindVar(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcSetSore(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.regGet(code.A)
 	p.scope.Set("それ", v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -146,6 +157,7 @@ func rcSetSore(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcIncReg(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.NewIntPtr(p.regGet(code.A).ToInt() + 1)
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -153,6 +165,7 @@ func rcIncReg(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcIncLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.scope.GetByIndex(code.A)
 	v.SetInt(v.ToInt() + code.B)
+	p.moveNext()
 	return v, nil
 }
 
@@ -160,13 +173,13 @@ func rcIncLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcDecLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.scope.GetByIndex(code.A)
 	v.SetInt(v.ToInt() - code.B)
+	p.moveNext()
 	return v, nil
 }
 
 // Jump A : PC += A
 func rcJump(p *TCompiler, code *TCode) (*value.Value, error) {
 	p.move(code.A)
-	p.isJump = true
 	return nil, nil
 }
 
@@ -181,7 +194,8 @@ func rcJumpIfTrue(p *TCompiler, code *TCode) (*value.Value, error) {
 	expr := p.regGet(code.A)
 	if expr != nil && expr.ToBool() {
 		p.move(code.B)
-		p.isJump = true
+	} else {
+		p.moveNext()
 	}
 	return nil, nil
 }
@@ -200,6 +214,7 @@ func rcJumpLabelIfTrue(p *TCompiler, code *TCode) (*value.Value, error) {
 
 // DefLabel A : LABELS[A] = addr
 func rcDefLabel(p *TCompiler, code *TCode) (*value.Value, error) {
+	p.moveNext()
 	return nil, nil
 }
 
@@ -207,6 +222,7 @@ func rcDefLabel(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcAdd(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Add(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -214,6 +230,7 @@ func rcAdd(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcSub(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Sub(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -221,6 +238,7 @@ func rcSub(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcMul(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Mul(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -228,6 +246,7 @@ func rcMul(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcDiv(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Div(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -235,6 +254,7 @@ func rcDiv(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcMod(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Mod(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -242,6 +262,7 @@ func rcMod(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcGt(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Gt(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -249,6 +270,7 @@ func rcGt(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcGtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.GtEq(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -256,6 +278,7 @@ func rcGtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcLt(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Lt(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -263,6 +286,7 @@ func rcLt(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcLtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.LtEq(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -270,6 +294,7 @@ func rcLtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcEqEq(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.EqEq(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -277,6 +302,7 @@ func rcEqEq(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcNtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.NtEq(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -284,6 +310,7 @@ func rcNtEq(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcExp(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Exp(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -291,6 +318,7 @@ func rcExp(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcAnd(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.And(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -298,6 +326,7 @@ func rcAnd(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcOr(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Or(p.regGet(code.B), p.regGet(code.C))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -305,6 +334,7 @@ func rcOr(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcNotReg(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.Not(p.regGet(code.A))
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -313,6 +343,7 @@ func rcLength(p *TCompiler, code *TCode) (*value.Value, error) {
 	vb := p.regGet(code.B)
 	va := value.NewIntPtr(vb.Length())
 	p.regSet(code.A, va)
+	p.moveNext()
 	return va, nil
 }
 
@@ -320,6 +351,7 @@ func rcLength(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcNewArray(p *TCompiler, code *TCode) (*value.Value, error) {
 	a := value.NewArrayPtr()
 	p.regSet(code.A, a)
+	p.moveNext()
 	return a, nil
 }
 
@@ -330,6 +362,7 @@ func rcSetArrayElem(p *TCompiler, code *TCode) (*value.Value, error) {
 		v.SetValue(p.regGet(code.B))
 		return v, nil
 	}
+	p.moveNext()
 	return nil, nil
 }
 
@@ -338,6 +371,7 @@ func rcAppendArray(p *TCompiler, code *TCode) (*value.Value, error) {
 	a := p.regGet(code.A)
 	b := p.regGet(code.B)
 	a.Append(b)
+	p.moveNext()
 	return nil, nil
 }
 
@@ -358,6 +392,7 @@ func rcGetArrayElem(p *TCompiler, code *TCode) (*value.Value, error) {
 		v = b.HashGet(c.ToString())
 		p.regSet(code.A, v)
 	}
+	p.moveNext()
 	return v, nil
 }
 
@@ -369,6 +404,7 @@ func rcGetArrayElemI(p *TCompiler, code *TCode) (*value.Value, error) {
 		v := rb.ArrayGet(code.C)
 		p.regSet(code.A, v)
 	}
+	p.moveNext()
 	return v, nil
 }
 
@@ -376,6 +412,7 @@ func rcGetArrayElemI(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcNewHash(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := value.NewHashPtr()
 	p.regSet(code.A, v)
+	p.moveNext()
 	return v, nil
 }
 
@@ -387,12 +424,43 @@ func rcSetHash(p *TCompiler, code *TCode) (*value.Value, error) {
 		h.HashSet(key, p.regGet(code.C))
 	}
 	// println(h.ToJSONString())
+	p.moveNext()
 	return h, nil
 }
 
 // Foreach A B C : FOREACH isContinue:A expr:B counter:C -> それ|対象|対象キーの値を更新
 func rcForeach(p *TCompiler, code *TCode) (*value.Value, error) {
-	return p.runForeach(code)
+	// FOREACH isContinue:A expr:B counter:C
+	A, B, C := code.A, code.B, code.C
+	exprV := p.regGet(B)
+	i := p.regGet(C).ToInt()
+	clen := exprV.Length()
+	condB := (i < clen)
+	var lastValue *value.Value = nil
+	if condB {
+		if exprV.Type == value.Array {
+			elemV := exprV.ArrayGet(i)
+			p.sys.Scopes.SetTopVars("それ", elemV)
+			p.sys.Scopes.SetTopVars("対象", elemV)
+			lastValue = elemV
+		} else if exprV.Type == value.Hash {
+			keys := exprV.HashKeys()
+			k := keys[i]
+			// println("foreack,k=", k, "/", len(keys), "=", clen)
+			v := exprV.HashGet(k)
+			p.sys.Scopes.SetTopVars("それ", v)
+			p.sys.Scopes.SetTopVars("対象", v)
+			p.sys.Scopes.SetTopVars("対象キー", value.NewStrPtr(k))
+			lastValue = v
+		} else {
+			condB = false
+		}
+	}
+	p.regSet(C, value.NewIntPtr(i+1))
+	condV := value.NewBoolPtr(!condB)
+	p.regSet(A, condV)
+	p.moveNext()
+	return lastValue, nil
 }
 
 // CallFunc A B C : R[A] = call(fn=CONSTS[B], argStart=R[C])
@@ -403,6 +471,7 @@ func rcCallFunc(p *TCompiler, code *TCode) (*value.Value, error) {
 	}
 	p.regSet(code.A, res)
 	// println("call=", res.ToString())
+	p.moveNext()
 	return res, nil
 }
 
@@ -410,7 +479,6 @@ func rcCallFunc(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcCallUserFunc(p *TCompiler, code *TCode) (*value.Value, error) {
 	cur := p.procCallUserFunc(code)
 	p.moveTo(cur)
-	p.isJump = true
 	return nil, nil
 }
 
@@ -418,13 +486,13 @@ func rcCallUserFunc(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcReturn(p *TCompiler, code *TCode) (*value.Value, error) {
 	cur, ret := p.procReturn(code)
 	p.moveTo(cur)
-	p.isJump = true
 	return ret, nil
 }
 
 // Print A : PRINT R[A] for DEBUG
 func rcPrint(p *TCompiler, code *TCode) (*value.Value, error) {
 	println("[PRINT]", p.regGet(code.A).ToString())
+	p.moveNext()
 	return nil, nil
 }
 
@@ -433,6 +501,7 @@ func rcGetLocalNAdd(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.scope.GetByIndex(code.B)
 	v2 := value.Add(v, value.NewIntPtr(code.C))
 	p.regSet(code.A, v2)
+	p.moveNext()
 	return v2, nil
 }
 
@@ -441,5 +510,6 @@ func rcGetLocalNSub(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.scope.GetByIndex(code.B)
 	v2 := value.Sub(v, value.NewIntPtr(code.C))
 	p.regSet(code.A, v2)
+	p.moveNext()
 	return v2, nil
 }

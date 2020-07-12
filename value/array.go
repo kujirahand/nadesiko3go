@@ -11,6 +11,14 @@ func NewTArray() *TArray {
 	}
 }
 
+// NewTArrayCount : TArrayを生成
+func NewTArrayCount(size int) *TArray {
+	it := make(TArrayItems, size)
+	return &TArray{
+		items: it,
+	}
+}
+
 // NewTArrayFromStrings : TArrayを生成
 func NewTArrayFromStrings(s []string) *TArray {
 	p := NewTArray()

@@ -27,14 +27,15 @@ func (p *TCompiler) Run() (*value.Value, error) {
 
 func (p *TCompiler) runCode() (*value.Value, error) {
 	lastValue := value.NewNullPtr()
-	p.isJump = false
 	for p.isLive() {
 		code := p.peek()
+		// println("*RUN=", p.index, p.ToString(code))
+
+		// get code func
 		f := codeFuncTable[code.Type]
 		if f == nil {
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
-		// println("*RUN=", p.index, p.ToString(code))
 		res, err := f(p, code)
 		if err != nil {
 			return nil, err
@@ -43,11 +44,6 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		// println("\t\tres=", lastValue.ToString())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())
-		if p.isJump {
-			p.isJump = false
-			continue
-		}
-		p.moveNext()
 	}
 	return lastValue, nil
 }
@@ -84,39 +80,6 @@ func (p *TCompiler) runExString(s string) *value.Value {
 		continue
 	}
 	return value.NewStrPtr(res)
-}
-
-func (p *TCompiler) runForeach(code *TCode) (*value.Value, error) {
-	// FOREACH isContinue:A expr:B counter:C
-	A, B, C := code.A, code.B, code.C
-	exprV := p.regGet(B)
-	i := p.regGet(C).ToInt()
-	clen := exprV.Length()
-	condB := (i < clen)
-	var lastValue *value.Value = nil
-	if condB {
-		if exprV.Type == value.Array {
-			elemV := exprV.ArrayGet(i)
-			p.sys.Scopes.SetTopVars("それ", elemV)
-			p.sys.Scopes.SetTopVars("対象", elemV)
-			lastValue = elemV
-		} else if exprV.Type == value.Hash {
-			keys := exprV.HashKeys()
-			k := keys[i]
-			// println("foreack,k=", k, "/", len(keys), "=", clen)
-			v := exprV.HashGet(k)
-			p.sys.Scopes.SetTopVars("それ", v)
-			p.sys.Scopes.SetTopVars("対象", v)
-			p.sys.Scopes.SetTopVars("対象キー", value.NewStrPtr(k))
-			lastValue = v
-		} else {
-			condB = false
-		}
-	}
-	p.regSet(C, value.NewIntPtr(i+1))
-	condV := value.NewBoolPtr(!condB)
-	p.regSet(A, condV)
-	return lastValue, nil
 }
 
 func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
