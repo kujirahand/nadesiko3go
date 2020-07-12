@@ -27,6 +27,7 @@ type DefArgs [][]string
 type Core struct {
 	IsDebug    bool
 	IsCompile  bool
+	IsOptimze  bool
 	MainFile   string
 	Code       string
 	RunMode    TRunMode
@@ -59,6 +60,7 @@ func NewCore() *Core {
 	c := Core{}
 	c.IsDebug = false
 	c.RunMode = MainFile
+	c.IsOptimze = true
 	c.Scopes = scope.NewScopeList() // 最初のスコープも自動的に得られる
 	c.Global = c.Scopes.GetGlobal()
 	c.JosiList = []DefArgs{}

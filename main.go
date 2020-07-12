@@ -26,6 +26,7 @@ func main() {
 		println("  -d\tDebug Mode")
 		println("  -e (source)\tEval Mode")
 		println("  -S\tDo not run")
+		println("  -O0\tOptimize Off")
 		return
 	}
 	sys := eval.InitSystem()
@@ -47,6 +48,9 @@ func main() {
 			if v == "-e" {
 				sys.RunMode = core.EvalCode
 				continue
+			}
+			if v == "-O0" {
+				sys.IsOptimze = false
 			}
 		}
 		// mainfile or evalcode

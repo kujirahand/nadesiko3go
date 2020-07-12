@@ -964,6 +964,9 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 	if err != nil {
 		return nil, err
 	}
+	if sys.IsOptimze {
+		p.Optimize()
+	}
 	if sys.IsDebug {
 		fmt.Println(p.CodesToString(p.Codes))
 		fmt.Println("[Run Code]")
@@ -972,6 +975,57 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 		return nil, nil
 	}
 	return p.Run()
+}
+
+func (p *TCompiler) rmCodes(i int) {
+	if i < 0 || i >= len(p.Codes) {
+		return
+	}
+	p.Codes = append(p.Codes[:i], p.Codes[i+1:]...)
+}
+
+// Optimize : 最適化処理
+func (p *TCompiler) Optimize() {
+	// 連続するFileInfoを削除
+	lastType := NOP
+	i := 0
+	for i < len(p.Codes) {
+		c := p.Codes[i]
+		if c.Type == FileInfo && lastType == FileInfo {
+			p.rmCodes(i - 1)
+			continue
+		}
+		lastType = c.Type
+		i++
+	}
+	// Const + Const + Add = 最初に計算しておく
+	i = 0
+	for i < len(p.Codes) {
+		c := p.Codes[i]
+		if (c.Type == Add || c.Type == Sub) && i >= 2 {
+			c1 := p.Codes[i-2]
+			c2 := p.Codes[i-1]
+			if c1.Type == ConstO && c2.Type == ConstO {
+				v1 := p.Consts.Get(c1.B)
+				v2 := p.Consts.Get(c2.B)
+				var v3 *value.Value
+				if c.Type == Add {
+					v3 = value.Add(v1, v2)
+				} else if c.Type == Sub {
+					v3 = value.Sub(v2, v1)
+				}
+				c3 := p.appendConsts(v3)
+				c.Type = ConstO
+				c.B = c3
+				c.Memo = "=" + v3.ToString()
+				p.rmCodes(i - 2) // c1
+				p.rmCodes(i - 2) // c2
+				i -= 2
+				continue
+			}
+		}
+		i++
+	}
 }
 
 func (p *TCompiler) makeLabel(memo string) *TCode {
