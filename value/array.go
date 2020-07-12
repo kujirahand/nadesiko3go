@@ -123,6 +123,20 @@ func (p *TArray) Pop() *Value {
 	return result
 }
 
+// Reverse : データの並び順を逆さまにする
+func (p *TArray) Reverse() {
+	plen := p.Length()
+	if plen == 0 {
+		return
+	}
+	plen2 := plen / 2
+	for i := 0; i < plen2; i++ {
+		tmp := p.items[i]
+		p.items[i] = p.items[plen-i-1]
+		p.items[plen-i-1] = tmp
+	}
+}
+
 // SplitString : 文字列から配列を作る
 func SplitString(src, splitter string) *TArray {
 	a := NewTArray()

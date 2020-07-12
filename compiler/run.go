@@ -34,12 +34,13 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		if f == nil {
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
+		//println("*RUN=", p.index, p.ToString(code))
 		res, err := f(p, code)
 		if err != nil {
 			return nil, err
 		}
 		lastValue = res
-		// println("*RUN=", p.index, p.ToString(code))
+		// println("\t\tres=", lastValue.ToString())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())
 		if p.isJump {
@@ -132,8 +133,10 @@ func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 	// args
 	args := value.NewTArray()
 	for i := 0; i < argCount; i++ {
-		args.Append(p.regGet(code.C + i))
+		v := p.ValueStack.Pop()
+		args.Append(v)
 	}
+	args.Reverse()
 	res, err := fn(args)
 	if err != nil {
 		return nil, p.RuntimeError("関数実行中のエラー。" + err.Error())
@@ -165,8 +168,8 @@ func (p *TCompiler) procReturn(code *TCode) (int, *value.Value) {
 func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	// get func
 	label := p.Labels[code.B]
-	argIndex := code.C
-	oldScope := p.scope
+	// argIndex := code.C
+	// oldScope := p.scope
 	// open scope
 	scope := p.sys.Scopes.Open()
 	p.scope = scope
@@ -175,11 +178,20 @@ func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	scope.Set("それ", value.NewNullPtr())
 	scope.Reg.Set(metaRegReturnAddr, value.NewIntPtr(p.index+1))
 	scope.Reg.Set(metaRegReturnValue, value.NewIntPtr(code.A))
-	// 変数を登録する
-	for i, name := range label.argNames {
-		v := oldScope.Reg.Get(argIndex + i)
+	// 引数分だけPOPして、ローカル変数に登録
+	plen := len(label.argNames)
+	for i := 0; i < plen; i++ {
+		v := p.ValueStack.Pop()
+		name := label.argNames[plen-i-1]
 		scope.Set(name, v)
 	}
+	/*
+		// 変数を登録する
+		for i, name := range label.argNames {
+			v := oldScope.Reg.Get(argIndex + i)
+			scope.Set(name, v)
+		}
+	*/
 	cur := label.addr
 	return cur
 }

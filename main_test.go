@@ -16,16 +16,14 @@ func TestBasic2a(t *testing.T) {
 func TestLoop(t *testing.T) {
 	// 繰り返す
 	_eval2(t, "C=0;Iを1から10まで繰り返す,C=C+I;C", "55")
-	/*
-		_eval2(t, "C=0;Iを1から10まで繰り返す\nJを1から2まで繰り返す\nC=C+I;ここまで;ここまで;C", "110")
-		_eval2(t, "C=0;Iを1から10まで繰り返す,Jを1から2まで繰り返す,C=C+I;C", "110")
-		// 間
-		_eval2(t, "C=0;I=0;(I<=10)の間\nC=C+I;I=I+1;ここまで;C", "55")
-		_eval2(t, "C=0;I=0;(I<=10)の間\nJ=0;(J<2)の間\nC=C+I;J=J+1;ここまで;I=I+1;ここまで;C", "110")
-		// 反復
-		_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
-		_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
-	*/
+	_eval2(t, "C=0;Iを1から10まで繰り返す\nJを1から2まで繰り返す\nC=C+I;ここまで;ここまで;C", "110")
+	_eval2(t, "C=0;Iを1から10まで繰り返す,Jを1から2まで繰り返す,C=C+I;C", "110")
+	// 間
+	_eval2(t, "C=0;I=0;(I<=10)の間\nC=C+I;I=I+1;ここまで;C", "55")
+	_eval2(t, "C=0;I=0;(I<=10)の間\nJ=0;(J<2)の間\nC=C+I;J=J+1;ここまで;I=I+1;ここまで;C", "110")
+	// 反復
+	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
+	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
 }
 
 func TestIf(t *testing.T) {
@@ -52,13 +50,17 @@ func TestArray(t *testing.T) {
 func TestFunc(t *testing.T) {
 	_eval2(t, "1と2を足して表示;表示ログ", "3")
 	_eval2(t, "C=足す(1,2);C", "3")
+	_eval2(t, "1+2に3+4を足す", "10")
 	_eval2(t, "足す(1,2)を表示;表示ログ", "3")
 	_eval2(t, "C=1に2を足す;C", "3")
 	_eval2(t, "(1に2を足)を表示;表示ログ", "3")
+	_eval2(t, "(「abc」の「a」を「b」に置換)を表示;表示ログ", "bbc")
+	_eval2(t, "([1,2,3]の要素数)を表示;表示ログ", "3")
+	_eval2(t, "●FF(Nの)\n1で戻る\nここまで\n(30のFF)を表示;表示ログ", "1")
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "(「abc」の「a」を「b」に置換)を表示;表示ログ", "bbc")
+	_eval2(t, "●REC(Nの)\nもしN<1ならば、Nで戻る。\n(((N-1)のREC)+N)で戻る\nここまで\n(10のREC)を表示;表示ログ", "55")
 }
 
 func _eval2(t *testing.T, code, expected string) {

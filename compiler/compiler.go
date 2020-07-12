@@ -36,6 +36,8 @@ type TCompiler struct {
 	continueLabel *TCode   // for Continue
 	loopLabels    []*TCode // for Break / Continue
 	isJump        bool
+	ValueStack    *value.TArray
+	lastRegNo     int
 }
 
 // NewCompier : コンパイラオブジェクトを生成
@@ -61,6 +63,8 @@ func NewCompier(sys *core.Core) *TCompiler {
 	p.scope = sys.Scopes.GetTopScope()
 	p.reg = p.scope.Reg
 	p.loopLabels = []*TCode{}
+	p.ValueStack = value.NewTArray()
+	p.lastRegNo = -1
 	return &p
 }
 
@@ -296,7 +300,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 					return -1, nil, msg
 				}
 				c = append(c, cArg...)
-				// argIndex := p.regBack()
+				c = append(c, NewCode(Push, p.lastRegNo, 0, 0))
 				// c = append(c, NewCodeMemo(AppendArray, arrayIndex, argIndex, 0, fname+"の引数追加"))
 			}
 		}
@@ -315,7 +319,7 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 		// 特例ルール -- 「それ」を補完する
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			c = append(c, p.makeGetLocal("それ"))
-			// c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
+			c = append(c, NewCode(Push, p.lastRegNo, 0, 0))
 		} else {
 			if len(nodeArgs) < len(defArgs) {
 				return -1, nil, fmt.Errorf(
@@ -354,9 +358,10 @@ func (p *TCompiler) convCallFunc(n *node.Node) ([]*TCode, error) {
 	// 関数を実行
 	// システム関数
 	funcRes := tmpRcount
+	p.lastRegNo = funcRes
 	fconstI := p.appendConsts(funcV)
 	c = append(c, NewCodeMemo(CallFunc, funcRes, fconstI, argIndex, cf.Name))
-	p.scope.Index = tmpRcount
+	p.scope.Index = tmpRcount + 1
 	return c, nil
 }
 
@@ -370,12 +375,16 @@ func (p *TCompiler) callUserFunc(cf node.TNodeCallFunc, funcV *value.Value) ([]*
 		return nil, CompileError("[SYSTEM] 関数定義に失敗している", &n)
 	}
 	// 関数呼び出し
+	tmpRC := p.regNext()
 	argIndex, cArgs, err := p.getFuncArgs(cf.Name, funcV, cf.Args, cf.UseJosi)
 	if err != nil {
 		return nil, err
 	}
 	c = append(c, cArgs...)
-	c = append(c, NewCodeMemo(CallUserFunc, p.regNext(), funcLabel, argIndex, funcName))
+	funcR := tmpRC
+	p.lastRegNo = funcR
+	c = append(c, NewCodeMemo(CallUserFunc, funcR, funcLabel, argIndex, funcName))
+	p.scope.Index = tmpRC + 1
 	return c, nil
 }
 
@@ -392,6 +401,7 @@ func (p *TCompiler) convJSONArray(n *node.Node) ([]*TCode, error) {
 		c = append(c, cVal...)
 		c = append(c, NewCode(AppendArray, arrayIndex, p.regBack(), 0))
 	}
+	p.lastRegNo = arrayIndex
 	return c, nil
 }
 
@@ -450,6 +460,7 @@ func (p *TCompiler) convJSONHash(n *node.Node) ([]*TCode, error) {
 		c = append(c, cVal...)
 		c = append(c, NewCode(SetHash, arrayIndex, ci, p.regBack()))
 	}
+	p.lastRegNo = arrayIndex
 	return c, nil
 }
 
@@ -566,6 +577,7 @@ func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 		varNo = scope.Set(nn.Name, v)
 	}
 	c = append(c, NewCodeMemo(GetLocal, toReg, varNo, 0, nn.Name))
+	p.lastRegNo = toReg
 	// 配列アクセス
 	if nn.Index != nil {
 		for _, vNode := range nn.Index {
@@ -860,6 +872,7 @@ func (p *TCompiler) convConst(n *node.Node) ([]*TCode, error) {
 	v := op.Value
 	// push const
 	regI := p.regNext()
+	p.lastRegNo = regI
 	switch v.Type {
 	case value.Int:
 		return []*TCode{p.makeConstInt(regI, v.ToInt())}, nil
@@ -896,6 +909,7 @@ func (p *TCompiler) convOperator(n *node.Node) ([]*TCode, error) {
 	res = append(res, l...)
 	//
 	toindex := tmpRCount
+	p.lastRegNo = toindex
 	p.scope.Index = toindex + 1
 	switch op.Operator {
 	case "+":

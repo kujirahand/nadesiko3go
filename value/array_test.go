@@ -51,4 +51,25 @@ func TestArray3(t *testing.T) {
 	if s != "[[1,2,3],[4,5,6]]" {
 		t.Errorf("array2.Append %s", s)
 	}
+
+	v3 := NewArrayPtr()
+	v3.Append(NewIntPtr(1))
+	v3.Append(NewIntPtr(2))
+	v3.Append(NewIntPtr(3))
+	v3.ToArray().Reverse()
+	s3 := v3.ToString()
+	if s3 != "[3,2,1]" {
+		t.Errorf("array3.Reverse %s", s3)
+	}
+
+	v4 := NewArrayPtr()
+	v4.Append(NewIntPtr(1))
+	v4.Append(NewIntPtr(2))
+	v4.Append(NewIntPtr(3))
+	v4.Append(NewIntPtr(4))
+	v4.ToArray().Reverse()
+	s4 := v4.ToString()
+	if s4 != "[4,3,2,1]" {
+		t.Errorf("array4.Reverse %s", s3)
+	}
 }
