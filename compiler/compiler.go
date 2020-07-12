@@ -100,6 +100,12 @@ func (p *TCompiler) Compile(n *node.Node) error {
 		return err
 	}
 	c = append(c, codes...)
+	// Optimize
+	if p.sys.IsOptimze {
+		p.Codes = c
+		p.Optimize()
+		c = p.Codes
+	}
 	p.fixLabels(c)
 	p.Codes = c
 	return nil
@@ -773,7 +779,7 @@ func (p *TCompiler) convFor(n *node.Node) ([]*TCode, error) {
 	}
 	c = append(c, blockCodes...)
 	c = append(c, labelContinue)
-	c = append(c, NewCodeMemo(IncLocal, getLoopVar.B, 0, 0, "FOR_INC:"+varName)) // WORD++
+	c = append(c, NewCodeMemo(IncLocal, getLoopVar.B, 1, 0, "FOR_INC:"+varName)) // WORD++
 	c = append(c, p.makeJump(labelCond))
 	c = append(c, labelBlockEnd)
 	p.scope.Index = tmpRCount
@@ -964,9 +970,6 @@ func Compile(sys *core.Core, n *node.Node) (*value.Value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if sys.IsOptimze {
-		p.Optimize()
-	}
 	if sys.IsDebug {
 		fmt.Println(p.CodesToString(p.Codes))
 		fmt.Println("[Run Code]")
@@ -986,6 +989,10 @@ func (p *TCompiler) rmCodes(i int) {
 
 // Optimize : 最適化処理
 func (p *TCompiler) Optimize() {
+	if p.sys.IsDebug {
+		println("[Optimize]")
+	}
+	optCount := 0
 	// 連続するFileInfoを削除
 	lastType := NOP
 	i := 0
@@ -998,11 +1005,11 @@ func (p *TCompiler) Optimize() {
 		lastType = c.Type
 		i++
 	}
-	// Const + Const + Add = 最初に計算しておく
+	// Const + Const + Add/Sub/Mul/Div = 最初に計算しておく
 	i = 0
 	for i < len(p.Codes) {
 		c := p.Codes[i]
-		if (c.Type == Add || c.Type == Sub) && i >= 2 {
+		if (c.Type == Add || c.Type == Sub || c.Type == Mul || c.Type == Div) && i >= 2 {
 			c1 := p.Codes[i-2]
 			c2 := p.Codes[i-1]
 			if c1.Type == ConstO && c2.Type == ConstO {
@@ -1013,6 +1020,10 @@ func (p *TCompiler) Optimize() {
 					v3 = value.Add(v1, v2)
 				} else if c.Type == Sub {
 					v3 = value.Sub(v2, v1)
+				} else if c.Type == Mul {
+					v3 = value.Mul(v2, v1)
+				} else if c.Type == Div {
+					v3 = value.Div(v2, v1)
 				}
 				c3 := p.appendConsts(v3)
 				c.Type = ConstO
@@ -1021,10 +1032,89 @@ func (p *TCompiler) Optimize() {
 				p.rmCodes(i - 2) // c1
 				p.rmCodes(i - 2) // c2
 				i -= 2
+				optCount++
 				continue
 			}
 		}
 		i++
+	}
+	// Const + GetLocal + Add/Sub + SetLocal = 短いOpcodeに変換
+	// => IncLocal / DecLocal
+	i = 0
+	for i < len(p.Codes) {
+		c := p.Codes[i]
+		if (c.Type == SetLocal) && i >= 3 {
+			c1 := p.Codes[i-3]
+			c2 := p.Codes[i-2]
+			c3 := p.Codes[i-1]
+			if c1.Type == ConstO &&
+				c2.Type == GetLocal &&
+				(c3.Type == Add || c3.Type == Sub) {
+				v1 := p.Consts.Get(c1.B)
+				if v1.Type == value.Int {
+					typ := IncLocal
+					val := v1.ToInt()
+					vno := c2.B
+					varName := c2.Memo
+					if c3.Type == Add {
+					} else if c3.Type == Sub {
+						typ = DecLocal
+					}
+					// IncLocal / DecLocal
+					c1.Type = typ
+					c1.A = vno
+					c1.B = val
+					c1.C = 0
+					c1.Memo = varName
+					i -= 2
+					p.rmCodes(i) //
+					p.rmCodes(i) //
+					p.rmCodes(i) //
+					optCount++
+					continue
+				}
+			}
+		}
+		i++
+	}
+	// ConstO + GetLocal + Add/Sub = 短いOpcodeに変換
+	// => GetLocalNAddInt / GetLocalNSubInt
+	i = 0
+	for i < len(p.Codes) {
+		c := p.Codes[i]
+		if (c.Type == Add || c.Type == Sub) && i >= 2 {
+			c1 := p.Codes[i-2]
+			c2 := p.Codes[i-1]
+			if c1.Type == ConstO && c2.Type == GetLocal {
+				v1 := p.Consts.Get(c1.B)
+				if v1.Type == value.Int {
+					typ := GetLocalNAdd
+					val := v1.ToInt()
+					vno := c2.B
+					res := c.A
+					varName := c2.Memo
+					if c.Type == Add {
+					} else if c.Type == Sub {
+						typ = GetLocalNSub
+					}
+					// IncLocal / DecLocal
+					c1.Type = typ
+					c1.A = res
+					c1.B = vno
+					c1.C = val
+					c1.Memo = varName + ":" + value.IntToStr(val)
+					i--
+					p.rmCodes(i)
+					p.rmCodes(i)
+					optCount++
+					continue
+				}
+			}
+		}
+		i++
+	}
+	if p.sys.IsDebug {
+		println("- count=", optCount)
 	}
 }
 

@@ -57,10 +57,12 @@ func TestFunc(t *testing.T) {
 	_eval2(t, "(「abc」の「a」を「b」に置換)を表示;表示ログ", "bbc")
 	_eval2(t, "([1,2,3]の要素数)を表示;表示ログ", "3")
 	_eval2(t, "●FF(Nの)\n1で戻る\nここまで\n(30のFF)を表示;表示ログ", "1")
+	_eval2(t, "●REC(Nの)\nもしN<1ならば、Nで戻る。\n(((N-1)のREC)+N)で戻る\nここまで\n(10のREC)を表示;表示ログ", "55")
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "●REC(Nの)\nもしN<1ならば、Nで戻る。\n(((N-1)のREC)+N)で戻る\nここまで\n(10のREC)を表示;表示ログ", "55")
+	_eval2(t, "N=5;N-1を表示;表示ログ", "4")
+	_eval2(t, "N=5;N-1と3を足して表示;表示ログ", "7")
 }
 
 func _eval2(t *testing.T, code, expected string) {

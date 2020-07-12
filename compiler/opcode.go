@@ -26,8 +26,14 @@ const (
 	SetSore
 	// IncReg A : R[A]++
 	IncReg
-	// IncLocal A : Scope[A]++
+	// IncLocal A, B : Scope[A]+=B
 	IncLocal
+	// DecLocal A, B : Scope[A]-=B
+	DecLocal
+	// GetLocalNAdd A, B, C : R[A] = Scope[B] + C
+	GetLocalNAdd
+	// GetLocalNSub A, B, C : R[A] = Scope[B] - C
+	GetLocalNSub
 	// Jump A : PC += A
 	Jump
 	// JumpTo A :  PC = A

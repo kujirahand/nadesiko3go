@@ -20,6 +20,9 @@ var codeFuncTable = []TCodeFunc{
 	rcSetSore,
 	rcIncReg,
 	rcIncLocal,
+	rcDecLocal,
+	rcGetLocalNAdd,
+	rcGetLocalNSub,
 	rcJump,
 	rcJumpTo,
 	rcJumpIfTrue,
@@ -76,8 +79,9 @@ func rcMoveR(p *TCompiler, code *TCode) (*value.Value, error) {
 
 // ConstO A,B : R[A] = CONSTS[B]
 func rcConstO(p *TCompiler, code *TCode) (*value.Value, error) {
-	p.regSet(code.A, p.Consts.Get(code.B).Clone())
-	return nil, nil
+	v := p.Consts.Get(code.B).Clone()
+	p.regSet(code.A, v)
+	return v, nil
 }
 
 // ExString A,B : R[A] = ExString(CONSTS[B])
@@ -145,10 +149,17 @@ func rcIncReg(p *TCompiler, code *TCode) (*value.Value, error) {
 	return v, nil
 }
 
-// IncLocal A : Scope[A]++
+// IncLocal A,B : Scope[A]+=B
 func rcIncLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.scope.GetByIndex(code.A)
-	v.SetInt(v.ToInt() + 1)
+	v.SetInt(v.ToInt() + code.B)
+	return v, nil
+}
+
+// DecLocal A,B : Scope[A]-=B
+func rcDecLocal(p *TCompiler, code *TCode) (*value.Value, error) {
+	v := p.scope.GetByIndex(code.A)
+	v.SetInt(v.ToInt() - code.B)
 	return v, nil
 }
 
@@ -415,4 +426,20 @@ func rcReturn(p *TCompiler, code *TCode) (*value.Value, error) {
 func rcPrint(p *TCompiler, code *TCode) (*value.Value, error) {
 	println("[PRINT]", p.regGet(code.A).ToString())
 	return nil, nil
+}
+
+// GetLocalNAddInt A, B, C : R[A] = Scope[B] + C
+func rcGetLocalNAdd(p *TCompiler, code *TCode) (*value.Value, error) {
+	v := p.scope.GetByIndex(code.B)
+	v2 := value.Add(v, value.NewIntPtr(code.C))
+	p.regSet(code.A, v2)
+	return v2, nil
+}
+
+// GetLocalNSubInt A, B, C : R[A] = Scope[B] - C
+func rcGetLocalNSub(p *TCompiler, code *TCode) (*value.Value, error) {
+	v := p.scope.GetByIndex(code.B)
+	v2 := value.Sub(v, value.NewIntPtr(code.C))
+	p.regSet(code.A, v2)
+	return v2, nil
 }

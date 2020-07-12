@@ -34,7 +34,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		if f == nil {
 			println("[system error]" + fmt.Sprintf("Undefined code: %s", p.ToString(code)))
 		}
-		//println("*RUN=", p.index, p.ToString(code))
+		// println("*RUN=", p.index, p.ToString(code))
 		res, err := f(p, code)
 		if err != nil {
 			return nil, err
@@ -179,6 +179,7 @@ func (p *TCompiler) procCallUserFunc(code *TCode) int {
 	for i, name := range label.argNames {
 		v := oldScope.Reg.Get(argIndex + i)
 		scope.Set(name, v)
+		// println("[", i, "]", name, "=", v.ToString())
 	}
 	cur := label.addr
 	return cur
