@@ -9,10 +9,17 @@ const (
 	DefRegCap = 256
 )
 
+// ValueMeta : 値情報
+type ValueMeta struct {
+	IsConst bool
+}
+
 // Scope : Scope
 type Scope struct {
 	// values : slice of Value
 	values *value.TArray
+	// metas : meta info
+	metas []ValueMeta
 	// names : link to Values
 	names map[string]int
 	// Reg : レジスタ
@@ -27,6 +34,7 @@ type Scope struct {
 func NewScope() *Scope {
 	s := Scope{
 		values: value.NewTArray(),
+		metas:  []ValueMeta{},
 		names:  map[string]int{},
 		Reg:    value.NewTArray(),
 		Index:  0,
@@ -59,6 +67,23 @@ func (s *Scope) Set(key string, v *value.Value) int {
 // GetByIndex : Get Value By Index
 func (s *Scope) GetByIndex(index int) *value.Value {
 	return s.values.Get(index)
+}
+
+// GetMetaByIndex : Get Meta Value By Index
+func (s *Scope) GetMetaByIndex(index int) *ValueMeta {
+	for len(s.metas) <= index {
+		s.metas = append(s.metas, ValueMeta{})
+	}
+	return &s.metas[index]
+}
+
+// GetMeta : Get Meta
+func (s *Scope) GetMeta(name string) *ValueMeta {
+	i := s.GetIndexByName(name)
+	if i >= 0 {
+		return s.GetMetaByIndex(i)
+	}
+	return nil
 }
 
 // SetByIndex : Set Value

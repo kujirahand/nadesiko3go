@@ -366,10 +366,12 @@ func runLet(n *node.Node) (*value.Value, error) {
 			nameValue = value.NewNullPtr()
 			localScope.Set(cl.Name, nameValue)
 		}
-		if nameValue.IsConst {
-			return nil, RuntimeError(fmt.Sprintf(
-				"定数『%s』は変更できません。", cl.Name), n)
-		}
+		/*
+			if nameValue.IsConst {
+				return nil, RuntimeError(fmt.Sprintf(
+					"定数『%s』は変更できません。", cl.Name), n)
+			}
+		*/
 		nameValue.SetValue(val)
 		return val, nil
 	}
@@ -423,7 +425,7 @@ func runDefVar(n *node.Node) (*value.Value, error) {
 		return nil, RuntimeError(fmt.Sprintf("既に%s『%s』が存在します。", k, cl.Name), n)
 	}
 	varV := value.NewNullPtr()
-	varV.IsConst = cl.IsConst
+	// varV.IsConst = cl.IsConst
 	scope.Set(cl.Name, varV)
 
 	// 変数に代入する値を評価する

@@ -34,8 +34,7 @@ const (
 type Value struct {
 	Type  VType
 	Value interface{}
-	// Tag     int
-	IsConst bool // 不変な値(immutable)かどうか
+	// IsConst bool // 不変な値(immutable)かどうか
 }
 
 var valueTypeStr = map[VType]string{
@@ -514,7 +513,5 @@ func (v *Value) Clone() *Value {
 		tmp.Value = v.Value
 		res = tmp
 	}
-	// clone other meta data
-	res.IsConst = v.IsConst
 	return res
 }

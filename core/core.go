@@ -89,23 +89,29 @@ func (p *Core) addFuncCustom(name string, val value.Value) int {
 // AddConst : システムに定数を登録
 func (p *Core) AddConst(name, v string) int {
 	val := value.NewStrPtr(v)
-	val.IsConst = true
+
 	p.Global.Set(name, val)
+	varNo := p.Global.GetIndexByName(name)
+	meta := p.Global.GetMetaByIndex(varNo)
+	meta.IsConst = true
+
 	return -1
 }
 
 // AddConstInt : システムに定数を登録
 func (p *Core) AddConstInt(name string, v int) int {
 	val := value.NewIntPtr(int(v))
-	val.IsConst = true
 	p.Global.Set(name, val)
+	meta := p.Global.GetMeta(name)
+	meta.IsConst = true
 	return -1
 }
 
 // AddConstValue : システムに変数を登録
 func (p *Core) AddConstValue(name string, v *value.Value) int {
 	p.Global.Set(name, v)
-	v.IsConst = true
+	meta := p.Global.GetMeta(name)
+	meta.IsConst = true
 	return -1
 }
 

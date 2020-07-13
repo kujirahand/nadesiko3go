@@ -664,9 +664,10 @@ func (p *TCompiler) convDefVar(n *node.Node) ([]*TCode, error) {
 		return nil, CompileError(fmt.Sprintf("定数『%s』の宣言で既に変数が存在します。", varName), n)
 	}
 	val := value.NewNullPtr()
-	val.IsConst = nn.IsConst // Immutable?
 	p.scope.Set(varName, val)
 	noVar := p.scope.GetIndexByName(varName)
+	meta := p.scope.GetMetaByIndex(noVar)
+	meta.IsConst = nn.IsConst // Immutable?
 	c = append(c, NewCodeMemo(SetLocal, noVar, regExpr, 0, "定数:"+varName))
 	p.regBack()
 	return c, nil
@@ -688,13 +689,18 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 
 	// SetLocal (Indexがない場合)
 	if nn.Index == nil || len(nn.Index) == 0 {
-		varV := p.scope.Get(varName)
-		if varV == nil {
-			varV = value.NewNullPtr()
-			p.scope.Set(varName, varV)
+		varNo := p.scope.GetIndexByName(varName)
+		if varNo < 0 {
+			varV := p.scope.Get(varName)
+			if varV == nil {
+				varV = value.NewNullPtr()
+				p.scope.Set(varName, varV)
+				varNo = p.scope.GetIndexByName(varName)
+			}
 		}
 		// 定数チェック
-		if varV.IsConst {
+		meta := p.scope.GetMetaByIndex(varNo)
+		if meta.IsConst {
 			return nil, CompileError(fmt.Sprintf("定数『%s』には代入できません。", varName), n)
 		}
 		c = append(c, p.makeSetLocalReg(varName, valueR))
