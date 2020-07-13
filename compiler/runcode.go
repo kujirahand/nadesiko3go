@@ -129,11 +129,10 @@ func rcSetLocal(p *TCompiler, code *TCode) (*value.Value, error) {
 
 // GetLocal A,B : R[A] = Scope[B]
 func rcGetLocal(p *TCompiler, code *TCode) (*value.Value, error) {
-	p.regSet(code.A, p.scope.GetByIndex(code.B))
-	lastValue := p.regGet(code.A)
-	// println("@@value=", lastValue.ToJSONString())
+	v := p.scope.GetByIndex(code.B)
+	p.regSet(code.A, v)
 	p.moveNext()
-	return lastValue, nil
+	return v, nil
 }
 
 // FindVar A, B : R[A] = FindVar(CONSTS[B])
@@ -360,6 +359,7 @@ func rcSetArrayElem(p *TCompiler, code *TCode) (*value.Value, error) {
 	v := p.regGet(code.A)
 	if v != nil {
 		v.SetValue(p.regGet(code.B))
+		p.moveNext()
 		return v, nil
 	}
 	p.moveNext()

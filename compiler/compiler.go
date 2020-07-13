@@ -82,7 +82,10 @@ func (p *TCompiler) Compile(n *node.Node) error {
 	c := []*TCode{p.makeJump(labelMainBegin)}
 	// 最初にユーザー関数を定義する
 	for _, v := range p.sys.UserFuncs.GetItems() {
-		nodeDef := v.Value.(node.TNodeDefFunc)
+		vf := v.Value.(value.TFuncValue)
+		// println("@DEF_FUNC:", vf.Name)
+		nlink := vf.LinkNode
+		nodeDef := nlink.(node.TNodeDefFunc)
 		var n node.Node = nodeDef
 		cDef, eDef := p.convDefFunc(&n)
 		if eDef != nil {
@@ -276,7 +279,8 @@ func (p *TCompiler) getFunc(name string) (*value.Value, error) {
 
 func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList, useJosi bool) (int, []*TCode, error) {
 	// 関数の引数を得る
-	defArgs := p.sys.JosiList[funcV.Tag]    // 定義
+	fv := funcV.Value.(value.TFuncValue)
+	defArgs := fv.Args                      // 定義
 	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
 	// 引数を取得する
 	arrayIndex := p.regTop()
@@ -320,13 +324,16 @@ func (p *TCompiler) getFuncArgs(fname string, funcV *value.Value, nodeArgs node.
 		if len(nodeArgs) == (len(defArgs) - 1) {
 			c = append(c, p.makeGetLocal("それ"))
 		} else {
-			if len(nodeArgs) < len(defArgs) {
+			if len(nodeArgs) > len(defArgs) {
 				return -1, nil, fmt.Errorf(
 					"関数『%s』で引数の数が多すぎます。"+
-						"引数を確認してください。"+
-						"あるいは、関数に複文が指定されている可能性があります。", fname)
+						"引数が%d個あります。"+
+						"あるいは、関数に複文が指定されている可能性があります。", fname, len(nodeArgs))
 			}
-			return -1, nil, fmt.Errorf("関数『%s』で引数の数が不足しています。", fname)
+			return -1, nil, fmt.Errorf(
+				"関数『%s』で引数の数が不足しています。%d個必要です。",
+				fname,
+				len(defArgs))
 		}
 	}
 	return arrayIndex, c, nil
@@ -849,7 +856,7 @@ func (p *TCompiler) appendConsts(val *value.Value) int {
 					return i
 				}
 			case value.Function:
-				if v.Tag == val.Tag {
+				if val.Type == value.Function && v.ToString() == val.ToString() {
 					return i
 				}
 			}

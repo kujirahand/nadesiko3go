@@ -1,17 +1,15 @@
 package value
 
-// idea
-// プロファイラを見ると、NewValueXXXのコストが高いので、分別して破棄しないようにして値を再利用するように
-// Int / Float の計算を Floatにまとめて、数値同士の演算を高速化する（？）
+// プロファイラを見ると、NewValueXXXのコストが高い
 
 import "strings"
 
-// Type : valueの型
-type Type int
+// VType : valueの型
+type VType int
 
 const (
 	// Null : Null
-	Null Type = iota
+	Null VType = iota
 	// Int : 整数
 	Int
 	// Float : 実数
@@ -34,27 +32,13 @@ const (
 
 // Value : Value
 type Value struct {
-	Type    Type
-	Value   interface{}
-	Tag     int
+	Type  VType
+	Value interface{}
+	// Tag     int
 	IsConst bool // 不変な値(immutable)かどうか
 }
 
-// TArrayItems : 値のスライス
-type TArrayItems []*Value
-
-// TArray : 配列型の型
-type TArray struct {
-	items TArrayItems
-}
-
-// THash : ハッシュ型の型
-type THash map[string]*Value
-
-// TFunction : 関数型の型
-type TFunction func(args *TArray) (*Value, error)
-
-var valueTypeStr = map[Type]string{
+var valueTypeStr = map[VType]string{
 	Null:     "Null",
 	Int:      "Int",
 	Float:    "Float",
@@ -68,7 +52,7 @@ var valueTypeStr = map[Type]string{
 }
 
 // TypeToStr : value.Type を文字列に変換
-func TypeToStr(t Type) string {
+func TypeToStr(t VType) string {
 	return valueTypeStr[t]
 }
 
@@ -122,20 +106,6 @@ func NewBoolPtr(v bool) *Value {
 	return p
 }
 
-// NewFunc : 関数オブジェクトを生成
-func NewFunc(v TFunction) Value {
-	return Value{Type: Function, Value: v}
-}
-
-// NewUserFunc : ユーザー定義関数を生成
-func NewUserFunc(v interface{}) Value {
-	return Value{
-		Type:  UserFunc,
-		Value: v,  // Link to Node.TNodeDefFunc
-		Tag:   -1, // ArgsList Link
-	}
-}
-
 // NewArrayPtr : 配列を生成
 func NewArrayPtr() *Value {
 	return &Value{
@@ -159,7 +129,7 @@ func NewHashPtr() *Value {
 }
 
 // NewByType : タイプに応じた値を生成する
-func NewByType(vtype Type, s string) *Value {
+func NewByType(vtype VType, s string) *Value {
 	switch vtype {
 	case Null:
 		return NewNullPtr()
@@ -298,12 +268,10 @@ func (v *Value) SetValue(value *Value) {
 	if value == nil {
 		v.Type = Null
 		v.Value = nil
-		v.Tag = 0
 		return
 	}
 	// Copy Meta
 	v.Type = value.Type
-	v.Tag = value.Tag
 	// Copy Value
 	switch value.Type {
 	case Int, Bool:
@@ -347,6 +315,12 @@ func (v *Value) ToString() string {
 	case Hash:
 		h := v.Value.(THash)
 		return h.ToString()
+	case UserFunc:
+		uf := v.Value.(TFuncValue)
+		return uf.Name
+	case Function:
+		uf := v.Value.(TFuncValue)
+		return uf.Name
 	}
 	return v.ToJSONString()
 }
@@ -541,7 +515,6 @@ func (v *Value) Clone() *Value {
 		res = tmp
 	}
 	// clone other meta data
-	res.Tag = v.Tag
 	res.IsConst = v.IsConst
 	return res
 }

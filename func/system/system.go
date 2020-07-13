@@ -44,44 +44,44 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddConstValue("空配列", value.NewArrayPtr())
 	sys.AddConstValue("空ハッシュ", value.NewHashPtr())
 	/// 四則演算
-	sys.AddFunc("足", core.DefArgs{{"と", "に"}, {"を"}}, add) // AにBを足す | たす
-	sys.AddFunc("引", core.DefArgs{{"から"}, {"を"}}, sub)     // AからBを引く | ひく
-	sys.AddFunc("掛", core.DefArgs{{"と", "に"}, {"を"}}, mul) // AにBを掛ける | かける
-	sys.AddFunc("倍", core.DefArgs{{"の"}, {""}}, mul)       // AのB倍 | ばい
-	sys.AddFunc("割", core.DefArgs{{"を"}, {"で"}}, div)      // AをBで割る | わる
-	sys.AddFunc("割余", core.DefArgs{{"を"}, {"で"}}, mod)     // AをBで割った余り | わったあまり
-	sys.AddFunc("以上", core.DefArgs{{"が"}, {""}}, gteq)     // AがB以上か | いじょう
-	sys.AddFunc("以下", core.DefArgs{{"が"}, {""}}, lteq)     // AがB以下か | いか
-	sys.AddFunc("超", core.DefArgs{{"が"}, {""}}, gt)        // AがB超か | ちょう
-	sys.AddFunc("未満", core.DefArgs{{"が"}, {""}}, lt)       // AがB未満か | みまん
-	sys.AddFunc("等", core.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
+	sys.AddFunc("足", value.DefArgs{{"と", "に"}, {"を"}}, add) // AにBを足す | たす
+	sys.AddFunc("引", value.DefArgs{{"から"}, {"を"}}, sub)     // AからBを引く | ひく
+	sys.AddFunc("掛", value.DefArgs{{"と", "に"}, {"を"}}, mul) // AにBを掛ける | かける
+	sys.AddFunc("倍", value.DefArgs{{"の"}, {""}}, mul)       // AのB倍 | ばい
+	sys.AddFunc("割", value.DefArgs{{"を"}, {"で"}}, div)      // AをBで割る | わる
+	sys.AddFunc("割余", value.DefArgs{{"を"}, {"で"}}, mod)     // AをBで割った余り | わったあまり
+	sys.AddFunc("以上", value.DefArgs{{"が"}, {""}}, gteq)     // AがB以上か | いじょう
+	sys.AddFunc("以下", value.DefArgs{{"が"}, {""}}, lteq)     // AがB以下か | いか
+	sys.AddFunc("超", value.DefArgs{{"が"}, {""}}, gt)        // AがB超か | ちょう
+	sys.AddFunc("未満", value.DefArgs{{"が"}, {""}}, lt)       // AがB未満か | みまん
+	sys.AddFunc("等", value.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
 	// 型変換
-	sys.AddFunc("変数型確認", core.DefArgs{{"の"}}, typeOf) // 値Vの型を返す | かたかくにん
-	sys.AddFunc("TYPEOF", core.DefArgs{{""}}, typeOf) // 値Vの型を返す | かたかくにん
+	sys.AddFunc("変数型確認", value.DefArgs{{"の"}}, typeOf) // 値Vの型を返す | かたかくにん
+	sys.AddFunc("TYPEOF", value.DefArgs{{""}}, typeOf) // 値Vの型を返す | かたかくにん
 	// 文字列処理
-	sys.AddFunc("置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
-	sys.AddFunc("単置換", core.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
+	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
 	// CSV操作
-	sys.AddFunc("CSV取得", core.DefArgs{{"を", "の", "で"}}, getCSV) // CSV形式のデータstrを強制的に二次元配列に変換して返す | CSVしゅとく
-	sys.AddFunc("TSV取得", core.DefArgs{{"を", "の", "で"}}, getTSV) // TSV形式のデータstrを強制的に二次元配列に変換して返す | TSVしゅとく
-	sys.AddFunc("表CSV変換", core.DefArgs{{"を"}}, convToCSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
-	sys.AddFunc("表TSV変換", core.DefArgs{{"を"}}, convToTSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
+	sys.AddFunc("CSV取得", value.DefArgs{{"を", "の", "で"}}, getCSV) // CSV形式のデータstrを強制的に二次元配列に変換して返す | CSVしゅとく
+	sys.AddFunc("TSV取得", value.DefArgs{{"を", "の", "で"}}, getTSV) // TSV形式のデータstrを強制的に二次元配列に変換して返す | TSVしゅとく
+	sys.AddFunc("表CSV変換", value.DefArgs{{"を"}}, convToCSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
+	sys.AddFunc("表TSV変換", value.DefArgs{{"を"}}, convToTSV)       // 二次元配列をCSVデータに変換して返す | ひょうCSVへんかん
 	// JSON
-	sys.AddFunc("JSONエンコード", core.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
-	sys.AddFunc("JSONエンコード整形", core.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
-	sys.AddFunc("JSONデコード", core.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
+	sys.AddFunc("JSONエンコード", value.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
+	sys.AddFunc("JSONエンコード整形", value.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
+	sys.AddFunc("JSONデコード", value.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
 	// 日時
-	sys.AddFunc("今", core.DefArgs{}, getNow)    // 現在時刻を返す | いま
-	sys.AddFunc("今日", core.DefArgs{}, getToday) // 今日の日付を返す | きょう
+	sys.AddFunc("今", value.DefArgs{}, getNow)    // 現在時刻を返す | いま
+	sys.AddFunc("今日", value.DefArgs{}, getToday) // 今日の日付を返す | きょう
 	// 配列
-	sys.AddFunc("要素数", core.DefArgs{{"の"}}, countV) // Sの要素数を得る | ようそすう
+	sys.AddFunc("要素数", value.DefArgs{{"の"}}, countV) // Sの要素数を得る | ようそすう
 	// URLエンコードとパラメータ
-	sys.AddFunc("URLエンコード", core.DefArgs{{"を", "の", "から"}}, urlEncode)          // 文字列SをURLエンコードして返す | URLえんこーど
-	sys.AddFunc("URLデコード", core.DefArgs{{"を", "の", "から"}}, urlDecode)           // 文字列SをURLデコードして返す | URLでこーど
-	sys.AddFunc("URLパラメータ解析", core.DefArgs{{"を", "の", "から"}}, urlAnalizeParams) // URLパラメータを解析してハッシュで返す| URLぱらめーたかいせき
+	sys.AddFunc("URLエンコード", value.DefArgs{{"を", "の", "から"}}, urlEncode)          // 文字列SをURLエンコードして返す | URLえんこーど
+	sys.AddFunc("URLデコード", value.DefArgs{{"を", "の", "から"}}, urlDecode)           // 文字列SをURLデコードして返す | URLでこーど
+	sys.AddFunc("URLパラメータ解析", value.DefArgs{{"を", "の", "から"}}, urlAnalizeParams) // URLパラメータを解析してハッシュで返す| URLぱらめーたかいせき
 	// ハッシュ
-	sys.AddFunc("ハッシュキー列挙", core.DefArgs{{"の"}}, hashKeys)   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
-	sys.AddFunc("ハッシュ内容列挙", core.DefArgs{{"の"}}, hashValues) // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
+	sys.AddFunc("ハッシュキー列挙", value.DefArgs{{"の"}}, hashKeys)   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
+	sys.AddFunc("ハッシュ内容列挙", value.DefArgs{{"の"}}, hashValues) // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
 }
 
 func hashKeys(args *value.TArray) (*value.Value, error) {

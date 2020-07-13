@@ -33,7 +33,6 @@ func (p *GabadgeMan) NewValue() *Value {
 	} else {
 		v.Type = Null
 		v.Value = nil
-		v.Tag = 0
 		v.IsConst = false
 	}
 	return v

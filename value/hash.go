@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// THash : ハッシュ型の型
+type THash map[string]*Value
+
 // Set : THash.Set
 func (p *THash) Set(key string, v *Value) {
 	h := *p

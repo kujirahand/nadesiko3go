@@ -29,6 +29,7 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 	lastValue := value.NewNullPtr()
 	for p.isLive() {
 		code := p.peek()
+
 		// println("*RUN=", p.index, p.ToString(code))
 
 		// get code func
@@ -40,8 +41,10 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
+		//if res != nil {
 		lastValue = res
-		// println("\t\tres=", lastValue.ToString())
+		//}
+		// println("\t@@res=", lastValue.ToString())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())
 	}
@@ -89,14 +92,17 @@ func (p *TCompiler) runCallFunc(code *TCode) (*value.Value, error) {
 		return nil, p.RuntimeError("[SYSTEM ERROR:ユーザー関数をシステム関数として呼んだ]")
 	}
 	// call system func
-	argCount := len(p.sys.JosiList[funcV.Tag])
-	fn := funcV.Value.(value.TFunction)
+	fv := funcV.Value.(value.TFuncValue)
+	argCount := len(fv.Args)
+	// println("runCallFunc=", fv.Name, argCount)
+	fn := value.GetFuncLink(funcV)
 	// args
 	args := value.NewTArray()
 	for i := 0; i < argCount; i++ {
 		v := p.regGet(code.C + i)
 		args.Append(v)
 	}
+	// println(args.ToJSONString())
 	res, err := fn(args)
 	if err != nil {
 		return nil, p.RuntimeError("関数実行中のエラー。" + err.Error())

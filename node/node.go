@@ -182,7 +182,7 @@ func (n TNodeConst) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeConst) GetJosi() string { return n.Josi }
 
 // NewNodeConst : TNodeConstを返す
-func NewNodeConst(vtype value.Type, t *token.Token) TNodeConst {
+func NewNodeConst(vtype value.VType, t *token.Token) TNodeConst {
 	node := TNodeConst{
 		Value:    value.NewByType(vtype, t.Literal),
 		IsExtend: false,
@@ -203,7 +203,7 @@ func NewNodeConstInt(t *token.Token, num int) TNodeConst {
 }
 
 // NewNodeConstEx : STRING_EX型に対応するノードを返す
-func NewNodeConstEx(vtype value.Type, t *token.Token) TNodeConst {
+func NewNodeConstEx(vtype value.VType, t *token.Token) TNodeConst {
 	node := NewNodeConst(vtype, t)
 	node.IsExtend = true
 	return node

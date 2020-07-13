@@ -492,7 +492,8 @@ func getFunc(cf *node.TNodeCallFunc) (*value.Value, error) {
 
 func getFuncArgs(fname string, funcV *value.Value, nodeArgs node.TNodeList) (*value.TArray, error) {
 	// 関数の引数を得る
-	defArgs := sys.JosiList[funcV.Tag]      // 定義
+	fv := funcV.Value.(value.TFuncValue)
+	defArgs := fv.Args                      // 定義
 	args := value.NewTArray()               // 関数に与える値
 	usedArgs := make([]bool, len(nodeArgs)) // ノードを利用したか(同じ助詞が二つある場合)
 	// 引数を取得する

@@ -20,9 +20,6 @@ const (
 	MainFile TRunMode = "mainfile"
 )
 
-// DefArgs : 関数引数の助詞一覧
-type DefArgs [][]string
-
 // Core : なでしこのコアシステム情報
 type Core struct {
 	IsDebug    bool
@@ -40,7 +37,6 @@ type Core struct {
 	ContinueID int
 	ReturnID   int
 	LoopLevel  int
-	JosiList   []DefArgs // システム関数の助詞情報を記憶する
 	UserFuncs  value.TArray
 }
 
@@ -63,7 +59,7 @@ func NewCore() *Core {
 	c.IsOptimze = true
 	c.Scopes = scope.NewScopeList() // 最初のスコープも自動的に得られる
 	c.Global = c.Scopes.GetGlobal()
-	c.JosiList = []DefArgs{}
+	// c.JosiList = []value.DefArgs{}
 	c.BreakID = -1
 	c.ContinueID = -1
 	c.ReturnID = -1
@@ -82,11 +78,12 @@ func (p *Core) SetSoreLink() {
 }
 
 // addFuncCustom : システムに関数を登録する
-func (p *Core) addFuncCustom(name string, args DefArgs, val value.Value) int {
-	val.Tag = len(p.JosiList)
-	p.JosiList = append(p.JosiList, args)
+func (p *Core) addFuncCustom(name string, val value.Value) int {
 	p.Global.Set(name, &val)
-	return val.Tag
+	tag := p.Global.GetIndexByName(name)
+	fv := val.Value.(value.TFuncValue)
+	fv.Tag = tag
+	return fv.Tag
 }
 
 // AddConst : システムに定数を登録
@@ -133,15 +130,14 @@ func (p *Core) AddVarValue(name string, v *value.Value) int {
 }
 
 // AddFunc : システムにGo関数を登録する
-func (p *Core) AddFunc(name string, args DefArgs, f value.TFunction) int {
-	val := value.NewFunc(f)
-	return p.addFuncCustom(name, args, val)
+func (p *Core) AddFunc(name string, args value.DefArgs, f value.TFunction) int {
+	val := value.NewFunc(name, args, f)
+	return p.addFuncCustom(name, val)
 }
 
 // AddUserFunc : システムにユーザー関数を登録する
-func (p *Core) AddUserFunc(name string, args DefArgs, node interface{}) int {
-	userFuncVal := value.NewUserFunc(node)
-	tag := p.addFuncCustom(name, args, userFuncVal)
+func (p *Core) AddUserFunc(name string, args value.DefArgs, node interface{}) int {
+	userFuncVal := value.NewUserFunc(name, args, node)
 	p.UserFuncs.Append(&userFuncVal)
-	return tag
+	return p.addFuncCustom(name, userFuncVal)
 }

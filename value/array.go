@@ -4,6 +4,14 @@ import (
 	"strings"
 )
 
+// TArrayItems : 値のスライス
+type TArrayItems []*Value
+
+// TArray : 配列型の型
+type TArray struct {
+	items TArrayItems
+}
+
 // NewTArray : TArrayを生成
 func NewTArray() *TArray {
 	return &TArray{
