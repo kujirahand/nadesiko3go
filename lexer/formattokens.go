@@ -1,6 +1,7 @@
 package lexer
 
 import (
+	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/token"
 )
 
@@ -10,18 +11,75 @@ func (p *Lexer) formatTokenList(tt token.Tokens) token.Tokens {
 		return tt
 	}
 	man := NewTokensManager(tt)
+	p.removeEOS(man)
+	p.checkDefFunc(man)
+	p.checkWord(man)
 	p.insertSyntaxMarker(man)
 	p.checkIF(man)
-	p.checkDefFunc(man)
 	p.checkBeginFunc(man)
+	p.checkLetFunc(man)
 	return man.GetTokens()
+}
+
+func (p *Lexer) isEOS(t *token.Token) bool {
+	if t == nil {
+		return false
+	}
+	if t.Type == token.EOS || t.Type == token.LF {
+		return true
+	}
+	return false
+}
+
+// EOSの連続を削除 --- 構文解析の邪魔になるので
+func (p *Lexer) removeEOS(f *TokensManager) {
+	var last *token.Token = nil
+	f.MoveTo(0)
+	for f.IsLive() {
+		t := f.Peek()
+		if p.isEOS(t) && p.isEOS(last) {
+			f.Delete(f.GetIndex())
+			continue
+		}
+		last = t
+		f.Next()
+	}
+}
+
+func (p *Lexer) checkLetFunc(f *TokensManager) {
+}
+
+func (p *Lexer) checkWord(f *TokensManager) {
+	sys := core.GetSystem()
+	f.MoveTo(0)
+	for f.IsLive() {
+		t := f.Peek()
+		if t.Type == token.WORD {
+			funcName := t.Literal
+			uf, ok := p.FuncNames[funcName]
+			if ok && uf {
+				t.Type = token.FUNC
+			} else {
+				v := sys.Global.Get(funcName)
+				if v == nil {
+					f.Next()
+					continue
+				}
+				if v.IsFunction() {
+					t.Type = token.FUNC
+				}
+			}
+			if t.Type == token.FUNC && t.Josi != "" {
+				t.Type = token.FUNC_JOSI
+			}
+		}
+		f.Next()
+	}
 }
 
 // checkBeginFunc : 関数定義を調べる
 func (p *Lexer) checkBeginFunc(f *TokensManager) {
-	// TODO:
 	// FUNC LPAREN => CFUNC LPAREN
-
 	// ref: insertSyntaxMarker <--- LET(代入)
 	f.MoveTo(0)
 	for f.IsLive() {

@@ -30,6 +30,12 @@ func (p *TokensManager) Insert(index int, t *token.Token) {
 	p.length++
 }
 
+// Delete : 削除
+func (p *TokensManager) Delete(index int) {
+	p.tokens = append(p.tokens[:index], p.tokens[index+1:]...)
+	p.length--
+}
+
 // IsLive : 残りのトークンがあるか
 func (p *TokensManager) IsLive() bool {
 	return p.index < p.length
@@ -52,8 +58,23 @@ func (p *TokensManager) MoveTo(i int) {
 	p.index = i
 }
 
+// SkipTo : 指定の位置にカーソルを移動
+func (p *TokensManager) SkipTo(ttype token.TType) {
+	for p.IsLive() {
+		t := p.Peek()
+		if t.Type == ttype {
+			p.Next()
+			break
+		}
+		p.Next()
+	}
+}
+
 // Peek : 現在のトークンを得る
 func (p *TokensManager) Peek() *token.Token {
+	if len(p.tokens) <= p.index {
+		return nil
+	}
 	t := p.tokens[p.index]
 	return t
 }

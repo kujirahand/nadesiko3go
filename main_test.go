@@ -10,11 +10,22 @@ func TestBasic1(t *testing.T) {
 	_eval2(t, "1に2を足す", "3")
 }
 
+func TestBasic2(t *testing.T) {
+	_eval2(t, "1+2", "3")
+	_eval2(t, "1+2*3", "7")
+	_eval2(t, "A=1;B=2;C=A+B;C", "3")
+}
+
 func TestBasic2a(t *testing.T) {
 	_eval2(t, "1+2", "3")
 	_eval2(t, "1+2*3", "7")
 	_eval2(t, "A=1;B=2;C=A+B;C", "3")
 	_eval2(t, "A=1+2*3;A", "7")
+}
+
+func TestLoopForeach(t *testing.T) {
+	_eval2(t, "C=0;[1,2,3]を反復,C=C+それ;C", "6")
+	_eval2(t, "C=0;{'a':1,'b':2}を反復,C=C+それ;C", "3")
 }
 
 func TestLoop(t *testing.T) {
@@ -40,6 +51,12 @@ func TestIf(t *testing.T) {
 	_eval2(t, "C=0;もしC=1ならば\nC=30\nここまで;C", "0")
 	_eval2(t, "C=0;もしC=1ならば,C=30。違えば,C=50。C", "50")
 }
+
+func TestArray2(t *testing.T) {
+	_eval2(t, "A=3;もし、A=3ならば「1」と表示。表示ログ", "1")
+	// _eval2(t, "C=[1,2,3];C[1]", "[1,2,3]")
+}
+
 func TestArray(t *testing.T) {
 	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
 	_eval2(t, "C=[1,2,3];C[1]", "2")
@@ -70,7 +87,7 @@ func TestFuncRec(t *testing.T) {
 }
 
 func TestTemp(t *testing.T) {
-	_eval2(t, "●FF(Nの)\n1で戻る\nここまで\n(30のFF)を表示;表示ログ", "1")
+	_eval2(t, "A=(今);もしA<>「」ならば「1」と表示。表示ログ", "1")
 }
 
 func _eval2(t *testing.T, code, expected string) {

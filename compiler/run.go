@@ -41,9 +41,9 @@ func (p *TCompiler) runCode() (*value.Value, error) {
 		if err != nil {
 			return nil, err
 		}
-		//if res != nil {
-		lastValue = res
-		//}
+		if res != nil {
+			lastValue = res
+		}
 		// println("\t@@res=", lastValue.ToString())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringRegs())
 		// println("\t@@Lvl=", p.scope.Level, "|", p.scope.ToStringValues())

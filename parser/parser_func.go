@@ -49,9 +49,14 @@ func Parse(sys *core.Core, src string, fno int) (*node.Node, error) {
 // Error : エラーを報告する
 func (l *Lexer) Error(e string) {
 	msg := e
+	// 複雑な置換
+	msg = strings.Replace(msg, "unexpected FUNC", "不正な関数呼び出し。代入文の関数呼び出しはカッコで括る必要があります。", -1)
+
+	// 単純な置換
 	msg = strings.Replace(msg, "syntax error", "文法エラー", -1)
 	msg = strings.Replace(msg, "unexpected", "不正な語句:", -1)
 	msg = strings.Replace(msg, "expecting", "期待する語句:", -1)
+
 	t := l.lastToken
 	lineno := t.FileInfo.Line
 	desc := t.ToString()
@@ -72,21 +77,6 @@ func (l *Lexer) Lex(lval *yySymType) int {
 	lval.token = t
 	// return
 	result := getTokenNo(t.Type)
-	if result == WORD {
-		// go func
-		v, _ := l.sys.Scopes.Find(t.Literal)
-		if v != nil && v.IsFunction() {
-			result = FUNC
-			t.Type = token.FUNC
-		} else if l.lexer.FuncNames[t.Literal] {
-			result = FUNC
-			t.Type = token.FUNC
-		}
-		// 助詞のある関数？
-		if result == FUNC && t.Josi != "" {
-			result = FUNC_JOSI
-		}
-	}
 	l.lastToken = t
 	if l.sys.IsDebug {
 		fmt.Printf("- Lex (%03d) %s\n",

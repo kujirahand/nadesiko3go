@@ -55,8 +55,9 @@ sentences
 
 sentence
   : eos
-  | callfunc eos
   | expr eos
+  | sentence eos
+  | callfunc
   | let_stmt
   | if_stmt 
   | repeat_stmt 
@@ -71,12 +72,12 @@ comment_stmt
   : COMMENT { $$ = node.NewNodeNop($1) }
 
 eos
-  : EOS { $$ = node.NewNodeNop($1) }
-  | LF  { $$ = node.NewNodeNop($1) }
+  : EOS       { $$ = node.NewNodeNop($1) }
+  | LF        { $$ = node.NewNodeNop($1) }
 
 let_stmt
-  : WORD EQ expr eos            { $$ = node.NewNodeLet($1, nil, $3) }
-  | WORD varindex EQ expr eos   { $$ = node.NewNodeLet($1, $2, $4)  }
+  : WORD EQ expr eos           { $$ = node.NewNodeLet($1, nil, $3) }
+  | WORD varindex EQ expr eos  { $$ = node.NewNodeLet($1, $2, $4)  }
   | LET_BEGIN WORD_REF expr LET { $$ = node.NewNodeLet($2, nil, $3) }
   | LET_BEGIN expr WORD_REF LET { $$ = node.NewNodeLet($3, nil, $2) }
   | WORD HENSU EQ expr  { $$ = node.NewNodeDefVar($1, $4) }
@@ -108,7 +109,6 @@ value
 variable
   : WORD          { $$ = node.NewNodeWord($1, nil) }
   | WORD varindex { $$ = node.NewNodeWord($1, $2)  }
-
 
 expr
   : value
