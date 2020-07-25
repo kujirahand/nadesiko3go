@@ -55,9 +55,6 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("超", value.DefArgs{{"が"}, {""}}, gt)        // AがB超か | ちょう
 	sys.AddFunc("未満", value.DefArgs{{"が"}, {""}}, lt)       // AがB未満か | みまん
 	sys.AddFunc("等", value.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
-	// 文字列処理
-	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
-	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
 	// CSV操作
 	sys.AddFunc("CSV取得", value.DefArgs{{"を", "の", "で"}}, getCSV) // CSV形式のデータstrを強制的に二次元配列に変換して返す | CSVしゅとく
 	sys.AddFunc("TSV取得", value.DefArgs{{"を", "の", "で"}}, getTSV) // TSV形式のデータstrを強制的に二次元配列に変換して返す | TSVしゅとく
@@ -114,6 +111,27 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("TOFLOAT", value.DefArgs{{"を"}}, toFloat) // 値Vを実数に変換 | TOFLOAT
 	sys.AddFunc("FLOAT", value.DefArgs{{"を"}}, toFloat)   // 値Vを実数に変換 | FLOAT
 	sys.AddFunc("HEX", value.DefArgs{{"の"}}, toHex)       // 値Vを16進数に変換 | HEX
+	// 指定形式 TODO
+	// 文字列処理 TODO
+	sys.AddFunc("文字数", value.DefArgs{{"の"}}, countStr)             // 文字列Sの文字数を返す | もじすう
+	sys.AddFunc("何文字目", value.DefArgs{{"で", "の"}, {"が"}}, indexOf) // 文字列SでAが何文字目にあるか返す | なんもじめ
+
+	// 置換・トリム TODO
+	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
+	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func indexOf(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	i := strings.Index(s, a) + 1
+	return value.NewIntPtr(i), nil
+}
+
+func countStr(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	s := v.ToString()
+	return value.NewIntPtr(len(s)), nil
 }
 
 func toHex(args *value.TArray) (*value.Value, error) {
