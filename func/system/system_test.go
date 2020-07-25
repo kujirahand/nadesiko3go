@@ -21,6 +21,8 @@ func TestHashKeys(t *testing.T) {
 	eq(t, hashValues, a, "[11,22]")
 	h.HashDeleteKey("a")
 	eq(t, hashKeys, a, "[\"b\"]")
+	h.HashDeleteKey("f") // 存在しないキーを削除しても平気か
+	eq(t, hashKeys, a, "[\"b\"]")
 }
 
 func eq(t *testing.T, f value.TFunction, args *value.TArray, expected string) {

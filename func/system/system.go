@@ -83,7 +83,119 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("ハッシュキー列挙", value.DefArgs{{"の"}}, hashKeys)                   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
 	sys.AddFunc("ハッシュ内容列挙", value.DefArgs{{"の"}}, hashValues)                 // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
 	sys.AddFunc("ハッシュキー削除", value.DefArgs{{"の", "から"}, {"を"}}, hashRemoveKey) // ハッシュAからキーKEYを削除 | はっしゅきーさくじょ
-	sys.AddFunc("ハッシュキー存在", value.DefArgs{{"に"}, {"が"}}, hashExists)          // ハッシュAにキーKEYがあるか調べる | はっしゅきーそんざい
+	sys.AddFunc("ハッシュキー存在", value.DefArgs{{"の", "に"}, {"が"}}, hashExists)     // ハッシュAにキーKEYがあるか調べる | はっしゅきーそんざい
+	// ビット演算
+	sys.AddFunc("OR", value.DefArgs{{"と"}, {"の"}}, bitOR)            // OR | OR
+	sys.AddFunc("AND", value.DefArgs{{"と"}, {"の"}}, bitAND)          // AND | AND
+	sys.AddFunc("XOR", value.DefArgs{{"と"}, {"の"}}, bitXOR)          // XOR | XOR
+	sys.AddFunc("NOT", value.DefArgs{{"の"}}, bitNOT)                 // NOT | NOT
+	sys.AddFunc("SHIFT_L", value.DefArgs{{"を"}, {"で"}}, bitShiftL)   // SHIFT_L | SHIFT_L
+	sys.AddFunc("SHIFT_R", value.DefArgs{{"を"}, {"で"}}, bitShiftR)   // SHIFT_R | SHIFT_R
+	sys.AddFunc("SHIFT_UR", value.DefArgs{{"を"}, {"で"}}, bitShiftUR) // SHIFT_UR | SHIFT_UR
+	// 三角関数
+	sys.AddFunc("SIN", value.DefArgs{{"の"}}, sin)         // Vの三角関数sinを返す | SIN
+	sys.AddFunc("COS", value.DefArgs{{"の"}}, cos)         // Vの三角関数cosを返す | COS
+	sys.AddFunc("TAN", value.DefArgs{{"の"}}, tan)         // Vの三角関数tanを返す | TAN
+	sys.AddFunc("ARCSIN", value.DefArgs{{"の"}}, arcsin)   // Vの三角関数ArcSinを返す | ARCSIN
+	sys.AddFunc("ARCCOS", value.DefArgs{{"の"}}, arccos)   // Vの三角関数ArcCosを返す | ARCCOS
+	sys.AddFunc("ARCTAN", value.DefArgs{{"の"}}, arctan)   // Vの三角関数ArcTanを返す | ARCTAN
+	sys.AddFunc("RAD2DEG", value.DefArgs{{"を"}}, rad2deg) // ラジアンを度に変換 | RAD2DEG
+	sys.AddFunc("DEG2RAD", value.DefArgs{{"を"}}, deg2rad) // 度をラジアンに変換 | DEG2RAD
+	sys.AddFunc("度変換", value.DefArgs{{"を"}}, rad2deg)     // ラジアンを度に変換 | どへんかん
+	sys.AddFunc("ラジアン変換", value.DefArgs{{"を"}}, deg2rad)  // 度をラジアンに変換 | らじあんへんかん
+}
+
+func deg2rad(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := (a.ToFloat() / 180) * math.Pi
+	return value.NewFloatPtr(v), nil
+}
+
+func rad2deg(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := a.ToFloat() / math.Pi * 180
+	return value.NewFloatPtr(v), nil
+}
+
+func arctan(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Atan(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func arccos(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Acos(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func arcsin(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Asin(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func tan(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Tan(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func cos(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Cos(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func sin(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	v := math.Sin(a.ToFloat())
+	return value.NewFloatPtr(v), nil
+}
+
+func bitShiftUR(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := uint(a.ToInt()) >> uint(b.ToInt())
+	return value.NewIntPtr(int(c)), nil
+}
+
+func bitShiftR(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := a.ToInt() >> b.ToInt()
+	return value.NewIntPtr(c), nil
+}
+
+func bitShiftL(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := a.ToInt() << b.ToInt()
+	return value.NewIntPtr(c), nil
+}
+
+func bitNOT(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	return value.NewBoolPtr(!a.ToBool()), nil
+}
+
+func bitXOR(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := a.ToInt() ^ b.ToInt()
+	return value.NewIntPtr(c), nil
+}
+func bitAND(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := a.ToInt() & b.ToInt()
+	return value.NewIntPtr(c), nil
+}
+func bitOR(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	b := args.Get(1)
+	c := a.ToInt() | b.ToInt()
+	return value.NewIntPtr(c), nil
 }
 
 func hashExists(args *value.TArray) (*value.Value, error) {
