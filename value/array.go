@@ -1,6 +1,7 @@
 package value
 
 import (
+	"sort"
 	"strings"
 )
 
@@ -151,6 +152,47 @@ func (p *TArray) Reverse() {
 		p.items[i] = p.items[plen-i-1]
 		p.items[plen-i-1] = tmp
 	}
+}
+
+// SortNum : データを並び変える
+func (p *TArray) SortNum() {
+	plen := p.Length()
+	if plen == 0 {
+		return
+	}
+	sort.Slice(p.items, func(i, j int) bool {
+		a := p.items[i]
+		b := p.items[j]
+		return a.ToFloat() > b.ToFloat()
+	})
+}
+
+// SortStr : データを並び変える
+func (p *TArray) SortStr() {
+	plen := p.Length()
+	if plen == 0 {
+		return
+	}
+	sort.Slice(p.items, func(i, j int) bool {
+		a := p.items[i]
+		b := p.items[j]
+		return a.ToString() > b.ToString()
+	})
+}
+
+// SortCsv : データを並び変える
+func (p *TArray) SortCsv(col int) {
+	plen := p.Length()
+	if plen == 0 {
+		return
+	}
+	sort.Slice(p.items, func(i, j int) bool {
+		a := p.items[i]
+		b := p.items[j]
+		av := a.ArrayGet(col)
+		bv := b.ArrayGet(col)
+		return av.ToString() > bv.ToString()
+	})
 }
 
 // SplitString : 文字列から配列を作る

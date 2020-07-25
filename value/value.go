@@ -2,7 +2,10 @@ package value
 
 // プロファイラを見ると、NewValueXXXのコストが高い
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // VType : valueの型
 type VType int
@@ -322,6 +325,12 @@ func (v *Value) ToString() string {
 		return uf.Name
 	}
 	return v.ToJSONString()
+}
+
+// ToHexString : 文字列型に変換
+func (v *Value) ToHexString() string {
+	i := v.ToInt()
+	return strconv.FormatInt(int64(i), 16)
 }
 
 // IsSimpleValue : is simple value?

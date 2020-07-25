@@ -55,9 +55,6 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("超", value.DefArgs{{"が"}, {""}}, gt)        // AがB超か | ちょう
 	sys.AddFunc("未満", value.DefArgs{{"が"}, {""}}, lt)       // AがB未満か | みまん
 	sys.AddFunc("等", value.DefArgs{{"が"}, {"と"}}, eqeq)     // AがBと等しいか | ひとしい
-	// 型変換
-	sys.AddFunc("変数型確認", value.DefArgs{{"の"}}, typeOf) // 値Vの型を返す | かたかくにん
-	sys.AddFunc("TYPEOF", value.DefArgs{{""}}, typeOf) // 値Vの型を返す | かたかくにん
 	// 文字列処理
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
@@ -103,6 +100,47 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("DEG2RAD", value.DefArgs{{"を"}}, deg2rad) // 度をラジアンに変換 | DEG2RAD
 	sys.AddFunc("度変換", value.DefArgs{{"を"}}, rad2deg)     // ラジアンを度に変換 | どへんかん
 	sys.AddFunc("ラジアン変換", value.DefArgs{{"を"}}, deg2rad)  // 度をラジアンに変換 | らじあんへんかん
+	// 二次元配列処理 TODO
+	sys.AddFunc("表ソート", value.DefArgs{{"の"}, {"を", "で"}}, csvSort) // 二次元配列Aの列NOで表ソート | ひょうそーと
+	// 型変換 TODO
+	sys.AddFunc("変数型確認", value.DefArgs{{"の"}}, typeOf)    // 値Vの型を返す | かたかくにん
+	sys.AddFunc("TYPEOF", value.DefArgs{{"の"}}, typeOf)   // 値Vの型を返す | TYPEOF
+	sys.AddFunc("文字列変換", value.DefArgs{{"を"}}, toStr)     // 値Vを文字列に変換 | もじれつへんかん
+	sys.AddFunc("TOSTR", value.DefArgs{{"を"}}, toStr)     // 値Vを文字列に変換 | TOSTR
+	sys.AddFunc("整数変換", value.DefArgs{{"を"}}, toInt)      // 値Vを整数に変換 | せいすうへんかん
+	sys.AddFunc("TOINT", value.DefArgs{{"を"}}, toInt)     // 値Vを整数に変換 | TOINT
+	sys.AddFunc("INT", value.DefArgs{{"を"}}, toInt)       // 値Vを整数に変換 | INT
+	sys.AddFunc("実数変換", value.DefArgs{{"を"}}, toFloat)    // 値Vを実数に変換 | じっすうへんかん
+	sys.AddFunc("TOFLOAT", value.DefArgs{{"を"}}, toFloat) // 値Vを実数に変換 | TOFLOAT
+	sys.AddFunc("FLOAT", value.DefArgs{{"を"}}, toFloat)   // 値Vを実数に変換 | FLOAT
+	sys.AddFunc("HEX", value.DefArgs{{"の"}}, toHex)       // 値Vを16進数に変換 | HEX
+}
+
+func toHex(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	s := v.ToHexString()
+	return value.NewStrPtr(s), nil
+}
+
+func toFloat(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return value.NewFloatPtr(v.ToFloat()), nil
+}
+func toInt(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return value.NewIntPtr(v.ToInt()), nil
+}
+func toStr(args *value.TArray) (*value.Value, error) {
+	v := args.Get(0)
+	return value.NewStrPtr(v.ToString()), nil
+}
+
+func csvSort(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	col := args.Get(1)
+	ta := a.ToArray()
+	ta.SortCsv(col.ToInt())
+	return a, nil
 }
 
 func deg2rad(args *value.TArray) (*value.Value, error) {
