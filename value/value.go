@@ -457,13 +457,23 @@ func (v *Value) HashKeys() []string {
 	return vh.Keys()
 }
 
-// HashRemove : remove value from hash
-func (v *Value) HashRemove(key string) {
+// HashDeleteKey : remove value from hash
+func (v *Value) HashDeleteKey(key string) {
 	if v.Type != Hash {
 		return
 	}
 	vh := v.Value.(THash)
 	vh.Remove(key)
+}
+
+// HashExists : exists key in hash
+func (v *Value) HashExists(key string) bool {
+	if v.Type != Hash {
+		return false
+	}
+	vh := v.Value.(THash)
+	_, exists := vh[key]
+	return exists
 }
 
 // ArraySet : Set value to array

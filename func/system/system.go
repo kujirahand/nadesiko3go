@@ -83,12 +83,20 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("ハッシュキー列挙", value.DefArgs{{"の"}}, hashKeys)                   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
 	sys.AddFunc("ハッシュ内容列挙", value.DefArgs{{"の"}}, hashValues)                 // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
 	sys.AddFunc("ハッシュキー削除", value.DefArgs{{"の", "から"}, {"を"}}, hashRemoveKey) // ハッシュAからキーKEYを削除 | はっしゅきーさくじょ
+	sys.AddFunc("ハッシュキー存在", value.DefArgs{{"に"}, {"が"}}, hashExists)          // ハッシュAにキーKEYがあるか調べる | はっしゅきーそんざい
+}
+
+func hashExists(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	k := args.Get(1)
+	b := a.HashExists(k.ToString())
+	return value.NewBoolPtr(b), nil
 }
 
 func hashRemoveKey(args *value.TArray) (*value.Value, error) {
 	a := args.Get(0)
 	k := args.Get(1)
-	a.HashRemove(k.ToString())
+	a.HashDeleteKey(k.ToString())
 	return a, nil
 }
 

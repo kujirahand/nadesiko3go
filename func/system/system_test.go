@@ -19,7 +19,7 @@ func TestHashKeys(t *testing.T) {
 	a.Append(h)
 	eq(t, hashKeys, a, "[\"a\",\"b\"]")
 	eq(t, hashValues, a, "[11,22]")
-	h.HashRemove("a")
+	h.HashDeleteKey("a")
 	eq(t, hashKeys, a, "[\"b\"]")
 }
 
