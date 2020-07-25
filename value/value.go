@@ -439,7 +439,7 @@ func (v *Value) HashSet(key string, val *Value) {
 	vh[key] = val
 }
 
-// HashGet : get value from hash value
+// HashGet : get value from hash
 func (v *Value) HashGet(key string) *Value {
 	if v.Type != Hash {
 		return nil
@@ -455,6 +455,15 @@ func (v *Value) HashKeys() []string {
 	}
 	vh := v.Value.(THash)
 	return vh.Keys()
+}
+
+// HashRemove : remove value from hash
+func (v *Value) HashRemove(key string) {
+	if v.Type != Hash {
+		return
+	}
+	vh := v.Value.(THash)
+	vh.Remove(key)
 }
 
 // ArraySet : Set value to array

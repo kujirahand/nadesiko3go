@@ -80,8 +80,16 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("URLデコード", value.DefArgs{{"を", "の", "から"}}, urlDecode)           // 文字列SをURLデコードして返す | URLでこーど
 	sys.AddFunc("URLパラメータ解析", value.DefArgs{{"を", "の", "から"}}, urlAnalizeParams) // URLパラメータを解析してハッシュで返す| URLぱらめーたかいせき
 	// ハッシュ
-	sys.AddFunc("ハッシュキー列挙", value.DefArgs{{"の"}}, hashKeys)   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
-	sys.AddFunc("ハッシュ内容列挙", value.DefArgs{{"の"}}, hashValues) // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
+	sys.AddFunc("ハッシュキー列挙", value.DefArgs{{"の"}}, hashKeys)                   // ハッシュAのキー一覧を配列で返す。 | はっしゅきーれっきょ
+	sys.AddFunc("ハッシュ内容列挙", value.DefArgs{{"の"}}, hashValues)                 // ハッシュAの内容一覧を配列で返す。 | はっしゅないようれっきょ
+	sys.AddFunc("ハッシュキー削除", value.DefArgs{{"の", "から"}, {"を"}}, hashRemoveKey) // ハッシュAからキーKEYを削除 | はっしゅきーさくじょ
+}
+
+func hashRemoveKey(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0)
+	k := args.Get(1)
+	a.HashRemove(k.ToString())
+	return a, nil
 }
 
 func hashKeys(args *value.TArray) (*value.Value, error) {

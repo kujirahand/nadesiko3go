@@ -19,6 +19,8 @@ func TestHashKeys(t *testing.T) {
 	a.Append(h)
 	eq(t, hashKeys, a, "[\"a\",\"b\"]")
 	eq(t, hashValues, a, "[11,22]")
+	h.HashRemove("a")
+	eq(t, hashKeys, a, "[\"b\"]")
 }
 
 func eq(t *testing.T, f value.TFunction, args *value.TArray, expected string) {

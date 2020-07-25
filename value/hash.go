@@ -20,6 +20,11 @@ func (p *THash) Get(key string) *Value {
 	return h[key]
 }
 
+// Remove : THash.Remove
+func (p *THash) Remove(key string) {
+	delete(*p, key)
+}
+
 // ToString : to string
 func (p *THash) ToString() string {
 	return p.ToJSONString()
