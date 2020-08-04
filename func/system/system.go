@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/core"
+	"github.com/kujirahand/nadesiko3go/runeutil"
 	"github.com/kujirahand/nadesiko3go/value"
 )
 
@@ -113,7 +114,7 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("FLOAT", value.DefArgs{{"を"}}, toFloat)   // 値Vを実数に変換 | FLOAT
 	sys.AddFunc("HEX", value.DefArgs{{"の"}}, toHex)       // 値Vを16進数に変換 | HEX
 	// 指定形式 TODO
-	// 文字列処理 TODO
+	// 文字列処理
 	sys.AddFunc("文字数", value.DefArgs{{"の"}}, countStr)                           // 文字列Sの文字数を返す | もじすう
 	sys.AddFunc("何文字目", value.DefArgs{{"で", "の"}, {"が"}}, indexOf)               // 文字列SでAが何文字目にあるか返す | なんもじめ
 	sys.AddFunc("CHR", value.DefArgs{{"の"}}, chr)                                // 文字コードから文字を返す | CHR
@@ -133,10 +134,82 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("文字右部分", value.DefArgs{{"で", "の"}, {"だけ"}}, right)               // 文字列Sの右からCNT文字を抽出する || もじみぎぶぶん
 	sys.AddFunc("区切", value.DefArgs{{"を", "の"}, {"で"}}, strSplit)                // 文字列Sを区切り文字Aで区切って配列で返す || くぎる
 	sys.AddFunc("切取", value.DefArgs{{"から", "の"}, {"まで", "を"}}, strCut)           // 文字列Sから文字列Aまでの部分を抽出する || きりとる
-
+	sys.AddFunc("文字削除", value.DefArgs{{"の"}, {"から"}, {"を", "だけ"}}, strDelete)    // 文字列SのA文字目からB文字分を削除して返す || もじさくじょ
+	// 文字変換 TODOテスト
+	sys.AddFunc("大文字変換", value.DefArgs{{"の", "を"}}, toUpper)              // 文字列Sを大文字変換して返す || おおもじへんかん
+	sys.AddFunc("小文字変換", value.DefArgs{{"の", "を"}}, toLower)              // 文字列Sを小文字変換して返す || こもじへんかん
+	sys.AddFunc("平仮名変換", value.DefArgs{{"の", "を"}}, toHiragana)           // 文字列Sのカタカナをひらがなに変換して返す || ひらがなへんかん
+	sys.AddFunc("カタカナ変換", value.DefArgs{{"の", "を"}}, toKatakana)          // 文字列Sのひらがなをカタカナに変換して返す || かたかなへんかん
+	sys.AddFunc("英数全角変換", value.DefArgs{{"の", "を"}}, toZenkaku)           // 文字列Sの半角英数を全角に変換して返す || えいすうぜんかくへんかん
+	sys.AddFunc("英数半角変換", value.DefArgs{{"の", "を"}}, toHankaku)           // 文字列Sの全角英数を半角に変換して返す || えいすうはんかくへんかん
+	sys.AddFunc("英数記号全角変換", value.DefArgs{{"の", "を"}}, toZenkakuAndKigou) // 文字列Sの半角英数記号を全角に変換して返す || えいすうきごうぜんかくへんかん
+	sys.AddFunc("英数記号半角変換", value.DefArgs{{"の", "を"}}, toHankakuAndKigou) // 文字列Sの全角英数記号を半角に変換して返す || えいすうきごうはんかくへんかん
+	sys.AddFunc("カタカナ全角変換", value.DefArgs{{"の", "を"}}, toZenKana)         // 文字列Sの半角カタカナを全角カタカナに変換して返す || かたかなぜんかくへんかん
+	sys.AddFunc("カタカナ半角変換", value.DefArgs{{"の", "を"}}, toHanKana)         // 文字列Sの全角カタカナを半角カタカナに変換して返す || かたかなはんかくへんかん
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+func toZenKana(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToZenkakuKatakana(s)
+	return value.NewStrPtr(su), nil
+}
+func toHanKana(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToHankakuKatakana(s)
+	return value.NewStrPtr(su), nil
+}
+func toZenkakuAndKigou(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToZenkakuAndKigou(s)
+	return value.NewStrPtr(su), nil
+}
+func toHankakuAndKigou(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToHankakuAndKigou(s)
+	return value.NewStrPtr(su), nil
+}
+func toZenkaku(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToZenkaku(s)
+	return value.NewStrPtr(su), nil
+}
+func toHankaku(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToHankaku(s)
+	return value.NewStrPtr(su), nil
+}
+
+func toKatakana(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToKatakana(s)
+	return value.NewStrPtr(su), nil
+}
+func toHiragana(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToHiragana(s)
+	return value.NewStrPtr(su), nil
+}
+
+func toUpper(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := strings.ToUpper(s)
+	return value.NewStrPtr(su), nil
+}
+func toLower(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := strings.ToLower(s)
+	return value.NewStrPtr(su), nil
+}
+
+func strDelete(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToInt() - 1
+	b := args.Get(2).ToInt()
+	sr := []rune(s)
+	subStr := string(sr[0:a]) + string(sr[a+b:])
+	return value.NewStrPtr(subStr), nil
 }
 
 func strCut(args *value.TArray) (*value.Value, error) {

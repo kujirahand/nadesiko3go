@@ -32,6 +32,13 @@ func IsHexDigit(c rune) bool {
 		InRange(c, int('A'), int('F'))
 }
 
+// IsHankaku : Is rune Hankaku?
+func IsHankaku(c rune) bool {
+	return InRange(c, int('0'), int('9')) ||
+		InRange(c, int('a'), int('z')) ||
+		InRange(c, int('A'), int('Z'))
+}
+
 // IsFlag : Is rune Flag?
 func IsFlag(c rune) bool {
 	return InRange(c, 0x21, 0x2F) ||
@@ -133,4 +140,178 @@ func Equal(a []rune, b []rune) bool {
 		}
 	}
 	return true
+}
+
+// ToKatakana : Hira to Kana
+func ToKatakana(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// カタカナ？
+		if IsKatakana(v) {
+			sr[i] = sr[i] - 0x60
+		}
+	}
+	return string(sr)
+}
+
+// ToHiragana : Kana to Hira
+func ToHiragana(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// ひらがな？
+		if IsHiragana(v) {
+			sr[i] = sr[i] + 0x60
+		}
+	}
+	return string(sr)
+}
+
+// ToZenkaku : hankaku to zenkaku
+func ToZenkaku(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// hankaku?
+		if IsHankaku(v) {
+			sr[i] = sr[i] + 0xFEE0
+		}
+	}
+	return string(sr)
+}
+
+// ToHankaku : zen to han
+func ToHankaku(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// hankaku?
+		if InRange(v, int('Ａ'), int('Ｚ')) || InRange(v, int('ａ'), int('ｚ')) || InRange(v, '０', '９') {
+			sr[i] = sr[i] - 0xFEE0
+		}
+	}
+	return string(sr)
+}
+
+// ToZenkakuAndKigou : hankaku to zenkaku
+func ToZenkakuAndKigou(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// hankaku?
+		if InRange(v, 0x20, 0x7f) {
+			sr[i] = sr[i] + 0xFEE0
+		}
+	}
+	return string(sr)
+}
+
+// ToHankakuAndKigou : zen to han
+func ToHankakuAndKigou(s string) string {
+	sr := []rune(s)
+	for i, v := range sr {
+		// hankaku?
+		if InRange(v, 0xFF00, 0xFF5F) {
+			sr[i] = sr[i] - 0xFEE0
+		}
+	}
+	return string(sr)
+}
+
+var hanKana = []string{
+	"ｶﾞ", "ｷﾞ", "ｸﾞ", "ｹﾞ", "ｺﾞ",
+	"ｻﾞ", "ｼﾞ", "ｽﾞ", "ｾﾞ", "ｿﾞ",
+	"ﾀﾞ", "ﾁﾞ", "ﾂﾞ", "ﾃﾞ", "ﾄﾞ",
+	"ﾊﾞ", "ﾊﾟ", "ﾋﾞ", "ﾋﾟ", "ﾌﾞ", "ﾌﾟ", "ﾍﾞ", "ﾍﾟ", "ﾎﾞ", "ﾎﾟ",
+	"ﾜﾞ", "ｦﾞ", "ｳﾞ",
+	"｡", "｢", "｣", "､", "･", "ｰ", "ﾞ", "ﾟ",
+	"ｱ", "ｲ", "ｳ", "ｴ", "ｵ",
+	"ｶ", "ｷ", "ｸ", "ｹ", "ｺ",
+	"ｻ", "ｼ", "ｽ", "ｾ", "ｿ", "ﾀ", "ﾁ", "ﾂ", "ﾃ", "ﾄ",
+	"ﾅ", "ﾆ", "ﾇ", "ﾈ", "ﾉ",
+	"ﾊ", "ﾋ", "ﾌ", "ﾍ", "ﾎ",
+	"ﾏ", "ﾐ", "ﾑ", "ﾒ", "ﾓ",
+	"ﾔ", "ﾕ", "ﾖ",
+	"ﾗ", "ﾘ", "ﾙ", "ﾚ", "ﾛ",
+	"ﾜ", "ｦ", "ﾝ",
+	"ｧ", "ｨ", "ｩ", "ｪ", "ｫ",
+	"ｬ", "ｭ", "ｮ", "ｯ",
+}
+var zenKana = []string{
+	"ガ", "ギ", "グ", "ゲ", "ゴ",
+	"ザ", "ジ", "ズ", "ゼ", "ゾ",
+	"ダ", "ヂ", "ヅ", "デ", "ド",
+	"バ", "パ", "ビ", "ピ", "ブ", "プ", "ベ", "ペ", "ボ", "ポ",
+	"ヷ", "ヺ", "ヴ",
+	"。", "「", "」", "、", "・", "ー", "゛", "゜",
+	"ア", "イ", "ウ", "エ", "オ",
+	"カ", "キ", "ク", "ケ", "コ",
+	"サ", "シ", "ス", "セ", "ソ",
+	"タ", "チ", "ツ", "テ", "ト",
+	"ナ", "ニ", "ヌ", "ネ", "ノ",
+	"ハ", "ヒ", "フ", "ヘ", "ホ",
+	"マ", "ミ", "ム", "メ", "モ",
+	"ヤ", "ユ", "ヨ",
+	"ラ", "リ", "ル", "レ", "ロ",
+	"ワ", "ヲ", "ン",
+	"ァ", "ィ", "ゥ", "ェ", "ォ",
+	"ャ", "ュ", "ョ", "ッ",
+}
+
+// ToZenkakuKatakana : hankaku katakana to zenkaku katakana
+func ToZenkakuKatakana(s string) string {
+	// 辞書を初期化
+	dic := map[string]int{}
+	for i, v := range hanKana {
+		dic[v] = i
+	}
+
+	res := ""
+	sr := []rune(s)
+	i := 0
+	for i < len(sr) {
+		// 濁点のチェック
+		if i < len(sr)-1 {
+			ch2 := string(sr[i]) + string(sr[i+1])
+			val, ok := dic[ch2]
+			if ok {
+				res += zenKana[val]
+				i += 2
+				continue
+			}
+		}
+		// 普通のカナをチェック
+		ch1 := string(sr[i])
+		val, ok := dic[ch1]
+		if ok {
+			res += zenKana[val]
+			i++
+			continue
+		}
+		res += ch1
+		i++
+	}
+	return res
+}
+
+// ToHankakuKatakana : zen katakana to han katakana
+func ToHankakuKatakana(s string) string {
+	// 辞書を初期化
+	dic := map[string]int{}
+	for i, v := range zenKana {
+		dic[v] = i
+	}
+
+	res := ""
+	sr := []rune(s)
+	i := 0
+	for i < len(sr) {
+		// 普通のカナをチェック
+		ch1 := string(sr[i])
+		val, ok := dic[ch1]
+		if ok {
+			res += hanKana[val]
+			i++
+			continue
+		}
+		res += ch1
+		i++
+	}
+	return res
 }

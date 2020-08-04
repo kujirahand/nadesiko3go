@@ -22,6 +22,12 @@ func TestSysStr(t *testing.T) {
 	eq(t, mid, value.NewTArrayFromStrings([]string{"あいうえお", "2", "3"}), "いうえ")
 	eq(t, left, value.NewTArrayFromStrings([]string{"あいうえお", "2"}), "あい")
 	eq(t, right, value.NewTArrayFromStrings([]string{"あいうえお", "2"}), "えお")
+	//
+	eq(t, strDelete, value.NewTArrayFromStrings([]string{"あいうえお", "2", "1"}), "あうえお")
+	eq(t, strDelete, value.NewTArrayFromStrings([]string{"あいうえお", "3", "2"}), "あいお")
+	//
+	eq(t, toUpper, value.NewTArrayFromStrings([]string{"aaa"}), "AAA")
+	eq(t, toLower, value.NewTArrayFromStrings([]string{"ABC"}), "abc")
 }
 
 func TestSys1(t *testing.T) {
