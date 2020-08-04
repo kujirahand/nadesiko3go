@@ -146,9 +146,23 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("英数記号半角変換", value.DefArgs{{"の", "を"}}, toHankakuAndKigou) // 文字列Sの全角英数記号を半角に変換して返す || えいすうきごうはんかくへんかん
 	sys.AddFunc("カタカナ全角変換", value.DefArgs{{"の", "を"}}, toZenKana)         // 文字列Sの半角カタカナを全角カタカナに変換して返す || かたかなぜんかくへんかん
 	sys.AddFunc("カタカナ半角変換", value.DefArgs{{"の", "を"}}, toHanKana)         // 文字列Sの全角カタカナを半角カタカナに変換して返す || かたかなはんかくへんかん
+	sys.AddFunc("全角変換", value.DefArgs{{"の", "を"}}, toZenAll)              // 文字列Sを全角に変換して返す || ぜんかくへんかん
+	sys.AddFunc("半角変換", value.DefArgs{{"の", "を"}}, toHanAll)              // 文字列Sを半角に変換して返す || はんかくへんかん
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+func toZenAll(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToZenkakuAndKigou(s)
+	su2 := runeutil.ToZenkakuKatakana(su)
+	return value.NewStrPtr(su2), nil
+}
+func toHanAll(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	su := runeutil.ToHankakuAndKigou(s)
+	su2 := runeutil.ToHankakuKatakana(su)
+	return value.NewStrPtr(su2), nil
 }
 func toZenKana(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
