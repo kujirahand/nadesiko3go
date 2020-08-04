@@ -121,3 +121,16 @@ func Length(s string) int {
 	r := []rune(s)
 	return len(r)
 }
+
+// Equal : check a equal b
+func Equal(a []rune, b []rune) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}

@@ -14,6 +14,14 @@ func TestSysStr(t *testing.T) {
 	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcd", "1", "b"}), "2")
 	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcabc", "3", "b"}), "5")
 	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcdef", "3", "b"}), "0")
+	//
+	eq(t, strRepeat, value.NewTArrayFromStrings([]string{"あ", "3"}), "あああ")
+	eq(t, strCountStr, value.NewTArrayFromStrings([]string{"あいうあいうあいう", "あいう"}), "3")
+	eq(t, strCountStr, value.NewTArrayFromStrings([]string{":::あいう:::あいう:::", "あいう"}), "2")
+	//
+	eq(t, mid, value.NewTArrayFromStrings([]string{"あいうえお", "2", "3"}), "いうえ")
+	eq(t, left, value.NewTArrayFromStrings([]string{"あいうえお", "2"}), "あい")
+	eq(t, right, value.NewTArrayFromStrings([]string{"あいうえお", "2"}), "えお")
 }
 
 func TestSys1(t *testing.T) {

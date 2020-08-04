@@ -121,10 +121,89 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("文字挿入", value.DefArgs{{"で", "の"}, {"に", "へ"}, {"を"}}, strInsert) // SのI番目にAを文字挿入 || もじそうにゅう
 	sys.AddFunc("文字検索", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, strFind)       // 文字列Sで文字列A文字目からBを検索。見つからなければ0を返す。(類似命令に『何文字目』がある)(v1非互換) || もじけんさく
 	sys.AddFunc("追加", value.DefArgs{{"で", "に", "へ"}, {"を"}}, strAdd)             // 文字列Sに文字列Aを追加 || ついか
+	sys.AddFunc("一行追加", value.DefArgs{{"で", "に", "へ"}, {"を"}}, strAddLine)       // 文字列Sに文字列Aを追加 || いちぎょうついか
+	sys.AddFunc("文字列分解", value.DefArgs{{"を", "の", "で"}}, strSplitChar)           // 文字列Vを一文字ずつに分解して返す || もじれつぶんかい
+	sys.AddFunc("リフレイン", value.DefArgs{{"を", "の"}, {"で"}}, strRepeat)            // 文字列VをCNT回繰り返す(v1非互換) || りふれいん
+	sys.AddFunc("出現回数", value.DefArgs{{"で"}, {"の"}}, strCountStr)                // 文字列SにAが何回出現するか数える || しゅつげんかいすう
+	sys.AddFunc("MID", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, mid)            // 文字列SのA文字目からCNT文字を抽出する || MID
+	sys.AddFunc("文字抜出", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, mid)           // 文字列SのA文字目からCNT文字を抽出する || もじぬきだす
+	sys.AddFunc("LEFT", value.DefArgs{{"で", "の"}, {"だけ"}}, left)                 // 文字列Sの左からCNT文字を抽出する || LEFT
+	sys.AddFunc("RIGHT", value.DefArgs{{"で", "の"}, {"だけ"}}, right)               // 文字列Sの右からCNT文字を抽出する || LEFT
 
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func right(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	cnt := args.Get(1).ToInt()
+	sr := []rune(s)
+	i := len(sr) - cnt
+	sub := sr[i:]
+	return value.NewStrPtr(string(sub)), nil
+}
+
+func left(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	cnt := args.Get(1).ToInt()
+	sr := []rune(s)
+	if cnt > len(sr) {
+		cnt = len(sr)
+	}
+	sub := sr[0:cnt]
+	return value.NewStrPtr(string(sub)), nil
+}
+
+func mid(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToInt() - 1
+	cnt := args.Get(2).ToInt()
+	sr := []rune(s)
+	sub := sr[a : a+cnt]
+	return value.NewStrPtr(string(sub)), nil
+}
+
+func strCountStr(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	n := 0
+	for {
+		j := strings.Index(s, a)
+		if j < 0 {
+			break
+		}
+		j += len(a)
+		s = s[j:]
+		n++
+	}
+	return value.NewIntPtr(n), nil
+}
+func strRepeat(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	v := args.Get(1).ToInt()
+	n := ""
+	for i := 0; i < v; i++ {
+		n += s
+	}
+	return value.NewStrPtr(n), nil
+}
+
+func strSplitChar(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	runes := []rune(s)
+	a := value.NewArrayPtr()
+	for _, v := range runes {
+		a.Append(value.NewStrPtr(string([]rune{v})))
+	}
+	return a, nil
+}
+
+func strAddLine(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	b := s + "\n" + a
+	return value.NewStrPtr(b), nil
 }
 
 func strAdd(args *value.TArray) (*value.Value, error) {
