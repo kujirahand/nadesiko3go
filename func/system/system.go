@@ -128,11 +128,42 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("MID", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, mid)            // 文字列SのA文字目からCNT文字を抽出する || MID
 	sys.AddFunc("文字抜出", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, mid)           // 文字列SのA文字目からCNT文字を抽出する || もじぬきだす
 	sys.AddFunc("LEFT", value.DefArgs{{"で", "の"}, {"だけ"}}, left)                 // 文字列Sの左からCNT文字を抽出する || LEFT
+	sys.AddFunc("文字左部分", value.DefArgs{{"で", "の"}, {"だけ"}}, left)                // 文字列Sの左からCNT文字を抽出する || もじひだりぶぶん
 	sys.AddFunc("RIGHT", value.DefArgs{{"で", "の"}, {"だけ"}}, right)               // 文字列Sの右からCNT文字を抽出する || LEFT
+	sys.AddFunc("文字右部分", value.DefArgs{{"で", "の"}, {"だけ"}}, right)               // 文字列Sの右からCNT文字を抽出する || もじみぎぶぶん
+	sys.AddFunc("区切", value.DefArgs{{"を", "の"}, {"で"}}, strSplit)                // 文字列Sを区切り文字Aで区切って配列で返す || くぎる
+	sys.AddFunc("切取", value.DefArgs{{"から", "の"}, {"まで", "を"}}, strCut)           // 文字列Sから文字列Aまでの部分を抽出する || きりとる
 
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func strCut(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0)
+	a := args.Get(1).ToString()
+	ss := s.ToString()
+	i := strings.Index(ss, a)
+	if i < 0 {
+		s.SetStr("")
+		return value.NewStrPtr(ss), nil
+	}
+	head := ss[:i]
+	foot := ss[i+len(a):]
+	s.SetStr(foot)
+	return value.NewStrPtr(head), nil
+}
+
+func strSplit(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+
+	res := value.NewArrayPtr()
+	sp := strings.Split(s, a)
+	for _, v := range sp {
+		res.Append(value.NewStrPtr(v))
+	}
+	return res, nil
 }
 
 func right(args *value.TArray) (*value.Value, error) {
