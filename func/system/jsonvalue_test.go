@@ -16,7 +16,7 @@ func TestBase(t *testing.T) {
 	comp(t, "{'a':'\\u65b0\\u6f5f'}", "{\"a\":\"新潟\"}")
 }
 func TestBase2(t *testing.T) {
-	comp(t, "[\\x4e\\x47\\x54']", "[\"NGT\"]")
+	comp(t, "['\\x4e\\x47\\x54']", "[\"NGT\"]")
 }
 
 func TestCSV(t *testing.T) {

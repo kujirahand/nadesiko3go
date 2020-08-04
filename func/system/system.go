@@ -113,12 +113,46 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("HEX", value.DefArgs{{"の"}}, toHex)       // 値Vを16進数に変換 | HEX
 	// 指定形式 TODO
 	// 文字列処理 TODO
-	sys.AddFunc("文字数", value.DefArgs{{"の"}}, countStr)             // 文字列Sの文字数を返す | もじすう
-	sys.AddFunc("何文字目", value.DefArgs{{"で", "の"}, {"が"}}, indexOf) // 文字列SでAが何文字目にあるか返す | なんもじめ
+	sys.AddFunc("文字数", value.DefArgs{{"の"}}, countStr)                           // 文字列Sの文字数を返す | もじすう
+	sys.AddFunc("何文字目", value.DefArgs{{"で", "の"}, {"が"}}, indexOf)               // 文字列SでAが何文字目にあるか返す | なんもじめ
+	sys.AddFunc("CHR", value.DefArgs{{"の"}}, chr)                                // 文字コードから文字を返す | CHR
+	sys.AddFunc("ASC", value.DefArgs{{"の"}}, asc)                                // 文字からコードを返す | ASC
+	sys.AddFunc("文字挿入", value.DefArgs{{"で", "の"}, {"に", "へ"}, {"を"}}, strInsert) // SのI番目にAを文字挿入(Iに負の値を指定すると後ろから数えてI番目に挿入する) || もじそうにゅう
 
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func strInsert(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	i := args.Get(1).ToInt() - 1
+	a := args.Get(2).ToString()
+	// マイナス値であれば後ろから
+	if i < 0 {
+		i = len(s) - i
+	}
+	s2 := s[:i] + a + s[i:]
+	return value.NewStrPtr(s2), nil
+}
+
+func chr(args *value.TArray) (*value.Value, error) {
+	code := args.Get(0).ToInt()
+	runes := []rune{rune(code)}
+	s := string(runes)
+	return value.NewStrPtr(s), nil
+}
+func asc(args *value.TArray) (*value.Value, error) {
+	ch := args.Get(0).ToString()
+	runes := []rune(ch)
+	if len(runes) == 1 {
+		return value.NewIntPtr(int(runes[0])), nil
+	}
+	a := value.NewArrayPtr()
+	for _, v := range runes {
+		a.Append(value.NewIntPtr(int(v)))
+	}
+	return a, nil
 }
 
 func indexOf(args *value.TArray) (*value.Value, error) {

@@ -7,6 +7,8 @@ TEST_DIR=$BASE_DIR/test
 make
 
 # test
+echo "--- system ---"
+$EXE $TEST_DIR/func_system.nako3
 echo "--- basic ---"
 $EXE $TEST_DIR/basic.nako3
 echo "--- func_test ---"
