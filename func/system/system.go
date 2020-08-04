@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/core"
 	"github.com/kujirahand/nadesiko3go/value"
@@ -117,11 +118,35 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("何文字目", value.DefArgs{{"で", "の"}, {"が"}}, indexOf)               // 文字列SでAが何文字目にあるか返す | なんもじめ
 	sys.AddFunc("CHR", value.DefArgs{{"の"}}, chr)                                // 文字コードから文字を返す | CHR
 	sys.AddFunc("ASC", value.DefArgs{{"の"}}, asc)                                // 文字からコードを返す | ASC
-	sys.AddFunc("文字挿入", value.DefArgs{{"で", "の"}, {"に", "へ"}, {"を"}}, strInsert) // SのI番目にAを文字挿入(Iに負の値を指定すると後ろから数えてI番目に挿入する) || もじそうにゅう
+	sys.AddFunc("文字挿入", value.DefArgs{{"で", "の"}, {"に", "へ"}, {"を"}}, strInsert) // SのI番目にAを文字挿入 || もじそうにゅう
+	sys.AddFunc("文字検索", value.DefArgs{{"で", "の"}, {"から"}, {"を"}}, strFind)       // 文字列Sで文字列A文字目からBを検索。見つからなければ0を返す。(類似命令に『何文字目』がある)(v1非互換) || もじけんさく
+	sys.AddFunc("追加", value.DefArgs{{"で", "に", "へ"}, {"を"}}, strAdd)             // 文字列Sに文字列Aを追加 || ついか
 
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+}
+
+func strAdd(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	b := s + a
+	return value.NewStrPtr(b), nil
+}
+
+func strFind(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToInt() - 1
+	b := args.Get(2).ToString()
+	subrune := []rune(s)[a:]
+	substr := string(subrune)
+	n := strings.Index(substr, b)
+	if n >= 0 {
+		n += a
+		multiI := utf8.RuneCountInString(s[:n]) + 1
+		return value.NewIntPtr(multiI), nil
+	}
+	return value.NewIntPtr(0), nil
 }
 
 func strInsert(args *value.TArray) (*value.Value, error) {
@@ -158,8 +183,12 @@ func asc(args *value.TArray) (*value.Value, error) {
 func indexOf(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
 	a := args.Get(1).ToString()
-	i := strings.Index(s, a) + 1
-	return value.NewIntPtr(i), nil
+	i := strings.Index(s, a)
+	if i > 0 {
+		multiI := utf8.RuneCountInString(s[:i]) + 1
+		return value.NewIntPtr(multiI), nil
+	}
+	return value.NewIntPtr(0), nil
 }
 
 func countStr(args *value.TArray) (*value.Value, error) {

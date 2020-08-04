@@ -6,6 +6,16 @@ import (
 	"github.com/kujirahand/nadesiko3go/value"
 )
 
+func TestSysStr(t *testing.T) {
+	eq(t, indexOf, value.NewTArrayFromStrings([]string{"abcde", "c"}), "3")
+	eq(t, indexOf, value.NewTArrayFromStrings([]string{"あいうえお", "う"}), "3")
+	eq(t, indexOf, value.NewTArrayFromStrings([]string{"abcde", "f"}), "0")
+	//
+	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcd", "1", "b"}), "2")
+	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcabc", "3", "b"}), "5")
+	eq(t, strFind, value.NewTArrayFromStrings([]string{"abcdef", "3", "b"}), "0")
+}
+
 func TestSys1(t *testing.T) {
 	eq(t, urlEncode, value.NewTArrayFromStrings([]string{"123/456"}), "123%2F456")
 	eq(t, urlDecode, value.NewTArrayFromStrings([]string{"123%2F456"}), "123/456")
