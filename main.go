@@ -82,8 +82,10 @@ func runMainFile(sys *core.Core) {
 			sys.MainFile)
 		return
 	}
-	ret, err := eval.ExecBytecode(sys, string(code))
-	outputResult(ret, err)
+	_, err = eval.ExecBytecode(sys, string(code))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+	}
 }
 
 func runEvalCode(sys *core.Core) {
