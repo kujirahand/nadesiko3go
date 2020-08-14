@@ -57,6 +57,9 @@ func TestArray2(t *testing.T) {
 	// _eval2(t, "C=[1,2,3];C[1]", "[1,2,3]")
 }
 
+func TestArrayHoge(t *testing.T) {
+	_eval2(t, "C=[1,2,3];C[1]", "2")
+}
 func TestArray(t *testing.T) {
 	_eval2(t, "C=[1,2,3];C", "[1,2,3]")
 	_eval2(t, "C=[1,2,3];C[1]", "2")

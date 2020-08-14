@@ -26,6 +26,7 @@ var nodeTypeNames = map[NType]string{
 	JSONArray:    "JSONArray",
 	JSONHash:     "JSONHash",
 	Foreach:      "反復",
+	NodeVarIndex: "配列参照",
 }
 
 // ToString : Nodeの値をデバッグ用に出力する
@@ -49,6 +50,9 @@ func ToString(n Node, level int) string {
 	case Word:
 		nw := n.(TNodeWord)
 		s += nw.Name
+		if nw.Index != nil {
+			ss += ToString(*nw.Index, level+1)
+		}
 	case Const:
 		cv := n.(TNodeConst).Value
 		s += "(" + cv.ToString() + ")"
@@ -61,6 +65,12 @@ func ToString(n Node, level int) string {
 	case Sentence:
 		s += n.(TNodeSentence).Memo
 		for _, v := range n.(TNodeSentence).List {
+			ss += ToString(v, level+1) + "\n"
+		}
+	case NodeVarIndex:
+		nlist := n.(TNodeVarIndex)
+		s += fmt.Sprintf("(%d)", len(nlist.Items))
+		for _, v := range nlist.Items {
 			ss += ToString(v, level+1) + "\n"
 		}
 	case TypeNodeList:
@@ -80,9 +90,9 @@ func ToString(n Node, level int) string {
 	case Let:
 		nl := n.(TNodeLet)
 		s += " " + nl.Name
-		if len(nl.Index) > 0 {
-			s += fmt.Sprintf("[]*%d", len(nl.Index))
-			for _, v := range nl.Index {
+		if nl.Index != nil && len(nl.Index.Items) > 0 {
+			s += fmt.Sprintf("[]*%d", len(nl.Index.Items))
+			for _, v := range nl.Index.Items {
 				ss += ToString(v, level+1)
 			}
 		}

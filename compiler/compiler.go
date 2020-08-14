@@ -581,7 +581,8 @@ func (p *TCompiler) convWord(n *node.Node) ([]*TCode, error) {
 	c = append(c, NewCodeMemo(GetLocal, toReg, varNo, 0, nn.Name))
 	// 配列アクセス
 	if nn.Index != nil {
-		for _, vNode := range nn.Index {
+		var index node.TNodeList = nn.Index.Items
+		for _, vNode := range index {
 			cExpr, eExpr := p.convNode(&vNode)
 			if eExpr != nil {
 				return nil, CompileError("添字の評価。"+eExpr.Error(), n)
@@ -688,7 +689,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 	}
 
 	// SetLocal (Indexがない場合)
-	if nn.Index == nil || len(nn.Index) == 0 {
+	if nn.Index == nil || len(nn.Index.Items) == 0 {
 		varNo := p.scope.GetIndexByName(varName)
 		if varNo < 0 {
 			varV := p.scope.Get(varName)
@@ -710,7 +711,7 @@ func (p *TCompiler) convLet(n *node.Node) ([]*TCode, error) {
 	// Indexがある場合
 	c = append(c, p.makeGetLocal(varName))
 	varR := p.regTop() - 1
-	for _, exprNode := range nn.Index {
+	for _, exprNode := range nn.Index.Items {
 		cExpr, errExpr := p.convNode(&exprNode)
 		if errExpr != nil {
 			return nil, CompileError("変数『"+nn.Name+"』への代入で添字の評価。"+errExpr.Error(), n)

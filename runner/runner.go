@@ -357,7 +357,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 	}
 
 	// 普通に変数に代入する場合
-	if cl.Index == nil || len(cl.Index) == 0 {
+	if cl.Index == nil || len(cl.Index.Items) == 0 {
 		// 現在のレベルに変数があるか
 		localScope := sys.Scopes.GetTopScope()
 		// 現在のレベルに変数を生成
@@ -383,7 +383,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		sys.Scopes.SetTopVars(cl.Name, vv)
 	}
 	// 添字へのアクセス
-	for i, nIndex := range cl.Index {
+	for i, nIndex := range cl.Index.Items {
 		iv, err := runNode(&nIndex)
 		if err != nil {
 			return nil, RuntimeError("代入の添字の評価でエラー:"+err.Error(), &nIndex)
@@ -393,7 +393,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		}
 		if vv.Type == value.Array {
 			idx := int(iv.ToInt())
-			if i == len(cl.Index)-1 {
+			if i == len(cl.Index.Items)-1 {
 				vv.ArraySet(idx, val)
 			} else {
 				vv = vv.ArrayGet(idx)
@@ -402,7 +402,7 @@ func runLet(n *node.Node) (*value.Value, error) {
 		}
 		if vv.Type == value.Hash {
 			key := iv.ToString()
-			if i == len(cl.Index)-1 {
+			if i == len(cl.Index.Items)-1 {
 				vv.HashSet(key, val)
 			} else {
 				vv = vv.HashGet(key)
@@ -448,11 +448,11 @@ func runWord(n *node.Node) (*value.Value, error) {
 		cw.Cache = val
 	}
 	// 配列アクセスが不要な時
-	if cw.Index == nil || len(cw.Index) == 0 {
+	if cw.Index == nil || len(cw.Index.Items) == 0 {
 		return val, nil
 	}
 	// 添字を一つずつ取り出していく
-	for _, nIndex := range cw.Index {
+	for _, nIndex := range cw.Index.Items {
 		i, err := runNode(&nIndex)
 		if err != nil {
 			return nil, RuntimeError(fmt.Sprintf("配列添字の値参照でエラー:%s", err.Error()), &nIndex)

@@ -52,6 +52,8 @@ const (
 	JSONHash
 	// DefVar : 変数宣言
 	DefVar
+	// NodeVarIndex : 配列アクセス
+	NodeVarIndex
 )
 
 // Node : Node Interface
@@ -136,7 +138,7 @@ func NewNodeCalc(t *token.Token, child Node) Node {
 type TNodeLet struct {
 	Node
 	Name      string
-	Index     TNodeList
+	Index     *TNodeVarIndex
 	ValueNode Node
 	Josi      string
 	FileInfo  core.TFileInfo
@@ -152,7 +154,7 @@ func (n TNodeLet) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeLet) GetJosi() string { return n.Josi }
 
 // NewNodeLet : TNodeLetを返す
-func NewNodeLet(t *token.Token, index TNodeList, value Node) Node {
+func NewNodeLet(t *token.Token, index *TNodeVarIndex, value Node) Node {
 	n := TNodeLet{
 		Name:      t.Literal,
 		Index:     index,
@@ -329,7 +331,7 @@ type TNodeWord struct {
 	Node
 	Name     string
 	Cache    *value.Value
-	Index    TNodeList
+	Index    *TNodeVarIndex
 	Josi     string
 	FileInfo core.TFileInfo
 }
@@ -344,12 +346,16 @@ func (n TNodeWord) GetFileInfo() core.TFileInfo { return n.FileInfo }
 func (n TNodeWord) GetJosi() string { return n.Josi }
 
 // NewNodeWord : 変数を表すノードを生成
-func NewNodeWord(t *token.Token, index TNodeList) TNodeWord {
+func NewNodeWord(t *token.Token, index *TNodeVarIndex) TNodeWord {
 	node := TNodeWord{
 		Name:     t.Literal,
 		Index:    index,
 		Josi:     t.Josi,
 		FileInfo: t.FileInfo,
+	}
+	// 配列があれば、助詞を移す
+	if index != nil {
+		node.Josi = index.Josi
 	}
 	return node
 }
@@ -613,6 +619,41 @@ func NewNodeReturn(t *token.Token, arg Node, LoopID int) TNodeReturn {
 		FileInfo: t.FileInfo,
 	}
 	return node
+}
+
+// TNodeVarIndex : TNodeVarIndex
+type TNodeVarIndex struct {
+	Node
+	Items    TNodeList
+	Josi     string
+	FileInfo core.TFileInfo
+}
+
+// GetType : 型名取得
+func (n TNodeVarIndex) GetType() NType { return NodeVarIndex }
+
+// GetFileInfo : 行番号やファイル番号の情報取得
+func (n TNodeVarIndex) GetFileInfo() core.TFileInfo { return n.FileInfo }
+
+// GetJosi : 助詞を取得
+func (n TNodeVarIndex) GetJosi() string { return n.Josi }
+
+// NewNodeVarIndex : array node
+func NewNodeVarIndex(t1 *token.Token, expr Node, t3 *token.Token) *TNodeVarIndex {
+	node := TNodeVarIndex{
+		Items:    TNodeList{expr},
+		Josi:     t1.Josi,
+		FileInfo: t1.FileInfo,
+	}
+	node.Josi = t3.Josi
+	return &node
+}
+
+// AppendVarIndex : append node
+func AppendVarIndex(varindex *TNodeVarIndex, expr Node, t2 *token.Token) *TNodeVarIndex {
+	varindex.Items = append(varindex.Items, expr)
+	varindex.Josi = t2.Josi
+	return varindex
 }
 
 // TNodeJSONArray : TNodeJSONArray

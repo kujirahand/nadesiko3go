@@ -21,6 +21,7 @@ import (
 	node      node.Node
   jsonkv    node.JSONHashKeyValue
   nodelist  node.TNodeList
+  varindex  *node.TNodeVarIndex
 }
 
 %type<node> program sentence eos callfunc 
@@ -34,7 +35,8 @@ import (
 %type<node> json_value variable
 %type<jsonkv> json_hash
 %type<token> json_key def_func_name
-%type<nodelist> sentences json_array varindex args block def_args
+%type<nodelist> sentences json_array args block def_args
+%type<varindex> varindex
 __TOKENS_LIST__
 
 // 演算子の順序
@@ -86,8 +88,8 @@ let_stmt
   | WORD TEISU          { $$ = node.NewNodeDefConst($1, nil) }
 
 varindex
-  : LBRACKET expr RBRACKET          { $$ = node.TNodeList{$2} }
-  | varindex LBRACKET expr RBRACKET { $$ = append($1, $3) }
+  : LBRACKET expr RBRACKET          { $$ = node.NewNodeVarIndex($1, $2, $3) }
+  | varindex LBRACKET expr RBRACKET { $$ = node.AppendVarIndex($1, $3, $4) }
 
 callfunc
   : FUNC                    { $$ = node.NewNodeCallFunc($1, nil) }

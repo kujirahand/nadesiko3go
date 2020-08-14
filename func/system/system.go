@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -66,7 +67,7 @@ func RegisterFunction(sys *core.Core) {
 	sys.AddFunc("JSONエンコード", value.DefArgs{{"を", "の"}}, jsonEncode)         // 値VのJSONをエンコードして文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONエンコード整形", value.DefArgs{{"を", "の"}}, jsonEncodeFormat) // 値VのJSONをエンコードして整形した文字列を返す | JSONえんこーど
 	sys.AddFunc("JSONデコード", value.DefArgs{{"を", "の", "から"}}, jsonDecode)    // JSON文字列Sをデコードしてオブジェクトを返す | JSONでこーど
-	// 日時
+	// 日時 TODO
 	sys.AddFunc("今", value.DefArgs{}, getNow)    // 現在時刻を返す | いま
 	sys.AddFunc("今日", value.DefArgs{}, getToday) // 今日の日付を返す | きょう
 	// 配列
@@ -151,7 +152,93 @@ func RegisterFunction(sys *core.Core) {
 	// 置換・トリム TODO
 	sys.AddFunc("置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr)       // SのAをBに置換して返す | ちかん
 	sys.AddFunc("単置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, replaceStr1time) // 一度だけSのAをBに置換して返す | たんちかん
+	sys.AddFunc("トリム", value.DefArgs{{"の", "を"}}, trimStr)                             // 前後の空白を除去して返す | とりむ
+	sys.AddFunc("空白除去", value.DefArgs{{"の", "を"}}, trimStr)                            // 前後の空白を除去して返す | くうはくじょきょ
+	// 正規表現 TODO
+	sys.AddFunc("正規表現マッチ", value.DefArgs{{"を", "が"}, {"で", "に"}}, reMatch) // 文字列Aを正規表現パターンBでマッチして結果を返す(パターンBは「/pat/opt」の形式で指定。 | せいきひょうげんまっち
+	sys.AddConst("抽出文字列", "")
+	sys.AddFunc("正規表現置換", value.DefArgs{{"の"}, {"を", "から"}, {"へ", "に"}}, reReplace) // 文字列Sの正規表現パターンAをBに置換して結果を返す(パターンAは/pat/optで指定) | せいきひょうげんちかん
+	sys.AddFunc("正規表現区切", value.DefArgs{{"を"}, {"で"}}, reSplit)                     // 文字列Sを正規表現パターンAで区切って配列で返す(パターンAは/pat/optで指定) | せいきひょうげんくぎる
+	// 算術関数 TODO
+	// 論理演算 TODO
+	// 配列操作 TODO
 }
+
+// check regexp pattern format is /re/opt ?
+func reCheckPattern(b string) (string, int) {
+	opt := -1
+	if b[0] == '/' { // パターンを /reg/opt で指定
+		rFmt := regexp.MustCompile("/(.+)/([a-zA-Z]+)$")
+		aFmt := rFmt.FindAllStringSubmatch(b, 1)
+		if aFmt != nil && len(aFmt) > 0 {
+			b = aFmt[0][1]
+			s := aFmt[0][2]
+			if strings.Index(s, "g") < 0 {
+				opt = 1
+			}
+			if strings.Index(s, "m") >= 0 {
+				b = "(?m)" + b // multiline
+			}
+		}
+	}
+	return b, opt
+}
+
+func reSplit(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0).ToString()
+	b := args.Get(1).ToString()
+	b, _ = reCheckPattern(b)
+	rePat := regexp.MustCompile(b)
+	res := rePat.Split(a, -1)
+	result := value.NewArrayPtr()
+	for _, s := range res {
+		result.Append(value.NewStrPtr(s))
+	}
+	return result, nil
+}
+func reReplace(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	a := args.Get(1).ToString()
+	b := args.Get(2).ToString()
+	a, _ = reCheckPattern(a)
+	rePat := regexp.MustCompile(a)
+	res := rePat.ReplaceAllString(s, b)
+	return value.NewStrPtr(res), nil
+}
+func reMatch(args *value.TArray) (*value.Value, error) {
+	a := args.Get(0).ToString()
+	b := args.Get(1).ToString()
+	opt := -1
+	b, opt = reCheckPattern(b)
+	rePat := regexp.MustCompile(b)
+	res := rePat.FindAllStringSubmatch(a, opt)
+	if res == nil || len(res) == 0 {
+		return value.NewBoolPtr(false), nil
+	}
+	result := value.NewArrayPtr()
+	subm := value.NewArrayPtr()
+	for _, sa := range res {
+		aa := value.NewArrayPtr()
+		for j, sb := range sa {
+			if j == 0 {
+				result.Append(value.NewStrPtr(sb))
+			} else {
+				aa.Append(value.NewStrPtr(sb))
+			}
+		}
+		subm.Append(aa)
+	}
+	sys := core.GetSystem()
+	sys.Global.Set("抽出文字列", subm)
+	return result, nil
+}
+
+func trimStr(args *value.TArray) (*value.Value, error) {
+	s := args.Get(0).ToString()
+	s = strings.TrimSpace(s)
+	return value.NewStrPtr(s), nil
+}
+
 func toZenAll(args *value.TArray) (*value.Value, error) {
 	s := args.Get(0).ToString()
 	su := runeutil.ToZenkakuAndKigou(s)
