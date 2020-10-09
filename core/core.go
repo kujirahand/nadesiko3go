@@ -51,6 +51,12 @@ func GetSystem() *Core {
 	return sys
 }
 
+// GetSystemAndClear : なでしこのコア情報インスタンスを取得するが、その際、変数をすべて初期化する
+func GetSystemAndClear() *Core {
+	sys = NewCore()
+	return sys
+}
+
 // NewCore : 新規コア情報インスタンスを作成
 func NewCore() *Core {
 	c := Core{}
@@ -59,7 +65,6 @@ func NewCore() *Core {
 	c.IsOptimze = true
 	c.Scopes = scope.NewScopeList() // 最初のスコープも自動的に得られる
 	c.Global = c.Scopes.GetGlobal()
-	// c.JosiList = []value.DefArgs{}
 	c.BreakID = -1
 	c.ContinueID = -1
 	c.ReturnID = -1

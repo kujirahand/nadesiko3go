@@ -20,7 +20,7 @@ func InitSystem() *core.Core {
 	if sys != nil {
 		return sys
 	}
-	sys := core.GetSystem()
+	sys := core.GetSystemAndClear()
 	io.RegisterFunction(sys)
 	system.RegisterFunction(sys)
 	return sys
