@@ -29,13 +29,9 @@ func (stack *TValueStack) Push(val *Value) int {
 		next: nil,
 	}
 	// add last
-	if stack.length == 0 {
-		stack.top = &n
-	} else {
-		top := stack.top
-		stack.top = &n
-		n.next = top
-	}
+	top := stack.top
+	stack.top = &n
+	n.next = top
 	stack.length++
 	return stack.length
 }

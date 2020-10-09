@@ -42,3 +42,30 @@ func TestStack2(t *testing.T) {
 		t.Errorf("stack error ccc")
 	}
 }
+
+func TestStackPushPop2(t *testing.T) {
+	stack := NewValueStack()
+	stack.Push(NewIntPtr(1))
+	stack.Push(NewIntPtr(2))
+	stack.Push(NewIntPtr(3))
+
+	v1 := stack.Pop()
+	if v1.ToInt() != 3 {
+		t.Errorf("stack.push/pop 3 != %d", v1.ToInt())
+	}
+	v2 := stack.Pop()
+	if v2.ToInt() != 2 {
+		t.Errorf("stack.push.pop 2 != %d", v2.ToInt())
+	}
+
+	stack.Push(NewIntPtr(2))
+	stack.Push(NewIntPtr(3))
+	v3 := stack.Pop()
+	if v3.ToInt() != 3 {
+		t.Errorf("stack.push/pop 3 != %d", v1.ToInt())
+	}
+
+	if stack.Length() != 2 {
+		t.Errorf("stack.length != %d", stack.Length())
+	}
+}
