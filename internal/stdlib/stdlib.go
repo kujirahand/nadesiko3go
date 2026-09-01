@@ -14,6 +14,8 @@ import (
 // the system variables the loops set.
 type Context interface {
 	Print(s string)
+	// Write writes without ending the line, for a prompt.
+	Write(s string)
 	SysVar(name string) value.Value
 	SetSysVar(name string, v value.Value)
 	// CallFunc runs a function value, which the commands that take a function
@@ -30,6 +32,13 @@ type Context interface {
 	// Wait advances time by the given number of seconds, running the
 	// callbacks that come due in between.
 	Wait(seconds float64) error
+
+	// ReadLine reads one line from the host's input, for 『尋ねる』.
+	ReadLine() (string, error)
+	// Exit ends the program with the given status.
+	Exit(code int)
+	// Args reports the arguments the program was started with.
+	Args() []string
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko
@@ -50,12 +59,39 @@ type Registry struct {
 	entries []*Entry
 	byName  map[string]*Entry
 	consts  map[string]value.Value
+	list    lexer.FuncList
+}
+
+// Plugin adds commands beyond plugin_system. Only plugin_system is covered by
+// the compatibility guarantee (AGENTS.md §3); a plugin such as nodelib is free
+// to be designed the Go way.
+type Plugin interface {
+	// FuncList gives the signatures the lexer and parser need.
+	FuncList() lexer.FuncList
+	// Impls gives the implementations, keyed by command name.
+	Impls() map[string]Impl
 }
 
 // NewRegistry builds the command table: signatures from the shared list, and
-// implementations for the commands that have one.
-func NewRegistry() *Registry {
+// implementations for the commands that have one. Plugins are merged in, and a
+// plugin may not replace a plugin_system command.
+func NewRegistry(plugins ...Plugin) *Registry {
 	list := ParserFuncList()
+	impls := implementations()
+	for _, plugin := range plugins {
+		for name, item := range plugin.FuncList() {
+			if _, taken := list[name]; taken {
+				continue // plugin_system の命令は上書きさせない
+			}
+			list[name] = item
+		}
+		for name, fn := range plugin.Impls() {
+			if _, taken := impls[name]; taken {
+				continue
+			}
+			impls[name] = fn
+		}
+	}
 	r := &Registry{
 		byName: make(map[string]*Entry, len(list)),
 		consts: map[string]value.Value{},
@@ -68,7 +104,7 @@ func NewRegistry() *Registry {
 	// IDが実行ごとに変わらないよう名前順に並べる
 	sort.Strings(names)
 
-	impls := implementations()
+	r.list = list
 	for _, name := range names {
 		item := list[name]
 		if item.Type != "func" {
@@ -123,8 +159,9 @@ func (r *Registry) Const(name string) (value.Value, bool) {
 	return v, ok
 }
 
-// FuncList returns the metadata the lexer and parser need.
-func (r *Registry) FuncList() lexer.FuncList { return ParserFuncList() }
+// FuncList returns the metadata the lexer and parser need, including whatever
+// the plugins contributed.
+func (r *Registry) FuncList() lexer.FuncList { return r.list }
 
 // Len reports how many commands the registry holds.
 func (r *Registry) Len() int { return len(r.entries) }

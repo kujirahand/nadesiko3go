@@ -18,6 +18,7 @@ func newContext() *fakeContext {
 }
 
 func (c *fakeContext) Print(s string)                    { c.out = append(c.out, s) }
+func (c *fakeContext) Write(s string)                    { c.out = append(c.out, s) }
 func (c *fakeContext) SysVar(name string) value.Value    { return c.sysVar[name] }
 func (c *fakeContext) SetSysVar(n string, v value.Value) { c.sysVar[n] = v }
 
@@ -31,6 +32,9 @@ func (c *fakeContext) SetTimer(*value.Func, float64, bool) (float64, error) { re
 func (c *fakeContext) CancelTimer(float64) bool                             { return false }
 func (c *fakeContext) CancelAllTimers()                                     {}
 func (c *fakeContext) Wait(float64) error                                   { return nil }
+func (c *fakeContext) ReadLine() (string, error)                            { return "", nil }
+func (c *fakeContext) Exit(int)                                             {}
+func (c *fakeContext) Args() []string                                       { return nil }
 
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.

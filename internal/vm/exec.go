@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"io"
 	"strings"
 	"unicode"
 
@@ -24,6 +25,18 @@ func (c *Collector) Print(s string) {
 	c.buf.WriteString(s)
 	c.buf.WriteByte('\n')
 }
+
+// Write is not part of 『表示ログ』, so the compat runner drops it.
+func (c *Collector) Write(string) {}
+
+// ReadLine has nothing to read: the compat fixtures never ask for input.
+func (c *Collector) ReadLine() (string, error) { return "", io.EOF }
+
+// Exit does nothing here; the VM stops the program either way.
+func (c *Collector) Exit(int) {}
+
+// Args reports no arguments.
+func (c *Collector) Args() []string { return nil }
 
 // Log returns what was printed, with trailing whitespace removed.
 func (c *Collector) Log() string {

@@ -13,10 +13,20 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
-// Host is what the VM needs from its environment. The compat runner supplies an
-// implementation that only collects output.
+// Host is what the VM needs from its environment. The compat runner supplies
+// an implementation that only collects output; the CUI supplies the real one.
 type Host interface {
+	// Print writes one line of program output.
 	Print(s string)
+	// Write writes program output without ending the line, which is what a
+	// prompt needs.
+	Write(s string)
+	// ReadLine reads one line of input, for 『尋ねる』.
+	ReadLine() (string, error)
+	// Exit ends the program with a status.
+	Exit(code int)
+	// Args reports the arguments the program was started with.
+	Args() []string
 }
 
 // VM runs one program.
@@ -155,6 +165,10 @@ func (m *VM) Run() (err error) {
 			np, ok := r.(nakoPanic)
 			if !ok {
 				panic(r)
+			}
+			if np.err.Msg == exitMessage {
+				err = nil // 『終了』で止めたので、エラーではない
+				return
 			}
 			err = np.err
 		}

@@ -542,6 +542,23 @@ func (m *VM) fileName(i int) string {
 
 func (m *VM) Print(s string) { m.host.Print(s) }
 
+func (m *VM) Write(s string) { m.host.Write(s) }
+
+func (m *VM) ReadLine() (string, error) { return m.host.ReadLine() }
+
+func (m *VM) Args() []string { return m.host.Args() }
+
+// Exit ends the program. The host decides what that means: the CUI stops the
+// process, the compat runner just stops the program.
+func (m *VM) Exit(code int) {
+	m.host.Exit(code)
+	panic(nakoPanic{&errs.NakoError{Kind: errs.Runtime, File: m.fileName(0), Msg: exitMessage}})
+}
+
+// exitMessage marks the panic that 『終了』 raises, so Run can tell an intended
+// stop from a real error.
+const exitMessage = "\x00終了"
+
 func (m *VM) SysVar(name string) value.Value { return m.loadGlobalByName(name) }
 
 func (m *VM) SetSysVar(name string, v value.Value) { m.storeGlobalByName(name, v) }
