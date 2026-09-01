@@ -77,8 +77,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentDirPath = '';
   let parentDirPath = '';
   let homeDirPath = '';
+  let desktopDirPath = '';
   let currentFilePath = '';
   let currentFileDisplayName = '新規プログラム.nako3';
+  let currentTemplateBaseName = '';
   let savedContent = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
 
   // 初期プレースホルダー
@@ -115,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   tabBtnFile.addEventListener('click', () => {
     activateTab(tabBtnFile, tabContentFile);
     if (!currentDirPath) {
-      loadDirectory(homeDirPath || '$HOME');
+      loadDirectory(desktopDirPath || homeDirPath || '$DESKTOP');
     }
   });
 
@@ -407,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editor.value = allTemplates[0].code;
         savedContent = allTemplates[0].code;
         currentFileDisplayName = allTemplates[0].title;
+        currentTemplateBaseName = (allTemplates[0].id || allTemplates[0].title).replace(/\.nako3$/i, '');
         updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
@@ -440,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         savedContent = t.code;
         currentFilePath = '';
         currentFileDisplayName = t.title;
+        currentTemplateBaseName = (t.id || t.title).replace(/\.nako3$/i, '');
         updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
@@ -729,7 +733,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnFileHome.addEventListener('click', () => {
-    loadDirectory(homeDirPath || '$HOME');
+    loadDirectory(desktopDirPath || homeDirPath || '$DESKTOP');
   });
 
   // 「＋ 新規ファイル」ボタンのクリック処理 (YYYY-MM-DD-新規-1.nako3 を自動生成)
@@ -742,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       setStatus('新規ファイルを作成中...');
-      const res = await window.createNewFile(currentDirPath || homeDirPath);
+      const res = await window.createNewFile(currentDirPath || desktopDirPath || homeDirPath);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
         await loadDirectory(currentDirPath);
@@ -768,6 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
         savedContent = data.content;
         currentFilePath = filePath;
         currentFileDisplayName = fileName;
+        currentTemplateBaseName = '';
         activeFileName.title = filePath;
         updateFileTitleDisplay();
         updateLineNumbers();
@@ -786,12 +791,21 @@ document.addEventListener('DOMContentLoaded', () => {
   async function saveFile() {
     let targetPath = currentFilePath;
     if (!targetPath) {
-      const defaultName = currentFileDisplayName.startsWith('新規') ? currentFileDisplayName : 'program.nako3';
+      let defaultName = 'program.nako3';
+      if (currentTemplateBaseName) {
+        defaultName = `${currentTemplateBaseName}-1.nako3`;
+      } else if (currentFileDisplayName.startsWith('新規')) {
+        defaultName = currentFileDisplayName;
+      }
+
       const name = await showPromptDialog('ファイルを保存', '保存するファイル名を入力してください:', defaultName);
       if (!name) return false;
-      targetPath = (currentDirPath || homeDirPath) + '/' + name;
+
+      const baseDir = currentDirPath || desktopDirPath || homeDirPath;
+      targetPath = baseDir + '/' + name;
       currentFilePath = targetPath;
       currentFileDisplayName = name;
+      currentTemplateBaseName = '';
       activeFileName.title = currentFilePath;
     }
 
@@ -1190,6 +1204,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const info = JSON.parse(infoStr);
         versionInfo.textContent = `gonako-gui v${info.version || '3.6.0'} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
+        desktopDirPath = info.desktopDir || homeDirPath;
+        if (!currentDirPath) {
+          currentDirPath = desktopDirPath;
+          currentDirDisplay.textContent = currentDirPath;
+          currentDirDisplay.title = currentDirPath;
+        }
         if (labelRevealFinder) {
           if (info.os === 'darwin') {
             labelRevealFinder.textContent = 'Finderで表示';

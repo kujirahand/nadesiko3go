@@ -38,10 +38,11 @@ type RunResult struct {
 
 // AppInfo contains metadata about the running gonako-gui application.
 type AppInfo struct {
-	Version string `json:"version"`
-	OS      string `json:"os"`
-	Arch    string `json:"arch"`
-	HomeDir string `json:"homeDir"`
+	Version    string `json:"version"`
+	OS         string `json:"os"`
+	Arch       string `json:"arch"`
+	HomeDir    string `json:"homeDir"`
+	DesktopDir string `json:"desktopDir"`
 }
 
 // CommandItem describes a nadesiko command for the command palette/list.
@@ -197,8 +198,22 @@ func getTemplateList() []TemplateItem {
 	return list
 }
 
+func getDesktopDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "."
+	}
+	desktop := filepath.Join(home, "Desktop")
+	if fi, err := os.Stat(desktop); err == nil && fi.IsDir() {
+		return desktop
+	}
+	return home
+}
+
 func listFiles(dirPath string) DirListing {
-	if dirPath == "" || dirPath == "~" || dirPath == "$HOME" {
+	if dirPath == "" || dirPath == "$DESKTOP" {
+		dirPath = getDesktopDir()
+	} else if dirPath == "~" || dirPath == "$HOME" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			dirPath = "."
@@ -261,7 +276,9 @@ func listFiles(dirPath string) DirListing {
 }
 
 func createNewFile(dirPath string) (string, string, error) {
-	if dirPath == "" || dirPath == "$HOME" {
+	if dirPath == "" || dirPath == "$DESKTOP" {
+		dirPath = getDesktopDir()
+	} else if dirPath == "$HOME" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			dirPath = "."
@@ -423,10 +440,11 @@ func main() {
 	_ = w.Bind("getAppInfo", func() string {
 		home, _ := os.UserHomeDir()
 		info := AppInfo{
-			Version: "3.6.0",
-			OS:      runtime.GOOS,
-			Arch:    runtime.GOARCH,
-			HomeDir: home,
+			Version:    "3.6.0",
+			OS:         runtime.GOOS,
+			Arch:       runtime.GOARCH,
+			HomeDir:    home,
+			DesktopDir: getDesktopDir(),
 		}
 		b, _ := json.Marshal(info)
 		return string(b)
