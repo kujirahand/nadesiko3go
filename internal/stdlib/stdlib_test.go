@@ -221,6 +221,8 @@ func TestConstants(t *testing.T) {
 		{"NULL", "null"},
 		{"未定義", "undefined"},
 		{"undefined", "undefined"},
+		{"戻値無", "0"},
+		{"戻値有", "1"},
 	}
 	for _, tt := range tests {
 		v, ok := r.Const(tt.name)
@@ -231,5 +233,53 @@ func TestConstants(t *testing.T) {
 		if got := value.ToString(v); got != tt.want {
 			t.Errorf("定数 %s = %q, want %q", tt.name, got, tt.want)
 		}
+	}
+}
+
+func TestNewlyAddedCommands(t *testing.T) {
+	r := stdlib.NewRegistry()
+	ctx := newContext()
+
+	// 空辞書
+	for _, name := range []string{"空辞書", "空ハッシュ", "空オブジェクト"} {
+		e, ok := r.Lookup(name)
+		if !ok {
+			t.Fatalf("%s が登録されていない", name)
+		}
+		v, err := e.Fn(ctx, nil)
+		if err != nil {
+			t.Fatalf("%s error: %v", name, err)
+		}
+		if _, ok := v.Dict(); !ok {
+			t.Errorf("%s = %v, want dict", name, v.Kind())
+		}
+	}
+
+	// 拡張子抽出
+	ext, _ := r.Lookup("拡張子抽出")
+	v, err := ext.Fn(ctx, []value.Value{value.String("path/to/test.txt")})
+	if err != nil || value.ToString(v) != ".txt" {
+		t.Errorf("拡張子抽出 = %v (err: %v), want .txt", value.ToString(v), err)
+	}
+
+	// 表示ログクリア / 言 / コンソール表示
+	ctx.SetSysVar("表示ログ", value.String("hello\n"))
+	clearLog, _ := r.Lookup("表示ログクリア")
+	clearLog.Fn(ctx, nil)
+	if s := value.ToString(ctx.SysVar("表示ログ")); s != "" {
+		t.Errorf("表示ログ = %q, want empty", s)
+	}
+
+	say, _ := r.Lookup("言")
+	say.Fn(ctx, []value.Value{value.String("test")})
+	if len(ctx.out) == 0 || ctx.out[len(ctx.out)-1] != "test" {
+		t.Errorf("言 output = %v, want 'test'", ctx.out)
+	}
+
+	// 時間ミリ秒取得
+	ms, _ := r.Lookup("時間ミリ秒取得")
+	v, err = ms.Fn(ctx, nil)
+	if err != nil || v.Kind() != value.KindNumber {
+		t.Errorf("時間ミリ秒取得 = %v, err: %v", v, err)
 	}
 }
