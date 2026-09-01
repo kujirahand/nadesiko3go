@@ -53,6 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnFileHome = document.getElementById('btn-file-home');
   const currentDirDisplay = document.getElementById('current-dir-display');
   const fileList = document.getElementById('file-list');
+  const btnNewFile = document.getElementById('btn-new-file');
+
+  // ファイル右端「…」用コンテキストメニュー
+  const fileContextMenu = document.getElementById('file-context-menu');
+  const menuOpenEditor = document.getElementById('menu-open-editor');
+  const menuRevealFinder = document.getElementById('menu-reveal-finder');
+  const labelRevealFinder = document.getElementById('label-reveal-finder');
+  let selectedContextFile = null;
 
   let allCommands = [];
   let allTemplates = [];
@@ -72,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     [tabContentCmd, tabContentTemplate, tabContentFile].forEach(c => c.classList.remove('active'));
     activeBtn.classList.add('active');
     activeContent.classList.add('active');
+    closeContextMenu();
   }
 
   tabBtnCmd.addEventListener('click', () => {
@@ -124,6 +133,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', (e) => {
     if (hamburgerMenu && !hamburgerMenu.contains(e.target) && e.target !== btnHamburger) {
       closeHamburger();
+    }
+    if (fileContextMenu && !fileContextMenu.contains(e.target)) {
+      closeContextMenu();
     }
   });
 
@@ -228,7 +240,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (allTemplates && allTemplates.length > 0) {
       renderTemplates(allTemplates);
-      // 初回起動時、先頭のひな形をエディタにセット
       if (editor.value.includes('なでしこ3の基本') && allTemplates[0].code) {
         editor.value = allTemplates[0].code;
         activeFileName.textContent = allTemplates[0].title;
@@ -296,7 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('命令一覧の読み込みエラー:', err);
       }
     } else {
-      // ローカルJSONファイルから取得を試行
       try {
         const res = await fetch('command-list.json');
         allCommands = await res.json();
@@ -363,15 +373,13 @@ document.addEventListener('DOMContentLoaded', () => {
         ${josiText ? `<span class="cmd-item-josi">${escapeHtml(josiText)}</span>` : ''}
       `;
 
-      // 1. シングルクリック: 使い方を表示
-      item.addEventListener('click', (e) => {
+      item.addEventListener('click', () => {
         document.querySelectorAll('#cmd-list .list-item').forEach(el => el.classList.remove('selected'));
         item.classList.add('selected');
         displayCommandHelp(cmd);
         setStatus(`命令「${cmd.name}」の使い方を表示しました (ダブルクリックまたはDnDで挿入)`);
       });
 
-      // 2. ダブルクリック: エディタに「助詞+命令」テンプレートを挿入
       item.addEventListener('dblclick', (e) => {
         e.preventDefault();
         const template = cmd.template || cmd.name;
@@ -380,7 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
       });
 
-      // 3. ドラッグ開始: テンプレート文字列とメタデータを設定
       item.addEventListener('dragstart', (e) => {
         const template = cmd.template || cmd.name;
         e.dataTransfer.setData('text/plain', template);
@@ -440,7 +447,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- ファイルブラウザ処理 ---
+  // --- ファイルブラウザ・コンテキストメニュー処理 ---
+  function openContextMenu(x, y, file) {
+    selectedContextFile = file;
+    menuOpenEditor.textContent = file.isDir ? '📁 フォルダを開く' : '📝 エディタで開く';
+    fileContextMenu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
+    fileContextMenu.style.top = `${Math.min(y, window.innerHeight - 100)}px`;
+    fileContextMenu.style.display = 'block';
+  }
+
+  function closeContextMenu() {
+    if (fileContextMenu) fileContextMenu.style.display = 'none';
+    selectedContextFile = null;
+  }
+
+  menuOpenEditor.addEventListener('click', () => {
+    if (!selectedContextFile) return;
+    if (selectedContextFile.isDir) {
+      loadDirectory(selectedContextFile.path);
+    } else {
+      openFile(selectedContextFile.path, selectedContextFile.name);
+    }
+    closeContextMenu();
+  });
+
+  menuRevealFinder.addEventListener('click', async () => {
+    if (!selectedContextFile || typeof window.revealInFinder !== 'function') return;
+    try {
+      await window.revealInFinder(selectedContextFile.path);
+      setStatus(`ファイルを表示しました: ${selectedContextFile.name}`);
+    } catch (err) {
+      console.error('Finder表示エラー:', err);
+    }
+    closeContextMenu();
+  });
+
   async function loadDirectory(dirPath) {
     if (typeof window.listFiles !== 'function') {
       fileList.innerHTML = '<div class="list-item"><span class="item-name">（ファイル一覧取得不可）</span></div>';
@@ -477,15 +518,35 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="item-icon">${icon}</span>
             <span class="item-name">${escapeHtml(file.name)}</span>
           </div>
-          <span class="file-item-ext">${file.isDir ? 'フォルダ' : formatBytes(file.size)}</span>
+          <div class="item-right">
+            <span class="file-item-ext">${file.isDir ? 'フォルダ' : formatBytes(file.size)}</span>
+            <button class="item-more-btn" title="メニュー">…</button>
+          </div>
         `;
 
-        item.addEventListener('click', () => {
+        // クリックでファイルを開く / フォルダに移動
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('item-more-btn')) return;
           if (file.isDir) {
             loadDirectory(file.path);
           } else {
             openFile(file.path, file.name);
           }
+        });
+
+        // 「…」ボタンクリックでポップアップメニュー表示
+        const moreBtn = item.querySelector('.item-more-btn');
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = moreBtn.getBoundingClientRect();
+          openContextMenu(rect.left, rect.bottom + 4, file);
+        });
+
+        // 右クリックでもメニュー表示
+        item.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openContextMenu(e.clientX, e.clientY, file);
         });
 
         fileList.appendChild(item);
@@ -503,6 +564,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
   btnFileHome.addEventListener('click', () => {
     loadDirectory(homeDirPath || '$HOME');
+  });
+
+  // 「＋ 新規ファイル」ボタンのクリック処理 (YYYY-MM-DD-新規-1.nako3 を自動生成)
+  btnNewFile.addEventListener('click', async () => {
+    if (typeof window.createNewFile !== 'function') {
+      alert('新規ファイル作成機能が利用できません');
+      return;
+    }
+    try {
+      setStatus('新規ファイルを作成中...');
+      const res = await window.createNewFile(currentDirPath || homeDirPath);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok) {
+        await loadDirectory(currentDirPath);
+        await openFile(data.path, data.name);
+        setStatus(`新規ファイル「${data.name}」を作成して開きました`);
+      } else {
+        alert(`新規ファイルを作成できませんでした: ${data.error}`);
+        setStatus(`作成エラー: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('新規ファイル作成エラー:', err);
+    }
   });
 
   async function openFile(filePath, fileName) {
@@ -640,14 +724,15 @@ document.addEventListener('DOMContentLoaded', () => {
       btnClearLog.click();
       return;
     }
-    // Esc でモーダルを閉じる
+    // Esc でモーダル・コンテキストメニューを閉じる
     if (e.key === 'Escape') {
       closeModal();
       closeHamburger();
+      closeContextMenu();
       return;
     }
 
-    // [Cmd]+[A] / [Ctrl]+[A] --- 全選択 (フォーカス中のinput/textarea、またはエディタ)
+    // [Cmd]+[A] / [Ctrl]+[A] --- 全選択
     if (isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
       if (isInput) {
         e.preventDefault();
@@ -660,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // [Cmd]+[C] / [Ctrl]+[C] --- コピー (フォーカス中のinput/textarea)
+    // [Cmd]+[C] / [Ctrl]+[C] --- コピー
     if (isCmdOrCtrl && (e.key === 'c' || e.key === 'C')) {
       const target = isInput ? activeEl : editor;
       const start = target.selectionStart;
@@ -677,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り (フォーカス中のinput/textarea)
+    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り
     if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
       const target = isInput ? activeEl : editor;
       const start = target.selectionStart;
@@ -703,7 +788,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け (フォーカス中のinput/textarea)
+    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け
     if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
       const target = isInput ? activeEl : editor;
       try {
@@ -811,11 +896,9 @@ document.addEventListener('DOMContentLoaded', () => {
         execStatus.className = 'status-indicator success';
         setStatus(`実行完了 (${elapsed}秒)`);
 
-        // ウィンドウモードの場合、HTMLタグが含まれていればプレビュー領域にレンダリング
         if (isWindowMode && data.output && /<[a-z][\s\S]*>/i.test(data.output)) {
           windowPreview.style.display = 'block';
           windowPreview.innerHTML = data.output;
-          // scriptタグの動的実行
           const scripts = windowPreview.querySelectorAll('script');
           scripts.forEach(oldScript => {
             const newScript = document.createElement('script');
@@ -924,6 +1007,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const info = JSON.parse(infoStr);
         versionInfo.textContent = `gonako-gui v${info.version || '3.6.0'} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
+        if (labelRevealFinder) {
+          if (info.os === 'darwin') {
+            labelRevealFinder.textContent = 'Finderで表示';
+          } else if (info.os === 'windows') {
+            labelRevealFinder.textContent = 'エクスプローラーで表示';
+          } else {
+            labelRevealFinder.textContent = 'ファイルマネージャーで表示';
+          }
+        }
       } catch {
         versionInfo.textContent = `gonako-gui`;
       }

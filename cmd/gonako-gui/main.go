@@ -9,10 +9,12 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
@@ -258,6 +260,59 @@ func listFiles(dirPath string) DirListing {
 	}
 }
 
+func createNewFile(dirPath string) (string, string, error) {
+	if dirPath == "" || dirPath == "$HOME" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			dirPath = "."
+		} else {
+			dirPath = home
+		}
+	}
+	absDir, err := filepath.Abs(dirPath)
+	if err != nil {
+		return "", "", err
+	}
+
+	dateStr := time.Now().Format("2006-01-02")
+	for i := 1; i <= 999; i++ {
+		filename := fmt.Sprintf("%s-新規-%d.nako3", dateStr, i)
+		fullPath := filepath.Join(absDir, filename)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			content := fmt.Sprintf("// %s\n「こんにちは」と表示。\n", filename)
+			if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+				return "", "", err
+			}
+			return fullPath, filename, nil
+		}
+	}
+	return "", "", fmt.Errorf("新規ファイルの上限に達しました")
+}
+
+func revealInFinder(targetPath string) error {
+	absPath, err := filepath.Abs(targetPath)
+	if err != nil {
+		absPath = targetPath
+	}
+
+	switch runtime.GOOS {
+	case "darwin":
+		fi, err := os.Stat(absPath)
+		if err == nil && !fi.IsDir() {
+			return exec.Command("open", "-R", absPath).Start()
+		}
+		return exec.Command("open", absPath).Start()
+	case "windows":
+		return exec.Command("explorer", "/select,", absPath).Start()
+	default:
+		fi, err := os.Stat(absPath)
+		if err == nil && !fi.IsDir() {
+			return exec.Command("xdg-open", filepath.Dir(absPath)).Start()
+		}
+		return exec.Command("xdg-open", absPath).Start()
+	}
+}
+
 func main() {
 	flags := flag.NewFlagSet("gonako-gui", flag.ExitOnError)
 	flags.Usage = func() {
@@ -430,6 +485,44 @@ func main() {
 		}{
 			Path: path,
 		}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: 新規ファイル作成 (YYYY-MM-DD-新規-N.nako3)
+	_ = w.Bind("createNewFile", func(dirPath string) string {
+		fullPath, filename, err := createNewFile(dirPath)
+		res := struct {
+			OK    bool   `json:"ok"`
+			Path  string `json:"path,omitempty"`
+			Name  string `json:"name,omitempty"`
+			Error string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+			res.Path = fullPath
+			res.Name = filename
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: OSファイラーで表示 (Finder / Explorer)
+	_ = w.Bind("revealInFinder", func(targetPath string) string {
+		err := revealInFinder(targetPath)
+		res := struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error,omitempty"`
+		}{}
 		if err != nil {
 			res.OK = false
 			res.Error = err.Error()

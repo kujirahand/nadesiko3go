@@ -88,6 +88,9 @@
           <div id="file-list" class="list-container file-list">
             <!-- JavaScriptで動的生成 -->
           </div>
+          <div class="file-footer-bar">
+            <button id="btn-new-file" class="btn-new-file">＋ 新規ファイル</button>
+          </div>
         </div>
       </aside>
 
@@ -212,6 +215,12 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- ファイル右端「…」用コンテキストメニュー (ポップアップ) -->
+  <div id="file-context-menu" class="context-menu" style="display: none;">
+    <div class="context-menu-item" id="menu-open-editor">📝 エディタで開く</div>
+    <div class="context-menu-item" id="menu-reveal-finder">📂 <span id="label-reveal-finder">Finderで表示</span></div>
   </div>
 
   <script src="app.js"></script>
