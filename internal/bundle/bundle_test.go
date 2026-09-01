@@ -215,3 +215,68 @@ func TestTruncatedBundleIsRejected(t *testing.T) {
 		t.Error("壊れたバンドルが読めてしまった")
 	}
 }
+
+func TestBundledAdvancedResources(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "assets")
+	if err := os.MkdirAll(filepath.Join(res, "audio"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(res, "audio/sound.bin"), []byte{0x01, 0x02, 0x03}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(res, "config.txt"), []byte("設定データ"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := `
+Txt = 「assets/config.txt」を開く
+「設定: {Txt}」と表示
+Bin = 「assets/audio/sound.bin」をバイナリ読
+「バイナリ長: {Binの要素数}」と表示
+「バイナリ先頭: {Bin[0]}」と表示
+「実ファイル書き込み」を"output.txt"に保存
+「書き込み存在: {"output.txt"が存在}」と表示
+`
+	prog, err := vm.CompileProgram(code, "app.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "app_bundle")
+	if err := bundle.Build(out, fakeRuntime(t, dir), prog, "app.nako3", res); err != nil {
+		t.Fatal(err)
+	}
+
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	// 別のディレクトリで実行
+	runDir := t.TempDir()
+	prev, _ := os.Getwd()
+	if err := os.Chdir(runDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(prev)
+
+	var buf strings.Builder
+	host := vm.NewCUIHost(&buf, strings.NewReader(""), nil)
+	host.Bundle = packed
+
+	if err := vm.RunCompiled(packed.Program, host); err != nil {
+		t.Fatalf("RunCompiled: %v", err)
+	}
+
+	want := strings.Join([]string{
+		"設定: 設定データ",
+		"バイナリ長: 3",
+		"バイナリ先頭: 1",
+		"書き込み存在: true",
+	}, "\n") + "\n"
+
+	if buf.String() != want {
+		t.Errorf("出力:\n%s\nwant:\n%s", buf.String(), want)
+	}
+}

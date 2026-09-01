@@ -427,11 +427,10 @@ gonako build かんたんゲーム.nako3 --resource ./images --out かんたん�
 
 ---
 
-## 11. GUI版（Wails）
+## 11. GUI版（webview_go）
 
-日本語入力（IME）が死活問題なので、OSのWebViewを使うWailsを採用します。
-`internal/host` の実装を差し替えるだけで、言語本体は共有されます。
-UIはブラウザ版の資産を流用できます。着手は段階8です。
+日本語入力（IME）が死活問題なので、OSネイティブのWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用しています。
+`internal/host` や `internal/vm` をCUI版と共有し、バイナリ埋め込み（`//go:embed`）のWebエディタUIからなでしこプログラムを実行できます。
 
 ---
 

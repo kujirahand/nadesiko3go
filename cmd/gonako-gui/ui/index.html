@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>なでしこ3 (gonako-gui)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- ツールバー -->
+    <header class="toolbar">
+      <div class="toolbar-brand">
+        <span class="logo">🌸</span>
+        <span class="title">なでしこ3 GUI</span>
+      </div>
+      <div class="toolbar-actions">
+        <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (Ctrl+R / Cmd+R)">
+          <span class="icon">▶</span> 実行
+        </button>
+        <button id="btn-clear-log" class="btn btn-secondary" title="実行結果を消去">
+          <span class="icon">🗑</span> クリア
+        </button>
+        <div class="separator"></div>
+        <select id="select-sample" class="select-sample">
+          <option value="">-- サンプルコード --</option>
+          <option value="hello">こんにちは</option>
+          <option value="fizzbuzz">FizzBuzz</option>
+          <option value="calc">計算と変数</option>
+          <option value="dialog">ファイル一覧とハッシュ</option>
+          <option value="csv">CSVの処理</option>
+        </select>
+        <div class="separator"></div>
+        <button id="btn-copy-log" class="btn btn-secondary" title="実行結果をクリップボードにコピー">
+          <span class="icon">📋</span> 結果コピー
+        </button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ (エディタ + コンソール) -->
+    <main class="workspace">
+      <!-- 左ペイン: エディタ -->
+      <section class="pane pane-editor">
+        <div class="pane-header">
+          <span class="pane-title">プログラム</span>
+          <div class="editor-tools">
+            <span id="char-count" class="badge">0 文字</span>
+          </div>
+        </div>
+        <div class="editor-wrapper">
+          <div id="line-numbers" class="line-numbers">1</div>
+          <textarea id="editor" class="editor" spellcheck="false" placeholder="ここに なでしこ3 のプログラムを入力してください..."></textarea>
+        </div>
+      </section>
+
+      <!-- 区切り線 -->
+      <div class="splitter" id="splitter"></div>
+
+      <!-- 右ペイン: 実行結果 -->
+      <section class="pane pane-output">
+        <div class="pane-header">
+          <span class="pane-title">実行結果 (コンソール)</span>
+          <span id="exec-status" class="status-indicator">待機中</span>
+        </div>
+        <div class="output-wrapper">
+          <pre id="output" class="output">ここに実行結果が表示されます。</pre>
+        </div>
+      </section>
+    </main>
+
+    <!-- フッターステータスバー -->
+    <footer class="statusbar">
+      <div class="status-left">
+        <span id="cursor-pos">行: 1, 列: 1</span>
+      </div>
+      <div class="status-right">
+        <span id="version-info">gonako-gui</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

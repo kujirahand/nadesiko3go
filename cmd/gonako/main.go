@@ -38,6 +38,7 @@ build のオプション:
   --resource DIR   同梱するリソースのフォルダ
   --runtime PATH   土台にするランタイム (既定: 実行中のgonako)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
+  --list           同梱されているリソースの一覧を表示する
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
@@ -90,11 +91,39 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 	out := flags.String("out", "", "出力する実行ファイル名")
 	resource := flags.String("resource", "", "同梱するリソースのフォルダ")
 	runtimePath := flags.String("runtime", "", "土台にするランタイム")
+	list := flags.Bool("list", false, "同梱されているリソースの一覧を表示する")
 	// ファイル名はオプションの前でも後ろでも書けるようにする。flagは最初の
 	// 非フラグ引数で解析を止めるので、先に取り除いておく。
 	source, rest := splitSource(args)
 	if err := flags.Parse(rest); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
+	}
+	if source == "" && flags.NArg() > 0 {
+		source = flags.Arg(0)
+	}
+	if *list {
+		if source == "" {
+			return errors.New("一覧を表示する実行ファイルを指定してください")
+		}
+		packed, err := bundle.Open(source)
+		if err != nil {
+			return fmt.Errorf("バンドルを読み込めません: %w", err)
+		}
+		defer packed.Close()
+		fmt.Fprintf(stdout, "プログラム: %s\n", packed.Name)
+		resources := packed.Resources()
+		if len(resources) == 0 {
+			fmt.Fprintln(stdout, "同梱リソース: なし")
+		} else {
+			fmt.Fprintln(stdout, "同梱リソース:")
+			for _, r := range resources {
+				fmt.Fprintf(stdout, "  %s\n", r)
+			}
+		}
+		return nil
 	}
 	if source == "" || flags.NArg() > 0 {
 		return errors.New("固めるファイルを1つ指定してください")
@@ -136,8 +165,9 @@ func splitSource(args []string) (source string, rest []string) {
 		case valueExpected:
 			valueExpected = false
 		case strings.HasPrefix(a, "-"):
-			// 『--out NAME』の形なら次の引数は値
-			valueExpected = !strings.Contains(a, "=")
+			// 『--out NAME』などの形なら次の引数は値
+			name := strings.TrimLeft(strings.Split(a, "=")[0], "-")
+			valueExpected = !strings.Contains(a, "=") && (name == "out" || name == "resource" || name == "runtime")
 		case source == "":
 			source = a
 			continue
@@ -170,6 +200,9 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	flags.SetOutput(stderr)
 	max := flags.Int("max", 10, "失敗の詳細を表示する件数 (0で全件)")
 	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
 		return err
 	}
 	targets := flags.Args()
@@ -274,7 +307,7 @@ func runBundled() (ran bool, err error) {
 
 	host := vm.NewCUIHost(os.Stdout, os.Stdin, os.Args[1:])
 	host.Bundle = packed
-	return true, vm.RunCompiled(packed.Program, host)
+	return true, finish(vm.RunCompiled(packed.Program, host), host)
 }
 
 func main() {
@@ -317,6 +350,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		casesDir := flags.String("cases", "./testdata/compat/cases", "compat case JSONのディレクトリ")
 		outDir := flags.String("out", "./out", "結果JSONの出力ディレクトリ")
 		if err := flags.Parse(args[2:]); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return nil
+			}
 			return err
 		}
 		if flags.NArg() != 0 {

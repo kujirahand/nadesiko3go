@@ -216,3 +216,71 @@ func TestBuildAcceptsFileNameEitherSide(t *testing.T) {
 		}
 	}
 }
+
+func TestBuildList(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "res"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "res/data.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "app.nako3"), []byte("1を表示"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "runtime"), []byte("ランタイム"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	previous, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	var out, errOut bytes.Buffer
+	if err := run([]string{"build", "app.nako3", "--resource", "./res", "--runtime", "runtime", "--out", "pkg"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+
+	var listOut, listErr bytes.Buffer
+	if err := run([]string{"build", "--list", "pkg"}, &listOut, &listErr); err != nil {
+		t.Fatalf("build --list: %v", err)
+	}
+	if !strings.Contains(listOut.String(), "プログラム: app.nako3") || !strings.Contains(listOut.String(), "res/data.txt") {
+		t.Errorf("list output = %q", listOut.String())
+	}
+}
+
+func TestBundledExitCode(t *testing.T) {
+	dir := t.TempDir()
+	code := "3で強制終了"
+	prog, err := vm.CompileProgram(code, "exit.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	packedPath := filepath.Join(dir, "packed")
+	if err := bundle.Build(packedPath, filepath.Join(dir, "rt"), prog, "exit.nako3", ""); err != nil {
+		// rt doesn't exist, create it first
+		_ = os.WriteFile(filepath.Join(dir, "rt"), []byte("rt"), 0o755)
+		if err := bundle.Build(packedPath, filepath.Join(dir, "rt"), prog, "exit.nako3", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	packed, err := bundle.Open(packedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	var buf bytes.Buffer
+	host := vm.NewCUIHost(&buf, strings.NewReader(""), nil)
+	host.Bundle = packed
+	err = vm.RunCompiled(packed.Program, host)
+	if err != nil {
+		t.Fatalf("RunCompiled returned unexpected error: %v", err)
+	}
+	if !host.Exited || host.ExitCode != 3 {
+		t.Errorf("host.Exited = %v, host.ExitCode = %d, want true, 3", host.Exited, host.ExitCode)
+	}
+}
