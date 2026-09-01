@@ -3,7 +3,7 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build cmd gui install release test doctest sync-compat compat-run compat-check clean
+.PHONY: all build cmd gui install release test doctest sync-compat compat-run compat-check gen-command-list clean
 
 all: build
 
@@ -49,3 +49,6 @@ compat-run:
 
 compat-check:
 	cd nadesiko3 && npm run compat:check -- ../out
+
+gen-command-list:
+	$(GO) run ./scripts/gen-command-list.go
