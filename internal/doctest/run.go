@@ -32,6 +32,9 @@ var omittedCommands = []struct {
 }{
 	{marker: "JS実行", name: "JS実行"},
 	{marker: "JS関数実行", name: "JS関数実行"},
+	{marker: "JSメソッド実行", name: "JSメソッド実行"},
+	{marker: "JS:", name: "JSコード"},
+	{marker: "をナデシコ", name: "ナデシコ"},
 	{marker: "ナデシコ続ける", name: "ナデシコ続"},
 	{marker: "ナデシコする", name: "ナデシコ"},
 }
@@ -41,6 +44,9 @@ func omittedReason(code string) string {
 		if strings.Contains(code, command.marker) {
 			return "Go版で省略する命令: " + command.name
 		}
+	}
+	if strings.Contains(code, "プラグイン一覧取得") {
+		return "実行環境で一覧が異なる命令: プラグイン一覧取得"
 	}
 	return ""
 }

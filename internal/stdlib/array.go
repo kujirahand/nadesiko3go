@@ -197,12 +197,7 @@ func arrayImpls(m map[string]Impl) {
 	}
 
 	m["配列要素作成"] = func(_ Context, a []value.Value) (value.Value, error) {
-		count := int(value.ToNumber(arg(a, 1)))
-		items := make([]value.Value, 0, max(count, 0))
-		for i := 0; i < count; i++ {
-			items = append(items, cloneValue(arg(a, 0)))
-		}
-		return value.ArrayValue(value.NewArray(items...)), nil
+		return makeArrayShape(arg(a, 0), arg(a, 1)), nil
 	}
 
 	m["配列複製"] = func(_ Context, a []value.Value) (value.Value, error) {
@@ -305,7 +300,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col, start, wanted := int(value.ToNumber(arg(a, 1))), int(value.ToNumber(arg(a, 2))), arg(a, 3)
+		col, start, wanted := arg(a, 1), int(value.ToNumber(arg(a, 2))), arg(a, 3)
 		for i := max(start, 0); i < table.Len(); i++ {
 			if value.StrictEquals(tableCell(table.Get(i), col), wanted) {
 				return value.Number(float64(i)), nil
@@ -320,8 +315,8 @@ func arrayImpls(m map[string]Impl) {
 		}
 		cols := 1
 		for i := 0; i < table.Len(); i++ {
-			if row, ok := table.Get(i).Array(); ok && row.Len() > cols {
-				cols = row.Len()
+			if n := elementCount(table.Get(i)); n > cols {
+				cols = n
 			}
 		}
 		return value.Number(float64(cols)), nil
@@ -352,7 +347,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col := int(value.ToNumber(arg(a, 1)))
+		col := arg(a, 1)
 		seen := map[string]bool{}
 		rows := make([]value.Value, 0, table.Len())
 		for i := 0; i < table.Len(); i++ {
@@ -369,7 +364,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col := int(value.ToNumber(arg(a, 1)))
+		col := arg(a, 1)
 		items := make([]value.Value, table.Len())
 		for i := range items {
 			items[i] = tableCell(table.Get(i), col)
@@ -415,7 +410,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col, total := int(value.ToNumber(arg(a, 1))), 0.0
+		col, total := arg(a, 1), 0.0
 		for i := 0; i < table.Len(); i++ {
 			total += value.ToNumber(tableCell(table.Get(i), col))
 		}
@@ -426,7 +421,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		start, col := int(value.ToNumber(arg(a, 1))), int(value.ToNumber(arg(a, 2)))
+		start, col := int(value.ToNumber(arg(a, 1))), arg(a, 2)
 		re, err := regexp.Compile(str(a, 3))
 		if err != nil {
 			return value.Undefined(), err
@@ -443,7 +438,7 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col := int(value.ToNumber(arg(a, 1)))
+		col := arg(a, 1)
 		re, err := regexp.Compile(str(a, 2))
 		if err != nil {
 			return value.Undefined(), err
@@ -463,17 +458,23 @@ func requireTable(name string, v value.Value) (*value.Array, error) {
 	if !ok {
 		return nil, errors.New("『" + name + "』には配列を指定する必要があります。")
 	}
-	for i := 0; i < table.Len(); i++ {
-		if _, ok := table.Get(i).Array(); !ok {
-			return nil, errors.New("『" + name + "』には二次元配列を指定する必要があります。")
-		}
-	}
 	return table, nil
 }
 
-func tableCell(row value.Value, col int) value.Value {
+func tableCell(row, col value.Value) value.Value {
 	if items, ok := row.Array(); ok {
-		return items.Get(col)
+		return items.Get(int(value.ToNumber(col)))
+	}
+	if dict, ok := row.Dict(); ok {
+		v, _ := dict.Get(value.ToString(col))
+		return v
+	}
+	if row.Kind() == value.KindString {
+		runes := []rune(value.ToString(row))
+		i := int(value.ToNumber(col))
+		if i >= 0 && i < len(runes) {
+			return value.String(string(runes[i]))
+		}
 	}
 	return value.Undefined()
 }
@@ -484,7 +485,7 @@ func tableSort(numeric bool) Impl {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col := int(value.ToNumber(arg(a, 1)))
+		col := arg(a, 1)
 		table.SortStable(func(x, y value.Value) bool {
 			if numeric {
 				return value.ToNumber(tableCell(x, col)) < value.ToNumber(tableCell(y, col))
@@ -501,7 +502,7 @@ func tableFilter(match func(cell, wanted value.Value) bool) Impl {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		col, wanted := int(value.ToNumber(arg(a, 1))), arg(a, 2)
+		col, wanted := arg(a, 1), arg(a, 2)
 		rows := make([]value.Value, 0)
 		for i := 0; i < table.Len(); i++ {
 			if match(tableCell(table.Get(i), col), wanted) {
@@ -528,7 +529,7 @@ func transposeTable(table *value.Array, rotate bool) value.Value {
 			if rotate {
 				source = table.Len() - c - 1
 			}
-			cell := tableCell(table.Get(source), r)
+			cell := tableCell(table.Get(source), value.Number(float64(r)))
 			if cell.Kind() == value.KindUndefined && !rotate {
 				cell = value.String("")
 			}
@@ -620,6 +621,16 @@ func arrayCut(container, index value.Value) (value.Value, error) {
 	switch container.Kind() {
 	case value.KindArray:
 		arr, _ := container.Array()
+		if span, ok := index.Dict(); ok {
+			first, firstOK := span.Get("先頭")
+			last, lastOK := span.Get("末尾")
+			if firstOK && lastOK {
+				start := int(value.ToNumber(first))
+				count := int(value.ToNumber(last)) - start + 1
+				removed := arr.Remove(start, max(count, 0))
+				return value.ArrayValue(value.NewArray(removed...)), nil
+			}
+		}
 		removed := arr.Remove(int(value.ToNumber(index)), 1)
 		if len(removed) == 0 {
 			return value.Null(), nil
@@ -636,6 +647,38 @@ func arrayCut(container, index value.Value) (value.Value, error) {
 		return v, nil
 	}
 	return value.Null(), nil
+}
+
+func makeArrayShape(item, shape value.Value) value.Value {
+	if dims, ok := shape.Array(); ok {
+		if dims.Len() == 0 {
+			return value.ArrayValue(value.NewArray())
+		}
+		count := max(int(value.ToNumber(dims.Get(0))), 0)
+		if dims.Len() == 1 {
+			values := make([]value.Value, count)
+			for i := range values {
+				values[i] = cloneValue(item)
+			}
+			return value.ArrayValue(value.NewArray(values...))
+		}
+		restValues := make([]value.Value, dims.Len()-1)
+		for i := 1; i < dims.Len(); i++ {
+			restValues[i-1] = dims.Get(i)
+		}
+		rest := value.ArrayValue(value.NewArray(restValues...))
+		values := make([]value.Value, count)
+		for i := range values {
+			values[i] = makeArrayShape(item, rest)
+		}
+		return value.ArrayValue(value.NewArray(values...))
+	}
+	count := max(int(value.ToNumber(shape)), 0)
+	values := make([]value.Value, count)
+	for i := range values {
+		values[i] = cloneValue(item)
+	}
+	return value.ArrayValue(value.NewArray(values...))
 }
 
 // reduceNumbers builds 『配列最大値』 and 『配列最小値』.

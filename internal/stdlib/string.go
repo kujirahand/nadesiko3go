@@ -287,6 +287,18 @@ func stringImpls(m map[string]Impl) {
 	// --- 文字コード ---
 
 	m["ASC"] = func(_ Context, a []value.Value) (value.Value, error) {
+		if arr, ok := arg(a, 0).Array(); ok {
+			items := make([]value.Value, arr.Len())
+			for i := range items {
+				s := value.ToString(arr.Get(i))
+				r, _ := utf8.DecodeRuneInString(s)
+				if s == "" {
+					r = 0
+				}
+				items[i] = value.Number(float64(r))
+			}
+			return value.ArrayValue(value.NewArray(items...)), nil
+		}
 		s := str(a, 0)
 		if s == "" {
 			return value.Number(0), nil
@@ -295,6 +307,13 @@ func stringImpls(m map[string]Impl) {
 		return value.Number(float64(r)), nil
 	}
 	m["CHR"] = func(_ Context, a []value.Value) (value.Value, error) {
+		if arr, ok := arg(a, 0).Array(); ok {
+			items := make([]value.Value, arr.Len())
+			for i := range items {
+				items[i] = value.String(string(rune(int32(value.ToNumber(arr.Get(i))))))
+			}
+			return value.ArrayValue(value.NewArray(items...)), nil
+		}
 		return value.String(string(rune(int32(value.ToNumber(arg(a, 0)))))), nil
 	}
 }

@@ -25,6 +25,9 @@ type Context interface {
 	// FindFunc resolves a user function by the name form accepted by commands
 	// such as 『実行』 and 『配列フィルタ』.
 	FindFunc(name string) *value.Func
+	FindValue(name string) value.Value
+	GlobalFuncNames() []string
+	CallCommand(name string, args []value.Value) (value.Value, error)
 	CommandState(name string) value.Value
 	SetCommandState(name string, v value.Value)
 

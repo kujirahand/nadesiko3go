@@ -130,12 +130,23 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("範囲", [][]string{{"から"}, {"の", "までの"}})
 	addFunc("エラー発生", [][]string{{"の", "で"}})
 	list["エラー発生"].ReturnNone = true
-	for _, name := range []string{"システム関数一覧取得", "プラグイン一覧取得", "モジュール一覧取得", "予約語一覧取得", "助詞一覧取得"} {
+	for _, name := range []string{"システム関数一覧取得", "グローバル関数一覧取得", "プラグイン一覧取得", "モジュール一覧取得", "予約語一覧取得", "助詞一覧取得"} {
 		addFunc(name, nil)
 	}
 	addFunc("システム関数存在", [][]string{{"が", "の"}})
 	addFunc("実行", [][]string{{"を", "に", "で"}})
 	addFunc("JSオブジェクト取得", [][]string{{"の"}})
+	addFunc("実行時間計測", [][]string{{"の"}})
+	addFunc("デバッグ表示", [][]string{{"と", "を", "の"}})
+	list["デバッグ表示"].ReturnNone = true
+	addFunc("ハテナ関数設定", [][]string{{"を", "の"}})
+	list["ハテナ関数設定"].ReturnNone = true
+	addFunc("プラグイン名設定", [][]string{{"に", "へ"}})
+	list["プラグイン名設定"].ReturnNone = true
+	addFunc("名前空間設定", [][]string{{"に", "へ"}})
+	list["名前空間設定"].ReturnNone = true
+	addFunc("名前空間ポップ", nil)
+	list["名前空間ポップ"].ReturnNone = true
 	addFunc("ASYNC", nil)
 	list["ASYNC"].AsyncFn = true
 	list["ASYNC"].ReturnNone = true
@@ -210,6 +221,7 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("終端パス除去", [][]string{{"の", "から"}})
 	addFunc("終端パス削除", [][]string{{"の", "から"}})
 	addFunc("パス抽出", [][]string{{"の", "から"}})
+	addFunc("ファイル名抽出", [][]string{{"の", "から"}})
 
 	addFunc("配列結合", [][]string{{"を"}, {"で"}})
 	addFunc("配列只結合", [][]string{{"を"}})
@@ -285,6 +297,7 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("進数変換", [][]string{{"を", "の"}, {"", "へ"}})
 	addFunc("二進", [][]string{{"を", "の", "から"}})
 	addFunc("二進表示", [][]string{{"を", "の", "から"}})
+	addFunc("RGB", [][]string{{"と"}, {"の"}, {"で"}})
 	addFunc("JSONエンコード", [][]string{{"を", "の"}})
 	addFunc("JSONデコード", [][]string{{"を", "の", "から"}})
 	addFunc("JSON変換", [][]string{{"を", "の", "から"}})
@@ -300,6 +313,7 @@ func ParserFuncList() lexer.FuncList {
 		addFunc(name, [][]string{{"の", "を", "から"}})
 	}
 	addFunc("日時変換", [][]string{{"を", "から"}})
+	addFunc("日時書式変換", [][]string{{"を"}, {"で"}})
 	addFunc("和暦変換", [][]string{{"を"}})
 	for _, name := range []string{"年数差", "月数差", "日数差", "時間差", "分差", "秒差"} {
 		addFunc(name, [][]string{{"と", "から"}, {"の", "までの"}})

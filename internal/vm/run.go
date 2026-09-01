@@ -289,7 +289,8 @@ func (m *VM) storeGlobalByName(name string, v value.Value) {
 		return
 	}
 	if i, ok := m.globalIndex[name]; ok {
-		m.globals[i].Set(v)
+		// システム命令による更新は、言語コードからの定数代入とは別の内部操作。
+		m.globals[i].Value = v
 	}
 }
 
@@ -606,6 +607,41 @@ func (m *VM) FindFunc(name string) *value.Func {
 		}
 	}
 	return nil
+}
+
+func (m *VM) FindValue(name string) value.Value {
+	if got := m.loadGlobalByName(name); got.Kind() != value.KindUndefined {
+		return got
+	}
+	for qualified, i := range m.globalIndex {
+		if strings.HasSuffix(qualified, "__"+name) {
+			return m.globals[i].Get()
+		}
+	}
+	return value.Undefined()
+}
+
+func (m *VM) GlobalFuncNames() []string {
+	names := make([]string, 0, len(m.prog.Funcs)-1)
+	for i := range m.prog.Funcs {
+		if i == m.prog.Main {
+			continue
+		}
+		name := m.prog.Funcs[i].Name
+		if _, local, ok := strings.Cut(name, "__"); ok {
+			name = "main__" + local
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func (m *VM) CallCommand(name string, args []value.Value) (value.Value, error) {
+	entry, ok := m.registry.Lookup(name)
+	if !ok || entry.Fn == nil {
+		return value.Undefined(), fmt.Errorf("命令『%s』が見つかりません。", name)
+	}
+	return entry.Fn(m, args)
 }
 
 func (m *VM) CommandState(name string) value.Value { return m.commandState[name] }

@@ -59,6 +59,7 @@ func datetimeImpls(m map[string]Impl) {
 		t := time.Unix(int64(value.ToNumber(arg(a, 0))), 0).In(ctx.Now().Location())
 		return value.String(t.Format("2006/01/02 15:04:05")), nil
 	}
+	m["日時書式変換"] = formatDateTime
 	m["和暦変換"] = wareki
 	m["年数差"] = dateDiff("年")
 	m["月数差"] = dateDiff("月")
@@ -101,12 +102,73 @@ func unixTime(ctx Context, a []value.Value) (value.Value, error) {
 
 func parseDate(s string, loc *time.Location) (time.Time, error) {
 	s = strings.TrimSpace(s)
-	for _, layout := range []string{"2006/01/02 15:04:05", "2006/01/02", "15:04:05", "15:04"} {
+	for _, layout := range []string{
+		"2006/01/02 15:04:05", "2006/1/2 15:04:05", "2006/01/02", "2006/1/2",
+		"2006-01-02T15:04:05", "2006-01-02T15:04", "15:04:05", "15:04",
+	} {
 		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
 			return t, nil
 		}
 	}
 	return time.Time{}, fmt.Errorf("日時の形式が不正です: %s", s)
+}
+
+var dateFormatTokenRE = regexp.MustCompile(`YYYY|ccc|WWW|MMM|YY|MM|DD|HH|mm|ss|[MDHmsW]`)
+
+func formatDateTime(ctx Context, a []value.Value) (value.Value, error) {
+	source := arg(a, 0)
+	var t time.Time
+	if seconds, ok := source.Number(); ok {
+		whole, frac := math.Modf(seconds)
+		t = time.Unix(int64(whole), int64(frac*float64(time.Second))).In(ctx.Now().Location())
+	} else {
+		var err error
+		t, err = parseDate(value.ToString(source), ctx.Now().Location())
+		if err != nil {
+			return value.Undefined(), err
+		}
+	}
+	weekdays := []string{"日", "月", "火", "水", "木", "金", "土"}
+	weekdaysEnglish := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+	monthsEnglish := []string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	out := dateFormatTokenRE.ReplaceAllStringFunc(str(a, 1), func(token string) string {
+		switch token {
+		case "YYYY":
+			return fmt.Sprintf("%04d", t.Year())
+		case "YY":
+			return fmt.Sprintf("%02d", t.Year()%100)
+		case "MM":
+			return fmt.Sprintf("%02d", t.Month())
+		case "M":
+			return strconv.Itoa(int(t.Month()))
+		case "DD":
+			return fmt.Sprintf("%02d", t.Day())
+		case "D":
+			return strconv.Itoa(t.Day())
+		case "HH":
+			return fmt.Sprintf("%02d", t.Hour())
+		case "H":
+			return strconv.Itoa(t.Hour())
+		case "mm":
+			return fmt.Sprintf("%02d", t.Minute())
+		case "m":
+			return strconv.Itoa(t.Minute())
+		case "ss":
+			return fmt.Sprintf("%02d", t.Second())
+		case "s":
+			return strconv.Itoa(t.Second())
+		case "ccc":
+			return fmt.Sprintf("%03d", t.Nanosecond()/int(time.Millisecond))
+		case "W":
+			return weekdays[int(t.Weekday())]
+		case "WWW":
+			return weekdaysEnglish[int(t.Weekday())]
+		case "MMM":
+			return monthsEnglish[int(t.Month())-1]
+		}
+		return token
+	})
+	return value.String(out), nil
 }
 
 func wareki(ctx Context, a []value.Value) (value.Value, error) {
@@ -231,7 +293,7 @@ func addDateTime(ctx Context, a []value.Value) (value.Value, error) {
 }
 
 func formatLike(t time.Time, source string) string {
-	if strings.Contains(source, ":") && strings.Contains(source, "/") {
+	if strings.Contains(source, ":") && (strings.Contains(source, "/") || strings.Contains(source, "T")) {
 		return t.Format("2006/01/02 15:04:05")
 	}
 	if strings.Contains(source, ":") {

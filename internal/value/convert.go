@@ -2,6 +2,7 @@ package value
 
 import (
 	"math"
+	"math/big"
 	"regexp"
 	"strconv"
 	"strings"
@@ -205,6 +206,54 @@ func ParseFloat(v Value) float64 {
 		return math.NaN()
 	}
 	return n
+}
+
+// ParseInt implements JavaScript's global parseInt without an explicit radix.
+// It accepts a hexadecimal 0x prefix and otherwise consumes the leading decimal
+// digits, stopping at the first character that is not valid for that radix.
+func ParseInt(v Value) float64 {
+	s := strings.TrimLeftFunc(ToString(v), isJSSpace)
+	sign := 1.0
+	if strings.HasPrefix(s, "+") {
+		s = s[1:]
+	} else if strings.HasPrefix(s, "-") {
+		sign = -1
+		s = s[1:]
+	}
+
+	base := 10
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		base = 16
+		s = s[2:]
+	}
+	i := 0
+	for i < len(s) {
+		c := s[i]
+		valid := c >= '0' && c <= '9'
+		if base == 16 {
+			valid = valid || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+		}
+		if !valid {
+			break
+		}
+		i++
+	}
+	if i == 0 {
+		return math.NaN()
+	}
+	if base == 10 {
+		n, err := strconv.ParseFloat(s[:i], 64)
+		if err != nil && !math.IsInf(n, 0) {
+			return math.NaN()
+		}
+		return sign * n
+	}
+	integer, ok := new(big.Int).SetString(s[:i], base)
+	if !ok {
+		return math.NaN()
+	}
+	n, _ := new(big.Float).SetInt(integer).Float64()
+	return sign * n
 }
 
 // isJSSpace reports whether r is whitespace for the purposes of parseFloat and

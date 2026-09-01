@@ -70,7 +70,14 @@ func urlImpls(m map[string]Impl) {
 		if i := strings.LastIndex(s, "/"); i >= 0 {
 			return value.String(s[:i]), nil
 		}
-		return value.String("."), nil
+		return value.String(""), nil
+	}
+	m["ファイル名抽出"] = func(_ Context, a []value.Value) (value.Value, error) {
+		s := str(a, 0)
+		if i := strings.LastIndex(s, "/"); i >= 0 {
+			return value.String(s[i+1:]), nil
+		}
+		return value.String(s), nil
 	}
 	m["拡張子変更"] = func(_ Context, a []value.Value) (value.Value, error) {
 		name, ext := str(a, 0), strings.TrimSpace(str(a, 1))

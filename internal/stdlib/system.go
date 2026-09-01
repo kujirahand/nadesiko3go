@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
@@ -66,12 +67,7 @@ func implementations() map[string]Impl {
 
 	// --- 型変換と判定 ---
 	m["整数変換"] = func(_ Context, args []value.Value) (value.Value, error) {
-		// TS版は parseInt 相当。小数点以下を切り捨てるので Trunc を使う。
-		n := value.ParseFloat(arg(args, 0))
-		if math.IsNaN(n) || math.IsInf(n, 0) {
-			return value.Number(n), nil
-		}
-		return value.Number(math.Trunc(n)), nil
+		return value.Number(value.ParseInt(arg(args, 0))), nil
 	}
 	m["実数変換"] = func(_ Context, args []value.Value) (value.Value, error) {
 		return value.Number(value.ParseFloat(arg(args, 0))), nil
@@ -113,6 +109,13 @@ func implementations() map[string]Impl {
 		got, _ := m["二進"](ctx, args)
 		ctx.Print(value.ToString(got))
 		return value.Undefined(), nil
+	}
+	m["RGB"] = func(_ Context, args []value.Value) (value.Value, error) {
+		component := func(v value.Value) string {
+			s := "00" + strconv.FormatInt(int64(value.ParseInt(v)), 16)
+			return s[len(s)-2:]
+		}
+		return value.String("#" + component(arg(args, 0)) + component(arg(args, 1)) + component(arg(args, 2))), nil
 	}
 
 	for alias, canonical := range map[string]string{
@@ -172,11 +175,85 @@ func implementations() map[string]Impl {
 		return ctx.CallFunc(fn, callArgs)
 	}
 	m["JSオブジェクト取得"] = func(ctx Context, args []value.Value) (value.Value, error) {
-		fn := ctx.FindFunc(value.ToString(arg(args, 0)))
-		if fn == nil {
+		name := value.ToString(arg(args, 0))
+		if got := ctx.FindValue(name); got.Kind() != value.KindUndefined {
+			return got, nil
+		}
+		if fn := ctx.FindFunc(name); fn != nil {
+			return value.FuncValue(fn), nil
+		}
+		return value.Undefined(), nil
+	}
+	m["実行時間計測"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		item := arg(args, 0)
+		fn, ok := item.Func()
+		if !ok && item.Kind() == value.KindString {
+			fn = ctx.FindFunc(value.ToString(item))
+			ok = fn != nil
+		}
+		if !ok {
+			return value.Undefined(), errors.New("『実行時間計測』には関数を指定してください。")
+		}
+		start := time.Now()
+		if _, err := ctx.CallFunc(fn, nil); err != nil {
+			return value.Undefined(), err
+		}
+		return value.Number(float64(time.Since(start).Nanoseconds()) / 1e6), nil
+	}
+	m["デバッグ表示"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		ctx.Print(value.ToString(arg(args, 0)))
+		return value.Undefined(), nil
+	}
+	m["ハテナ関数設定"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		ctx.SetCommandState("ハテナ関数", cloneValue(arg(args, 0)))
+		return value.Undefined(), nil
+	}
+	m["ハテナ関数実行"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		pipeline := ctx.CommandState("ハテナ関数")
+		if pipeline.Kind() == value.KindUndefined {
+			pipeline = value.String("表示")
+		}
+		current := arg(args, 0)
+		if names, ok := pipeline.Array(); ok {
+			for i := 0; i < names.Len(); i++ {
+				var err error
+				current, err = ctx.CallCommand(value.ToString(names.Get(i)), []value.Value{current})
+				if err != nil {
+					return value.Undefined(), err
+				}
+			}
+			return current, nil
+		}
+		return ctx.CallCommand(value.ToString(pipeline), []value.Value{current})
+	}
+	m["グローバル関数一覧取得"] = func(ctx Context, _ []value.Value) (value.Value, error) {
+		return stringsToArray(ctx.GlobalFuncNames()), nil
+	}
+	m["プラグイン名設定"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		ctx.SetSysVar("プラグイン名", arg(args, 0))
+		return value.Undefined(), nil
+	}
+	m["名前空間設定"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		stack, _ := ctx.CommandState("名前空間スタック").Array()
+		if stack == nil {
+			stack = value.NewArray()
+		}
+		pair := value.NewArray(ctx.SysVar("名前空間"), ctx.SysVar("プラグイン名"))
+		stack.Set(stack.Len(), value.ArrayValue(pair))
+		ctx.SetCommandState("名前空間スタック", value.ArrayValue(stack))
+		ctx.SetSysVar("名前空間", arg(args, 0))
+		return value.Undefined(), nil
+	}
+	m["名前空間ポップ"] = func(ctx Context, _ []value.Value) (value.Value, error) {
+		stack, ok := ctx.CommandState("名前空間スタック").Array()
+		if !ok || stack.Len() == 0 {
 			return value.Undefined(), nil
 		}
-		return value.FuncValue(fn), nil
+		pair, _ := stack.Get(stack.Len() - 1).Array()
+		stack.Truncate(stack.Len() - 1)
+		ctx.SetSysVar("名前空間", pair.Get(0))
+		ctx.SetSysVar("プラグイン名", pair.Get(1))
+		return value.Undefined(), nil
 	}
 	m["拝啓"] = func(ctx Context, _ []value.Value) (value.Value, error) {
 		ctx.SetCommandState("礼節レベル", value.Number(0))

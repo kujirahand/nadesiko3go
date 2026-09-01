@@ -1,6 +1,7 @@
 package stdlib_test
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -29,7 +30,12 @@ func (c *fakeContext) SetSysVar(n string, v value.Value) { c.sysVar[n] = v }
 func (c *fakeContext) CallFunc(*value.Func, []value.Value) (value.Value, error) {
 	return value.Undefined(), nil
 }
-func (c *fakeContext) FindFunc(string) *value.Func                { return nil }
+func (c *fakeContext) FindFunc(string) *value.Func  { return nil }
+func (c *fakeContext) FindValue(string) value.Value { return value.Undefined() }
+func (c *fakeContext) GlobalFuncNames() []string    { return nil }
+func (c *fakeContext) CallCommand(string, []value.Value) (value.Value, error) {
+	return value.Undefined(), nil
+}
 func (c *fakeContext) CommandState(name string) value.Value       { return c.state[name] }
 func (c *fakeContext) SetCommandState(name string, v value.Value) { c.state[name] = v }
 
@@ -134,6 +140,9 @@ func TestCoreCommands(t *testing.T) {
 		{"XOR", []value.Value{num(12), num(10)}, "6"},
 		{"整数変換", []value.Value{str("123")}, "123"},
 		{"整数変換", []value.Value{str("12.7")}, "12"},
+		{"整数変換", []value.Value{str("0xFF")}, "255"},
+		{"整数変換", []value.Value{num(1e21)}, "1"},
+		{"整数変換", []value.Value{num(math.Inf(1))}, "NaN"},
 		{"整数変換", []value.Value{str("あ")}, "NaN"},
 		{"実数変換", []value.Value{str("12.5")}, "12.5"},
 		{"文字列変換", []value.Value{num(123)}, "123"},

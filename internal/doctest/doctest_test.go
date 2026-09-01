@@ -51,6 +51,14 @@ func TestRunDoesNotSkipNadesikoConstants(t *testing.T) {
 	}
 }
 
+func TestRunSkipsEnvironmentDependentPluginList(t *testing.T) {
+	test := Test{Code: "プラグイン一覧取得して表示", Runtime: CNako}
+	result := Run(test)
+	if !result.Skipped || result.SkipReason != "実行環境で一覧が異なる命令: プラグイン一覧取得" {
+		t.Fatalf("Run = %#v", result)
+	}
+}
+
 func TestRunDoesNotDrainPendingTimers(t *testing.T) {
 	test := Test{
 		Code:    "「開始」と表示\n「後」を1秒後\n●後\n「完了」と表示\nここまで",
