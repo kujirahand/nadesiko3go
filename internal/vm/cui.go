@@ -10,10 +10,13 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
+	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
+	"github.com/kujirahand/nadesiko3go/internal/officelib"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 )
@@ -152,5 +155,8 @@ func RunWithHost(code, filename string, h Host) error {
 }
 
 func runtimeRegistry() *stdlib.Registry {
-	return stdlib.NewRegistry(nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New())
+	return stdlib.NewRegistry(
+		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(),
+	)
 }
