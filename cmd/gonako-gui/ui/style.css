@@ -832,3 +832,72 @@ kbd {
   color: var(--accent-pink);
 }
 
+/* インタラクティブダイアログ (Confirm / Prompt / Alert) */
+.dialog-card {
+  max-width: 440px;
+  width: 90%;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dialog-message {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-main);
+  white-space: pre-wrap;
+}
+
+.dialog-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 13px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+}
+
+.dialog-input:focus {
+  border-color: var(--accent-pink);
+  outline: none;
+}
+
+.dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-color);
+}
+
+.dialog-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.btn-primary {
+  background: var(--accent-pink);
+  border: 1px solid var(--accent-pink);
+  color: #11111b;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: #f5c2e7;
+  border-color: #f5c2e7;
+}
+
+.btn-danger {
+  background: rgba(235, 111, 146, 0.15);
+  border: 1px solid rgba(235, 111, 146, 0.4);
+  color: var(--accent-pink);
+}
+
+.btn-danger:hover {
+  background: rgba(235, 111, 146, 0.3);
+}
+
+

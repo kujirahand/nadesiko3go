@@ -28,6 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalTitle = document.getElementById('modal-title');
   const modalBody = document.getElementById('modal-body');
 
+  // 汎用インタラクティブダイアログ要素 (WebViewでalert/confirm/promptが効かない対策)
+  const dialogOverlay = document.getElementById('dialog-overlay');
+  const dialogTitle = document.getElementById('dialog-title');
+  const dialogMessage = document.getElementById('dialog-message');
+  const dialogInputWrapper = document.getElementById('dialog-input-wrapper');
+  const dialogInput = document.getElementById('dialog-input');
+  const dialogBtnCancel = document.getElementById('dialog-btn-cancel');
+  const dialogBtnDiscard = document.getElementById('dialog-btn-discard');
+  const dialogBtnOk = document.getElementById('dialog-btn-ok');
+
   // タブボタン
   const tabBtnCmd = document.getElementById('tab-btn-cmd');
   const tabBtnTemplate = document.getElementById('tab-btn-template');
@@ -117,6 +127,126 @@ document.addEventListener('DOMContentLoaded', () => {
     modeBadge.style.background = isWindow ? 'rgba(243, 139, 168, 0.15)' : 'rgba(148, 226, 213, 0.12)';
     setStatus(`アプリ種類を「${isWindow ? 'ウィンドウ' : 'コマンドライン'}」に変更しました`);
   });
+
+  // --- 汎用ダイアログ関数 (WebView対応) ---
+  function showSaveConfirmDialog(filename) {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = '保存確認';
+      dialogMessage.textContent = `「${filename}」は変更されています。\n変更を保存しますか？`;
+      dialogInputWrapper.style.display = 'none';
+
+      dialogBtnCancel.style.display = 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+
+      dialogBtnDiscard.style.display = 'inline-flex';
+      dialogBtnDiscard.textContent = '保存せず開く';
+
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = '保存して開く';
+
+      dialogOverlay.style.display = 'flex';
+      dialogBtnOk.focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnDiscard.removeEventListener('click', onDiscard);
+        dialogBtnOk.removeEventListener('click', onOk);
+      }
+
+      function onCancel() {
+        cleanup();
+        resolve('cancel');
+      }
+      function onDiscard() {
+        cleanup();
+        resolve('discard');
+      }
+      function onOk() {
+        cleanup();
+        resolve('save');
+      }
+
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnDiscard.addEventListener('click', onDiscard);
+      dialogBtnOk.addEventListener('click', onOk);
+    });
+  }
+
+  function showPromptDialog(title, message, defaultValue = '') {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = title;
+      dialogMessage.textContent = message;
+      dialogInputWrapper.style.display = 'block';
+      dialogInput.value = defaultValue;
+
+      dialogBtnCancel.style.display = 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = '保存';
+
+      dialogOverlay.style.display = 'flex';
+      dialogInput.focus();
+      dialogInput.select();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOk);
+        dialogInput.removeEventListener('keydown', onKeyDown);
+      }
+
+      function onCancel() {
+        cleanup();
+        resolve(null);
+      }
+      function onOk() {
+        const val = dialogInput.value.trim();
+        cleanup();
+        resolve(val || null);
+      }
+      function onKeyDown(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onOk();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      }
+
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOk);
+      dialogInput.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  function showAlertDialog(title, message) {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = title;
+      dialogMessage.textContent = message;
+      dialogInputWrapper.style.display = 'none';
+
+      dialogBtnCancel.style.display = 'none';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = 'OK';
+
+      dialogOverlay.style.display = 'flex';
+      dialogBtnOk.focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnOk.removeEventListener('click', onOk);
+      }
+      function onOk() {
+        cleanup();
+        resolve();
+      }
+      dialogBtnOk.addEventListener('click', onOk);
+    });
+  }
 
   // --- ハンバーガーメニュー・モーダル処理 ---
   function toggleHamburger() {
@@ -247,12 +377,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (editor.value === savedContent) {
       return true;
     }
-    const choice = confirm(`「${currentFileDisplayName}」は変更されています。\n保存しますか？\n\n・「OK」を押すと保存して続行します。\n・「キャンセル」を押すと保存せずに続行します。`);
-    if (choice) {
-      const ok = await saveFile();
-      return ok;
+    const action = await showSaveConfirmDialog(currentFileDisplayName);
+    if (action === 'cancel') {
+      return false;
     }
-    return true; // 破棄して続行
+    if (action === 'save') {
+      const saved = await saveFile();
+      return saved;
+    }
+    if (action === 'discard') {
+      return true;
+    }
+    return false;
   }
 
   // --- ひな形一覧の読み込みと検索 ---
@@ -599,7 +735,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 「＋ 新規ファイル」ボタンのクリック処理 (YYYY-MM-DD-新規-1.nako3 を自動生成)
   btnNewFile.addEventListener('click', async () => {
     if (typeof window.createNewFile !== 'function') {
-      alert('新規ファイル作成機能が利用できません');
+      await showAlertDialog('エラー', '新規ファイル作成機能が利用できません');
       return;
     }
     if (!(await confirmSaveIfDirty())) return;
@@ -613,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await openFile(data.path, data.name);
         setStatus(`新規ファイル「${data.name}」を作成して開きました`);
       } else {
-        alert(`新規ファイルを作成できませんでした: ${data.error}`);
+        await showAlertDialog('作成エラー', `新規ファイルを作成できませんでした: ${data.error}`);
         setStatus(`作成エラー: ${data.error}`);
       }
     } catch (err) {
@@ -639,7 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCursorPos();
         setStatus(`開きました: ${fileName}`);
       } else {
-        alert(`ファイルを開けませんでした: ${data.error}`);
+        await showAlertDialog('エラー', `ファイルを開けませんでした: ${data.error}`);
         setStatus(`エラー: ${data.error}`);
       }
     } catch (err) {
@@ -650,7 +786,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function saveFile() {
     let targetPath = currentFilePath;
     if (!targetPath) {
-      const name = prompt('保存するファイル名（例: my_script.nako3）:', currentFileDisplayName.startsWith('新規') ? currentFileDisplayName : 'program.nako3');
+      const defaultName = currentFileDisplayName.startsWith('新規') ? currentFileDisplayName : 'program.nako3';
+      const name = await showPromptDialog('ファイルを保存', '保存するファイル名を入力してください:', defaultName);
       if (!name) return false;
       targetPath = (currentDirPath || homeDirPath) + '/' + name;
       currentFilePath = targetPath;
@@ -672,12 +809,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return true;
       } else {
-        alert(`保存に失敗しました: ${data.error}`);
+        await showAlertDialog('保存エラー', `保存に失敗しました: ${data.error}`);
         setStatus(`保存エラー: ${data.error}`);
         return false;
       }
     } catch (err) {
       console.error('保存エラー:', err);
+      await showAlertDialog('システムエラー', `保存エラー: ${err.message || err}`);
       return false;
     }
   }
