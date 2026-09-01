@@ -14,13 +14,8 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
-	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
-
-func init() {
-	vm.RegisterPlugin(sqlitelib.New())
-}
 
 // Version is the current release version of gonako-cui.
 var Version = "3.6.0"
