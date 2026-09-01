@@ -229,9 +229,17 @@ func (c *Compiler) compileAtohantei(n *ast.Node) {
 }
 
 // compileRepeatTimes compiles 『N回…ここまで』. 『回数』 counts from 1.
+//
+// The previous 『回数』 is saved and put back afterwards, so a nested loop does
+// not clobber the count of the loop around it. 『それ』 is restored from the
+// same saved value, which is what the TypeScript version does.
 func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	counter := c.slot(c.tempName("回"))
 	limit := c.slot(c.tempName("回上限"))
+	saved := c.slot(c.tempName("回数退避"))
+
+	c.emit(ir.OpLoadGlobal, c.constString(SysCount), 0, n)
+	c.emit(ir.OpStoreLocal, saved, 0, n)
 
 	c.compileExpr(n.Block(0))
 	c.emit(ir.OpStoreLocal, limit, 0, n)
@@ -261,6 +269,12 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	c.emit(ir.OpJump, top, 0, n)
 	c.patch(toEnd, c.here())
 	c.popLoop(loop)
+
+	// 抜けた後に退避しておいた値へ戻す。『抜ける』もここへ来る。
+	c.emit(ir.OpLoadLocal, saved, 0, n)
+	c.emit(ir.OpDup, 0, 0, n)
+	c.emit(ir.OpStoreGlobal, c.constString(SysCount), 0, n)
+	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 }
 
 // compileFor compiles 『AからBまで繰り返す』.
@@ -340,10 +354,23 @@ func (c *Compiler) compileFor(n *ast.Node) {
 }
 
 // compileForeach compiles 『(配列)を反復』, setting 『対象』 and 『対象キー』.
+//
+// The three values the loop takes over — 『対象』『対象キー』『それ』 — are saved
+// and put back afterwards, so a nested loop leaves the outer one intact.
 func (c *Compiler) compileForeach(n *ast.Node) {
 	target := c.slot(c.tempName("反復対象"))
 	keys := c.slot(c.tempName("反復キー"))
 	index := c.slot(c.tempName("反復添字"))
+	savedTarget := c.slot(c.tempName("対象退避"))
+	savedKey := c.slot(c.tempName("対象キー退避"))
+	savedSore := c.slot(c.tempName("それ退避"))
+
+	c.emit(ir.OpLoadGlobal, c.constString(SysTarget), 0, n)
+	c.emit(ir.OpStoreLocal, savedTarget, 0, n)
+	c.emit(ir.OpLoadGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpStoreLocal, savedKey, 0, n)
+	c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreLocal, savedSore, 0, n)
 
 	if t := n.Block(0); t != nil && t.Type != ast.Nop {
 		c.compileExpr(t)
@@ -398,6 +425,14 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	c.emit(ir.OpJump, top, 0, n)
 	c.patch(toEnd, c.here())
 	c.popLoop(loop)
+
+	// 抜けた後に退避しておいた値へ戻す
+	c.emit(ir.OpLoadLocal, savedTarget, 0, n)
+	c.emit(ir.OpStoreGlobal, c.constString(SysTarget), 0, n)
+	c.emit(ir.OpLoadLocal, savedKey, 0, n)
+	c.emit(ir.OpStoreGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpLoadLocal, savedSore, 0, n)
+	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 }
 
 // compileSwitch compiles 『(値)で条件分岐』. blocks[0] is the value, blocks[1]

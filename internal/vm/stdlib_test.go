@@ -180,3 +180,24 @@ func TestSoreStartsEmpty(t *testing.T) {
 		t.Errorf("それ = %q, want \"\"", got)
 	}
 }
+
+// TestNestedLoopSystemVars pins that a nested loop puts back the system
+// variables it took over. 『回』 saves 『回数』 and 『反復』 saves 『対象』
+// 『対象キー』『それ』; 『繰返』 saves nothing, matching nako_gen.mts.
+func TestNestedLoopSystemVars(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{"回数", "2回\n2回\nここまで\n回数を表示\nここまで", "1\n2"},
+		{"対象", "[1,2]を反復\n[9]を反復\nここまで\n対象を表示\nここまで", "1\n2"},
+		{"条件の中の入れ子", "3回\nもし回数=2ならば\n1回\nここまで\nここまで\n回数を表示\nここまで", "1\n2\n3"},
+		{"対象キー", `[1,2]を反復` + "\n" + `{"x":9}を反復` + "\nここまで\n対象キーを表示\nここまで", "0\n1"},
+		// 『抜ける』で出ても元に戻る
+		{"抜けた後", "2回\n3回\n抜ける\nここまで\n回数を表示\nここまで", "1\n2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
