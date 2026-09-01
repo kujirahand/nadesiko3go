@@ -38,6 +38,7 @@ func datetimeImpls(m map[string]Impl) {
 	m["システム時間ミリ秒"] = func(ctx Context, _ []value.Value) (value.Value, error) {
 		return value.Number(float64(ctx.Now().UnixMilli())), nil
 	}
+	m["時間ミリ秒取得"] = m["システム時間ミリ秒"]
 	m["曜日"] = func(ctx Context, a []value.Value) (value.Value, error) {
 		t, err := parseDate(str(a, 0), ctx.Now().Location())
 		if err != nil {

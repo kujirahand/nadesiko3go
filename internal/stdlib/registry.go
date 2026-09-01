@@ -73,14 +73,25 @@ func ParserFuncList() lexer.FuncList {
 	addConst("半角カナ一覧", "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝｧｨｩｪｫｬｭｮｯ､｡ｰ｢｣ﾞﾟ")
 	addConst("半角カナ濁音一覧", "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾋﾞﾌﾞﾍﾞﾎﾞﾊﾟﾋﾟﾌﾟﾍﾟﾎﾟ")
 	addConst("元号データ", eraDataConst{})
+	addConst("戻値無", 0)
+	addConst("戻値有", 1)
 	addFunc("空配列", nil)
+	addFunc("空辞書", nil)
+	addFunc("空ハッシュ", nil)
+	addFunc("空オブジェクト", nil)
 	// 『正規表現マッチ』が部分マッチを入れる先。初期値は空の配列。
 	addConst("抽出文字列", emptyArrayConst{})
 
 	addFunc("表示", [][]string{{"を", "と"}})
 	list["表示"].ReturnNone = true
+	addFunc("言", [][]string{{"を", "と"}})
+	list["言"].ReturnNone = true
+	addFunc("コンソール表示", [][]string{{"を", "と"}})
+	list["コンソール表示"].ReturnNone = true
 	addFunc("継続表示", [][]string{{"を", "と"}})
 	list["継続表示"].ReturnNone = true
+	addFunc("表示ログクリア", nil)
+	list["表示ログクリア"].ReturnNone = true
 	for _, name := range []string{"連続表示", "連続無改行表示"} {
 		addFunc(name, [][]string{{"と", "を"}})
 		list[name].IsVariableJosi = true
@@ -217,6 +228,7 @@ func ParserFuncList() lexer.FuncList {
 	}
 	addFunc("URLパラメータ解析", [][]string{{"を", "の", "から"}})
 	addFunc("拡張子変更", [][]string{{"の", "を", "から"}, {"に", "へ"}})
+	addFunc("拡張子抽出", [][]string{{"から", "の"}})
 	addFunc("終端パス追加", [][]string{{"に", "へ"}})
 	addFunc("終端パス除去", [][]string{{"の", "から"}})
 	addFunc("終端パス削除", [][]string{{"の", "から"}})
@@ -304,7 +316,7 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("JSON取得", [][]string{{"を", "の", "から"}})
 	addFunc("JSONエンコード整形", [][]string{{"を", "の"}})
 
-	for _, name := range []string{"今", "今日", "明日", "昨日", "今年", "来年", "去年", "今月", "来月", "先月", "システム時間", "システム時間ミリ秒"} {
+	for _, name := range []string{"今", "今日", "明日", "昨日", "今年", "来年", "去年", "今月", "来月", "先月", "システム時間", "システム時間ミリ秒", "時間ミリ秒取得"} {
 		addFunc(name, nil)
 	}
 	addFunc("曜日", [][]string{{"の"}})
@@ -327,13 +339,17 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("正規表現置換", [][]string{{"の"}, {"を", "から"}, {"で", "に", "へ"}})
 	addFunc("正規表現区切", [][]string{{"を"}, {"で"}})
 
-	addFunc("秒待", [][]string{{""}})
-	list["秒待"].AsyncFn = true
-	list["秒待"].ReturnNone = true
-	for _, name := range []string{"秒後", "秒毎"} {
+	for _, name := range []string{"秒待", "秒待機"} {
+		addFunc(name, [][]string{{""}})
+		list[name].AsyncFn = true
+		list[name].ReturnNone = true
+	}
+	for _, name := range []string{"秒後", "秒毎", "秒タイマー開始時"} {
 		addFunc(name, [][]string{{"を"}, {""}})
 	}
 	addFunc("タイマー停止", [][]string{{"の", "で"}})
+	addFunc("全タイマー停止", nil)
+	list["全タイマー停止"].ReturnNone = true
 
 	return list
 }

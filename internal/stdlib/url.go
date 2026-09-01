@@ -87,4 +87,14 @@ func urlImpls(m map[string]Impl) {
 		old := path.Ext(name)
 		return value.String(strings.TrimSuffix(name, old) + ext), nil
 	}
+	m["拡張子抽出"] = func(_ Context, a []value.Value) (value.Value, error) {
+		s := str(a, 0)
+		if i := strings.LastIndex(s, "/"); i >= 0 {
+			s = s[i+1:]
+		}
+		if i := strings.LastIndex(s, "."); i >= 0 {
+			return value.String(s[i:]), nil
+		}
+		return value.String(""), nil
+	}
 }

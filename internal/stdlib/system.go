@@ -44,6 +44,12 @@ func implementations() map[string]Impl {
 		return value.Undefined(), nil
 	}
 	m["ハテナ関数実行"] = m["表示"] // 『??』のエイリアス #1745
+	m["言"] = m["表示"]
+	m["コンソール表示"] = m["表示"]
+	m["表示ログクリア"] = func(ctx Context, _ []value.Value) (value.Value, error) {
+		ctx.SetSysVar("表示ログ", value.String(""))
+		return value.Undefined(), nil
+	}
 
 	// --- 演算 ---
 	m["足"] = binaryNumber(func(a, b value.Value) float64 {
@@ -64,6 +70,11 @@ func implementations() map[string]Impl {
 	m["空配列"] = func(_ Context, _ []value.Value) (value.Value, error) {
 		return value.ArrayValue(value.NewArray()), nil
 	}
+	m["空辞書"] = func(_ Context, _ []value.Value) (value.Value, error) {
+		return value.DictValue(value.NewDict()), nil
+	}
+	m["空ハッシュ"] = m["空辞書"]
+	m["空オブジェクト"] = m["空辞書"]
 
 	// --- 型変換と判定 ---
 	m["整数変換"] = func(_ Context, args []value.Value) (value.Value, error) {
