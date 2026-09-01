@@ -160,6 +160,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const versionInfo = document.getElementById('version-info');
   const activeFileName = document.getElementById('active-file-name');
 
+  // ハンバーガーメニュー & モーダル要素
+  const btnHamburger = document.getElementById('btn-hamburger');
+  const hamburgerMenu = document.getElementById('hamburger-menu');
+  const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
+  const menuItemAbout = document.getElementById('menu-item-about');
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalClose = document.getElementById('modal-close');
+  const modalTitle = document.getElementById('modal-title');
+  const modalBody = document.getElementById('modal-body');
+
   // タブボタン
   const tabBtnCmd = document.getElementById('tab-btn-cmd');
   const tabBtnTemplate = document.getElementById('tab-btn-template');
@@ -224,6 +234,100 @@ document.addEventListener('DOMContentLoaded', () => {
     modeBadge.style.color = isWindow ? 'var(--accent-pink)' : 'var(--accent-teal)';
     modeBadge.style.background = isWindow ? 'rgba(243, 139, 168, 0.15)' : 'rgba(148, 226, 213, 0.12)';
     setStatus(`アプリ種類を「${isWindow ? 'ウィンドウ' : 'コマンドライン'}」に変更しました`);
+  });
+
+  // --- ハンバーガーメニュー・モーダル処理 ---
+  function toggleHamburger() {
+    const isShown = hamburgerMenu.style.display === 'flex';
+    hamburgerMenu.style.display = isShown ? 'none' : 'flex';
+  }
+
+  function closeHamburger() {
+    if (hamburgerMenu) hamburgerMenu.style.display = 'none';
+  }
+
+  btnHamburger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleHamburger();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (hamburgerMenu && !hamburgerMenu.contains(e.target) && e.target !== btnHamburger) {
+      closeHamburger();
+    }
+  });
+
+  function openShortcutsModal() {
+    closeHamburger();
+    modalTitle.textContent = 'ショートカットキー一覧';
+    modalBody.innerHTML = `
+      <table class="shortcuts-table">
+        <thead>
+          <tr>
+            <th>ショートカットキー</th>
+            <th>動作</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><kbd>F5</kbd></td>
+            <td>プログラムを実行</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>R</kbd> / <kbd>Cmd</kbd> + <kbd>R</kbd></td>
+            <td>プログラムを実行</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>Enter</kbd> / <kbd>Cmd</kbd> + <kbd>Enter</kbd></td>
+            <td>プログラムを実行</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd></td>
+            <td>ファイルを上書き保存</td>
+          </tr>
+          <tr>
+            <td><kbd>Tab</kbd></td>
+            <td>タブ文字（インデント）を挿入</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>L</kbd></td>
+            <td>実行ログを消去</td>
+          </tr>
+          <tr>
+            <td><kbd>Esc</kbd></td>
+            <td>ダイアログを閉じる</td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+    modalOverlay.style.display = 'flex';
+  }
+
+  function openAboutModal() {
+    closeHamburger();
+    modalTitle.textContent = 'バージョン情報';
+    modalBody.innerHTML = `
+      <div style="text-align:center;padding:12px 0;">
+        <div style="font-size:36px;margin-bottom:8px;">🌸</div>
+        <h4 style="font-size:16px;color:var(--accent-pink);margin-bottom:6px;">なでしこ3 GUI (gonako-gui)</h4>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">バージョン: v3.6.0 (Go言語版)</p>
+        <p style="font-size:12px;line-height:1.6;color:var(--text-main);">
+          日本語プログラミング言語「なでしこ3」のGoネイティブデスクトップGUI環境です。
+        </p>
+      </div>
+    `;
+    modalOverlay.style.display = 'flex';
+  }
+
+  function closeModal() {
+    modalOverlay.style.display = 'none';
+  }
+
+  menuItemShortcuts.addEventListener('click', openShortcutsModal);
+  menuItemAbout.addEventListener('click', openAboutModal);
+  modalClose.addEventListener('click', closeModal);
+  modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) closeModal();
   });
 
   // --- ひな形一覧の表示と検索 ---
@@ -498,19 +602,49 @@ document.addEventListener('DOMContentLoaded', () => {
   editor.addEventListener('keyup', updateCursorPos);
   editor.addEventListener('click', updateCursorPos);
 
-  // ショートカットキー対応
+  // グローバルおよびエディタのキーボードショートカット対応
+  window.addEventListener('keydown', (e) => {
+    // F5 で実行
+    if (e.key === 'F5') {
+      e.preventDefault();
+      runCode();
+      return;
+    }
+    // Ctrl+R / Cmd+R で実行
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+      e.preventDefault();
+      runCode();
+      return;
+    }
+    // Ctrl+Enter / Cmd+Enter で実行
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      runCode();
+      return;
+    }
+    // Ctrl+S / Cmd+S で保存
+    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      saveFile();
+      return;
+    }
+    // Ctrl+L でログ消去
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) {
+      e.preventDefault();
+      btnClearLog.click();
+      return;
+    }
+    // Esc でモーダルを閉じる
+    if (e.key === 'Escape') {
+      closeModal();
+      closeHamburger();
+    }
+  });
+
   editor.addEventListener('keydown', (e) => {
     if (e.key === 'Tab') {
       e.preventDefault();
       insertTextAtCursor('\t');
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'Enter' || e.key === 'r' || e.key === 'R')) {
-      e.preventDefault();
-      runCode();
-    }
-    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
-      e.preventDefault();
-      saveFile();
     }
   });
 
