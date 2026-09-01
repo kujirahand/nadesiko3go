@@ -10,7 +10,6 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
-	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
@@ -155,9 +154,24 @@ func RunWithHost(code, filename string, h Host) error {
 	return New(prog, registry, h, options).Run()
 }
 
+// RunWithHostAndRegistry compiles and runs a program with a custom registry.
+func RunWithHostAndRegistry(code, filename string, registry *stdlib.Registry, h Host) error {
+	tree, err := parser.ParseSource(code, filename, registry.FuncList())
+	if err != nil {
+		return err
+	}
+	prog, err := compiler.Compile(tree, filename, registry)
+	if err != nil {
+		return err
+	}
+	options := DefaultOptions()
+	options.RealSleep = true
+	return New(prog, registry, h, options).Run()
+}
+
 func runtimeRegistry() *stdlib.Registry {
 	return stdlib.NewRegistry(
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(),
 	)
 }

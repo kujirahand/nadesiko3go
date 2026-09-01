@@ -16,11 +16,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
+	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 	"github.com/webview/webview_go"
@@ -419,12 +422,17 @@ func main() {
 	w.SetTitle(*titleFlag)
 	w.SetSize(*widthFlag, *heightFlag, webview.HintNone)
 
+	guiRegistry := stdlib.NewRegistry(
+		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+	)
+
 	// Go ↔ JavaScript バインディング: なでしこコードの実行
 	_ = w.Bind("runNakoCode", func(code string) string {
 		var outBuf strings.Builder
 		host := vm.NewCUIHost(&outBuf, strings.NewReader(""), nil)
 
-		runErr := vm.RunProgram(code, "gui.nako3", host)
+		runErr := vm.RunWithHostAndRegistry(code, "gui.nako3", guiRegistry, host)
 		result := RunResult{
 			OK:     runErr == nil,
 			Output: outBuf.String(),

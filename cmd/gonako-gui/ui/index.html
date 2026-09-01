@@ -25,8 +25,8 @@
         <div class="app-type-group">
           <label for="select-app-type" class="label-app-type">種類:</label>
           <select id="select-app-type" class="select-app-type" title="実行するアプリの種類を選択">
-            <option value="cli" selected>コマンドライン</option>
-            <option value="window">ウィンドウ</option>
+            <option value="window" selected>ウィンドウ</option>
+            <option value="cli">コマンドライン</option>
           </select>
         </div>
         <div class="separator"></div>
@@ -124,7 +124,7 @@
           <div class="pane-header">
             <div class="pane-header-left">
               <span class="pane-title">実行結果</span>
-              <span id="mode-badge" class="mode-badge">コマンドライン</span>
+              <span id="mode-badge" class="mode-badge" style="color: var(--accent-pink); background: rgba(243, 139, 168, 0.15);">ウィンドウ</span>
             </div>
             <div class="output-actions">
               <span id="exec-status" class="status-indicator">待機中</span>
