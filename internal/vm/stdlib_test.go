@@ -1,6 +1,7 @@
 package vm_test
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -308,5 +309,22 @@ func TestRunawayTimerStops(t *testing.T) {
 	_, err := vm.RunSource("F=関数()\nここまで\nFを0.001秒毎\n1000000秒待つ", "main.nako3", nil)
 	if err == nil {
 		t.Fatal("止まらないタイマーがエラーにならなかった")
+	}
+}
+
+// TestRealSleepWaits verifies that when RealSleep option is enabled, Wait pauses in real time.
+func TestRealSleepWaits(t *testing.T) {
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	started := time.Now()
+	if err := vm.RunProgram("0.05秒待つ\n「完了」と表示", "main.nako3", host); err != nil {
+		t.Fatalf("RunProgram failed: %v", err)
+	}
+	elapsed := time.Since(started)
+	if elapsed < 40*time.Millisecond {
+		t.Errorf("RealSleep elapsed = %v, expected at least 40ms", elapsed)
+	}
+	if strings.TrimSpace(out.String()) != "完了" {
+		t.Errorf("output = %q, want '完了'", out.String())
 	}
 }

@@ -80,6 +80,10 @@ type Options struct {
 	// returns. Normal programs enable it; DocTest disables it to match cnako's
 	// synchronous documentation runner.
 	DrainPendingCallbacks bool
+	// RealSleep makes Wait pause for the real time using time.Sleep,
+	// which is what interactive CUI programs need. Tests and compat runners
+	// leave it false so that runs stay instant and deterministic.
+	RealSleep bool
 }
 
 // DefaultOptions is generous enough for a program that means it, and small

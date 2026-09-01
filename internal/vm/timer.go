@@ -59,10 +59,13 @@ func (m *VM) CancelTimer(id float64) bool {
 func (m *VM) CancelAllTimers() { m.loop.CancelAll() }
 
 // Wait moves the clock forward, running the callbacks that come due on the
-// way. It never sleeps: the clock is virtual (AGENTS.md §8).
+// way. When RealSleep is enabled, it pauses in real time.
 func (m *VM) Wait(seconds float64) error {
 	if math.IsNaN(seconds) || seconds < 0 {
 		seconds = 0
+	}
+	if m.options.RealSleep && seconds > 0 {
+		time.Sleep(time.Duration(seconds * float64(time.Second)))
 	}
 	until := m.loop.Now().Add(time.Duration(seconds * float64(time.Second)))
 	return m.loop.RunUntil(until, m.dispatch)

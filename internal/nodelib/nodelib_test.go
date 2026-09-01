@@ -194,3 +194,121 @@ func TestRunFile(t *testing.T) {
 		t.Errorf("出力 = %q, want \"やあ\"", got)
 	}
 }
+
+func TestCryptoCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+「ハッシュ一覧: {(ハッシュ関数一覧取得の要素数)>0}」と表示
+A=「hello」の「sha256」でハッシュ値計算
+「sha256: {A}」と表示
+B=「hello」の「md5」でハッシュ値計算
+「md5: {B}」と表示
+U=ランダムUUID生成
+「UUID長: {Uの文字数}」と表示
+P=5のランダム配列生成
+「配列長: {Pの要素数}」と表示
+`)
+	want := strings.Join([]string{
+		"ハッシュ一覧: true",
+		"sha256: 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		"md5: 5d41402abc4b2a76b9719d911017c592",
+		"UUID長: 36",
+		"配列長: 5",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestZipCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+"src"のフォルダ作成
+「test content」を"src/test.txt"に保存
+"src"を"archive.zip"へ圧縮
+「zip存在: {"archive.zip"が存在}」と表示
+"archive.zip"を"out_dir"へ解凍
+「解凍後存在: {"out_dir/src/test.txt"が存在}」と表示
+「解凍後内容: {"out_dir/src/test.txt"を開く}」と表示
+`)
+	want := strings.Join([]string{
+		"zip存在: true",
+		"解凍後存在: true",
+		"解凍後内容: test content",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestExtendedFileCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+"dirA/sub"のフォルダ作成
+「a」を"dirA/1.txt"に保存
+「b」を"dirA/sub/2.txt"に保存
+「c」を"dirA/sub/3.png"に保存
+List="dirA/*.txt"の全ファイル列挙
+「全列挙件数: {Listの要素数}」と表示
+Info="dirA/1.txt"のファイル情報取得
+「情報サイズ: {Info["サイズ"]}」と表示
+「情報ディレクトリ: {Info["ディレクトリ"]}」と表示
+Tmp=一時フォルダ作成
+「一時フォルダ存在: {Tmpがフォルダ存在}」と表示
+Rel="dirA"で"sub/2.txt"を相対パス展開
+「相対展開: {Relの文字数 > 0}」と表示
+「デスクトップ: {(デスクトップの文字数)>0}」と表示
+「マイドキュメント: {(マイドキュメントの文字数)>0}」と表示
+「母艦パス取得: {(母艦パス取得の文字数)>0}」と表示
+`)
+	want := strings.Join([]string{
+		"全列挙件数: 2",
+		"情報サイズ: 1",
+		"情報ディレクトリ: false",
+		"一時フォルダ存在: true",
+		"相対展開: true",
+		"デスクトップ: true",
+		"マイドキュメント: true",
+		"母艦パス取得: true",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestExtendedOSCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+1と1がASSERT等
+「ASSERT成功」と表示
+Out=「echo hello」を起動待機
+「起動待機: {Outのトリム}」と表示
+`)
+	want := strings.Join([]string{
+		"ASSERT成功",
+		"起動待機: hello",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestNetCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+A={}
+A["name"] = "太郎"
+A["age"] = "20"
+PostData = AのPOSTデータ生成
+「POSTデータ: {PostData}」と表示
+「IP取得: {(自分IPアドレス取得の文字数)>0}」と表示
+「IPV6取得: {(自分IPV6アドレス取得の文字数)>0}」と表示
+`)
+	// query params ordering in Go url.Values is sorted: age=20&name=...
+	if !strings.Contains(got, "POSTデータ: age=20&name=%E5%A4%AA%E9%83%8E") ||
+		!strings.Contains(got, "IP取得: true") ||
+		!strings.Contains(got, "IPV6取得: true") {
+		t.Errorf("NetCommands unexpected result: %s", got)
+	}
+}
+

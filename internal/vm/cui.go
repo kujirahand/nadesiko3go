@@ -41,9 +41,23 @@ func NewCUIHost(out io.Writer, in io.Reader, args []string) *CUIHost {
 	return &CUIHost{Out: out, In: bufio.NewReader(in), CmdArgs: args}
 }
 
-func (h *CUIHost) Print(s string) { fmt.Fprintln(h.Out, s) }
+func (h *CUIHost) Print(s string) {
+	fmt.Fprintln(h.Out, s)
+	if f, ok := h.Out.(interface{ Flush() error }); ok {
+		_ = f.Flush()
+	} else if f, ok := h.Out.(interface{ Flush() }); ok {
+		f.Flush()
+	}
+}
 
-func (h *CUIHost) Write(s string) { fmt.Fprint(h.Out, s) }
+func (h *CUIHost) Write(s string) {
+	fmt.Fprint(h.Out, s)
+	if f, ok := h.Out.(interface{ Flush() error }); ok {
+		_ = f.Flush()
+	} else if f, ok := h.Out.(interface{ Flush() }); ok {
+		f.Flush()
+	}
+}
 
 func (h *CUIHost) ReadLine() (string, error) {
 	line, err := h.In.ReadString('\n')
@@ -113,7 +127,9 @@ func CompileProgram(code, filename string) (*ir.Program, error) {
 // RunCompiled runs IR that was compiled earlier, which is how a bundled
 // executable starts: the program is already compiled inside it.
 func RunCompiled(prog *ir.Program, h *CUIHost) error {
-	return New(prog, runtimeRegistry(), h, DefaultOptions()).Run()
+	opts := DefaultOptions()
+	opts.RealSleep = true
+	return New(prog, runtimeRegistry(), h, opts).Run()
 }
 
 // RunWithHost compiles and runs a program against any host, which the doctest
