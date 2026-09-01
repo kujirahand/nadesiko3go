@@ -40,6 +40,13 @@ func (p *Parser) yLet() *ast.Node {
 		return &ast.Node{Type: ast.Let, Name: word.StringValue(), Blocks: []*ast.Node{value}, SourceMap: m, End: &end}
 	}
 
+	// 『A,B,C=配列』: 配列の各要素を複数の変数へ順に代入する。
+	// 通常のカンマ区切り文と区別するため、2個以上の単語の直後に = が
+	// あるところまで先読みしてからトークンを消費する。
+	if n := p.yLetVarList(m); n != nil {
+		return n
+	}
+
 	if p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"@"}}) || p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"["}}) {
 		if n := p.yLetArrayChain(m); n != nil {
 			if p.check(lexer.TypeComma) {
@@ -73,6 +80,40 @@ func (p *Parser) yLet() *ast.Node {
 		return &ast.Node{Type: ast.DefLocalVar, Name: name, VarType: string(vtype.Type), IsExport: isExport, Blocks: []*ast.Node{value}, SourceMap: m, End: &end}
 	}
 	return nil
+}
+
+func (p *Parser) yLetVarList(m ast.SourceMap) *ast.Node {
+	saved := p.index
+	var words []*lexer.Token
+	for {
+		if !p.check(lexer.TypeWord) {
+			p.index = saved
+			return nil
+		}
+		words = append(words, p.get())
+		if !p.check(lexer.TypeComma) {
+			break
+		}
+		p.get()
+	}
+	if len(words) < 2 || !p.check("eq") {
+		p.index = saved
+		return nil
+	}
+	p.get()
+	rhs := p.yCalc()
+	if rhs == nil || rhs.Type == ast.EOL {
+		p.failAt("複数変数への代入文で右辺の値がありません。", m)
+	}
+	names := make([]*ast.Node, 0, len(words))
+	for _, word := range words {
+		name := p.createVar(word, word.StringValue(), false, p.isExportDefault)
+		node := p.wordNode(word)
+		node.Value = name
+		names = append(names, node)
+	}
+	end := p.peekSourceMap(nil)
+	return &ast.Node{Type: ast.DefLocalVarList, Names: names, VarType: "変数", Blocks: []*ast.Node{rhs}, SourceMap: m, End: &end}
 }
 
 func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {

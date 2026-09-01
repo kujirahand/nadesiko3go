@@ -5,6 +5,7 @@ package stdlib
 
 import (
 	"sort"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -21,10 +22,18 @@ type Context interface {
 	// CallFunc runs a function value, which the commands that take a function
 	// argument need (『配列マップ』 and 『配列フィルタ』).
 	CallFunc(fn *value.Func, args []value.Value) (value.Value, error)
+	// FindFunc resolves a user function by the name form accepted by commands
+	// such as 『実行』 and 『配列フィルタ』.
+	FindFunc(name string) *value.Func
+	CommandState(name string) value.Value
+	SetCommandState(name string, v value.Value)
 
 	// SetTimer schedules fn and reports the timer id. The commands keep the
 	// id as a number, because that is what 『対象』 holds.
 	SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, error)
+	// PostFunc queues a one-shot callback at the current virtual time. Database
+	// callback commands use it to match Node.js setImmediate ordering.
+	PostFunc(fn *value.Func, args []value.Value) error
 	// CancelTimer stops one timer and reports whether there was one.
 	CancelTimer(id float64) bool
 	// CancelAllTimers stops every timer.
@@ -43,6 +52,9 @@ type Context interface {
 	// when the program is not bundled, or has no such file, in which case the
 	// caller falls back to the real file system.
 	ReadResource(name string) ([]byte, bool)
+	// Now is owned by the VM event loop so tests and timer callbacks observe
+	// one deterministic clock.
+	Now() time.Time
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko
@@ -131,6 +143,15 @@ func constValue(v any) value.Value {
 		return value.Null()
 	case emptyArrayConst:
 		return value.ArrayValue(value.NewArray())
+	case eraDataConst:
+		items := make([]value.Value, 0, len(eras))
+		for _, era := range eras {
+			d := value.NewDict()
+			d.Set("元号", value.String(era.name))
+			d.Set("改元日", value.String(era.start))
+			items = append(items, value.DictValue(d))
+		}
+		return value.ArrayValue(value.NewArray(items...))
 	case bool:
 		return value.Bool(x)
 	case string:

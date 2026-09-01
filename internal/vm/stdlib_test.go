@@ -174,6 +174,17 @@ func TestRegexpUnsupported(t *testing.T) {
 	}
 }
 
+func TestFunctionParameterParticleAlternativesShareOneSlot(t *testing.T) {
+	code := "●英字判定(Sが|Sの|Sを)\n" +
+		"Sを「^[A-Za-z]」で正規表現マッチ。\n" +
+		"もし、それがNULLならば、いいえで戻る。\n" +
+		"違えば、はいで戻る。\nここまで。\n" +
+		"「abc」が英字判定して表示。\n「いろは」が英字判定して表示。"
+	if got := run(t, code); got != "true\nfalse" {
+		t.Fatalf("particle alternatives = %q, want true\\nfalse", got)
+	}
+}
+
 // TestSoreStartsEmpty pins that 『それ』 starts as an empty string, not as
 // undefined. An omitted argument reads it, so the difference is visible.
 func TestSoreStartsEmpty(t *testing.T) {

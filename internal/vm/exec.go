@@ -3,6 +3,7 @@ package vm
 import (
 	"io"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
@@ -40,6 +41,8 @@ func (c *Collector) Args() []string { return nil }
 
 // ReadResource has nothing packed with it.
 func (c *Collector) ReadResource(string) ([]byte, bool) { return nil, false }
+
+func (c *Collector) Now() time.Time { return startTime }
 
 // Log returns what was printed, with trailing whitespace removed.
 func (c *Collector) Log() string {

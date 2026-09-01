@@ -22,7 +22,7 @@ func (m *VM) SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, er
 
 	m.nextCallback++
 	id := m.nextCallback
-	m.callbacks[id] = fn
+	m.callbacks[id] = queuedCallback{fn: fn}
 
 	at := m.loop.Now().Add(delay)
 	var timerID host.TimerID
@@ -32,6 +32,19 @@ func (m *VM) SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, er
 		timerID = m.loop.Post(at, id)
 	}
 	return float64(timerID), nil
+}
+
+// PostFunc schedules a one-shot callback after the current statement stream.
+// Posting at the current virtual time preserves FIFO order without sleeping.
+func (m *VM) PostFunc(fn *value.Func, args []value.Value) error {
+	if fn == nil {
+		return errors.New("コールバックに指定できるのは関数だけです。")
+	}
+	m.nextCallback++
+	id := m.nextCallback
+	m.callbacks[id] = queuedCallback{fn: fn, args: append([]value.Value(nil), args...)}
+	m.loop.Post(m.loop.Now(), id)
+	return nil
 }
 
 // CancelTimer stops one timer.
@@ -63,11 +76,11 @@ func (m *VM) runPendingCallbacks() error {
 // dispatch runs one scheduled callback. An error inside a callback stops the
 // loop and surfaces as the program's error.
 func (m *VM) dispatch(id host.CallbackID) error {
-	fn, ok := m.callbacks[id]
+	callback, ok := m.callbacks[id]
 	if !ok {
 		return nil // 停止済みのタイマー
 	}
-	_, err := m.CallFunc(fn, nil)
+	_, err := m.CallFunc(callback.fn, callback.args)
 	return err
 }
 

@@ -88,6 +88,7 @@ nadesiko3go/
 │   ├── stdlib/            plugin_system 相当。★互換保証の対象
 │   │   ├── system/  string/  array/  dict/  math/  datetime/  json/  regexp/
 │   ├── nodelib/           plugin_node 相当。ファイル・OS・プロセス・ネットワーク
+│   ├── sqlitelib/         nadesiko3-sqlite3 相当。pure GoのSQLite命令
 │   ├── bundle/            単一ファイル梱包。リソースの仮想ファイルシステム
 │   ├── gogen/             Goソース生成バックエンド（段階10）
 │   └── compat/            差分fixtureの実行と結果出力
@@ -105,6 +106,9 @@ nadesiko3go/
 
 **`stdlib/` と `nodelib/` を分けているのが要点**です。前者だけが互換保証の対象で、
 後者はGoらしく再設計してよい領域です。混ぜると保証範囲が曖昧になります。
+`sqlitelib/` も外部プラグイン相当なので互換保証の対象外ですが、命令名・助詞・
+戻り値は `nadesiko3-sqlite3` に合わせます。DB本体は整数ハンドルで管理し、
+GoのポインタをValueとして公開しません。
 
 `re/` と `stdlib/regexp/` も役割が違います。`re/` は**エンジンの抽象**
 （パターンのコンパイル・マッチ・置換と、RE2 / regexp2 の切り替え）だけを持ち、
@@ -493,6 +497,9 @@ JS生成と違い、**標準命令の実装を二重に持つ必要がありま�
 
 ## 14. 本家リポジトリ（TypeScript版）側でやること
 
+- DocTestや差分fixtureの調査中に、**本家TypeScript版の命令実装ミス・仕様との不一致・
+  回帰不具合を見つけた場合は、Go版だけで回避せず、再現コードと期待結果・実際結果を添えて
+  [なでしこ3のIssues](https://github.com/kujirahand/nadesiko3/issues) に投稿する**
 - 差分fixtureを**育てる**。互換で困ったケースが見つかるたびに `cases/` へ足す
 - **UTF-16依存が見つかったらTS版側を直す**（`ゼロ埋` / `空白埋` /
   `カタカナ半角変換` は修正済み）。直したらサロゲートペアのケースを `cases/` に足し、

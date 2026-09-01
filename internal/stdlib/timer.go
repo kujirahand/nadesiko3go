@@ -37,6 +37,10 @@ func timerImpls(m map[string]Impl) {
 func setTimer(repeat bool) Impl {
 	return func(ctx Context, a []value.Value) (value.Value, error) {
 		fn, ok := arg(a, 0).Func()
+		if !ok && arg(a, 0).Kind() == value.KindString {
+			fn = ctx.FindFunc(value.ToString(arg(a, 0)))
+			ok = fn != nil
+		}
 		if !ok {
 			return value.Undefined(), errors.New("タイマーに指定できるのは関数だけです。")
 		}

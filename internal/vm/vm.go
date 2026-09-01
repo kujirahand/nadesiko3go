@@ -3,6 +3,7 @@ package vm
 
 import (
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
@@ -29,6 +30,8 @@ type Host interface {
 	Args() []string
 	// ReadResource reads a file packed into the executable, if there is one.
 	ReadResource(name string) ([]byte, bool)
+	// Now supplies the initial event-loop clock.
+	Now() time.Time
 }
 
 // VM runs one program.
@@ -48,12 +51,13 @@ type VM struct {
 	globalIndex map[string]int
 	// funcValues gives every function index a stable value identity, so that
 	// two references to the same function compare equal.
-	funcValues map[int]*value.Func
+	funcValues   map[int]*value.Func
+	commandState map[string]value.Value
 
 	// loop orders the timer callbacks and owns the virtual clock.
 	loop *event.Loop
-	// callbacks maps a scheduled callback to the function it runs.
-	callbacks    map[host.CallbackID]*value.Func
+	// callbacks maps a scheduled callback to the function and arguments it runs.
+	callbacks    map[host.CallbackID]queuedCallback
 	nextCallback host.CallbackID
 
 	// depth counts the nested calls, and executed counts the instructions
@@ -72,22 +76,27 @@ type Options struct {
 	MaxInstructions uint64
 	// MaxCallbacks bounds how many timer callbacks one run may dispatch.
 	MaxCallbacks int
+	// DrainPendingCallbacks runs callbacks left in the event queue after main
+	// returns. Normal programs enable it; DocTest disables it to match cnako's
+	// synchronous documentation runner.
+	DrainPendingCallbacks bool
 }
 
 // DefaultOptions is generous enough for a program that means it, and small
 // enough that a mistake fails quickly.
 func DefaultOptions() Options {
 	return Options{
-		MaxFrames:       10000,
-		MaxInstructions: 200_000_000,
-		MaxCallbacks:    event.DefaultMaxCallbacks,
+		MaxFrames:             10000,
+		MaxInstructions:       200_000_000,
+		MaxCallbacks:          event.DefaultMaxCallbacks,
+		DrainPendingCallbacks: true,
 	}
 }
 
 // New prepares a VM for a program. The loop starts at a fixed instant so that
 // two runs of the same program see the same clock.
 func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *VM {
-	loop := event.New(startTime)
+	loop := event.New(h.Now())
 	loop.MaxCallbacks = options.MaxCallbacks
 
 	constGlobals := map[int]bool{}
@@ -103,18 +112,22 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		if v, ok := registry.Const(name); ok {
 			globals[i].Value = v
 		}
+		if name == "名前空間" && len(prog.Sources) > 0 {
+			globals[i].Value = value.String(filepath.Base(prog.Sources[0].Name))
+		}
 	}
 
 	m := &VM{
-		prog:        prog,
-		registry:    registry,
-		host:        h,
-		globals:     globals,
-		globalIndex: index,
-		funcValues:  map[int]*value.Func{},
-		loop:        loop,
-		callbacks:   map[host.CallbackID]*value.Func{},
-		options:     options,
+		prog:         prog,
+		registry:     registry,
+		host:         h,
+		globals:      globals,
+		globalIndex:  index,
+		funcValues:   map[int]*value.Func{},
+		commandState: map[string]value.Value{},
+		loop:         loop,
+		callbacks:    map[host.CallbackID]queuedCallback{},
+		options:      options,
 	}
 	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
 	for id := ir.Special(0); id < ir.SpecialCount; id++ {
@@ -177,6 +190,9 @@ func (m *VM) Run() (err error) {
 	}()
 	m.call(m.prog.Main, nil)
 	// main が終わった後に残っている単発のコールバックを流す
+	if !m.options.DrainPendingCallbacks {
+		return nil
+	}
 	return m.runPendingCallbacks()
 }
 
@@ -201,6 +217,11 @@ type frame struct {
 type handler struct {
 	target     int // 飛び先
 	stackDepth int // 例外時にスタックを戻す深さ
+}
+
+type queuedCallback struct {
+	fn   *value.Func
+	args []value.Value
 }
 
 func (f *frame) push(v value.Value) { f.stack = append(f.stack, v) }

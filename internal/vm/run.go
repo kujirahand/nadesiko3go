@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
@@ -540,7 +541,18 @@ func (m *VM) fileName(i int) string {
 
 // --- stdlib.Context ---
 
-func (m *VM) Print(s string) { m.host.Print(s) }
+func (m *VM) Print(s string) {
+	if _, ok := m.globalIndex["表示ログ"]; ok {
+		log := value.ToString(m.loadGlobalByName("表示ログ"))
+		if log == "" {
+			log = s
+		} else {
+			log += "\n" + s
+		}
+		m.storeGlobalByName("表示ログ", value.String(log))
+	}
+	m.host.Print(s)
+}
 
 func (m *VM) Write(s string) { m.host.Write(s) }
 
@@ -582,3 +594,20 @@ func (m *VM) CallFunc(fn *value.Func, args []value.Value) (result value.Value, e
 	}()
 	return m.callClosure(fn.ID, fn.Captured, args), nil
 }
+
+func (m *VM) FindFunc(name string) *value.Func {
+	for i := range m.prog.Funcs {
+		fn := &m.prog.Funcs[i]
+		if fn.Name == name || strings.HasSuffix(fn.Name, "__"+name) {
+			if len(fn.Captures) != 0 {
+				return nil
+			}
+			return m.makeClosure(i, nil)
+		}
+	}
+	return nil
+}
+
+func (m *VM) CommandState(name string) value.Value { return m.commandState[name] }
+
+func (m *VM) SetCommandState(name string, v value.Value) { m.commandState[name] = v }

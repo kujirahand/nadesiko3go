@@ -24,6 +24,19 @@ func dictImpls(m map[string]Impl) {
 		}
 		return value.ArrayValue(value.NewArray(items...)), nil
 	}
+	m["ハッシュキー列挙"] = m["辞書キー列挙"]
+	m["ハッシュ内容列挙"] = func(_ Context, a []value.Value) (value.Value, error) {
+		d, ok := arg(a, 0).Dict()
+		if !ok {
+			return value.Undefined(), errors.New("『ハッシュ内容列挙』でハッシュ以外が与えられました。")
+		}
+		items := make([]value.Value, 0, d.Len())
+		for _, key := range d.Keys() {
+			v, _ := d.Get(key)
+			items = append(items, v)
+		}
+		return value.ArrayValue(value.NewArray(items...)), nil
+	}
 
 	m["辞書キー存在"] = func(_ Context, a []value.Value) (value.Value, error) {
 		d, ok := arg(a, 0).Dict()
@@ -33,6 +46,7 @@ func dictImpls(m map[string]Impl) {
 		_, found := d.Get(str(a, 1))
 		return value.Bool(found), nil
 	}
+	m["ハッシュキー存在"] = m["辞書キー存在"]
 
 	m["辞書キー削除"] = func(_ Context, a []value.Value) (value.Value, error) {
 		d, ok := arg(a, 0).Dict()
@@ -42,6 +56,7 @@ func dictImpls(m map[string]Impl) {
 		d.Delete(str(a, 1))
 		return arg(a, 0), nil
 	}
+	m["ハッシュキー削除"] = m["辞書キー削除"]
 
 	m["JSONエンコード"] = func(_ Context, a []value.Value) (value.Value, error) {
 		out, err := encodeJSON(arg(a, 0))
@@ -53,6 +68,23 @@ func dictImpls(m map[string]Impl) {
 
 	m["JSONデコード"] = func(_ Context, a []value.Value) (value.Value, error) {
 		return decodeJSON(str(a, 0))
+	}
+	m["JSON変換"] = m["JSONエンコード"]
+	m["JSON取得"] = m["JSONデコード"]
+	m["JSONエンコード整形"] = func(_ Context, a []value.Value) (value.Value, error) {
+		var native any
+		plain, err := encodeJSON(arg(a, 0))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		if err := json.Unmarshal([]byte(plain), &native); err != nil {
+			return value.Undefined(), err
+		}
+		data, err := json.MarshalIndent(native, "", "  ")
+		if err != nil {
+			return value.Undefined(), err
+		}
+		return value.String(string(data)), nil
 	}
 }
 

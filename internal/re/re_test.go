@@ -104,3 +104,13 @@ func TestRuneBased(t *testing.T) {
 		t.Errorf(`Replace("𩸽") = %q, want "X" (JS版は "XX")`, got)
 	}
 }
+
+func TestJavaScriptUnicodeEscapes(t *testing.T) {
+	if got := mustCompile(t, `^[\u0020-\u007E\uFF61-\uFF9F]`).Find("abc"); got == nil {
+		t.Fatal("JavaScript形式のUnicodeエスケープがASCIIに一致しません")
+	}
+	pattern := `^[\u3005\u3007\u4E00-\u9FFF]|[\uD840-\uD87F][\uDC00-\uDFFF]`
+	if got := mustCompile(t, pattern).Find("色"); got == nil {
+		t.Fatal("Unicodeエスケープを含む漢字範囲に一致しません")
+	}
+}

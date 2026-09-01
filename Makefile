@@ -3,7 +3,7 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build install release test sync-compat compat-run compat-check clean
+.PHONY: all build install release test doctest sync-compat compat-run compat-check clean
 
 all: build
 
@@ -29,6 +29,12 @@ clean:
 
 test:
 	$(GO) test ./...
+
+# マニュアルのサンプルコードを実行して、書かれている表示結果と一致するか確かめる。
+# 対象を絞るときは make doctest ARGS="manual/plugin_system/表示.txt"
+DOCTEST_ARGS ?=
+doctest:
+	$(GO) run ./cmd/gonako doctest $(DOCTEST_ARGS)
 
 sync-compat:
 	./scripts/sync-compat-fixtures.sh

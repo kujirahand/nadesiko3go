@@ -27,7 +27,7 @@ func ConvertSyntax(tokens []lexer.Token) ([]lexer.Token, error) {
 		}
 	}
 	if !enabled {
-		return tokens, nil
+		return convertInline(tokens), nil
 	}
 	for _, token := range tokens {
 		if token.Type == lexer.TypeKokomade {
@@ -90,7 +90,66 @@ func ConvertSyntax(tokens []lexer.Token) ([]lexer.Token, error) {
 	for _, line := range lines {
 		result = append(result, line...)
 	}
-	return result, nil
+	return convertInline(result), nil
+}
+
+// convertInline implements the always-available trailing-colon indentation
+// syntax. A colon at the end of a line opens a block; dedenting inserts the
+// corresponding ここまで token. This is separate from !インデント構文 and
+// matches nako_indent_inline.mts.
+func convertInline(tokens []lexer.Token) []lexer.Token {
+	lines := splitLines(tokens)
+	var levels []int
+	checkIndent := -1
+	previousLine := -1
+	for i := range lines {
+		left := firstSignificant(lines[i])
+		if left == nil {
+			continue
+		}
+		current := left.Indent
+		for checkIndent >= 0 && checkIndent >= current {
+			if !(skipEnd(left) && checkIndent == current) && previousLine >= 0 {
+				appendEnd(&lines[previousLine], lineTemplate(lines[previousLine], *left))
+			}
+			levels = levels[:len(levels)-1]
+			if len(levels) == 0 {
+				checkIndent = -1
+			} else {
+				checkIndent = levels[len(levels)-1]
+			}
+		}
+		if at := lastSignificantIndex(lines[i]); at >= 0 && lines[i][at].Type == ":" {
+			indent := lines[i][at].Indent
+			lines[i] = append(lines[i][:at], lines[i][at+1:]...)
+			levels = append(levels, indent)
+			checkIndent = indent
+		}
+		previousLine = i
+	}
+	if previousLine >= 0 {
+		for range levels {
+			template := lineTemplate(lines[previousLine], lexer.Token{File: "main.nako3"})
+			appendEnd(&lines[previousLine], template)
+		}
+	}
+	result := make([]lexer.Token, 0, len(tokens)+len(levels)*2)
+	for _, line := range lines {
+		result = append(result, line...)
+	}
+	return result
+}
+
+func lastSignificantIndex(line []lexer.Token) int {
+	for i := len(line) - 1; i >= 0; i-- {
+		switch line[i].Type {
+		case lexer.TypeEOL, lexer.TypeLineComment, lexer.TypeRangeComment:
+			continue
+		default:
+			return i
+		}
+	}
+	return -1
 }
 
 func splitLines(tokens []lexer.Token) [][]lexer.Token {

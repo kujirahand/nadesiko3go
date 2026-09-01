@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
+	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 )
 
@@ -65,6 +69,8 @@ func (h *CUIHost) ReadResource(name string) ([]byte, bool) {
 	return h.Bundle.ReadResource(name)
 }
 
+func (h *CUIHost) Now() time.Time { return time.Now() }
+
 func trimNewline(s string) string {
 	for len(s) > 0 && (s[len(s)-1] == '\n' || s[len(s)-1] == '\r') {
 		s = s[:len(s)-1]
@@ -96,7 +102,7 @@ func RunProgram(code, filename string, h *CUIHost) error {
 // CompileProgram compiles a program to IR without running it, which is what
 // `gonako build` needs.
 func CompileProgram(code, filename string) (*ir.Program, error) {
-	registry := stdlib.NewRegistry(nodelib.New())
+	registry := runtimeRegistry()
 	tree, err := parser.ParseSource(code, filename, registry.FuncList())
 	if err != nil {
 		return nil, err
@@ -107,5 +113,28 @@ func CompileProgram(code, filename string) (*ir.Program, error) {
 // RunCompiled runs IR that was compiled earlier, which is how a bundled
 // executable starts: the program is already compiled inside it.
 func RunCompiled(prog *ir.Program, h *CUIHost) error {
-	return New(prog, stdlib.NewRegistry(nodelib.New()), h, DefaultOptions()).Run()
+	return New(prog, runtimeRegistry(), h, DefaultOptions()).Run()
+}
+
+// RunWithHost compiles and runs a program against any host, which the doctest
+// runner uses to collect the output instead of printing it.
+func RunWithHost(code, filename string, h Host) error {
+	registry := runtimeRegistry()
+	tree, err := parser.ParseSource(code, filename, registry.FuncList())
+	if err != nil {
+		return err
+	}
+	prog, err := compiler.Compile(tree, filename, registry)
+	if err != nil {
+		return err
+	}
+	options := DefaultOptions()
+	// 本家のcnako DocTestは同期実行の終了時点で比較し、予約した
+	// setTimeoutの完了までは待たない。同じ境界で表示ログを比較する。
+	options.DrainPendingCallbacks = false
+	return New(prog, registry, h, options).Run()
+}
+
+func runtimeRegistry() *stdlib.Registry {
+	return stdlib.NewRegistry(nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New())
 }

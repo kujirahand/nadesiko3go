@@ -80,18 +80,52 @@ gonako-1.0.0-windows-amd64.exe
 | 言語 | 変数・定数・演算子・制御構文・ユーザー定義関数・クロージャ・エラー監視 |
 | 標準命令 | 文字列・配列・辞書・JSON・正規表現・タイマー（`plugin_system` 相当） |
 | OS連携 | ファイル読み書き・フォルダ操作・パス操作・環境変数・外部コマンド実行（`plugin_node` 相当） |
+| SQLite | DB開閉・切替・SQL実行・単一行/全行取得・位置/名前付きパラメータ・コールバック |
 | 配布 | プログラムとリソースを単一の実行ファイルに梱包 |
 
 **互換性を保証するのは `plugin_system` の範囲だけ**です。OS連携（`internal/nodelib`）は
 Goらしく再設計してよい領域としています（AGENTS.md 3節）。
 
+### SQLite
+
+SQLiteはgonako本体に組み込まれているため、`取り込む`文や外部ライブラリは不要です。
+
+```nadesiko
+「books.sqlite3」をSQLITE3開く
+「CREATE TABLE IF NOT EXISTS books(id INTEGER PRIMARY KEY, name TEXT)」を[]でSQLITE3実行
+「INSERT INTO books(name) VALUES(?)」を[「クジラ」]でSQLITE3実行
+
+行一覧=「SELECT id,name FROM books ORDER BY id」を[]でSQLITE3全取得
+行一覧をJSONエンコード整形して表示
+SQLITE3閉じる
+```
+
+`SQLITE3開く`の戻り値はDBハンドルです。複数開いた場合は、ハンドルを
+`SQLITE3切替`に渡して操作対象を変更できます。SQLite実装はpure Goなので、
+CGOや別配布のSQLiteライブラリは不要です。
+
 ## 開発
 
+必要なGoバージョンとSQLiteドライバは`go.mod`で固定しています。
+現在はGo 1.27.0、`modernc.org/sqlite` v1.57.0です。Go 1.21以降を導入済みで
+`GOTOOLCHAIN=auto`なら、リポジトリ内で`go`を実行した際にGo 1.27.0が
+自動取得・選択されます。
+
 ```bash
+go version          # go version go1.27.0 ... を確認
 make test           # テスト
 make sync-compat    # 本家の差分fixtureをGo側へ同期
 make compat-run     # 全ケースを実行して out/ へ出力
 make compat-check   # 本家のoracleと照合して通過率を出す
+```
+
+将来、GoとSQLiteを新しい確定版へ更新する場合は、バージョンを明示して実行します。
+
+```bash
+go get go@1.27.0
+go get modernc.org/sqlite@v1.57.0
+go mod tidy
+go test ./...
 ```
 
 設計と開発上の制約は [AGENTS.md](./AGENTS.md)、VMの詳細は

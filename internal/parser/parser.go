@@ -293,6 +293,7 @@ func (p *Parser) yDefFuncReadArgs() []*ast.Node {
 		return nil
 	}
 	var args []*ast.Node
+	seen := map[string]bool{}
 	p.get() // skip '('
 	for !p.isEOF() {
 		if p.check(")") {
@@ -300,7 +301,14 @@ func (p *Parser) yDefFuncReadArgs() []*ast.Node {
 			break
 		}
 		if t := p.get(); t != nil {
-			args = append(args, p.tokenToArgNode(t))
+			if t.Type == "|" || t.Type == lexer.TypeComma {
+				continue
+			}
+			name := t.StringValue()
+			if name != "" && !seen[name] {
+				seen[name] = true
+				args = append(args, p.tokenToArgNode(t))
+			}
 		}
 		if p.check(lexer.TypeComma) {
 			p.get()

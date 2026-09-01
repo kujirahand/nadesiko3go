@@ -14,6 +14,7 @@ package re
 import (
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -40,6 +41,7 @@ func Compile(pattern string) (*Regexp, error) {
 	if m := jsPatternRE.FindStringSubmatch(pattern); m != nil {
 		body, flags = m[1], m[2]
 	}
+	body = normalizeJSUnicodeEscapes(body)
 
 	var prefix strings.Builder
 	global := false
@@ -69,6 +71,24 @@ func Compile(pattern string) (*Regexp, error) {
 	return &Regexp{re: compiled, Global: global}, nil
 }
 
+var (
+	jsUnicodeEscapeRE  = regexp.MustCompile(`\\u([0-9A-Fa-f]{4})`)
+	jsSurrogateRangeRE = regexp.MustCompile(`\[(?:\\uD[89ABab][0-9A-Fa-f]{2})-(?:\\uD[89ABab][0-9A-Fa-f]{2})\]\[(?:\\uD[C-Fc-f][0-9A-Fa-f]{2})-(?:\\uD[C-Fc-f][0-9A-Fa-f]{2})\]`)
+)
+
+func normalizeJSUnicodeEscapes(pattern string) string {
+	// A JavaScript UTF-16 surrogate-pair range denotes non-BMP code points.
+	// Go's regexp engine is rune based, so express it as one rune range.
+	pattern = jsSurrogateRangeRE.ReplaceAllString(pattern, `[\x{10000}-\x{10FFFF}]`)
+	return jsUnicodeEscapeRE.ReplaceAllStringFunc(pattern, func(escape string) string {
+		n, err := strconv.ParseInt(escape[2:], 16, 32)
+		if err != nil || n >= 0xd800 && n <= 0xdfff {
+			return escape
+		}
+		return `\x{` + strings.ToUpper(escape[2:]) + `}`
+	})
+}
+
 // unsupportedByRE2 reports whether a pattern uses a construct RE2 leaves out
 // on purpose, rather than being malformed.
 func unsupportedByRE2(pattern string) bool {
@@ -83,6 +103,15 @@ var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 // FindAll returns every match. It reports nil when there is none, which the
 // commands turn into 『空』.
 func (r *Regexp) FindAll(s string) []string { return r.re.FindAllString(s, -1) }
+
+// FindAllSubmatches returns every match with its capture groups. Index 0 in
+// each row is the whole match, matching regexp.FindAllStringSubmatch.
+func (r *Regexp) FindAllSubmatches(s string) [][]string {
+	return r.re.FindAllStringSubmatch(s, -1)
+}
+
+// SubexpNames reports the name of each capture group. Index 0 is always empty.
+func (r *Regexp) SubexpNames() []string { return r.re.SubexpNames() }
 
 // Find returns the first match and its capture groups, or nil when there is
 // none. Index 0 is the whole match.

@@ -31,6 +31,20 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.String(b.String()), nil
 	}
+	m["連結"] = m["文字列連結"]
+	m["追加"] = func(_ Context, a []value.Value) (value.Value, error) {
+		if arr, ok := arg(a, 0).Array(); ok {
+			arr.Set(arr.Len(), arg(a, 1))
+			return arg(a, 0), nil
+		}
+		return value.String(str(a, 0) + str(a, 1)), nil
+	}
+	m["一行追加"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		if _, ok := arg(a, 0).Array(); ok {
+			return m["追加"](ctx, a)
+		}
+		return value.String(str(a, 0) + str(a, 1) + "\n"), nil
+	}
 
 	// --- 位置を数える命令。位置は1から数える。 ---
 
@@ -63,10 +77,13 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.String(string(sliceRunes(runes, start-1, start+count-1))), nil
 	}
+	m["文字抜き出"] = m["文字抜出"]
+	m["MID"] = m["文字抜出"]
 	m["文字左部分"] = func(_ Context, a []value.Value) (value.Value, error) {
 		runes := []rune(str(a, 0))
 		return value.String(string(sliceRunes(runes, 0, int(value.ToNumber(arg(a, 1)))))), nil
 	}
+	m["LEFT"] = m["文字左部分"]
 	m["文字右部分"] = func(_ Context, a []value.Value) (value.Value, error) {
 		runes := []rune(str(a, 0))
 		start := len(runes) - int(value.ToNumber(arg(a, 1)))
@@ -75,6 +92,7 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.String(string(sliceRunes(runes, start, len(runes)))), nil
 	}
+	m["RIGHT"] = m["文字右部分"]
 	m["文字挿入"] = func(_ Context, a []value.Value) (value.Value, error) {
 		runes := []rune(str(a, 0))
 		at := int(value.ToNumber(arg(a, 1)))
@@ -120,6 +138,52 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.ArrayValue(value.NewArray(items...)), nil
 	}
+	m["文字列分割"] = func(_ Context, a []value.Value) (value.Value, error) {
+		s, sep := str(a, 0), str(a, 1)
+		before, after, found := strings.Cut(s, sep)
+		items := []value.Value{value.String(s)}
+		if found {
+			items = []value.Value{value.String(before), value.String(after)}
+		}
+		return value.ArrayValue(value.NewArray(items...)), nil
+	}
+	m["切取"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		s, marker := str(a, 0), str(a, 1)
+		before, after, found := strings.Cut(s, marker)
+		if !found {
+			ctx.SetSysVar("対象", value.String(""))
+			return value.String(s), nil
+		}
+		ctx.SetSysVar("対象", value.String(after))
+		return value.String(before), nil
+	}
+	m["範囲切取"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		s, start, end := str(a, 0), str(a, 1), str(a, 2)
+		before, rest, found := strings.Cut(s, start)
+		if !found {
+			ctx.SetSysVar("対象", value.String(s))
+			return value.String(""), nil
+		}
+		inside, after, found := strings.Cut(rest, end)
+		if !found {
+			ctx.SetSysVar("対象", value.String(before))
+			return value.String(rest), nil
+		}
+		ctx.SetSysVar("対象", value.String(before+after))
+		return value.String(inside), nil
+	}
+	m["出現"] = func(_ Context, a []value.Value) (value.Value, error) {
+		container, wanted := arg(a, 0), arg(a, 1)
+		if arr, ok := container.Array(); ok {
+			for i := 0; i < arr.Len(); i++ {
+				if value.StrictEquals(arr.Get(i), wanted) {
+					return value.Bool(true), nil
+				}
+			}
+			return value.Bool(false), nil
+		}
+		return value.Bool(strings.Contains(value.ToString(container), value.ToString(wanted))), nil
+	}
 	m["リフレイン"] = func(_ Context, a []value.Value) (value.Value, error) {
 		n := int(value.ToNumber(arg(a, 1)))
 		if n < 0 {
@@ -133,8 +197,31 @@ func stringImpls(m map[string]Impl) {
 	m["トリム"] = func(_ Context, a []value.Value) (value.Value, error) {
 		return value.String(strings.TrimFunc(str(a, 0), isSpace)), nil
 	}
+	m["空白除去"] = m["トリム"]
+	m["左トリム"] = func(_ Context, a []value.Value) (value.Value, error) {
+		return value.String(strings.TrimLeftFunc(str(a, 0), isSpace)), nil
+	}
 	m["右トリム"] = func(_ Context, a []value.Value) (value.Value, error) {
 		return value.String(strings.TrimRightFunc(str(a, 0), isSpace)), nil
+	}
+	m["末尾空白除去"] = m["右トリム"]
+	m["かなか判定"] = firstRuneBetween(0x3041, 0x309f)
+	m["カタカナ判定"] = firstRuneBetween(0x30a1, 0x30fa)
+	m["数字判定"] = func(_ Context, a []value.Value) (value.Value, error) {
+		r, _ := firstRune(str(a, 0))
+		return value.Bool((r >= '0' && r <= '9') || (r >= '０' && r <= '９')), nil
+	}
+	m["通貨形式"] = func(_ Context, a []value.Value) (value.Value, error) {
+		s := str(a, 0)
+		parts := strings.SplitN(s, ".", 2)
+		start := 0
+		if strings.HasPrefix(parts[0], "-") || strings.HasPrefix(parts[0], "+") {
+			start = 1
+		}
+		for i := len(parts[0]) - 3; i > start; i -= 3 {
+			parts[0] = parts[0][:i] + "," + parts[0][i:]
+		}
+		return value.String(strings.Join(parts, ".")), nil
 	}
 
 	// --- 文字種の変換 ---
@@ -159,6 +246,38 @@ func stringImpls(m map[string]Impl) {
 		}
 		return r
 	})
+	m["英数記号全角変換"] = mapRunes(func(r rune) rune {
+		if r == ' ' {
+			return '　'
+		}
+		if r >= 0x21 && r <= 0x7e {
+			return r + 0xfee0
+		}
+		return r
+	})
+	m["英数記号半角変換"] = mapRunes(func(r rune) rune {
+		if r == '　' {
+			return ' '
+		}
+		if r >= 0xff01 && r <= 0xff5f {
+			return r - 0xfee0
+		}
+		return r
+	})
+	m["カタカナ全角変換"] = func(_ Context, a []value.Value) (value.Value, error) {
+		return value.String(katakanaToFullWidth(str(a, 0))), nil
+	}
+	m["カタカナ半角変換"] = func(_ Context, a []value.Value) (value.Value, error) {
+		return value.String(katakanaToHalfWidth(str(a, 0))), nil
+	}
+	m["全角変換"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		kana, _ := m["カタカナ全角変換"](ctx, a)
+		return m["英数記号全角変換"](ctx, []value.Value{kana})
+	}
+	m["半角変換"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		kana, _ := m["カタカナ半角変換"](ctx, a)
+		return m["英数記号半角変換"](ctx, []value.Value{kana})
+	}
 
 	// --- 桁揃え ---
 
@@ -177,6 +296,82 @@ func stringImpls(m map[string]Impl) {
 	}
 	m["CHR"] = func(_ Context, a []value.Value) (value.Value, error) {
 		return value.String(string(rune(int32(value.ToNumber(arg(a, 0)))))), nil
+	}
+}
+
+const (
+	fullWidthKana       = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンァィゥェォャュョッ、。ー「」"
+	halfWidthKana       = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝｧｨｩｪｫｬｭｮｯ､｡ｰ｢｣ﾞﾟ"
+	fullWidthVoicedKana = "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
+	halfWidthVoicedKana = "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾋﾞﾌﾞﾍﾞﾎﾞﾊﾟﾋﾟﾌﾟﾍﾟﾎﾟ"
+)
+
+func katakanaToFullWidth(s string) string {
+	full, half := []rune(fullWidthKana), []rune(halfWidthKana)
+	voicedFull, voicedHalf := []rune(fullWidthVoicedKana), []rune(halfWidthVoicedKana)
+	var b strings.Builder
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		if i+1 < len(runes) {
+			for j := 0; j+1 < len(voicedHalf); j += 2 {
+				if runes[i] == voicedHalf[j] && runes[i+1] == voicedHalf[j+1] {
+					b.WriteRune(voicedFull[j/2])
+					i++
+					goto converted
+				}
+			}
+		}
+		for j, r := range half {
+			if runes[i] == r {
+				b.WriteRune(full[j])
+				goto converted
+			}
+		}
+		b.WriteRune(runes[i])
+	converted:
+	}
+	return b.String()
+}
+
+func katakanaToHalfWidth(s string) string {
+	full, half := []rune(fullWidthKana), []rune(halfWidthKana)
+	voicedFull, voicedHalf := []rune(fullWidthVoicedKana), []rune(halfWidthVoicedKana)
+	var b strings.Builder
+	for _, r := range s {
+		if i := runeIndex(voicedFull, r); i >= 0 {
+			b.WriteRune(voicedHalf[i*2])
+			b.WriteRune(voicedHalf[i*2+1])
+			continue
+		}
+		if i := runeIndex(full, r); i >= 0 {
+			b.WriteRune(half[i])
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+func runeIndex(items []rune, wanted rune) int {
+	for i, r := range items {
+		if r == wanted {
+			return i
+		}
+	}
+	return -1
+}
+
+func firstRune(s string) (rune, bool) {
+	for _, r := range s {
+		return r, true
+	}
+	return 0, false
+}
+
+func firstRuneBetween(low, high rune) Impl {
+	return func(_ Context, a []value.Value) (value.Value, error) {
+		r, ok := firstRune(str(a, 0))
+		return value.Bool(ok && r >= low && r <= high), nil
 	}
 }
 

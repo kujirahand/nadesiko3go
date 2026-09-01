@@ -42,6 +42,51 @@ func regexpImpls(m map[string]Impl) {
 		return value.String(groups[0]), nil
 	}
 
+	m["正規表現抽出"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		pattern, err := compilePattern(str(a, 1))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		clearMatched(ctx)
+		matches := pattern.FindAllSubmatches(str(a, 0))
+		flat := make([]value.Value, 0)
+		rows := make([]value.Value, 0, len(matches))
+		names := pattern.SubexpNames()
+		hasNames := false
+		for _, name := range names {
+			if name != "" {
+				hasNames = true
+				break
+			}
+		}
+		for _, match := range matches {
+			if hasNames {
+				row := value.NewDict()
+				for i := 1; i < len(match) && i < len(names); i++ {
+					if names[i] != "" {
+						item := value.String(match[i])
+						row.Set(names[i], item)
+						flat = append(flat, item)
+					}
+				}
+				rows = append(rows, value.DictValue(row))
+				continue
+			}
+			groups := match[1:]
+			if len(groups) == 0 {
+				groups = match[:1]
+			}
+			items := make([]value.Value, len(groups))
+			for i, group := range groups {
+				items[i] = value.String(group)
+				flat = append(flat, items[i])
+			}
+			rows = append(rows, value.ArrayValue(value.NewArray(items...)))
+		}
+		ctx.SetSysVar(SysMatched, value.ArrayValue(value.NewArray(rows...)))
+		return value.ArrayValue(value.NewArray(flat...)), nil
+	}
+
 	m["正規表現置換"] = func(_ Context, a []value.Value) (value.Value, error) {
 		pattern, err := compilePattern(str(a, 1))
 		if err != nil {

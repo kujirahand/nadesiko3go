@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
+	"github.com/kujirahand/nadesiko3go/internal/doctest"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
@@ -21,6 +22,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako run <ファイル> [引数...]   なでしこのプログラムを実行する
   gonako -e <プログラム>            その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
+  gonako doctest [パス...]          マニュアルのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
 
 ファイル名に - を指定すると標準入力から読み込みます。
@@ -30,6 +32,10 @@ build のオプション:
   --resource DIR   同梱するリソースのフォルダ
   --runtime PATH   土台にするランタイム (既定: 実行中のgonako)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
+
+doctest のオプション:
+  --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
+  パスを省略すると manual/plugin_system を対象にします。
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -145,6 +151,93 @@ func defaultOutputName(source, runtimePath string) string {
 	return name
 }
 
+// defaultDocTestTarget is where the manual lives when no path is given.
+const defaultDocTestTarget = "manual/plugin_system"
+
+// runDocTests runs the sample code in the manual and reports what did not
+// match. The whole manual is far larger than what is implemented so far, so
+// the failures are summarised by reason and only the first few are shown.
+func runDocTests(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("doctest", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	max := flags.Int("max", 10, "失敗の詳細を表示する件数 (0で全件)")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	targets := flags.Args()
+	if len(targets) == 0 {
+		targets = []string{defaultDocTestTarget}
+	}
+
+	tests, err := doctest.Collect(targets, doctest.CNako)
+	if err != nil {
+		return fmt.Errorf("マニュアルを読み込めません: %w", err)
+	}
+	if len(tests) == 0 {
+		fmt.Fprintln(stdout, "[DocTest] 対象のサンプルコードがありません。")
+		return nil
+	}
+	fmt.Fprintf(stdout, "[DocTest] %d件のサンプルコードを実行します。\n", len(tests))
+
+	root, _ := os.Getwd()
+	shown, passed, skipped := 0, 0, 0
+	skipReasons := map[string]int{}
+	byReason := map[doctest.Failure]int{}
+	for _, test := range tests {
+		result := doctest.Run(test)
+		if result.Skipped {
+			skipped++
+			skipReasons[result.SkipReason]++
+			continue
+		}
+		if result.OK {
+			passed++
+			continue
+		}
+		byReason[doctest.Classify(result)]++
+		if *max == 0 || shown < *max {
+			shown++
+			fmt.Fprintln(stderr, doctest.FormatFailure(test, result, root))
+			fmt.Fprintln(stderr)
+		}
+	}
+
+	failed := len(tests) - passed - skipped
+	if failed == 0 {
+		fmt.Fprintf(stdout, "[DocTest] %d件成功・%d件省略・失敗なし。\n", passed, skipped)
+		for _, reason := range sortedCountKeys(skipReasons) {
+			fmt.Fprintf(stdout, "  %s: %d件\n", reason, skipReasons[reason])
+		}
+		return nil
+	}
+	if shown < failed {
+		fmt.Fprintf(stderr, "(ほか %d件の失敗は省略しました。--max 0 で全件表示します)\n\n", failed-shown)
+	}
+	fmt.Fprintf(stdout, "[DocTest] %d/%d件成功 (%.1f%%)\n", passed, len(tests),
+		float64(passed)/float64(len(tests))*100)
+	if skipped > 0 {
+		fmt.Fprintf(stdout, "  省略: %d件\n", skipped)
+	}
+	for _, reason := range []doctest.Failure{
+		doctest.FailMissingCommand, doctest.FailMismatch,
+		doctest.FailSyntax, doctest.FailRuntime,
+	} {
+		if n := byReason[reason]; n > 0 {
+			fmt.Fprintf(stdout, "  %s: %d件\n", reason, n)
+		}
+	}
+	return fmt.Errorf("DocTestが%d件失敗しました", failed)
+}
+
+func sortedCountKeys(counts map[string]int) []string {
+	keys := make([]string, 0, len(counts))
+	for key := range counts {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // runBundled runs the program packed into this executable, if there is one.
 // It reports whether it ran, so main can fall back to the ordinary commands.
 func runBundled() (ran bool, err error) {
@@ -190,6 +283,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runInline(args[1:], stdout)
 	case "build":
 		return buildBundle(args[1:], stdout, stderr)
+	case "doctest":
+		return runDocTests(args[1:], stdout, stderr)
 	}
 	if len(args) < 2 || args[0] != "compat" || args[1] != "run" {
 		fmt.Fprint(stderr, usage)

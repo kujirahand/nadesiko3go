@@ -2,6 +2,7 @@ package stdlib_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -11,10 +12,11 @@ import (
 type fakeContext struct {
 	out    []string
 	sysVar map[string]value.Value
+	state  map[string]value.Value
 }
 
 func newContext() *fakeContext {
-	return &fakeContext{sysVar: map[string]value.Value{}}
+	return &fakeContext{sysVar: map[string]value.Value{}, state: map[string]value.Value{}}
 }
 
 func (c *fakeContext) Print(s string)                    { c.out = append(c.out, s) }
@@ -27,8 +29,12 @@ func (c *fakeContext) SetSysVar(n string, v value.Value) { c.sysVar[n] = v }
 func (c *fakeContext) CallFunc(*value.Func, []value.Value) (value.Value, error) {
 	return value.Undefined(), nil
 }
+func (c *fakeContext) FindFunc(string) *value.Func                { return nil }
+func (c *fakeContext) CommandState(name string) value.Value       { return c.state[name] }
+func (c *fakeContext) SetCommandState(name string, v value.Value) { c.state[name] = v }
 
 func (c *fakeContext) SetTimer(*value.Func, float64, bool) (float64, error) { return 0, nil }
+func (c *fakeContext) PostFunc(*value.Func, []value.Value) error            { return nil }
 func (c *fakeContext) CancelTimer(float64) bool                             { return false }
 func (c *fakeContext) CancelAllTimers()                                     {}
 func (c *fakeContext) Wait(float64) error                                   { return nil }
@@ -36,6 +42,9 @@ func (c *fakeContext) ReadLine() (string, error)                            { re
 func (c *fakeContext) Exit(int)                                             {}
 func (c *fakeContext) Args() []string                                       { return nil }
 func (c *fakeContext) ReadResource(string) ([]byte, bool)                   { return nil, false }
+func (c *fakeContext) Now() time.Time {
+	return time.Date(2026, 9, 1, 12, 34, 56, 0, time.Local)
+}
 
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.

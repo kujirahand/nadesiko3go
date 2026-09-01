@@ -50,6 +50,12 @@ func TestLiterals(t *testing.T) {
 	}
 }
 
+func TestMultipleVariableAssignment(t *testing.T) {
+	if got := run(t, "年,月,日は[2024,1,7]\n「{年}/{月}/{日}」を表示"); got != "2024/1/7" {
+		t.Fatalf("multiple assignment = %q, want 2024/1/7", got)
+	}
+}
+
 func TestOperators(t *testing.T) {
 	tests := []struct{ code, want string }{
 		{"(1+2)を表示", "3"},
