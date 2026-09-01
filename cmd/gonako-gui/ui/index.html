@@ -21,18 +21,14 @@
         <button id="btn-save" class="btn btn-secondary" title="現在のファイルを上書き保存 (Ctrl+S / Cmd+S)">
           <span class="icon">💾</span> 保存
         </button>
-        <button id="btn-clear-log" class="btn btn-secondary" title="実行結果を消去">
-          <span class="icon">🗑</span> ログ消去
-        </button>
         <div class="separator"></div>
-        <select id="select-sample" class="select-sample">
-          <option value="">-- サンプルコード --</option>
-          <option value="hello">こんにちは</option>
-          <option value="fizzbuzz">FizzBuzz</option>
-          <option value="calc">計算と辞書</option>
-          <option value="dialog">ファイルとハッシュ値</option>
-          <option value="csv">CSVの処理</option>
-        </select>
+        <div class="app-type-group">
+          <label for="select-app-type" class="label-app-type">種類:</label>
+          <select id="select-app-type" class="select-app-type" title="実行するアプリの種類を選択">
+            <option value="cli" selected>コマンドライン</option>
+            <option value="window">ウィンドウ</option>
+          </select>
+        </div>
         <div class="separator"></div>
         <span id="exec-status" class="status-indicator">待機中</span>
       </div>
@@ -40,11 +36,12 @@
 
     <!-- メインワークスペース -->
     <main class="workspace">
-      <!-- 左ペイン: ツールタブ (命令 / ファイル) -->
+      <!-- 左ペイン: ツールタブ (命令 / ひな形 / ファイル) -->
       <aside class="sidebar" id="sidebar">
         <!-- タブ切り替えボタン -->
         <div class="sidebar-tabs">
           <button id="tab-btn-cmd" class="tab-btn active">📖 命令</button>
+          <button id="tab-btn-template" class="tab-btn">📄 ひな形</button>
           <button id="tab-btn-file" class="tab-btn">📁 ファイル</button>
         </div>
 
@@ -55,6 +52,17 @@
             <span id="cmd-count" class="badge">0件</span>
           </div>
           <div id="cmd-list" class="list-container cmd-list">
+            <!-- JavaScriptで動的生成 -->
+          </div>
+        </div>
+
+        <!-- ひな形タブコンテンツ -->
+        <div id="tab-content-template" class="tab-content">
+          <div class="search-box-wrapper">
+            <input id="template-search" type="text" class="search-input" placeholder="ひな形を検索..." />
+            <span id="template-count" class="badge">0件</span>
+          </div>
+          <div id="template-list" class="list-container template-list">
             <!-- JavaScriptで動的生成 -->
           </div>
         </div>
@@ -100,12 +108,19 @@
         <!-- 下部: 実行結果 (コンソール) -->
         <section class="pane pane-output" id="pane-output">
           <div class="pane-header">
-            <span class="pane-title">実行結果 (コンソール)</span>
+            <div class="pane-header-left">
+              <span class="pane-title">実行結果</span>
+              <span id="mode-badge" class="mode-badge">コマンドライン</span>
+            </div>
             <div class="output-actions">
+              <button id="btn-clear-log" class="btn-sm" title="実行結果を消去">🗑 ログ消去</button>
               <button id="btn-copy-log" class="btn-sm" title="実行結果をコピー">📋 コピー</button>
             </div>
           </div>
           <div class="output-wrapper">
+            <!-- ウィンドウアプリ用のプレビュー領域 -->
+            <div id="window-preview" class="window-preview-area" style="display: none;"></div>
+            <!-- コンソールテキスト出力 -->
             <pre id="output" class="output">ここに実行結果が表示されます。</pre>
           </div>
         </section>
