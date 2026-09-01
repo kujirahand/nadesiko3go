@@ -174,3 +174,29 @@ func TestParseErrorMessages(t *testing.T) {
 		})
 	}
 }
+
+func TestParse2DArrayLiteral(t *testing.T) {
+	code := `データ = [
+  ["名前", "点数"],
+  ["太郎", 85],
+  ["次郎", 92],
+  ["花子", 78]
+]`
+	tree, err := parse(t, code)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	let := tree.Blocks[0]
+	if let.Type != ast.Let || let.Name != "main__データ" {
+		t.Fatalf("unexpected let node: %#v", let)
+	}
+	arr := let.Block(0)
+	if arr.Type != ast.JSONArray || len(arr.Blocks) != 4 {
+		t.Fatalf("unexpected array node: %#v", arr)
+	}
+	row0 := arr.Block(0)
+	if row0.Type != ast.JSONArray || len(row0.Blocks) != 2 || row0.Block(0).StringValue() != "名前" {
+		t.Fatalf("unexpected row0 node: %#v", row0)
+	}
+}
+

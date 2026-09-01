@@ -412,14 +412,6 @@ func (p *Parser) yJSONArray() *ast.Node {
 	m := p.peekSourceMap(nil)
 	p.get()
 	var values []*ast.Node
-	for p.check(lexer.TypeEOL) {
-		p.get()
-	}
-	if p.check("]") {
-		closeTok := p.get()
-		end := p.peekSourceMap(nil)
-		return p.yRefArrayValue(&ast.Node{Type: ast.JSONArray, Blocks: values, Josi: closeTok.Josi, SourceMap: m, End: &end})
-	}
 	for !p.isEOF() {
 		for p.check(lexer.TypeEOL) {
 			p.get()
@@ -434,11 +426,10 @@ func (p *Parser) yJSONArray() *ast.Node {
 		values = append(values, v)
 		if p.check(lexer.TypeComma) {
 			p.get()
-			continue
 		}
-		if !p.check("]") {
-			break
-		}
+	}
+	for p.check(lexer.TypeEOL) {
+		p.get()
 	}
 	if !p.check("]") {
 		p.failAt("配列変数の初期化が『]』で閉じられていません。", m)
