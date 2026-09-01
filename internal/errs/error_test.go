@@ -9,3 +9,16 @@ func TestRuntimeErrorFormat(t *testing.T) {
 		t.Fatalf("%q != %q", err, want)
 	}
 }
+
+func TestCompatType(t *testing.T) {
+	cases := map[Kind]string{
+		Lexer:   "NakoLexerError",
+		Syntax:  "NakoSyntaxError",
+		Runtime: "NakoRuntimeError",
+	}
+	for kind, want := range cases {
+		if got := (&NakoError{Kind: kind}).CompatType(); got != want {
+			t.Errorf("kind %d: %q != %q", kind, got, want)
+		}
+	}
+}

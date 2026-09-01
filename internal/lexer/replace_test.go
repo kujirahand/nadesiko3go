@@ -227,6 +227,27 @@ func mustReplace(t *testing.T, lx *lexer.Lexer, code string) []lexer.Token {
 	return got
 }
 
+func TestExpandCodeTokens(t *testing.T) {
+	lx := lexer.NewLexer()
+	raw, err := lexer.Tokenize(prepare.Text(prepare.Convert("A=30\n「{A+1}」を表示")), 0, "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err := lx.ReplaceTokens(raw, true, "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err = lx.ExpandCodeTokens(tokens, "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, token := range tokens {
+		if token.Type == lexer.TypeCode {
+			t.Fatalf("code token remained: %#v", token)
+		}
+	}
+}
+
 func ptr(b bool) *bool { return &b }
 
 func equalStrings(a, b []string) bool {

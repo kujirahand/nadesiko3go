@@ -22,6 +22,20 @@ func (e *NakoError) Error() string {
 	return fmt.Sprintf("[%sエラー]%s(%d行目): %s", e.Kind.String(), e.File, e.Line+1, e.Msg)
 }
 
+// CompatType returns the TypeScript error class name used by compat fixtures.
+func (e *NakoError) CompatType() string {
+	switch e.Kind {
+	case Lexer:
+		return "NakoLexerError"
+	case Syntax:
+		return "NakoSyntaxError"
+	case Runtime:
+		return "NakoRuntimeError"
+	default:
+		return "NakoError"
+	}
+}
+
 func (k Kind) String() string {
 	switch k {
 	case Lexer:

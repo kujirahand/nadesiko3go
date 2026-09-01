@@ -72,3 +72,46 @@ func TestSyncedFixturesLoad(t *testing.T) {
 		t.Fatalf("同期fixtureの件数が変わりました: %d groups, %d cases", len(groups), total)
 	}
 }
+
+func TestSyncedFixturesReachStage1ParseGoal(t *testing.T) {
+	outDir := t.TempDir()
+	_, err := Run(filepath.Join("..", "..", "testdata", "compat", "cases"), outDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	wantErrors := map[string]string{
+		"文法エラー-未解決の単語":    "NakoSyntaxError",
+		"文法エラー-閉じ括弧なし":    "NakoSyntaxError",
+		"字句解析エラー-文字列の入れ子": "NakoLexerError",
+		"文法エラー-ここまでの不足":   "NakoSyntaxError",
+	}
+	gotErrors := map[string]string{}
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		data, err := os.ReadFile(filepath.Join(outDir, entry.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var output OutputGroup
+		if err := json.Unmarshal(data, &output); err != nil {
+			t.Fatal(err)
+		}
+		for name, result := range output.Results {
+			if result.Error != nil && result.Error.Type != "UnsupportedError" {
+				gotErrors[name] = result.Error.Type
+			}
+		}
+	}
+	if len(gotErrors) != len(wantErrors) {
+		t.Fatalf("解析エラー件数 = %d, want %d: %#v", len(gotErrors), len(wantErrors), gotErrors)
+	}
+	for name, wantType := range wantErrors {
+		if gotErrors[name] != wantType {
+			t.Errorf("%s: %q != %q", name, gotErrors[name], wantType)
+		}
+	}
+}

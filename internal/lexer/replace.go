@@ -160,6 +160,32 @@ func (l *Lexer) ReplaceTokens(tokens []Token, isFirst bool, filename string) ([]
 	return append(tokens, eol, eof), nil
 }
 
+// ExpandCodeTokens tokenizes expressions embedded in interpolated strings.
+// ReplaceTokens creates TypeCode placeholders first, matching the two-pass
+// pipeline in the TypeScript tokenizer.
+func (l *Lexer) ExpandCodeTokens(tokens []Token, filename string) ([]Token, error) {
+	for i := 0; i < len(tokens); i++ {
+		if tokens[i].Type != TypeCode {
+			continue
+		}
+		parent := tokens[i]
+		raw, err := Tokenize(parent.StringValue(), parent.Line, filename)
+		if err != nil {
+			return nil, err
+		}
+		children, err := l.ReplaceTokens(raw, false, filename)
+		if err != nil {
+			return nil, err
+		}
+		for j := range children {
+			children[j].Offset += parent.Offset
+		}
+		tokens = append(tokens[:i], append(children, tokens[i+1:]...)...)
+		i--
+	}
+	return tokens, nil
+}
+
 // preDefineFunc reads function definitions ahead of parsing and performs the
 // token substitutions that depend on them.
 func (l *Lexer) preDefineFunc(tokens []Token, filename string) []Token {

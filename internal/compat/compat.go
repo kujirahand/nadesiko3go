@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/kujirahand/nadesiko3go/internal/errs"
+	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 )
 
 type Case struct {
@@ -133,7 +137,7 @@ func Run(casesDir, outDir string) (Summary, error) {
 			Results:     make(map[string]Result, len(group.Cases)),
 		}
 		for _, testCase := range group.Cases {
-			output.Results[testCase.Name] = Result{
+			result := Result{
 				Name:   testCase.Name,
 				Status: "error",
 				Log:    "",
@@ -143,6 +147,20 @@ func Run(casesDir, outDir string) (Summary, error) {
 					Message: "未実装",
 				},
 			}
+			if _, parseErr := parser.ParseSource(*testCase.Code, "main.nako3", stdlib.ParserFuncList()); parseErr != nil {
+				var nakoErr *errs.NakoError
+				if errors.As(parseErr, &nakoErr) {
+					line := nakoErr.Line
+					result.Error = &ErrorResult{
+						Type:    nakoErr.CompatType(),
+						Line:    &line,
+						Message: nakoErr.Error(),
+					}
+				} else {
+					return Summary{}, fmt.Errorf("%s/%sの構文解析に失敗しました: %w", group.Group, testCase.Name, parseErr)
+				}
+			}
+			output.Results[testCase.Name] = result
 			summary.Cases++
 		}
 		if err := writeGroup(filepath.Join(outDir, group.Group+".json"), output); err != nil {

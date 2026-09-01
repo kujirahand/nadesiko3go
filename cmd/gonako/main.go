@@ -47,6 +47,6 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(stdout, "%dグループ・%dケースを未実装結果として%sへ出力しました\n", summary.Groups, summary.Cases, *outDir)
+	fmt.Fprintf(stdout, "%dグループ・%dケースを構文解析し、実行未実装結果として%sへ出力しました\n", summary.Groups, summary.Cases, *outDir)
 	return nil
 }
