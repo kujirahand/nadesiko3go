@@ -548,6 +548,8 @@ func (m *VM) ReadLine() (string, error) { return m.host.ReadLine() }
 
 func (m *VM) Args() []string { return m.host.Args() }
 
+func (m *VM) ReadResource(name string) ([]byte, bool) { return m.host.ReadResource(name) }
+
 // Exit ends the program. The host decides what that means: the CUI stops the
 // process, the compat runner just stops the program.
 func (m *VM) Exit(code int) {

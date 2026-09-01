@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/bundle"
+	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 func TestRunHelp(t *testing.T) {
@@ -69,5 +72,91 @@ func TestRunNeedsAFile(t *testing.T) {
 	var out, errOut bytes.Buffer
 	if err := run([]string{"run"}, &out, &errOut); err == nil {
 		t.Error("ファイル名なしのrunが通ってしまった")
+	}
+}
+
+// TestBuildAndRunBundle pins the whole packaging path from the command line:
+// build a program with resources, then run the result somewhere the resources
+// do not exist.
+func TestBuildAndRunBundle(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "data"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("data/msg.txt", "同梱の中身")
+	write("app.nako3", "A=「data/msg.txt」を開く\n「読めた: {A}」と表示")
+	// 土台のランタイムは中身を問わない。バイト列を後ろに足すだけ。
+	write("runtime", "ランタイムの代わり")
+
+	previous, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	var out, errOut bytes.Buffer
+	args := []string{"build", "app.nako3", "--resource", "./data", "--runtime", "runtime", "--out", "packed"}
+	if err := run(args, &out, &errOut); err != nil {
+		t.Fatalf("build: %v (%s)", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "packed を作りました") {
+		t.Errorf("build の出力 = %q", out.String())
+	}
+
+	packed, err := bundle.Open(filepath.Join(dir, "packed"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	// リソースの実体がない場所で動かす
+	elsewhere := t.TempDir()
+	if err := os.Chdir(elsewhere); err != nil {
+		t.Fatal(err)
+	}
+	var ranOut bytes.Buffer
+	host := vm.NewCUIHost(&ranOut, strings.NewReader(""), nil)
+	host.Bundle = packed
+	if err := vm.RunCompiled(packed.Program, host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimRight(ranOut.String(), "\n"); got != "読めた: 同梱の中身" {
+		t.Errorf("実行結果 = %q", got)
+	}
+}
+
+// TestBuildAcceptsFileNameEitherSide pins that the source can be written
+// before or after the options, which the flag package alone does not allow.
+func TestBuildAcceptsFileNameEitherSide(t *testing.T) {
+	dir := t.TempDir()
+	for name, body := range map[string]string{
+		"app.nako3": "1を表示",
+		"runtime":   "ランタイムの代わり",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	previous, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	orders := [][]string{
+		{"build", "app.nako3", "--runtime", "runtime", "--out", "a"},
+		{"build", "--runtime", "runtime", "--out", "b", "app.nako3"},
+		{"build", "--runtime=runtime", "app.nako3", "--out=c"},
+	}
+	for _, args := range orders {
+		var out, errOut bytes.Buffer
+		if err := run(args, &out, &errOut); err != nil {
+			t.Errorf("%v: %v (%s)", args, err, errOut.String())
+		}
 	}
 }

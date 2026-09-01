@@ -35,6 +35,7 @@ func (c *fakeContext) Wait(float64) error                                   { re
 func (c *fakeContext) ReadLine() (string, error)                            { return "", nil }
 func (c *fakeContext) Exit(int)                                             {}
 func (c *fakeContext) Args() []string                                       { return nil }
+func (c *fakeContext) ReadResource(string) ([]byte, bool)                   { return nil, false }
 
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.

@@ -6,7 +6,9 @@ import (
 	"io"
 	"os"
 
+	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
+	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -18,6 +20,10 @@ type CUIHost struct {
 	Out     io.Writer
 	In      *bufio.Reader
 	CmdArgs []string
+	// Bundle is the payload packed into the executable, if any. Its files are
+	// looked at before the real file system, so a program reads a bundled
+	// resource with the same code it used during development.
+	Bundle *bundle.Bundle
 
 	// ExitCode is what 『終了』 asked for, and Exited says whether it was
 	// called. The caller decides what to do with them, so that a test does
@@ -52,6 +58,13 @@ func (h *CUIHost) Exit(code int) {
 
 func (h *CUIHost) Args() []string { return h.CmdArgs }
 
+func (h *CUIHost) ReadResource(name string) ([]byte, bool) {
+	if h.Bundle == nil {
+		return nil, false
+	}
+	return h.Bundle.ReadResource(name)
+}
+
 func trimNewline(s string) string {
 	for len(s) > 0 && (s[len(s)-1] == '\n' || s[len(s)-1] == '\r') {
 		s = s[:len(s)-1]
@@ -73,14 +86,26 @@ func RunFile(path string, h *CUIHost) error {
 // This is the path the CUI takes, so nodelib is available. The compat runner
 // takes RunSource instead, which stays inside plugin_system.
 func RunProgram(code, filename string, h *CUIHost) error {
+	prog, err := CompileProgram(code, filename)
+	if err != nil {
+		return err
+	}
+	return RunCompiled(prog, h)
+}
+
+// CompileProgram compiles a program to IR without running it, which is what
+// `gonako build` needs.
+func CompileProgram(code, filename string) (*ir.Program, error) {
 	registry := stdlib.NewRegistry(nodelib.New())
 	tree, err := parser.ParseSource(code, filename, registry.FuncList())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	prog, err := compiler.Compile(tree, filename, registry)
-	if err != nil {
-		return err
-	}
-	return New(prog, registry, h, DefaultOptions()).Run()
+	return compiler.Compile(tree, filename, registry)
+}
+
+// RunCompiled runs IR that was compiled earlier, which is how a bundled
+// executable starts: the program is already compiled inside it.
+func RunCompiled(prog *ir.Program, h *CUIHost) error {
+	return New(prog, stdlib.NewRegistry(nodelib.New()), h, DefaultOptions()).Run()
 }

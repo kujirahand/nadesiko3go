@@ -27,6 +27,8 @@ type Host interface {
 	Exit(code int)
 	// Args reports the arguments the program was started with.
 	Args() []string
+	// ReadResource reads a file packed into the executable, if there is one.
+	ReadResource(name string) ([]byte, bool)
 }
 
 // VM runs one program.

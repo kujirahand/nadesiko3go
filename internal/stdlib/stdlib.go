@@ -39,6 +39,10 @@ type Context interface {
 	Exit(code int)
 	// Args reports the arguments the program was started with.
 	Args() []string
+	// ReadResource reads a file packed into the executable. It reports false
+	// when the program is not bundled, or has no such file, in which case the
+	// caller falls back to the real file system.
+	ReadResource(name string) ([]byte, bool)
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko

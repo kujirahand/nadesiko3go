@@ -38,6 +38,9 @@ func (c *Collector) Exit(int) {}
 // Args reports no arguments.
 func (c *Collector) Args() []string { return nil }
 
+// ReadResource has nothing packed with it.
+func (c *Collector) ReadResource(string) ([]byte, bool) { return nil, false }
+
 // Log returns what was printed, with trailing whitespace removed.
 func (c *Collector) Log() string {
 	return strings.TrimRightFunc(c.buf.String(), isJSSpace)

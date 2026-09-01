@@ -33,7 +33,11 @@ func commands() map[string]command {
 	m["保存"] = command{josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: writeFile}
 	m["追記"] = command{josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: appendFile}
 
-	m["存在"] = command{josi: [][]string{{"が", "の"}}, fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+	m["存在"] = command{josi: [][]string{{"が", "の"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+		// 同梱したリソースも「存在する」ものとして数える
+		if _, ok := ctx.ReadResource(str(a, 0)); ok {
+			return value.Bool(true), nil
+		}
 		info, err := os.Stat(str(a, 0))
 		return value.Bool(err == nil && !info.IsDir()), nil
 	}}
@@ -124,10 +128,18 @@ func pathCommand(f func(string) string) command {
 		}}
 }
 
-func readFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
-	data, err := os.ReadFile(str(a, 0))
+// readFile reads a file, looking in the bundled resources first.
+//
+// A program packed with `gonako build` therefore reads its resources with the
+// same code it used while being developed, without a switch anywhere.
+func readFile(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+	name := str(a, 0)
+	if data, ok := ctx.ReadResource(name); ok {
+		return value.String(string(data)), nil
+	}
+	data, err := os.ReadFile(name)
 	if err != nil {
-		return value.Undefined(), fileError("読み込め", str(a, 0), err)
+		return value.Undefined(), fileError("読み込め", name, err)
 	}
 	return value.String(string(data)), nil
 }
