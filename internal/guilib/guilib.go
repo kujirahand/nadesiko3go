@@ -14,21 +14,11 @@ import (
 )
 
 // Plugin is the GUI command set for WebView window operations.
-type Plugin struct {
-	title  string
-	width  int
-	height int
-	debug  bool
-}
+type Plugin struct{}
 
-// New creates a new guilib plugin instance with default window settings.
+// New creates a new guilib plugin instance.
 func New() *Plugin {
-	return &Plugin{
-		title:  "なでしこ3",
-		width:  960,
-		height: 640,
-		debug:  false,
-	}
+	return &Plugin{}
 }
 
 type command struct {
@@ -64,14 +54,9 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
 		"ウィンドウ作成": {
-			josi:       [][]string{{"から", "で", "を"}},
+			josi:       [][]string{{"で", "による"}, {"の", "を", "から"}},
 			returnNone: true,
 			fn:         p.cmdCreateWindow,
-		},
-		"ウィンドウ設定": {
-			josi:       [][]string{{"の", "で", "を", "に"}},
-			returnNone: true,
-			fn:         p.cmdSetWindowConfig,
 		},
 	}
 }
@@ -83,87 +68,135 @@ func arg(args []value.Value, i int) value.Value {
 	return args[i]
 }
 
-// cmdSetWindowConfig sets window properties like title, width, height, and debug.
-// (設定の|設定で|設定を|設定に) ウィンドウ設定
-func (p *Plugin) cmdSetWindowConfig(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	if len(args) < 1 {
-		return value.Undefined(), nil
+type windowConfig struct {
+	title  string
+	width  int
+	height int
+	debug  bool
+}
+
+func parseWindowConfig(v value.Value) windowConfig {
+	cfg := windowConfig{
+		title:  "なでしこ3",
+		width:  960,
+		height: 640,
+		debug:  false,
 	}
 
-	arg0 := arg(args, 0)
-	d, ok := arg0.Dict()
+	d, ok := v.Dict()
 	if !ok || d == nil {
-		return value.Undefined(), nil
+		return cfg
 	}
 
 	// タイトル / title
-	if v, ok := d.Get("タイトル"); ok {
-		p.title = value.ToString(v)
-	} else if v, ok := d.Get("title"); ok {
-		p.title = value.ToString(v)
+	if tv, ok := d.Get("タイトル"); ok {
+		cfg.title = value.ToString(tv)
+	} else if tv, ok := d.Get("title"); ok {
+		cfg.title = value.ToString(tv)
 	}
 
 	// サイズ: [幅, 高さ] (例: [800, 600])
-	if v, ok := d.Get("サイズ"); ok {
-		if arr, isArr := v.Array(); isArr && arr != nil && arr.Len() >= 2 {
+	if sv, ok := d.Get("サイズ"); ok {
+		if arr, isArr := sv.Array(); isArr && arr != nil && arr.Len() >= 2 {
 			if w, ok := arr.Get(0).Number(); ok && w > 0 {
-				p.width = int(w)
+				cfg.width = int(w)
 			}
 			if h, ok := arr.Get(1).Number(); ok && h > 0 {
-				p.height = int(h)
+				cfg.height = int(h)
 			}
 		}
-	} else if v, ok := d.Get("size"); ok {
-		if arr, isArr := v.Array(); isArr && arr != nil && arr.Len() >= 2 {
+	} else if sv, ok := d.Get("size"); ok {
+		if arr, isArr := sv.Array(); isArr && arr != nil && arr.Len() >= 2 {
 			if w, ok := arr.Get(0).Number(); ok && w > 0 {
-				p.width = int(w)
+				cfg.width = int(w)
 			}
 			if h, ok := arr.Get(1).Number(); ok && h > 0 {
-				p.height = int(h)
+				cfg.height = int(h)
 			}
 		}
 	}
 
 	// 幅 / width
-	if v, ok := d.Get("幅"); ok {
-		if w, ok := v.Number(); ok && w > 0 {
-			p.width = int(w)
+	if wv, ok := d.Get("幅"); ok {
+		if w, ok := wv.Number(); ok && w > 0 {
+			cfg.width = int(w)
 		}
-	} else if v, ok := d.Get("width"); ok {
-		if w, ok := v.Number(); ok && w > 0 {
-			p.width = int(w)
+	} else if wv, ok := d.Get("width"); ok {
+		if w, ok := wv.Number(); ok && w > 0 {
+			cfg.width = int(w)
 		}
 	}
 
 	// 高さ / height
-	if v, ok := d.Get("高さ"); ok {
-		if h, ok := v.Number(); ok && h > 0 {
-			p.height = int(h)
+	if hv, ok := d.Get("高さ"); ok {
+		if h, ok := hv.Number(); ok && h > 0 {
+			cfg.height = int(h)
 		}
-	} else if v, ok := d.Get("height"); ok {
-		if h, ok := v.Number(); ok && h > 0 {
-			p.height = int(h)
+	} else if hv, ok := d.Get("height"); ok {
+		if h, ok := hv.Number(); ok && h > 0 {
+			cfg.height = int(h)
 		}
 	}
 
 	// デバッグ / debug
-	if v, ok := d.Get("デバッグ"); ok {
-		p.debug = value.ToBool(v)
-	} else if v, ok := d.Get("debug"); ok {
-		p.debug = value.ToBool(v)
+	if dv, ok := d.Get("デバッグ"); ok {
+		cfg.debug = value.ToBool(dv)
+	} else if dv, ok := d.Get("debug"); ok {
+		cfg.debug = value.ToBool(dv)
 	}
 
-	return value.Undefined(), nil
+	return cfg
 }
 
-// cmdCreateWindow opens a WebView window for the given URL or HTML string.
-// (URLから|URLで|URLを) ウィンドウ作成
+// cmdCreateWindow opens a WebView window for the given URL or HTML string with options.
+// (OPTION_OBJでURLの|OPTION_OBJでURLを) ウィンドウ作成
 func (p *Plugin) cmdCreateWindow(_ stdlib.Context, args []value.Value) (value.Value, error) {
 	if len(args) < 1 {
 		return value.Undefined(), nil
 	}
 
-	furl := value.ToString(arg(args, 0))
+	var furl string
+	cfg := windowConfig{
+		title:  "なでしこ3",
+		width:  960,
+		height: 640,
+		debug:  false,
+	}
+
+	if len(args) >= 2 {
+		// args[0] = OPTION_OBJ, args[1] = URL
+		optArg := arg(args, 0)
+		urlArg := arg(args, 1)
+
+		if optArg.Kind() == value.KindDict {
+			cfg = parseWindowConfig(optArg)
+			furl = value.ToString(urlArg)
+		} else if urlArg.Kind() == value.KindDict {
+			cfg = parseWindowConfig(urlArg)
+			furl = value.ToString(optArg)
+		} else {
+			furl = value.ToString(urlArg)
+		}
+	} else {
+		// 1引数の場合
+		arg0 := arg(args, 0)
+		if arg0.Kind() == value.KindDict {
+			cfg = parseWindowConfig(arg0)
+			d, _ := arg0.Dict()
+			if uv, ok := d.Get("URL"); ok {
+				furl = value.ToString(uv)
+			} else if uv, ok := d.Get("url"); ok {
+				furl = value.ToString(uv)
+			} else if uv, ok := d.Get("HTML"); ok {
+				furl = value.ToString(uv)
+			} else if uv, ok := d.Get("html"); ok {
+				furl = value.ToString(uv)
+			}
+		} else {
+			furl = value.ToString(arg0)
+		}
+	}
+
 	trimmed := strings.TrimSpace(furl)
 	lower := strings.ToLower(trimmed)
 
@@ -195,19 +228,6 @@ func (p *Plugin) cmdCreateWindow(_ stdlib.Context, args []value.Value) (value.Va
 		}
 	}
 
-	title := p.title
-	if title == "" {
-		title = "なでしこ3"
-	}
-	width := p.width
-	if width <= 0 {
-		width = 960
-	}
-	height := p.height
-	if height <= 0 {
-		height = 640
-	}
-
 	// 実行中のバイナリ（gonako-gui または gonako）があるか確認し、別プロセスで起動
 	// これによりGUIエディタ内からの呼び出しでもUIメインスレッドがブロックされない
 	exe, err := os.Executable()
@@ -222,11 +242,11 @@ func (p *Plugin) cmdCreateWindow(_ stdlib.Context, args []value.Value) (value.Va
 		}
 		cmdArgs := []string{
 			"-url", targetURL,
-			"-title", title,
-			"-width", fmt.Sprintf("%d", width),
-			"-height", fmt.Sprintf("%d", height),
+			"-title", cfg.title,
+			"-width", fmt.Sprintf("%d", cfg.width),
+			"-height", fmt.Sprintf("%d", cfg.height),
 		}
-		if p.debug {
+		if cfg.debug {
 			cmdArgs = append(cmdArgs, "-debug")
 		}
 		cmd := exec.Command(guiExe, cmdArgs...)
@@ -236,14 +256,14 @@ func (p *Plugin) cmdCreateWindow(_ stdlib.Context, args []value.Value) (value.Va
 	}
 
 	// フォールバック: 現在のプロセスで直接webviewを開く
-	w := webview.New(p.debug)
+	w := webview.New(cfg.debug)
 	if w == nil {
 		return value.Undefined(), fmt.Errorf("WebViewの作成に失敗しました")
 	}
 	defer w.Destroy()
 
-	w.SetTitle(title)
-	w.SetSize(width, height, webview.HintNone)
+	w.SetTitle(cfg.title)
+	w.SetSize(cfg.width, cfg.height, webview.HintNone)
 	if isHTML {
 		w.SetHtml(furl)
 	} else {
