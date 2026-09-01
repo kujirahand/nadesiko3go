@@ -560,7 +560,7 @@ body {
   padding: 12px;
   background-color: transparent;
   color: var(--text-main);
-  border: none;
+  border: 2px solid transparent;
   outline: none;
   resize: none;
   font-family: var(--font-mono);
@@ -570,6 +570,12 @@ body {
   white-space: pre;
   overflow: auto;
   user-select: text;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.editor.drag-over {
+  border-color: var(--accent-pink);
+  background-color: rgba(243, 139, 168, 0.05);
 }
 
 /* 実行結果 (コンソール / ウィンドウプレビュー) 領域 */

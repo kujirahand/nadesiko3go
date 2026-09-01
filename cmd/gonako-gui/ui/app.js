@@ -74,7 +74,13 @@ document.addEventListener('DOMContentLoaded', () => {
     activeContent.classList.add('active');
   }
 
-  tabBtnCmd.addEventListener('click', () => activateTab(tabBtnCmd, tabContentCmd));
+  tabBtnCmd.addEventListener('click', () => {
+    activateTab(tabBtnCmd, tabContentCmd);
+    if (allCommands.length === 0) {
+      loadCommands();
+    }
+  });
+
   tabBtnTemplate.addEventListener('click', () => {
     activateTab(tabBtnTemplate, tabContentTemplate);
     if (allTemplates.length === 0) {
@@ -83,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderTemplates(allTemplates);
     }
   });
+
   tabBtnFile.addEventListener('click', () => {
     activateTab(tabBtnFile, tabContentFile);
     if (!currentDirPath) {
@@ -281,16 +288,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- 命令一覧の読み込みと検索 ---
   async function loadCommands() {
-    if (typeof window.getCommandList !== 'function') {
-      return;
+    if (typeof window.getCommandList === 'function') {
+      try {
+        const res = await window.getCommandList();
+        allCommands = typeof res === 'string' ? JSON.parse(res) : res;
+      } catch (err) {
+        console.error('命令一覧の読み込みエラー:', err);
+      }
+    } else {
+      // ローカルJSONファイルから取得を試行
+      try {
+        const res = await fetch('command-list.json');
+        allCommands = await res.json();
+      } catch (err) {}
     }
-    try {
-      const res = await window.getCommandList();
-      allCommands = typeof res === 'string' ? JSON.parse(res) : res;
+    if (allCommands && allCommands.length > 0) {
       renderCommands(allCommands);
-    } catch (err) {
-      console.error('命令一覧の読み込みエラー:', err);
     }
+  }
+
+  // 命令の使い方を実行結果コンソールに表示
+  function displayCommandHelp(cmd) {
+    let josiText = '';
+    if (cmd.josi && cmd.josi.length > 0) {
+      josiText = cmd.josi.map(group => `[${group.join(', ')}]`).join(' ');
+    } else {
+      josiText = '（助詞なし）';
+    }
+
+    const template = cmd.template || cmd.name;
+    const desc = cmd.desc || '（説明はありません）';
+    const category = cmd.category || '基本';
+    const yomi = cmd.yomi ? ` (${cmd.yomi})` : '';
+
+    const helpText = [
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `📖 命令: ${cmd.name}${yomi}`,
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
+      `【構文】 ${template}`,
+      `【助詞】 ${josiText}`,
+      `【分類】 ${category}`,
+      `【説明】 ${desc}`,
+      ``,
+      `※ ダブルクリックまたはエディタへのドラッグ＆ドロップで構文を挿入できます。`
+    ].join('\n');
+
+    output.textContent = helpText;
+    output.className = 'output has-content';
+    windowPreview.style.display = 'none';
+    execStatus.textContent = '使い方表示';
+    execStatus.className = 'status-indicator';
   }
 
   function renderCommands(commands) {
@@ -300,7 +347,8 @@ document.addEventListener('DOMContentLoaded', () => {
     commands.forEach(cmd => {
       const item = document.createElement('div');
       item.className = 'list-item';
-      item.title = `クリックでエディタに挿入: ${cmd.name}`;
+      item.draggable = true;
+      item.title = `クリック: 使い方を表示 / ダブルクリックまたはドラッグ: 構文を挿入 (${cmd.name})`;
 
       let josiText = '';
       if (cmd.josi && cmd.josi.length > 0) {
@@ -315,9 +363,29 @@ document.addEventListener('DOMContentLoaded', () => {
         ${josiText ? `<span class="cmd-item-josi">${escapeHtml(josiText)}</span>` : ''}
       `;
 
-      item.addEventListener('click', () => {
-        insertTextAtCursor(cmd.name);
-        setStatus(`命令「${cmd.name}」を挿入しました`);
+      // 1. シングルクリック: 使い方を表示
+      item.addEventListener('click', (e) => {
+        document.querySelectorAll('#cmd-list .list-item').forEach(el => el.classList.remove('selected'));
+        item.classList.add('selected');
+        displayCommandHelp(cmd);
+        setStatus(`命令「${cmd.name}」の使い方を表示しました (ダブルクリックまたはDnDで挿入)`);
+      });
+
+      // 2. ダブルクリック: エディタに「助詞+命令」テンプレートを挿入
+      item.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        const template = cmd.template || cmd.name;
+        insertTextAtCursor(template);
+        displayCommandHelp(cmd);
+        setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
+      });
+
+      // 3. ドラッグ開始: テンプレート文字列とメタデータを設定
+      item.addEventListener('dragstart', (e) => {
+        const template = cmd.template || cmd.name;
+        e.dataTransfer.setData('text/plain', template);
+        e.dataTransfer.setData('application/json', JSON.stringify(cmd));
+        e.dataTransfer.effectAllowed = 'copy';
       });
 
       cmdList.appendChild(item);
@@ -332,10 +400,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const filtered = allCommands.filter(c => {
       if (c.name.toLowerCase().includes(query)) return true;
+      if (c.desc && c.desc.toLowerCase().includes(query)) return true;
+      if (c.category && c.category.toLowerCase().includes(query)) return true;
+      if (c.yomi && c.yomi.toLowerCase().includes(query)) return true;
       if (c.josi && c.josi.some(group => group.some(j => j.toLowerCase().includes(query)))) return true;
       return false;
     });
     renderCommands(filtered);
+  });
+
+  // --- エディタへのドラッグ＆ドロップ対応 ---
+  editor.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    editor.classList.add('drag-over');
+  });
+
+  editor.addEventListener('dragleave', () => {
+    editor.classList.remove('drag-over');
+  });
+
+  editor.addEventListener('drop', (e) => {
+    e.preventDefault();
+    editor.classList.remove('drag-over');
+
+    const text = e.dataTransfer.getData('text/plain');
+    const jsonStr = e.dataTransfer.getData('application/json');
+
+    if (jsonStr) {
+      try {
+        const cmd = JSON.parse(jsonStr);
+        displayCommandHelp(cmd);
+      } catch (err) {}
+    }
+
+    if (text) {
+      insertTextAtCursor(text);
+      setStatus(`構文「${text}」を挿入しました`);
+    }
   });
 
   // --- ファイルブラウザ処理 ---
@@ -814,6 +916,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- 初期化呼び出し ---
   loadTemplates();
+  loadCommands();
 
   if (typeof window.getAppInfo === 'function') {
     window.getAppInfo().then(infoStr => {
@@ -821,12 +924,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const info = JSON.parse(infoStr);
         versionInfo.textContent = `gonako-gui v${info.version || '3.6.0'} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
-        loadCommands();
       } catch {
         versionInfo.textContent = `gonako-gui`;
       }
     });
-  } else {
-    loadCommands();
   }
 });

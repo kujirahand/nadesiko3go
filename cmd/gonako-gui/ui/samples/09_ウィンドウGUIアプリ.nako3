@@ -1,5 +1,5 @@
 // HTMLコードやURLからWebViewウィンドウを表示
-HtmlText = 「<!DOCTYPE html>
+HtmlText = 『<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -22,6 +22,5 @@ HtmlText = 「<!DOCTYPE html>
     };
   </script>
 </body>
-</html>」
-
+</html>』
 HtmlTextでウィンドウ作成。

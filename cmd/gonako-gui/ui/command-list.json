@@ -1,0 +1,6174 @@
+[
+  {
+    "name": "AJAX_JSON取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の",
+        "を"
+      ]
+    ],
+    "category": "新AJAX",
+    "desc": "AJAXでURLにアクセスしJSONの結果を得て、送信時AJAXオプションの値を参照。",
+    "template": "【S】からAJAX_JSON取得",
+    "yomi": "AJAX_JSONしゅとく"
+  },
+  {
+    "name": "AJAXオプション設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "と"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "Ajax命令でオプションを設定",
+    "template": "【S】にAJAXオプション設定",
+    "yomi": "AJAXおぷしょんせってい"
+  },
+  {
+    "name": "AJAXテキスト取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の",
+        "を"
+      ]
+    ],
+    "category": "新AJAX",
+    "desc": "AJAXでURLにアクセスしテキスト形式で結果を得る。送信時AJAXオプションの値を参照。",
+    "template": "【S】からAJAXテキスト取得",
+    "yomi": "AJAXてきすとしゅとく"
+  },
+  {
+    "name": "AJAXバイナリ取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の",
+        "を"
+      ]
+    ],
+    "category": "新AJAX",
+    "desc": "AJAXでURLにアクセスしバイナリ(arrayBuffer)形式で結果を得る。送信時AJAXオプションの値を参照。",
+    "template": "【S】からAJAXバイナリ取得",
+    "yomi": "AJAXばいなりしゅとく"
+  },
+  {
+    "name": "AJAX保障送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に",
+        "の",
+        "から",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
+    "template": "【S】までAJAX保障送信",
+    "yomi": "AJAXほしょうそうしん"
+  },
+  {
+    "name": "AJAX内容取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)の応答から内容を指定した形式で取り出すための非同期処理オブジェクト(Promise)を返す。",
+    "template": "【S】からAJAX内容取得",
+    "yomi": "AJAXないようしゅとく"
+  },
+  {
+    "name": "AJAX受信",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "「!非同期モード」で非同期通信(Ajax)でURLからデータを受信する。『AJAXオプション』を指定できる。結果は変数『対象』に入る",
+    "template": "【S】からAJAX受信",
+    "yomi": "AJAXじゅしん"
+  },
+  {
+    "name": "AJAX受信時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から",
+        "を",
+        "まで",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
+    "template": "【A】で【B】からAJAX受信時",
+    "yomi": "AJAXそうしんしたとき"
+  },
+  {
+    "name": "AJAX失敗時",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "Ajax命令でエラーが起きたとき",
+    "template": "【S】のAJAX失敗時",
+    "yomi": "AJAXえらーしっぱいしたとき"
+  },
+  {
+    "name": "AJAX送信時",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "まで",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
+    "template": "【A】の【B】までAJAX送信時",
+    "yomi": "AJAXそうしんしたとき"
+  },
+  {
+    "name": "AND",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "(ビット演算で)AとBの論理積を返す。日本語の「AかつB」に相当する",
+    "template": "【A】と【B】のAND",
+    "yomi": "AND"
+  },
+  {
+    "name": "ASC",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列V(あるいは文字列配列)の最初の文字の文字コードを返す",
+    "template": "【S】のASC",
+    "yomi": "ASC"
+  },
+  {
+    "name": "ASSERT等",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "が"
+      ]
+    ],
+    "category": "テスト",
+    "desc": "mochaによるテストで、ASSERTでAとBが正しいことを報告する",
+    "template": "【A】と【B】がASSERT等",
+    "yomi": "ASSERTひとしい"
+  },
+  {
+    "name": "ASYNC",
+    "type": "func",
+    "josi": null,
+    "category": "特殊命令",
+    "desc": "なでしこのユーザー関数定義でASYNC(非同期関数である)ことを宣言する",
+    "template": "ASYNC",
+    "yomi": "ASYNC"
+  },
+  {
+    "name": "AWAIT実行",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "特殊命令",
+    "desc": "JavaScriptの非同期関数(Promise",
+    "template": "【A】を【B】でAWAIT実行"
+  },
+  {
+    "name": "BASE64エンコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "BASE64",
+    "desc": "BASE64エンコードして返す",
+    "template": "【S】をBASE64エンコード",
+    "yomi": "BASE64えんこーど"
+  },
+  {
+    "name": "BASE64デコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "BASE64",
+    "desc": "BASE64デコードして返す",
+    "template": "【S】をBASE64デコード",
+    "yomi": "BASE64でこーど"
+  },
+  {
+    "name": "CHR",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字コードV(あるいは文字列配列)から文字を返す",
+    "template": "【S】のCHR",
+    "yomi": "CHR"
+  },
+  {
+    "name": "CLAMP",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ],
+      [
+        "から"
+      ],
+      [
+        "までの",
+        "で"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "数値を下限から上限の範囲内に収めた値を返す。",
+    "template": "【A】の【B】から【C】までのCLAMP",
+    "yomi": "CLAMP"
+  },
+  {
+    "name": "DISCORDファイル送信",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ],
+      [
+        "と"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "新AJAX",
+    "desc": "DISCORDのウェブフックURLにファイルF(パスを指定)とメッセージSを送信する。",
+    "template": "【A】へ【B】と【C】をDISCORDファイル送信",
+    "yomi": "DISCORDふぁいるそうしん"
+  },
+  {
+    "name": "DISCORD送信",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "新AJAX",
+    "desc": "DISCORDのウェブフックURLにSのメッセージを送信する。宛先のウェブフックを取得しておく必要がある。",
+    "template": "【A】へ【B】をDISCORD送信",
+    "yomi": "DISCORDそうしん"
+  },
+  {
+    "name": "EUCファイル保存",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "Sをeuc-jp形式でファイルFへ書き込む",
+    "template": "【A】を【B】へEUCファイル保存",
+    "yomi": "EUCふぁいるほぞん"
+  },
+  {
+    "name": "EUCファイル読",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "euc-jp形式のファイルSを読み込む",
+    "template": "【S】をEUCファイル読",
+    "yomi": "EUCふぁいるよむ"
+  },
+  {
+    "name": "FLOAT",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを実数に変換",
+    "template": "【S】のFLOAT",
+    "yomi": "FLOAT"
+  },
+  {
+    "name": "GET保障送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に",
+        "の",
+        "から",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
+    "template": "【S】までGET保障送信",
+    "yomi": "GETほしょうそうしん"
+  },
+  {
+    "name": "GET送信時",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "まで",
+        "へ",
+        "に",
+        "から",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
+    "template": "【A】の【B】までGET送信時",
+    "yomi": "GETそうしんしたとき"
+  },
+  {
+    "name": "HEX",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを16進数に変換",
+    "template": "【S】のHEX",
+    "yomi": "HEX"
+  },
+  {
+    "name": "HTTP保障取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から",
+        "を",
+        "まで",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
+    "template": "【S】のHTTP保障取得",
+    "yomi": "HTTPほしょうしゅとく"
+  },
+  {
+    "name": "INT",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを整数に変換",
+    "template": "【S】のINT",
+    "yomi": "INT"
+  },
+  {
+    "name": "JSONエンコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "JSON",
+    "desc": "オブジェクトVをJSON形式に変換して返す(『JSON変換』と同じ)",
+    "template": "【S】をJSONエンコード",
+    "yomi": "JSONえんこーど"
+  },
+  {
+    "name": "JSONエンコード整形",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "JSON",
+    "desc": "オブジェクトVをJSON形式の文字列(整形済み)に変換して整形して返す",
+    "template": "【S】をJSONエンコード整形",
+    "yomi": "JSONえんこーどせいけい"
+  },
+  {
+    "name": "JSONデコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "JSON",
+    "desc": "JSON文字列Sをオブジェクトにして返す(『JSON取得』と同じ)",
+    "template": "【S】をJSONデコード",
+    "yomi": "JSONでこーど"
+  },
+  {
+    "name": "JSON取得",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "JSON",
+    "desc": "JSON文字列をパースして、なでしこのオブジェクトとして返す",
+    "template": "【S】をJSON取得",
+    "yomi": "JSONしゅとく"
+  },
+  {
+    "name": "JSON変換",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "JSON",
+    "desc": "オブジェクトVをJSON形式の文字列に変換して返す",
+    "template": "【S】をJSON変換",
+    "yomi": "JSONへんかん"
+  },
+  {
+    "name": "JSオブジェクト取得",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "特殊命令",
+    "desc": "なでしこで定義した関数や変数nameのJavaScriptオブジェクトを取得する",
+    "template": "【S】のJSオブジェクト取得",
+    "yomi": "JSおぶじぇくとしゅとく"
+  },
+  {
+    "name": "LEFT",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "だけ",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sの左端からCNT文字を抽出する",
+    "template": "【A】の【B】だけLEFT",
+    "yomi": "LEFT"
+  },
+  {
+    "name": "LEN",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "Aの要素数を返す。Aには配列",
+    "template": "【S】のLEN"
+  },
+  {
+    "name": "MAX",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "2個以上の数値のうち最大値を返す。",
+    "template": "【A】の【B】とMAX",
+    "yomi": "MAX"
+  },
+  {
+    "name": "MID",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SのA文字目からCNT文字を抽出する(『文字抜出』と同じ)",
+    "template": "【A】で【B】から【C】をMID",
+    "yomi": "MID"
+  },
+  {
+    "name": "MIN",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "2個以上の数値のうち最小値を返す。",
+    "template": "【A】の【B】とMIN",
+    "yomi": "MIN"
+  },
+  {
+    "name": "NAN判定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値VがNaNかどうかを判定(命令『非数判定』を使う事を推奨)",
+    "template": "【S】をNAN判定",
+    "yomi": "NANはんてい"
+  },
+  {
+    "name": "NOT",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "(ビット演算で)Vの各ビットを反転して返す。",
+    "template": "【S】のNOT",
+    "yomi": "NOT"
+  },
+  {
+    "name": "OR",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "(ビット演算で)AとBの論理和を返す。",
+    "template": "【A】と【B】のOR",
+    "yomi": "OR"
+  },
+  {
+    "name": "OSアーキテクチャ取得",
+    "type": "func",
+    "josi": null,
+    "category": "Nodeプロセス",
+    "desc": "OSアーキテクチャを返す",
+    "template": "OSアーキテクチャ取得",
+    "yomi": "OSあーきてくちゃしゅとく"
+  },
+  {
+    "name": "OS取得",
+    "type": "func",
+    "josi": null,
+    "category": "Nodeプロセス",
+    "desc": "OSプラットフォームを返す(darwin",
+    "template": "OS取得"
+  },
+  {
+    "name": "PDFタイトル設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDFタイトル設定』を実行します",
+    "template": "【S】にPDFタイトル設定"
+  },
+  {
+    "name": "PDFフォント設定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で",
+        "に"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDFフォント設定』を実行します",
+    "template": "【A】を【B】でPDFフォント設定"
+  },
+  {
+    "name": "PDFページ追加",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『PDFページ追加』を実行します",
+    "template": "PDFページ追加"
+  },
+  {
+    "name": "PDF保存",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "PDFドキュメントを指定ファイルパスへ出力保存する",
+    "template": "【S】へPDF保存"
+  },
+  {
+    "name": "PDF切替",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF切替』を実行します",
+    "template": "【S】にPDF切替"
+  },
+  {
+    "name": "PDF文字描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF文字描画』を実行します",
+    "template": "【A】を【B】へPDF文字描画"
+  },
+  {
+    "name": "PDF新規作成",
+    "type": "func",
+    "josi": null,
+    "category": "オフィス",
+    "desc": "新規PDFドキュメントを作成してハンドルを返す",
+    "template": "PDF新規作成"
+  },
+  {
+    "name": "PDF画像描画",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF画像描画』を実行します",
+    "template": "【A】を【B】へPDF画像描画"
+  },
+  {
+    "name": "PDF矩形描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF矩形描画』を実行します",
+    "template": "【A】を【B】でPDF矩形描画"
+  },
+  {
+    "name": "PDF線描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF線描画』を実行します",
+    "template": "【A】を【B】でPDF線描画"
+  },
+  {
+    "name": "PDF複数行文字描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『PDF複数行文字描画』を実行します",
+    "template": "【A】を【B】へPDF複数行文字描画"
+  },
+  {
+    "name": "PDF閉",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『PDF閉』を実行します",
+    "template": "PDF閉"
+  },
+  {
+    "name": "POSTデータ生成",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "辞書形式のデータPARAMSをkey=value\u0026key=value...の形式に変換する",
+    "template": "【S】のPOSTデータ生成",
+    "yomi": "POSTでーたせいせい"
+  },
+  {
+    "name": "POSTフォーム保障送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に",
+        "の",
+        "から",
+        "を"
+      ],
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにPARAMSをフォームとしてPOST送信を開始する非同期処理オブジェクト(Promise)を作成する。",
+    "template": "【A】まで【B】をPOSTフォーム保障送信",
+    "yomi": "POSTふぉーむほしょうそうしん"
+  },
+  {
+    "name": "POSTフォーム送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(AJAX)でURLにPARAMS(辞書型)をフォームとしてPOSTメソッドにてURLへ送信し応答を返す。",
+    "template": "【A】まで【B】をPOSTフォーム送信",
+    "yomi": "POSTふぉーむそうしん"
+  },
+  {
+    "name": "POSTフォーム送信時",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "まで",
+        "へ",
+        "に"
+      ],
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "AjaxでURLにPARAMSをフォームとしてPOST送信し『対象』にデータを設定",
+    "template": "【A】の【B】まで【C】をPOSTフォーム送信時",
+    "yomi": "POSTふぉーむそうしんしたとき"
+  },
+  {
+    "name": "POST保障送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に",
+        "の",
+        "から",
+        "を"
+      ],
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(Ajax)でURLにPARAMSをPOST送信を開始する非同期処理オブジェクト(Promise)を作成する。",
+    "template": "【A】まで【B】をPOST保障送信",
+    "yomi": "POSTほしょうそうしん"
+  },
+  {
+    "name": "POST送信",
+    "type": "func",
+    "josi": [
+      [
+        "まで",
+        "へ",
+        "に"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "非同期通信(AJAX)でPOSTメソッドにてURLへPARAMS(辞書型)を送信して応答を戻す。",
+    "template": "【A】まで【B】をPOST送信",
+    "yomi": "POSTそうしん"
+  },
+  {
+    "name": "POST送信時",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "まで",
+        "へ",
+        "に"
+      ],
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Ajax",
+    "desc": "AjaxでURLにPARAMSをPOST送信し『対象』にデータを設定",
+    "template": "【A】の【B】まで【C】をPOST送信時",
+    "yomi": "POSTそうしんしたとき"
+  },
+  {
+    "name": "RGB",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "色定数",
+    "desc": "赤緑青を256段階でそれぞれ指定して、#RRGGBB形式の値を返す",
+    "template": "【A】と【B】の【C】でRGB",
+    "yomi": "RGB"
+  },
+  {
+    "name": "RIGHT",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "だけ",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sの右端からCNT文字を抽出する(『文字右部分』と同じ)",
+    "template": "【A】の【B】だけRIGHT",
+    "yomi": "RIGHT"
+  },
+  {
+    "name": "SHIFT_L",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "VをAビット左へシフトして返す",
+    "template": "【A】を【B】でSHIFT_L",
+    "yomi": "SHIFT_L"
+  },
+  {
+    "name": "SHIFT_R",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "VをAビット右へシフトして返す(符号を維持する)",
+    "template": "【A】を【B】でSHIFT_R",
+    "yomi": "SHIFT_R"
+  },
+  {
+    "name": "SHIFT_UR",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "VをAビット右へシフトして返す(符号を維持しない、0で埋める)",
+    "template": "【A】を【B】でSHIFT_UR",
+    "yomi": "SHIFT_UR"
+  },
+  {
+    "name": "SJISファイル保存",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "SをSJIS形式でファイルFへ書き込む",
+    "template": "【A】を【B】へSJISファイル保存",
+    "yomi": "SJISふぁいるほぞん"
+  },
+  {
+    "name": "SJISファイル読",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "SJIS形式のファイルSを読み込む",
+    "template": "【S】をSJISファイル読",
+    "yomi": "SJISふぁいるよむ"
+  },
+  {
+    "name": "SJIS取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "を",
+        "で"
+      ]
+    ],
+    "category": "文字コード",
+    "desc": "Shift_JISのバイナリバッファを文字列に変換",
+    "template": "【S】からSJIS取得",
+    "yomi": "SJISしゅとく"
+  },
+  {
+    "name": "SJIS変換",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "を"
+      ]
+    ],
+    "category": "文字コード",
+    "desc": "(v1非互換)文字列をShift_JISのバイナリバッファに変換",
+    "template": "【S】にSJIS変換",
+    "yomi": "SJISへんかん"
+  },
+  {
+    "name": "SQLITE3全取得",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3全取得』を実行します",
+    "template": "【A】を【B】でSQLITE3全取得"
+  },
+  {
+    "name": "SQLITE3切替",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3切替』を実行します",
+    "template": "【S】にSQLITE3切替"
+  },
+  {
+    "name": "SQLITE3取得",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3取得』を実行します",
+    "template": "【A】を【B】でSQLITE3取得"
+  },
+  {
+    "name": "SQLITE3取得時",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3取得時』を実行します",
+    "template": "【A】に【B】を【C】でSQLITE3取得時"
+  },
+  {
+    "name": "SQLITE3実行",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3実行』を実行します",
+    "template": "【A】を【B】でSQLITE3実行"
+  },
+  {
+    "name": "SQLITE3実行後",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3実行後』を実行します",
+    "template": "【A】に【B】を【C】でSQLITE3実行後"
+  },
+  {
+    "name": "SQLITE3実行時",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3実行時』を実行します",
+    "template": "【A】に【B】を【C】でSQLITE3実行時"
+  },
+  {
+    "name": "SQLITE3閉",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『SQLITE3閉』を実行します",
+    "template": "SQLITE3閉"
+  },
+  {
+    "name": "SQLITE3開",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『SQLITE3開』を実行します",
+    "template": "【S】をSQLITE3開"
+  },
+  {
+    "name": "TOFLOAT",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを実数に変換",
+    "template": "【S】をTOFLOAT",
+    "yomi": "TOFLOAT"
+  },
+  {
+    "name": "TOINT",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを整数に変換",
+    "template": "【S】をTOINT",
+    "yomi": "TOINT"
+  },
+  {
+    "name": "TOSTR",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを文字列に変換",
+    "template": "【S】をTOSTR",
+    "yomi": "TOSTR"
+  },
+  {
+    "name": "TYPEOF",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "変数Vの型を返す",
+    "template": "【S】のTYPEOF",
+    "yomi": "TYPEOF"
+  },
+  {
+    "name": "UNIXTIME変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "から"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日時SをUNIX時間 (UTC(1970",
+    "template": "【S】のUNIXTIME変換"
+  },
+  {
+    "name": "UNIX時間変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "から"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日時SをUNIX時間 (UTC(1970",
+    "template": "【S】のUNIX時間変換"
+  },
+  {
+    "name": "URLエンコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "基本",
+    "desc": "URLエンコードして返す",
+    "template": "【S】をURLエンコード",
+    "yomi": "URLえんこーど"
+  },
+  {
+    "name": "URLデコード",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "基本",
+    "desc": "URLデコードして返す",
+    "template": "【S】をURLデコード",
+    "yomi": "URLでこーど"
+  },
+  {
+    "name": "URLパラメータ解析",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "基本",
+    "desc": "URLパラメータを解析してハッシュで返す",
+    "template": "【S】をURLパラメータ解析",
+    "yomi": "URLぱらめーたかいせき"
+  },
+  {
+    "name": "XOR",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "ビット演算",
+    "desc": "(ビット演算で)AとBの排他的論理和を返す。",
+    "template": "【A】と【B】のXOR",
+    "yomi": "XOR"
+  },
+  {
+    "name": "お願",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "ソースコードを読む人を気持ちよくする",
+    "template": "お願",
+    "yomi": "おねがいします"
+  },
+  {
+    "name": "かなか判定",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "が"
+      ]
+    ],
+    "category": "文字種類",
+    "desc": "文字列Sの1文字目がひらがなか判定",
+    "template": "【S】をかなか判定",
+    "yomi": "かなかはんてい"
+  },
+  {
+    "name": "ください",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "敬語対応のため",
+    "template": "ください",
+    "yomi": "ください"
+  },
+  {
+    "name": "です",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "ソースコードを読む人を気持ちよくする",
+    "template": "です",
+    "yomi": "です"
+  },
+  {
+    "name": "べき乗",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AのB乗を求める",
+    "template": "【A】の【B】のべき乗",
+    "yomi": "べきじょう"
+  },
+  {
+    "name": "ウィンドウ作成",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "で",
+        "を"
+      ]
+    ],
+    "category": "GUI",
+    "desc": "指定したURLまたはHTMLコードからWebViewウィンドウを新規作成して表示する",
+    "template": "【S】からウィンドウ作成"
+  },
+  {
+    "name": "エクスプローラー起動",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "で",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "Windowsでエクスプローラー、macOSでFinderを使って、fnameを起動する",
+    "template": "【S】をエクスプローラー起動",
+    "yomi": "えくすぷろーらーきどう"
+  },
+  {
+    "name": "エクセルCSV保存",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルCSV保存』を実行します",
+    "template": "【S】へエクセルCSV保存"
+  },
+  {
+    "name": "エクセルシート列挙",
+    "type": "func",
+    "josi": null,
+    "category": "オフィス",
+    "desc": "Excelブック内のシート名一覧を配列で返す",
+    "template": "エクセルシート列挙"
+  },
+  {
+    "name": "エクセルシート削除",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルシート削除』を実行します",
+    "template": "【S】のエクセルシート削除"
+  },
+  {
+    "name": "エクセルシート取得",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルシート取得』を実行します",
+    "template": "【S】のエクセルシート取得"
+  },
+  {
+    "name": "エクセルシート注目",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "に",
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルシート注目』を実行します",
+    "template": "【S】のエクセルシート注目"
+  },
+  {
+    "name": "エクセルセル取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "を",
+        "の"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "指定セル位置（例: 'A1'）の値を取得して返す",
+    "template": "【S】からエクセルセル取得"
+  },
+  {
+    "name": "エクセルセル幅設定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルセル幅設定』を実行します",
+    "template": "【A】を【B】にエクセルセル幅設定"
+  },
+  {
+    "name": "エクセルセル設定",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "指定シートのセル位置（例: 'A1'）に値を書き込む",
+    "template": "【A】へ【B】をエクセルセル設定"
+  },
+  {
+    "name": "エクセルブック切替",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセルブック切替』を実行します",
+    "template": "【S】にエクセルブック切替"
+  },
+  {
+    "name": "エクセル一括取得",
+    "type": "func",
+    "josi": [
+      [
+        "から"
+      ],
+      [
+        "までの",
+        "まで",
+        "の"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "指定範囲（例: 'A1' から 'C10'）の値を2次元配列として一括取得する",
+    "template": "【A】から【B】までのエクセル一括取得"
+  },
+  {
+    "name": "エクセル一括設定",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル一括設定』を実行します",
+    "template": "【A】へ【B】をエクセル一括設定"
+  },
+  {
+    "name": "エクセル保存",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "現在のアクティブExcelブックを指定パスへ保存する",
+    "template": "【S】へエクセル保存"
+  },
+  {
+    "name": "エクセル取得",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "を",
+        "の"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル取得』を実行します",
+    "template": "【S】からエクセル取得"
+  },
+  {
+    "name": "エクセル文字色設定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル文字色設定』を実行します",
+    "template": "【A】を【B】にエクセル文字色設定"
+  },
+  {
+    "name": "エクセル新規シート",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル新規シート』を実行します",
+    "template": "【S】のエクセル新規シート"
+  },
+  {
+    "name": "エクセル新規ブック",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『エクセル新規ブック』を実行します",
+    "template": "エクセル新規ブック"
+  },
+  {
+    "name": "エクセル背景色設定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル背景色設定』を実行します",
+    "template": "【A】を【B】にエクセル背景色設定"
+  },
+  {
+    "name": "エクセル設定",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『エクセル設定』を実行します",
+    "template": "【A】へ【B】をエクセル設定"
+  },
+  {
+    "name": "エクセル閉",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『エクセル閉』を実行します",
+    "template": "エクセル閉"
+  },
+  {
+    "name": "エクセル開",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "オフィス",
+    "desc": "指定パスのExcelブックを開いてハンドルを返す",
+    "template": "【S】をエクセル開"
+  },
+  {
+    "name": "エラー発生",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ]
+    ],
+    "category": "デバッグ支援",
+    "desc": "故意にエラーSを発生させる",
+    "template": "【S】のエラー発生",
+    "yomi": "えらーはっせい"
+  },
+  {
+    "name": "エンコーディング取得",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "から",
+        "で"
+      ]
+    ],
+    "category": "文字コード",
+    "desc": "バイナリバッファBUFをCODEから変換して返す",
+    "template": "【A】を【B】からエンコーディング取得",
+    "yomi": "えんこーでぃんぐしゅとく"
+  },
+  {
+    "name": "エンコーディング変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "で"
+      ]
+    ],
+    "category": "文字コード",
+    "desc": "文字列SをCODEへ変換してバイナリバッファを返す",
+    "template": "【A】を【B】へエンコーディング変換",
+    "yomi": "えんこーでぃんぐへんかん"
+  },
+  {
+    "name": "カタカナ全角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの半角カタカナを全角に変換",
+    "template": "【S】のカタカナ全角変換",
+    "yomi": "かたかなぜんかくへんかん"
+  },
+  {
+    "name": "カタカナ判定",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "が"
+      ]
+    ],
+    "category": "文字種類",
+    "desc": "文字列Sの1文字目がカタカナか判定",
+    "template": "【S】をカタカナ判定",
+    "yomi": "かたかなかはんてい"
+  },
+  {
+    "name": "カタカナ半角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの全角カタカナを半角に変換",
+    "template": "【S】のカタカナ半角変換",
+    "yomi": "かたかなはんかくへんかん"
+  },
+  {
+    "name": "カタカナ変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sのひらがなをカタカナに変換",
+    "template": "【S】のカタカナ変換",
+    "yomi": "かたかなへんかん"
+  },
+  {
+    "name": "カレントディレクトリ取得",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "カレントディレクトリを返す",
+    "template": "【S】にカレントディレクトリ取得",
+    "yomi": "かれんとでぃれくとりしゅとく"
+  },
+  {
+    "name": "カレントディレクトリ変更",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "カレントディレクトリをDIRに変更する",
+    "template": "【S】にカレントディレクトリ変更",
+    "yomi": "かれんとでぃれくとりへんこう"
+  },
+  {
+    "name": "グローバル関数一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "グローバル変数にある関数一覧を取得",
+    "template": "グローバル関数一覧取得",
+    "yomi": "ぐろーばるかんすういちらんしゅとく"
+  },
+  {
+    "name": "コマンドライン",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『コマンドライン』を実行します",
+    "template": "コマンドライン"
+  },
+  {
+    "name": "コマンド実行",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "シェルコマンドSを新しいコンソールで実行する(利用できない場合は通常の起動)",
+    "template": "【S】をコマンド実行",
+    "yomi": "こまんどじっこう"
+  },
+  {
+    "name": "コマンド実行待機",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "シェルコマンドSを新しいコンソールで実行し終了を待機する(戻り値は終了コード、利用できない場合は通常の待機)",
+    "template": "【S】をコマンド実行待機",
+    "yomi": "こまんどじっこうたいき"
+  },
+  {
+    "name": "コンソールクリア",
+    "type": "func",
+    "josi": null,
+    "category": "ファイル入出力",
+    "desc": "コンソール画面をクリアする",
+    "template": "コンソールクリア",
+    "yomi": "こんそーるくりあ"
+  },
+  {
+    "name": "コンソール表示",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "Sをコンソール表示する(console.log)",
+    "template": "【S】をコンソール表示",
+    "yomi": "こんそーるひょうじ"
+  },
+  {
+    "name": "システム時間",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "現在のUNIX時間 (UTC(1970",
+    "template": "システム時間"
+  },
+  {
+    "name": "システム時間ミリ秒",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "現在のUNIX時間 (UTC(1970",
+    "template": "システム時間ミリ秒"
+  },
+  {
+    "name": "システム関数一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "システム関数の一覧を取得",
+    "template": "システム関数一覧取得",
+    "yomi": "しすてむかんすういちらんしゅとく"
+  },
+  {
+    "name": "システム関数存在",
+    "type": "func",
+    "josi": [
+      [
+        "が",
+        "の"
+      ]
+    ],
+    "category": "デバッグ支援",
+    "desc": "文字列で関数名を指定してシステム関数が存在するかを調べる",
+    "template": "【S】がシステム関数存在",
+    "yomi": "しすてむかんすうそんざい"
+  },
+  {
+    "name": "ゼロ埋",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "指定形式",
+    "desc": "数値VをA桁の0で埋める",
+    "template": "【A】を【B】でゼロ埋",
+    "yomi": "ぜろうめ"
+  },
+  {
+    "name": "タイマー停止",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "『秒毎』『秒後』や『秒タイマー開始』で開始したタイマーを停止する",
+    "template": "【S】のタイマー停止",
+    "yomi": "たいまーていし"
+  },
+  {
+    "name": "テンポラリフォルダ",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "テンポラリフォルダのパスを取得して返す",
+    "template": "【S】にテンポラリフォルダ",
+    "yomi": "てんぽらりふぉるだ"
+  },
+  {
+    "name": "デスクトップ",
+    "type": "func",
+    "josi": null,
+    "category": "フォルダ取得",
+    "desc": "デスクトップパスを取得して返す",
+    "template": "デスクトップ",
+    "yomi": "ですくとっぷ"
+  },
+  {
+    "name": "デバッグ表示",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を",
+        "の"
+      ]
+    ],
+    "category": "デバッグ支援",
+    "desc": "デバッグ用にSを表示する",
+    "template": "【S】とデバッグ表示",
+    "yomi": "でばっぐひょうじ"
+  },
+  {
+    "name": "トリム",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sの前後にある空白を削除する",
+    "template": "【S】のトリム",
+    "yomi": "とりむ"
+  },
+  {
+    "name": "ハッシュキー列挙",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "ハッシュ",
+    "desc": "ハッシュAのキー一覧を配列で返す。",
+    "template": "【S】のハッシュキー列挙",
+    "yomi": "はっしゅきーれっきょ"
+  },
+  {
+    "name": "ハッシュキー削除",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "ハッシュ",
+    "desc": "ハッシュAからキーKEYを削除して返す。",
+    "template": "【A】から【B】をハッシュキー削除",
+    "yomi": "はっしゅきーさくじょ"
+  },
+  {
+    "name": "ハッシュキー存在",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "に"
+      ],
+      [
+        "が"
+      ]
+    ],
+    "category": "ハッシュ",
+    "desc": "ハッシュAのキーKEYが存在するか確認",
+    "template": "【A】の【B】がハッシュキー存在",
+    "yomi": "はっしゅきーそんざい"
+  },
+  {
+    "name": "ハッシュ値計算",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ],
+      [
+        "で",
+        "の"
+      ]
+    ],
+    "category": "ハッシュ関数",
+    "desc": "データSをアルゴリズムALG(sha256",
+    "template": "【A】を【B】でハッシュ値計算"
+  },
+  {
+    "name": "ハッシュ内容列挙",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "ハッシュ",
+    "desc": "ハッシュAの内容一覧を配列で返す。",
+    "template": "【S】のハッシュ内容列挙",
+    "yomi": "はっしゅないようれっきょ"
+  },
+  {
+    "name": "ハッシュ関数一覧取得",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "の"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "ハッシュ関数",
+    "desc": "利用可能なハッシュ関数の一覧を返す",
+    "template": "【A】を【B】の【C】でハッシュ関数一覧取得",
+    "yomi": "はっしゅかんすういちらんしゅとく"
+  },
+  {
+    "name": "ハテナ関数実行",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "と"
+      ]
+    ],
+    "category": "デバッグ支援",
+    "desc": "『ハテナ関数設定』で設定した関数を実行する",
+    "template": "【S】のハテナ関数実行",
+    "yomi": "はてなかんすうじっこう"
+  },
+  {
+    "name": "ハテナ関数設定",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "デバッグ支援",
+    "desc": "ハテナ関数「?? (計算式)」の動作をカスタマイズする。文字列の配列を指定可能で、システム関数名か「js:code」を指定可能。",
+    "template": "【S】をハテナ関数設定",
+    "yomi": "はてなかんすうせってい"
+  },
+  {
+    "name": "バイナリ読",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ファイルSをバイナリ(Buffer)として開く",
+    "template": "【S】をバイナリ読",
+    "yomi": "ばいなりよむ"
+  },
+  {
+    "name": "パス抽出",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "ファイル名Sからパス部分を抽出して返す",
+    "template": "【S】のパス抽出",
+    "yomi": "ぱすちゅうしゅつ"
+  },
+  {
+    "name": "パス結合",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『パス結合』を実行します",
+    "template": "【S】とパス結合"
+  },
+  {
+    "name": "ファイルコピー",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへファイルコピーする(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書きコピー、それ以外はコピー先が存在するなら失敗)",
+    "template": "【A】を【B】にファイルコピー",
+    "yomi": "ふぁいるこぴー"
+  },
+  {
+    "name": "ファイルコピー時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "を",
+        "の"
+      ],
+      [
+        "から",
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへファイルコピーしてcallbackを実行",
+    "template": "【A】で【B】から【C】にファイルコピー時",
+    "yomi": "ふぁいるこぴーしたとき"
+  },
+  {
+    "name": "ファイルサイズ取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスPATHのファイルサイズを調べて返す",
+    "template": "【S】のファイルサイズ取得",
+    "yomi": "ふぁいるさいずしゅとく"
+  },
+  {
+    "name": "ファイル上書コピー",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへファイルコピーする(コピー先に内容をマージしてコピー)",
+    "template": "【A】を【B】にファイル上書コピー",
+    "yomi": "ふぁいるうわがきこぴー"
+  },
+  {
+    "name": "ファイル上書移動",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへ移動する(移動先に内容をマージしてコピー後、元を削除)",
+    "template": "【A】を【B】にファイル上書移動",
+    "yomi": "ふぁいるうわがきいどう"
+  },
+  {
+    "name": "ファイル処理強制停止",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "から",
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "『ファイルコピー』『ファイル移動』などの処理を強制停止する",
+    "template": "【A】で【B】から【C】にファイル処理強制停止",
+    "yomi": "ふぁいるしょりきょうせいていし"
+  },
+  {
+    "name": "ファイル処理時",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "で",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ファイルコピー・移動の処理状況をコールバックFで報告する(変数『対象』に{\"件数\":N,\"現在\":M}をセット)",
+    "template": "【S】をファイル処理時",
+    "yomi": "ふぁいるしょりじ"
+  },
+  {
+    "name": "ファイル列挙",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "で"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスSのファイル名（フォルダ名）一覧を取得する。ワイルドカード可能。「*.jpg;*.png」など複数の拡張子を指定可能。",
+    "template": "【S】のファイル列挙",
+    "yomi": "ふぁいるれっきょ"
+  },
+  {
+    "name": "ファイル削除",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスPATHを削除する",
+    "template": "【S】のファイル削除",
+    "yomi": "ふぁいるさくじょ"
+  },
+  {
+    "name": "ファイル削除時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "を",
+        "の"
+      ],
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスPATHを削除してcallbackを実行",
+    "template": "【A】で【B】のファイル削除時",
+    "yomi": "ふぁいるさくじょしたとき"
+  },
+  {
+    "name": "ファイル名抽出",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "フルパスのファイル名Sからファイル名部分を抽出して返す",
+    "template": "【S】のファイル名抽出",
+    "yomi": "ふぁいるめいちゅうしゅつ"
+  },
+  {
+    "name": "ファイル情報取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスPATHの情報を調べてオブジェクトで返す",
+    "template": "【S】のファイル情報取得",
+    "yomi": "ふぁいるじょうほうしゅとく"
+  },
+  {
+    "name": "ファイル移動",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへ移動する(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書き移動、それ以外は移動先が存在するなら失敗)",
+    "template": "【A】を【B】にファイル移動",
+    "yomi": "ふぁいるいどう"
+  },
+  {
+    "name": "ファイル移動時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "を",
+        "の"
+      ],
+      [
+        "から",
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスAをパスBへ移動してcallbackを実行",
+    "template": "【A】で【B】から【C】にファイル移動時",
+    "yomi": "ふぁいるいどうしたとき"
+  },
+  {
+    "name": "フォルダ作成",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ディレクトリPATHを作成して返す(再帰的に作成)",
+    "template": "【S】にフォルダ作成",
+    "yomi": "ふぉるださくせい"
+  },
+  {
+    "name": "フォルダ存在",
+    "type": "func",
+    "josi": [
+      [
+        "が",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ディレクトリPATHが存在するか確認して返す",
+    "template": "【S】がフォルダ存在",
+    "yomi": "ふぉるだそんざい"
+  },
+  {
+    "name": "ブラウザ起動",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "で",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ブラウザでURLを起動",
+    "template": "【S】をブラウザ起動",
+    "yomi": "ぶらうざきどう"
+  },
+  {
+    "name": "プラグイン一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "利用中のプラグイン一覧を得る",
+    "template": "プラグイン一覧取得",
+    "yomi": "ぷらぐいんいちらんしゅとく"
+  },
+  {
+    "name": "プラグイン名設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "プラグイン管理",
+    "desc": "プラグイン名をSに変更する(システムにより自動的に「メイン」あるいはプラグインのファイル名が呼ばれる)",
+    "template": "【S】にプラグイン名設定",
+    "yomi": "ぷらぐいんめいせってい"
+  },
+  {
+    "name": "プロセス終",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "Nodeで終了コードを付けてプログラム実行を強制終了する",
+    "template": "【S】でプロセス終",
+    "yomi": "ぷろせすおわる"
+  },
+  {
+    "name": "ホームディレクトリ取得",
+    "type": "func",
+    "josi": null,
+    "category": "フォルダ取得",
+    "desc": "ホームディレクトリを取得して返す",
+    "template": "ホームディレクトリ取得",
+    "yomi": "ほーむでぃれくとりしゅとく"
+  },
+  {
+    "name": "マイドキュメント",
+    "type": "func",
+    "josi": null,
+    "category": "フォルダ取得",
+    "desc": "マイドキュメントのパスを取得して返す",
+    "template": "マイドキュメント",
+    "yomi": "まいどきゅめんと"
+  },
+  {
+    "name": "モジュール一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "取り込んだモジュール一覧を得る",
+    "template": "モジュール一覧取得",
+    "yomi": "もじゅーるいちらんしゅとく"
+  },
+  {
+    "name": "ランダムUUID生成",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "ハッシュ関数",
+    "desc": "ランダムに生成された36文字のv4 UUID(文字列)を返す",
+    "template": "【S】のランダムUUID生成",
+    "yomi": "らんだむUUIDせいせい"
+  },
+  {
+    "name": "ランダム配列生成",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "ハッシュ関数",
+    "desc": "暗号強度の強い乱数のバイト配列(Uint8Array)を指定個数返す",
+    "template": "【S】のランダム配列生成",
+    "yomi": "らんだむはいれつせいせい"
+  },
+  {
+    "name": "リフレイン",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列VをCNT回繰り返す(v1非互換)",
+    "template": "【A】を【B】でリフレイン",
+    "yomi": "りふれいん"
+  },
+  {
+    "name": "一時フォルダ作成",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "指定のフォルダに作業用の一時フォルダを作成して取得して返す",
+    "template": "【S】に一時フォルダ作成",
+    "yomi": "いちじふぉるださくせい"
+  },
+  {
+    "name": "一致",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがBと一致するか(配列や辞書も比較可能)",
+    "template": "【A】が【B】と一致",
+    "yomi": "いっち"
+  },
+  {
+    "name": "一行追加",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列または配列SにAと改行を追加して返す(v1非互換)",
+    "template": "【A】で【B】を一行追加",
+    "yomi": "いちぎょうついか"
+  },
+  {
+    "name": "不一致",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがBと不一致か(配列や辞書も比較可能)",
+    "template": "【A】が【B】と不一致",
+    "yomi": "ふいっち"
+  },
+  {
+    "name": "予約語一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "文法として定義されている予約語の一覧を取得する",
+    "template": "予約語一覧取得",
+    "yomi": "よやくごいちらんしゅとく"
+  },
+  {
+    "name": "二乗",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "Aを二乗する",
+    "template": "【S】の二乗",
+    "yomi": "にじょう"
+  },
+  {
+    "name": "二進",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを2進数に変換",
+    "template": "【S】を二進",
+    "yomi": "にしん"
+  },
+  {
+    "name": "二進表示",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを2進数に変換して表示",
+    "template": "【S】を二進表示",
+    "yomi": "にしんひょうじ"
+  },
+  {
+    "name": "今",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "現在時刻を「HH:mm:ss」の形式で返す",
+    "template": "今",
+    "yomi": "いま"
+  },
+  {
+    "name": "今年",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "今年が何年かを西暦で返す",
+    "template": "今年",
+    "yomi": "ことし"
+  },
+  {
+    "name": "今日",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "今日の日付を「YYYY",
+    "template": "今日"
+  },
+  {
+    "name": "今月",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "今月が何月かを返す",
+    "template": "今月",
+    "yomi": "こんげつ"
+  },
+  {
+    "name": "以上",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがB以上か",
+    "template": "【A】が【B】以上",
+    "yomi": "いじょう"
+  },
+  {
+    "name": "以下",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがB以下か",
+    "template": "【A】が【B】以下",
+    "yomi": "いか"
+  },
+  {
+    "name": "何文字目",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "が"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SでAが何文字目にあるか調べて返す。見つからなければ0を返す。",
+    "template": "【A】で【B】が何文字目",
+    "yomi": "なんもじめ"
+  },
+  {
+    "name": "作業フォルダ取得",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "カレントディレクトリを返す",
+    "template": "【S】に作業フォルダ取得",
+    "yomi": "さぎょうふぉるだしゅとく"
+  },
+  {
+    "name": "作業フォルダ変更",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "フォルダ取得",
+    "desc": "カレントディレクトリをDIRに変更する",
+    "template": "【S】に作業フォルダ変更",
+    "yomi": "さぎょうふぉるだへんこう"
+  },
+  {
+    "name": "保存",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "データSをファイルFヘ書き込む(文字コードはUTF-8)",
+    "template": "【A】を【B】に保存",
+    "yomi": "ほぞん"
+  },
+  {
+    "name": "倍",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AのB倍を求める",
+    "template": "【A】の【B】倍",
+    "yomi": "ばい"
+  },
+  {
+    "name": "偶数",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "Aが偶数なら真を返す",
+    "template": "【S】が偶数",
+    "yomi": "ぐうすう"
+  },
+  {
+    "name": "先月",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "先月が何月かを返す(1月の場合は12を返す)",
+    "template": "【S】の先月",
+    "yomi": "せんげつ"
+  },
+  {
+    "name": "全タイマー停止",
+    "type": "func",
+    "josi": null,
+    "category": "タイマー",
+    "desc": "『秒毎』『秒後』や『秒タイマー開始』で開始したタイマーを全部停止する",
+    "template": "全タイマー停止",
+    "yomi": "ぜんたいまーていし"
+  },
+  {
+    "name": "全ファイル列挙",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "で"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "パスS以下の全ファイル名を取得する。ワイルドカード可能。「*.jpg;*.png」のように複数の拡張子を指定可能。",
+    "template": "【S】の全ファイル列挙",
+    "yomi": "ぜんふぁいるれっきょ"
+  },
+  {
+    "name": "全角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの半角文字を全角に変換",
+    "template": "【S】の全角変換",
+    "yomi": "ぜんかくへんかん"
+  },
+  {
+    "name": "出現",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "で"
+      ],
+      [
+        "が"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列(配列)SにAが出現する場合に真を返す",
+    "template": "【A】に【B】が出現",
+    "yomi": "しゅつげん"
+  },
+  {
+    "name": "出現回数",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SにAが何回出現するか数える",
+    "template": "【A】で【B】の出現回数",
+    "yomi": "しゅつげんかいすう"
+  },
+  {
+    "name": "分差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "時間AとBの分数の差を求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
+    "template": "【A】と【B】の分差",
+    "yomi": "ふんさ"
+  },
+  {
+    "name": "切取",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の"
+      ],
+      [
+        "まで",
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sから文字列Aまでの部分を抽出する。切り取った残りは特殊変数『対象』に代入される。(v1非互換)",
+    "template": "【A】から【B】まで切取",
+    "yomi": "きりとる"
+  },
+  {
+    "name": "割",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AをBで割る",
+    "template": "【A】を【B】で割",
+    "yomi": "わる"
+  },
+  {
+    "name": "割余",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AをBで割った余りを求める",
+    "template": "【A】を【B】で割余",
+    "yomi": "わったあまり"
+  },
+  {
+    "name": "助詞一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "デバッグ支援",
+    "desc": "文法として定義されている助詞の一覧を取得する",
+    "template": "助詞一覧取得",
+    "yomi": "じょしいちらんしゅとく"
+  },
+  {
+    "name": "区切",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sを区切り文字Aで区切って配列で返す",
+    "template": "【A】の【B】で区切",
+    "yomi": "くぎる"
+  },
+  {
+    "name": "半角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの全角文字を半角に変換",
+    "template": "【S】の半角変換",
+    "yomi": "はんかくへんかん"
+  },
+  {
+    "name": "単置換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sのうち、最初に出現するAだけをBに置換して返す",
+    "template": "【A】の【B】を【C】に単置換",
+    "yomi": "たんちかん"
+  },
+  {
+    "name": "去年",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "去年が何年かを西暦で返す",
+    "template": "去年",
+    "yomi": "きょねん"
+  },
+  {
+    "name": "参照",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "値A(配列",
+    "template": "【A】から【B】を参照"
+  },
+  {
+    "name": "右トリム",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sの末尾にある空白を削除する",
+    "template": "【S】の右トリム",
+    "yomi": "みぎとりむ"
+  },
+  {
+    "name": "合計",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を",
+        "の"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "引数(可変)に指定した値を全て合計して返す",
+    "template": "【S】と合計",
+    "yomi": "ごうけい"
+  },
+  {
+    "name": "名前空間ポップ",
+    "type": "func",
+    "josi": null,
+    "category": "プラグイン管理",
+    "desc": "システム利用のため呼ぶべからず。(名前空間を一つ前の値に戻す)",
+    "template": "名前空間ポップ",
+    "yomi": "なまえくうかんぽっぷ"
+  },
+  {
+    "name": "名前空間設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "プラグイン管理",
+    "desc": "名前空間をSに設定する(システムにより自動的に変更される。ファイル名から拡張子を削ったもの)",
+    "template": "【S】に名前空間設定",
+    "yomi": "なまえくうかんせってい"
+  },
+  {
+    "name": "和暦変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "Sを和暦に変換する。Sは明治以降の日付が有効。",
+    "template": "【S】を和暦変換",
+    "yomi": "われきへんかん"
+  },
+  {
+    "name": "圧縮",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "へ",
+        "に",
+        "で"
+      ]
+    ],
+    "category": "圧縮・解凍",
+    "desc": "(v1非互換)ファイルAをBにZIP圧縮(実行には7-Zipが必要-https:",
+    "template": "【A】を【B】へ圧縮"
+  },
+  {
+    "name": "圧縮時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "圧縮・解凍",
+    "desc": "圧縮処理を行い完了したときにcallback処理を指定",
+    "template": "【A】で【B】を【C】に圧縮時",
+    "yomi": "あっしゅくしたとき"
+  },
+  {
+    "name": "圧縮解凍ツールパス変更",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "圧縮・解凍",
+    "desc": "圧縮解凍に使うツールを取得変更する",
+    "template": "【S】に圧縮解凍ツールパス変更",
+    "yomi": "あっしゅくかいとうつーるぱすへんこう"
+  },
+  {
+    "name": "変数型確認",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "変数Vの型を返す",
+    "template": "【S】の変数型確認",
+    "yomi": "へんすうかたかくにん"
+  },
+  {
+    "name": "大文字変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "アルファベットの文字列Sを大文字に変換",
+    "template": "【S】の大文字変換",
+    "yomi": "おおもじへんかん"
+  },
+  {
+    "name": "奇数",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "Aが奇数なら真を返す",
+    "template": "【S】が奇数",
+    "yomi": "きすう"
+  },
+  {
+    "name": "存在",
+    "type": "func",
+    "josi": [
+      [
+        "が",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ファイルPATHが存在するか確認して返す",
+    "template": "【S】が存在",
+    "yomi": "そんざい"
+  },
+  {
+    "name": "実数変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを実数に変換",
+    "template": "【S】を実数変換",
+    "yomi": "じっすうへんかん"
+  },
+  {
+    "name": "実行",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "に",
+        "で"
+      ]
+    ],
+    "category": "特殊命令",
+    "desc": "無名関数（あるいは、文字列で関数名を指定）Fを実行する(Fが関数でなければ無視する)",
+    "template": "【S】を実行",
+    "yomi": "じっこう"
+  },
+  {
+    "name": "実行時間計測",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "特殊命令",
+    "desc": "関数Fを実行して要した時間をミリ秒で返す",
+    "template": "【S】の実行時間計測",
+    "yomi": "じっこうじかんけいそく"
+  },
+  {
+    "name": "尋",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "標準入力を一行取得する",
+    "template": "【S】と尋",
+    "yomi": "たずねる"
+  },
+  {
+    "name": "小文字変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "アルファベットの文字列Sを小文字に変換",
+    "template": "【S】の小文字変換",
+    "yomi": "こもじへんかん"
+  },
+  {
+    "name": "左トリム",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sの先頭にある空白を削除する",
+    "template": "【S】の左トリム",
+    "yomi": "ひだりとりむ"
+  },
+  {
+    "name": "平仮名変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sのカタカナをひらがなに変換",
+    "template": "【S】の平仮名変換",
+    "yomi": "ひらがなへんかん"
+  },
+  {
+    "name": "年数差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日付AとBの差を年数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
+    "template": "【A】と【B】の年数差",
+    "yomi": "ねんすうさ"
+  },
+  {
+    "name": "引",
+    "type": "func",
+    "josi": [
+      [
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AからBを引く",
+    "template": "【A】から【B】を引",
+    "yomi": "ひく"
+  },
+  {
+    "name": "強制終了",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『強制終了』を実行します",
+    "template": "【S】で強制終了"
+  },
+  {
+    "name": "強制終了時",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "Nodeでctrl+cでプログラムの実行が終了した時FUNCを実行する。もしFUNCが偽を返すと終了しない。非同期処理のとき動作する(#1010)",
+    "template": "【S】を強制終了時",
+    "yomi": "きょうせいしゅうりょうしたとき"
+  },
+  {
+    "name": "拝啓",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "ソースコードを読む人を気持ちよくする",
+    "template": "拝啓",
+    "yomi": "はいけい"
+  },
+  {
+    "name": "拡張子変更",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "ファイル名Aの拡張子をBに変更して返す",
+    "template": "【A】の【B】に拡張子変更",
+    "yomi": "かくちょうしへんこう"
+  },
+  {
+    "name": "拡張子抽出",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "ファイル名Sから拡張子を抽出する",
+    "template": "【S】から拡張子抽出",
+    "yomi": "かくちょうしちゅうしゅつ"
+  },
+  {
+    "name": "掛",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "と"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AにBを掛ける",
+    "template": "【A】に【B】を掛",
+    "yomi": "かける"
+  },
+  {
+    "name": "敬具",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "ソースコードを読む人を気持ちよくする",
+    "template": "敬具",
+    "yomi": "けいぐ"
+  },
+  {
+    "name": "数列判定",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "が"
+      ]
+    ],
+    "category": "文字種類",
+    "desc": "文字列S全部が数字か判定",
+    "template": "【S】を数列判定",
+    "yomi": "すうれつかはんてい"
+  },
+  {
+    "name": "数字判定",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "が"
+      ]
+    ],
+    "category": "文字種類",
+    "desc": "文字列Sの1文字目が数字か判定",
+    "template": "【S】を数字判定",
+    "yomi": "すうじかはんてい"
+  },
+  {
+    "name": "整数変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを整数に変換",
+    "template": "【S】を整数変換",
+    "yomi": "せいすうへんかん"
+  },
+  {
+    "name": "文字コード変換サポート判定",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字コード",
+    "desc": "文字コードCODEをサポートしているか確認",
+    "template": "【S】の文字コード変換サポート判定",
+    "yomi": "もじこーどへんかんさぽーとはんてい"
+  },
+  {
+    "name": "文字列分割",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sを区切り文字Aで分割して配列で返す",
+    "template": "【A】を【B】で文字列分割",
+    "yomi": "もじれつぶんかつ"
+  },
+  {
+    "name": "文字列分解",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Vを一文字ずつに分解して返す",
+    "template": "【S】を文字列分解",
+    "yomi": "もじれつぶんかい"
+  },
+  {
+    "name": "文字列変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vを文字列に変換",
+    "template": "【S】を文字列変換",
+    "yomi": "もじれつへんかん"
+  },
+  {
+    "name": "文字列連結",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "引数(可変)に指定した文字列を連結して文字列を返す",
+    "template": "【S】と文字列連結",
+    "yomi": "もじれつれんけつ"
+  },
+  {
+    "name": "文字削除",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "だけ",
+        "を",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SのA文字目からB文字分を削除して返す",
+    "template": "【A】の【B】から【C】だけ文字削除",
+    "yomi": "もじさくじょ"
+  },
+  {
+    "name": "文字右部分",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "だけ",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sの右端からCNT文字を抽出する",
+    "template": "【A】の【B】だけ文字右部分",
+    "yomi": "もじみぎぶぶん"
+  },
+  {
+    "name": "文字始",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "で",
+        "から"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SがAから始まるならば真を返す",
+    "template": "【A】が【B】で文字始",
+    "yomi": "もじはじまる"
+  },
+  {
+    "name": "文字尋",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "標準入力を一行取得する。ただし自動で数値に変換しない",
+    "template": "【S】と文字尋",
+    "yomi": "もじたずねる"
+  },
+  {
+    "name": "文字左部分",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "だけ",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sの左端からCNT文字を抽出する",
+    "template": "【A】の【B】だけ文字左部分",
+    "yomi": "もじひだりぶぶん"
+  },
+  {
+    "name": "文字抜き出",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を",
+        ""
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『文字抜き出』を実行します",
+    "template": "【A】で【B】から【C】を文字抜き出"
+  },
+  {
+    "name": "文字抜出",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を",
+        ""
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SのA文字目からCNT文字を抽出する(Aが0未満の時は後ろからA文字目からCNT文字を抽出)",
+    "template": "【A】で【B】から【C】を文字抜出",
+    "yomi": "もじぬきだす"
+  },
+  {
+    "name": "文字挿入",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SのI文字目に文字列Aを挿入する",
+    "template": "【A】で【B】に【C】を文字挿入",
+    "yomi": "もじそうにゅう"
+  },
+  {
+    "name": "文字数",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Vの文字数を返す",
+    "template": "【S】の文字数",
+    "yomi": "もじすう"
+  },
+  {
+    "name": "文字検索",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SでA文字目から文字列Bを検索。見つからなければ0を返す。(類似命令に『何文字目』がある)(v1非互換)",
+    "template": "【A】で【B】から【C】を文字検索",
+    "yomi": "もじけんさく"
+  },
+  {
+    "name": "文字終",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列SがAで終わるならば真を返す",
+    "template": "【A】が【B】で文字終",
+    "yomi": "もじおわる"
+  },
+  {
+    "name": "日付加算",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日付SにAを加えて返す。Aには「(+｜-)yyyy",
+    "template": "【A】に【B】を日付加算"
+  },
+  {
+    "name": "日数差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日付AとBの差を日数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
+    "template": "【A】と【B】の日数差",
+    "yomi": "にっすうさ"
+  },
+  {
+    "name": "日時加算",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日時SにAを加えて返す。Aは「(+｜-)1(年|ヶ月|日|週|時間|分|秒)」のように指定する (v1非互換)。",
+    "template": "【A】に【B】を日時加算",
+    "yomi": "にちじかさん"
+  },
+  {
+    "name": "日時変換",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "UNIX時間 (UTC(1970",
+    "template": "【S】を日時変換"
+  },
+  {
+    "name": "日時差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ],
+      [
+        "による"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日時AとBの差を種類unitで返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
+    "template": "【A】と【B】の【C】による日時差",
+    "yomi": "にちじさ"
+  },
+  {
+    "name": "日時書式変換",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "UNIX時間TM(または日付文字列)を「YYYY",
+    "template": "【A】を【B】で日時書式変換"
+  },
+  {
+    "name": "明日",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "明日の日付を「YYYY",
+    "template": "明日"
+  },
+  {
+    "name": "昨日",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "昨日の日付を「YYYY",
+    "template": "昨日"
+  },
+  {
+    "name": "時間ミリ秒取得",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "ミリ秒単位の時間を数値で返す。結果は実装に依存する。",
+    "template": "時間ミリ秒取得",
+    "yomi": "じかんみりびょうしゅとく"
+  },
+  {
+    "name": "時間加算",
+    "type": "func",
+    "josi": [
+      [
+        "に"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "時間SにAを加えて返す。Aには「(+｜-)hh:nn:dd」で指定する。",
+    "template": "【A】に【B】を時間加算",
+    "yomi": "じかんかさん"
+  },
+  {
+    "name": "時間差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "時間AとBの時間の差を求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
+    "template": "【A】と【B】の時間差",
+    "yomi": "じかんさ"
+  },
+  {
+    "name": "曜日",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "Sに指定した日付の曜日を返す。不正な日付の場合は今日の曜日を返す。",
+    "template": "【S】の曜日",
+    "yomi": "ようび"
+  },
+  {
+    "name": "曜日番号取得",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "Sに指定した日付の曜日番号を番号で返す。不正な日付の場合は今日の曜日番号を返す。(0=日",
+    "template": "【S】の曜日番号取得"
+  },
+  {
+    "name": "最大値",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "2個以上の数値のうち最大値を返す。",
+    "template": "【A】の【B】と最大値",
+    "yomi": "さいだいち"
+  },
+  {
+    "name": "最小値",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "2個以上の数値のうち最小値を返す。",
+    "template": "【A】の【B】と最小値",
+    "yomi": "さいしょうち"
+  },
+  {
+    "name": "月数差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "日付AとBの差を月数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
+    "template": "【A】と【B】の月数差",
+    "yomi": "げっすうさ"
+  },
+  {
+    "name": "未満",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがB未満か",
+    "template": "【A】が【B】未満",
+    "yomi": "みまん"
+  },
+  {
+    "name": "末尾空白除去",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sの末尾にある空白を削除する",
+    "template": "【S】の末尾空白除去",
+    "yomi": "まつびくうはくじょきょ"
+  },
+  {
+    "name": "来年",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "来年が何年かを西暦で返す",
+    "template": "来年",
+    "yomi": "らいねん"
+  },
+  {
+    "name": "来月",
+    "type": "func",
+    "josi": null,
+    "category": "日時処理(簡易)",
+    "desc": "来月が何月かを返す(12月の場合は1を返す)",
+    "template": "来月",
+    "yomi": "らいげつ"
+  },
+  {
+    "name": "標準入力全取得",
+    "type": "func",
+    "josi": null,
+    "category": "Nodeプロセス",
+    "desc": "標準入力を全部取得して返す",
+    "template": "標準入力全取得",
+    "yomi": "ひょうじゅんにゅうりょくぜんしゅとく"
+  },
+  {
+    "name": "標準入力取得時",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "で"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "標準入力を一行取得した時に、変数『対象』に取得した文字列を代入し、無名関数（あるいは、文字列で関数名を指定）F(s: string)を実行する",
+    "template": "【S】を標準入力取得時",
+    "yomi": "ひょうじゅんにゅうりょくしゅとくしたとき"
+  },
+  {
+    "name": "正規表現マッチ",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "が"
+      ],
+      [
+        "で",
+        "に"
+      ]
+    ],
+    "category": "正規表現",
+    "desc": "文字列Aを正規表現パターンBでマッチして結果を返す(パターンBは「",
+    "template": "【A】を【B】で正規表現マッチ"
+  },
+  {
+    "name": "正規表現区切",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "正規表現",
+    "desc": "文字列Sを正規表現パターンAで区切って配列で返す(パターンAは",
+    "template": "【A】を【B】で正規表現区切"
+  },
+  {
+    "name": "正規表現抽出",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "正規表現",
+    "desc": "文字列Sを正規表現パターンREで正規表現マッチし、すべてのキャプチャグループ( )を一次元配列として返す。抽出文字列には二次元配列を返す",
+    "template": "【A】から【B】で正規表現抽出",
+    "yomi": "せいきひょうげんちゅうしゅつ"
+  },
+  {
+    "name": "正規表現置換",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を",
+        "から"
+      ],
+      [
+        "で",
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "正規表現",
+    "desc": "文字列Sの正規表現パターンAをBに置換して結果を返す(パターンAは",
+    "template": "【A】の【B】を【C】で正規表現置換"
+  },
+  {
+    "name": "母艦パス取得",
+    "type": "func",
+    "josi": null,
+    "category": "フォルダ取得",
+    "desc": "スクリプトのあるディレクトリを返す",
+    "template": "母艦パス取得",
+    "yomi": "ぼかんぱすしゅとく"
+  },
+  {
+    "name": "環境変数一覧取得",
+    "type": "func",
+    "josi": null,
+    "category": "環境変数",
+    "desc": "環境変数の一覧を返す",
+    "template": "環境変数一覧取得",
+    "yomi": "かんきょうへんすういちらんしゅとく"
+  },
+  {
+    "name": "環境変数取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "環境変数",
+    "desc": "環境変数Sを返す",
+    "template": "【S】の環境変数取得",
+    "yomi": "かんきょうへんすうしゅとく"
+  },
+  {
+    "name": "画像リサイズ",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像リサイズ』を実行します",
+    "template": "【S】に画像リサイズ"
+  },
+  {
+    "name": "画像保存",
+    "type": "func",
+    "josi": [
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "グラフィック",
+    "desc": "現在の画像をPNG/JPEGファイルへ保存する",
+    "template": "【S】へ画像保存"
+  },
+  {
+    "name": "画像円描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像円描画』を実行します",
+    "template": "【A】を【B】で画像円描画"
+  },
+  {
+    "name": "画像切替",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像切替』を実行します",
+    "template": "【S】に画像切替"
+  },
+  {
+    "name": "画像幅取得",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『画像幅取得』を実行します",
+    "template": "画像幅取得"
+  },
+  {
+    "name": "画像文字描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "グラフィック",
+    "desc": "画像上の指定位置にテキストを描画する",
+    "template": "【A】を【B】で画像文字描画"
+  },
+  {
+    "name": "画像新規作成",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ]
+    ],
+    "category": "グラフィック",
+    "desc": "指定サイズ [幅, 高さ] の新しいRGBA画像キャンバスを作成する",
+    "template": "【S】の画像新規作成"
+  },
+  {
+    "name": "画像点取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像点取得』を実行します",
+    "template": "【S】の画像点取得"
+  },
+  {
+    "name": "画像点設定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像点設定』を実行します",
+    "template": "【A】を【B】に画像点設定"
+  },
+  {
+    "name": "画像矩形描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "グラフィック",
+    "desc": "画像上の指定矩形 [X, Y, 幅, 高さ] を指定色で塗りつぶす",
+    "template": "【A】を【B】で画像矩形描画"
+  },
+  {
+    "name": "画像線描画",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像線描画』を実行します",
+    "template": "【A】を【B】で画像線描画"
+  },
+  {
+    "name": "画像背景色設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "で"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『画像背景色設定』を実行します",
+    "template": "【S】に画像背景色設定"
+  },
+  {
+    "name": "画像閉",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『画像閉』を実行します",
+    "template": "画像閉"
+  },
+  {
+    "name": "画像開",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の",
+        "から"
+      ]
+    ],
+    "category": "グラフィック",
+    "desc": "画像ファイル (PNG/JPEG/GIF) を読み込んでキャンバスを作成する",
+    "template": "【S】を画像開"
+  },
+  {
+    "name": "画像高さ取得",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『画像高さ取得』を実行します",
+    "template": "画像高さ取得"
+  },
+  {
+    "name": "画像高取得",
+    "type": "func",
+    "josi": null,
+    "category": "命令",
+    "desc": "命令『画像高取得』を実行します",
+    "template": "画像高取得"
+  },
+  {
+    "name": "相対パス展開",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "ファイル名AからパスBを展開して返す",
+    "template": "【A】を【B】で相対パス展開",
+    "yomi": "そうたいぱすてんかい"
+  },
+  {
+    "name": "真偽判定",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "システム定数",
+    "desc": "引数bが真(true)ならば「真」を偽(false)ならば「偽」を返す",
+    "template": "【S】の真偽判定",
+    "yomi": "しんぎはんてい"
+  },
+  {
+    "name": "礼節レベル取得",
+    "type": "func",
+    "josi": null,
+    "category": "敬語",
+    "desc": "(お遊び)敬語を何度使ったか返す",
+    "template": "礼節レベル取得",
+    "yomi": "れいせつれべるしゅとく"
+  },
+  {
+    "name": "秒タイマー開始時",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒ごとに実行する(『秒毎』と同じ)",
+    "template": "【A】を【B】秒タイマー開始時",
+    "yomi": "びょうたいまーかいししたとき"
+  },
+  {
+    "name": "秒差",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "日時処理(簡易)",
+    "desc": "時間AとBの差を秒差で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
+    "template": "【A】と【B】の秒差",
+    "yomi": "びょうさ"
+  },
+  {
+    "name": "秒待",
+    "type": "func",
+    "josi": [
+      [
+        ""
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "N秒の間待機する",
+    "template": "【S】秒待",
+    "yomi": "びょうまつ"
+  },
+  {
+    "name": "秒待機",
+    "type": "func",
+    "josi": [
+      [
+        ""
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "N秒の間待機する(『秒待』と同じ)",
+    "template": "【S】秒待機",
+    "yomi": "びょうたいき"
+  },
+  {
+    "name": "秒後",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒後に実行する。変数『対象』にタイマーIDを代入する。",
+    "template": "【A】を【B】秒後",
+    "yomi": "びょうご"
+  },
+  {
+    "name": "秒毎",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "タイマー",
+    "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒ごとに実行する(『タイマー停止』で停止できる)。変数『対象』にタイマーIDを代入する。",
+    "template": "【A】を【B】秒毎",
+    "yomi": "びょうごと"
+  },
+  {
+    "name": "空オブジェクト",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "システム定数",
+    "desc": "空のオブジェクトを返す(v3.2以降非推奨)",
+    "template": "【S】の空オブジェクト",
+    "yomi": "からおぶじぇくと"
+  },
+  {
+    "name": "空ハッシュ",
+    "type": "func",
+    "josi": null,
+    "category": "システム定数",
+    "desc": "空のハッシュを返す(v3.2以降非推奨)",
+    "template": "空ハッシュ",
+    "yomi": "からはっしゅ"
+  },
+  {
+    "name": "空白埋",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "指定形式",
+    "desc": "文字列VをA桁の空白で埋める",
+    "template": "【A】を【B】で空白埋",
+    "yomi": "くうはくうめ"
+  },
+  {
+    "name": "空白除去",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sの前後にある空白を削除する",
+    "template": "【S】の空白除去",
+    "yomi": "くうはくじょきょ"
+  },
+  {
+    "name": "空辞書",
+    "type": "func",
+    "josi": null,
+    "category": "システム定数",
+    "desc": "空の辞書型を返す。『{}』と同義。",
+    "template": "空辞書",
+    "yomi": "からじしょ"
+  },
+  {
+    "name": "空配列",
+    "type": "func",
+    "josi": null,
+    "category": "システム定数",
+    "desc": "空の配列を返す。『[]』と同義。",
+    "template": "空配列",
+    "yomi": "からはいれつ"
+  },
+  {
+    "name": "等",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがBと等しいか",
+    "template": "【A】が【B】と等",
+    "yomi": "ひとしい"
+  },
+  {
+    "name": "等無",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがBと等しくないか",
+    "template": "【A】が【B】と等無",
+    "yomi": "ひとしくない"
+  },
+  {
+    "name": "範囲",
+    "type": "func",
+    "josi": [
+      [
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AからBの範囲を表現する範囲オブジェクトを返す",
+    "template": "【A】から【B】の範囲",
+    "yomi": "はんい"
+  },
+  {
+    "name": "範囲内",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        "から"
+      ],
+      [
+        "の",
+        "までの"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "VがAからBの範囲内か",
+    "template": "【A】が【B】から【C】の範囲内",
+    "yomi": "はんいない"
+  },
+  {
+    "name": "範囲切取",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "まで",
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列Sで文字列AからBまでの部分を抽出して返す。切り取った残りは特殊変数『対象』に代入される。(v1非互換)",
+    "template": "【A】で【B】から【C】まで範囲切取",
+    "yomi": "はんいきりとる"
+  },
+  {
+    "name": "終",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ]
+    ],
+    "category": "Nodeプロセス",
+    "desc": "Nodeでプログラム実行を強制終了する",
+    "template": "【S】で終",
+    "yomi": "おわる"
+  },
+  {
+    "name": "終了",
+    "type": "func",
+    "josi": null,
+    "category": "Nodeプロセス",
+    "desc": "Nodeでプログラム実行を強制終了する",
+    "template": "終了",
+    "yomi": "しゅうりょう"
+  },
+  {
+    "name": "終端パス削除",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "フォルダ名DIRの末尾にあるパス記号を削除する",
+    "template": "【S】の終端パス削除",
+    "yomi": "しゅうたんぱすさくじょ"
+  },
+  {
+    "name": "終端パス追加",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "パスSの終端にパス区切り文字を追加して返す",
+    "template": "【S】に終端パス追加",
+    "yomi": "しゅうたんぱすついか"
+  },
+  {
+    "name": "終端パス除去",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "フォルダ名DIRの末尾にあるパス記号を削除する",
+    "template": "【S】の終端パス除去",
+    "yomi": "しゅうたんぱすじょきょ"
+  },
+  {
+    "name": "絶対パス変換",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "パス操作",
+    "desc": "相対パスから絶対パスに変換して返す",
+    "template": "【S】を絶対パス変換",
+    "yomi": "ぜったいぱすへんかん"
+  },
+  {
+    "name": "継続表示",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "Sを改行なしで表示(ただし「表示」命令を使うことで画面出力される)",
+    "template": "【S】を継続表示",
+    "yomi": "けいぞくひょうじ"
+  },
+  {
+    "name": "置換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "置換・トリム",
+    "desc": "文字列Sのうち文字列AをBに全部置換して返す",
+    "template": "【A】の【B】を【C】に置換",
+    "yomi": "ちかん"
+  },
+  {
+    "name": "自分IPV6アドレス取得",
+    "type": "func",
+    "josi": null,
+    "category": "ネットワーク",
+    "desc": "ネットワークアダプターからIPアドレス(IPv6)を取得して配列で返す",
+    "template": "自分IPV6アドレス取得",
+    "yomi": "じぶんIPV6あどれすしゅとく"
+  },
+  {
+    "name": "自分IPアドレス取得",
+    "type": "func",
+    "josi": null,
+    "category": "ネットワーク",
+    "desc": "ネットワークアダプターからIPアドレス(IPv4)を取得して配列で返す",
+    "template": "自分IPアドレス取得",
+    "yomi": "じぶんIPあどれすしゅとく"
+  },
+  {
+    "name": "英数全角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの半角英数文字を全角に変換",
+    "template": "【S】の英数全角変換",
+    "yomi": "えいすうぜんかくへんかん"
+  },
+  {
+    "name": "英数半角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの全角英数文字を半角に変換",
+    "template": "【S】の英数半角変換",
+    "yomi": "えいすうはんかくへんかん"
+  },
+  {
+    "name": "英数記号全角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの半角英数記号文字を全角に変換",
+    "template": "【S】の英数記号全角変換",
+    "yomi": "えいすうきごうぜんかくへんかん"
+  },
+  {
+    "name": "英数記号半角変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "文字変換",
+    "desc": "文字列Sの記号文字を半角に変換",
+    "template": "【S】の英数記号半角変換",
+    "yomi": "えいすうきごうはんかくへんかん"
+  },
+  {
+    "name": "表ソート",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AでB列目(0起点)(あるいはキー名)をキーに文字列順にソートする。Aの内容を書き換える。",
+    "template": "【A】の【B】を表ソート",
+    "yomi": "ひょうそーと"
+  },
+  {
+    "name": "表ピックアップ",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を",
+        "で"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "配列Aの列番号B(0起点)(あるいはキー名)で検索文字列Sを含む行を返す",
+    "template": "【A】の【B】から【C】を表ピックアップ",
+    "yomi": "ひょうぴっくあっぷ"
+  },
+  {
+    "name": "表列削除",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの(0から数えて)I列目削除して返す",
+    "template": "【A】の【B】を表列削除",
+    "yomi": "ひょうれつそうにゅう"
+  },
+  {
+    "name": "表列取得",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AのI列目を返す。",
+    "template": "【A】の【B】を表列取得",
+    "yomi": "ひょうれつしゅとく"
+  },
+  {
+    "name": "表列合計",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を",
+        "で"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの(0から数えて)I列目を合計して返す。",
+    "template": "【A】の【B】を表列合計",
+    "yomi": "ひょうれつごうけい"
+  },
+  {
+    "name": "表列挿入",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの(0から数えて)I列目に配列Sを挿入して返す",
+    "template": "【A】の【B】に【C】を表列挿入",
+    "yomi": "ひょうれつそうにゅう"
+  },
+  {
+    "name": "表列数",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの列数を調べて返す。",
+    "template": "【S】の表列数",
+    "yomi": "ひょうれつすう"
+  },
+  {
+    "name": "表右回転",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aを90度回転して返す。",
+    "template": "【S】の表右回転",
+    "yomi": "ひょうみぎかいてん"
+  },
+  {
+    "name": "表完全一致ピックアップ",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を",
+        "で"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "配列Aの列番号B(0起点)(あるいはキー名)で検索文字列Sと一致する行を返す",
+    "template": "【A】の【B】から【C】を表完全一致ピックアップ",
+    "yomi": "ひょうかんぜんいっちぴっくあっぷ"
+  },
+  {
+    "name": "表数値ソート",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AでB列目(0起点)(あるいはキー名)をキーに数値順にソートする。Aの内容を書き換える。",
+    "template": "【A】の【B】を表数値ソート",
+    "yomi": "ひょうすうちそーと"
+  },
+  {
+    "name": "表曖昧検索",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "で"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AのROW行目からCOL列目(0起点)で正規表現Sにマッチする行を検索して何行目にあるか返す。見つからなければ-1を返す。(v1非互換)",
+    "template": "【A】の【B】から【C】で【D】を表曖昧検索",
+    "yomi": "ひょうあいまいけんさく"
+  },
+  {
+    "name": "表検索",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "で",
+        "に"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AでCOL列目(0起点)からキーSを含む行をROW行目から検索して何行目にあるか返す。見つからなければ-1を返す。",
+    "template": "【A】の【B】で【C】から【D】を表検索",
+    "yomi": "ひょうけんさく"
+  },
+  {
+    "name": "表正規表現ピックアップ",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "で"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AでI列目(0起点)から正規表現パターンSにマッチする行をピックアップして返す。",
+    "template": "【A】の【B】から【C】を表正規表現ピックアップ",
+    "yomi": "ひょうせいきひょうげんぴっくあっぷ"
+  },
+  {
+    "name": "表示",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "Sを表示",
+    "template": "【S】を表示",
+    "yomi": "ひょうじ"
+  },
+  {
+    "name": "表示ログクリア",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "表示ログを空にする",
+    "template": "【S】を表示ログクリア",
+    "yomi": "ひょうじろぐくりあ"
+  },
+  {
+    "name": "表行列交換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの行と列を交換して返す。",
+    "template": "【S】の表行列交換",
+    "yomi": "ひょうぎょうれつこうかん"
+  },
+  {
+    "name": "表行数",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列Aの行数を調べて返す。",
+    "template": "【S】の表行数",
+    "yomi": "ひょうぎょうすう"
+  },
+  {
+    "name": "表重複削除",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "を",
+        "で"
+      ]
+    ],
+    "category": "二次元配列処理",
+    "desc": "二次元配列AのI列目にある重複項目を削除して返す。",
+    "template": "【A】の【B】を表重複削除",
+    "yomi": "ひょうじゅうふくさくじょ"
+  },
+  {
+    "name": "要素数",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "Aの要素数を返す。Aには配列",
+    "template": "【S】の要素数"
+  },
+  {
+    "name": "解凍",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ],
+      [
+        "へ",
+        "に",
+        "で"
+      ]
+    ],
+    "category": "圧縮・解凍",
+    "desc": "(v1非互換)ZIPファイルAをBに解凍(実行には7-Zipが必要-https:",
+    "template": "【A】を【B】へ解凍"
+  },
+  {
+    "name": "解凍時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "を",
+        "から"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "圧縮・解凍",
+    "desc": "解凍処理を行い、処理が完了したときにcallback処理を実行",
+    "template": "【A】で【B】を【C】に解凍時",
+    "yomi": "かいとうしたとき"
+  },
+  {
+    "name": "言",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "ダイアログ",
+    "desc": "メッセージダイアログにSを表示",
+    "template": "【S】を言",
+    "yomi": "いう"
+  },
+  {
+    "name": "読",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ファイFSを開く",
+    "template": "【S】を読",
+    "yomi": "よむ"
+  },
+  {
+    "name": "論理AND",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "論理演算",
+    "desc": "AとBの論理積を返す(v1非互換)。日本語の「AかつB」に相当する",
+    "template": "【A】と【B】の論理AND",
+    "yomi": "ろんりAND"
+  },
+  {
+    "name": "論理NOT",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "論理演算",
+    "desc": "値Vが0や空ならばtrue、それ以外ならばfalseを返す(v1非互換)",
+    "template": "【S】の論理NOT",
+    "yomi": "ろんりNOT"
+  },
+  {
+    "name": "論理OR",
+    "type": "func",
+    "josi": [
+      [
+        "と"
+      ],
+      [
+        "の"
+      ]
+    ],
+    "category": "論理演算",
+    "desc": "AとBの論理和を返す(v1非互換)。",
+    "template": "【A】と【B】の論理OR",
+    "yomi": "ろんりOR"
+  },
+  {
+    "name": "起動",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "シェルコマンドSを起動",
+    "template": "【S】を起動",
+    "yomi": "きどう"
+  },
+  {
+    "name": "起動待機",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "シェルコマンドSを起動し実行終了まで待機する",
+    "template": "【S】を起動待機",
+    "yomi": "きどうたいき"
+  },
+  {
+    "name": "起動時",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "シェルコマンドSを起動",
+    "template": "【A】で【B】を起動時",
+    "yomi": "きどうしたとき"
+  },
+  {
+    "name": "超",
+    "type": "func",
+    "josi": [
+      [
+        "が"
+      ],
+      [
+        ""
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AがB超か",
+    "template": "【A】が【B】超",
+    "yomi": "ちょう"
+  },
+  {
+    "name": "足",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "と"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "AとBを足す(算術演算を行う)",
+    "template": "【A】に【B】を足",
+    "yomi": "たす"
+  },
+  {
+    "name": "辞書キー列挙",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "辞書型変数の操作",
+    "desc": "辞書型変数Aのキーの一覧を配列で返す。",
+    "template": "【S】の辞書キー列挙",
+    "yomi": "じしょきーれっきょ"
+  },
+  {
+    "name": "辞書キー削除",
+    "type": "func",
+    "josi": [
+      [
+        "から",
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "辞書型変数の操作",
+    "desc": "辞書型変数AからキーKEYを削除して返す（A自体を変更する）。",
+    "template": "【A】から【B】を辞書キー削除",
+    "yomi": "じしょきーさくじょ"
+  },
+  {
+    "name": "辞書キー存在",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "に"
+      ],
+      [
+        "が"
+      ]
+    ],
+    "category": "辞書型変数の操作",
+    "desc": "辞書型変数AのキーKEYが存在するか確認",
+    "template": "【A】の【B】が辞書キー存在",
+    "yomi": "じしょきーそんざい"
+  },
+  {
+    "name": "追加",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "文字列または配列SにAを追加して返す(v1非互換)",
+    "template": "【A】で【B】を追加",
+    "yomi": "ついか"
+  },
+  {
+    "name": "追記",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "category": "命令",
+    "desc": "命令『追記』を実行します",
+    "template": "【A】を【B】に追記"
+  },
+  {
+    "name": "通貨形式",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "指定形式",
+    "desc": "数値Vを三桁ごとにカンマで区切る",
+    "template": "【S】を通貨形式",
+    "yomi": "つうかけいしき"
+  },
+  {
+    "name": "連結",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "文字列処理",
+    "desc": "引数(可変)に指定した文字列を連結して文字列を返す",
+    "template": "【S】と連結",
+    "yomi": "れんけつ"
+  },
+  {
+    "name": "連続加算",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "に",
+        "と"
+      ]
+    ],
+    "category": "四則演算",
+    "desc": "A1+A2+A3...にBを足す",
+    "template": "【A】を【B】に連続加算",
+    "yomi": "れんぞくかさん"
+  },
+  {
+    "name": "連続無改行表示",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "引数に指定した引数を全て表示する（改行しない)",
+    "template": "【S】と連続無改行表示",
+    "yomi": "れんぞくむかいぎょうひょうじ"
+  },
+  {
+    "name": "連続表示",
+    "type": "func",
+    "josi": [
+      [
+        "と",
+        "を"
+      ]
+    ],
+    "category": "標準出力",
+    "desc": "引数に指定した引数を全て表示する",
+    "template": "【S】と連続表示",
+    "yomi": "れんぞくひょうじ"
+  },
+  {
+    "name": "進数変換",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ],
+      [
+        "",
+        "へ"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値VをN進数に変換",
+    "template": "【A】を【B】進数変換",
+    "yomi": "しんすうへんかん"
+  },
+  {
+    "name": "配列カスタムソート",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "関数Fで配列Aをソートして返す(引数A自体を変更)",
+    "template": "【A】で【B】の配列カスタムソート",
+    "yomi": "はいれつかすたむそーと"
+  },
+  {
+    "name": "配列シャッフル",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aをシャッフルして返す。Aを書き換える",
+    "template": "【S】の配列シャッフル",
+    "yomi": "はいれつしゃっふる"
+  },
+  {
+    "name": "配列ソート",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aをソートして返す(A自体を変更)",
+    "template": "【S】の配列ソート",
+    "yomi": "はいれつそーと"
+  },
+  {
+    "name": "配列フィルタ",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "を",
+        "について"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "引数を1つ持ち真偽を返す関数Fを利用して、配列Aの要素をフィルタして、新しい配列として返す。",
+    "template": "【A】で【B】を配列フィルタ",
+    "yomi": "はいれつふぃるた"
+  },
+  {
+    "name": "配列プッシュ",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの末尾にNを追加。Aの内容を書き換える。(『配列追加』と同じ)",
+    "template": "【A】に【B】を配列プッシュ",
+    "yomi": "はいれつぷっしゅ"
+  },
+  {
+    "name": "配列ポップ",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの末尾を取り出して返す。Aの内容を書き換える。",
+    "template": "【S】の配列ポップ",
+    "yomi": "はいれつぽっぷ"
+  },
+  {
+    "name": "配列マップ",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "引数を1つ持つ関数Fを、配列Aの全要素に適用した、新しい配列を返す。(『配列関数適用』と同じ)",
+    "template": "【A】を【B】へ配列マップ",
+    "yomi": "はいれつまっぷ"
+  },
+  {
+    "name": "配列一括挿入",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列AのI番目(0起点)に配列bを追加して返す(v1非互換)",
+    "template": "【A】の【B】に【C】を配列一括挿入",
+    "yomi": "はいれついっかつそうにゅう"
+  },
+  {
+    "name": "配列入替",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "と"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの(0から数えて)I番目とJ番目の要素を入れ替えて返す。Aの内容を書き換える。",
+    "template": "【A】の【B】と【C】を配列入替",
+    "yomi": "はいれついれかえ"
+  },
+  {
+    "name": "配列切取",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列AのI番目(0起点)の要素を切り取って返す。Aの内容を書き換える。引数Iには範囲オブジェクトを指定できる。その場合戻り値は配列型となる。辞書型変数ならキーIを削除する。",
+    "template": "【A】の【B】を配列切取",
+    "yomi": "はいれつきりとる"
+  },
+  {
+    "name": "配列削除",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列AのI番目(0起点)の要素を削除して返す。Aの内容を書き換える。辞書型変数ならキーIを削除する。",
+    "template": "【A】の【B】を配列削除",
+    "yomi": "はいれつさくじょ"
+  },
+  {
+    "name": "配列参照",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "値A(配列",
+    "template": "【A】の【B】を配列参照"
+  },
+  {
+    "name": "配列取出",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列AのI番目(0起点)からCNT個の要素を取り出して返す。Aの内容を書き換える",
+    "template": "【A】の【B】から【C】を配列取出",
+    "yomi": "はいれつとりだし"
+  },
+  {
+    "name": "配列只結合",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの要素をただ結合して文字列で返す。(「」で配列結合と同じ)",
+    "template": "【S】を配列只結合",
+    "yomi": "はいれつただけつごう"
+  },
+  {
+    "name": "配列合計",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの値を全て足して返す。配列の各要素を数値に変換して計算する。数値に変換できない文字列は0になる。",
+    "template": "【S】の配列合計",
+    "yomi": "はいれつごうけい"
+  },
+  {
+    "name": "配列挿入",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列AのI番目(0起点)に要素Sを追加して返す(v1非互換)",
+    "template": "【A】の【B】に【C】を配列挿入",
+    "yomi": "はいれつそうにゅう"
+  },
+  {
+    "name": "配列数値ソート",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aをソートして返す(A自体を変更)",
+    "template": "【S】の配列数値ソート",
+    "yomi": "はいれつすうちそーと"
+  },
+  {
+    "name": "配列数値変換",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの各要素を数値に変換して返す(変数A自体を変更)",
+    "template": "【S】の配列数値変換",
+    "yomi": "はいれつすうちへんかん"
+  },
+  {
+    "name": "配列最大値",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの値の最大値を調べて返す。",
+    "template": "【S】の配列最大値",
+    "yomi": "はいれつさいだいち"
+  },
+  {
+    "name": "配列最小値",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの値の最小値を調べて返す。",
+    "template": "【S】の配列最小値",
+    "yomi": "はいれつさいしょうち"
+  },
+  {
+    "name": "配列検索",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aから文字列Sを探してインデックス番号(0起点)を返す。見つからなければ-1を返す。",
+    "template": "【A】の【B】を配列検索",
+    "yomi": "はいれつけんさく"
+  },
+  {
+    "name": "配列範囲コピー",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの範囲I(数値化範囲オブジェクト)を複製して返す。",
+    "template": "【A】の【B】を配列範囲コピー",
+    "yomi": "はいれつはんいこぴー"
+  },
+  {
+    "name": "配列結合",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "で"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aを文字列Sでつなげて文字列で返す",
+    "template": "【A】を【B】で配列結合",
+    "yomi": "はいれつけつごう"
+  },
+  {
+    "name": "配列複製",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aを複製して返す。",
+    "template": "【S】を配列複製",
+    "yomi": "はいれつふくせい"
+  },
+  {
+    "name": "配列要素作成",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "だけ",
+        "で"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "値AをB個持つ配列を生成して返す。引数Bに配列を指定すると二次元以上の配列を生成する。",
+    "template": "【A】を【B】だけ配列要素作成",
+    "yomi": "はいれつようそさくせい"
+  },
+  {
+    "name": "配列要素数",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの要素数を返す",
+    "template": "【S】の配列要素数",
+    "yomi": "はいれつようそすう"
+  },
+  {
+    "name": "配列足",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ",
+        "と"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aに配列Bを足し合わせて返す。",
+    "template": "【A】に【B】を配列足",
+    "yomi": "はいれつたす"
+  },
+  {
+    "name": "配列追加",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aの末尾にBを追加して返す。Aの内容を書き換える。",
+    "template": "【A】に【B】を配列追加",
+    "yomi": "はいれつついか"
+  },
+  {
+    "name": "配列逆順",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "配列Aを逆にして返す。Aを書き換える(A自体を変更)。",
+    "template": "【S】の配列逆順",
+    "yomi": "はいれつぎゃくじゅん"
+  },
+  {
+    "name": "配列連番作成",
+    "type": "func",
+    "josi": [
+      [
+        "から"
+      ],
+      [
+        "までの",
+        "まで",
+        "の"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "AからBまでの連番配列を生成して返す。",
+    "template": "【A】から【B】までの配列連番作成",
+    "yomi": "はいれつれんばんさくせい"
+  },
+  {
+    "name": "配列関数適用",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ],
+      [
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "配列操作",
+    "desc": "引数を1つ持つ関数Fを、配列Aの全要素に適用した、新しい配列を返す。",
+    "template": "【A】を【B】へ配列関数適用",
+    "yomi": "はいれつかんすうてきよう"
+  },
+  {
+    "name": "開",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "から"
+      ]
+    ],
+    "category": "ファイル入出力",
+    "desc": "ファイルFを開く",
+    "template": "【S】を開",
+    "yomi": "ひらく"
+  },
+  {
+    "name": "非数判定",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "category": "型変換",
+    "desc": "値Vが非数かどうかを判定(NAN判定より堅牢)",
+    "template": "【S】を非数判定",
+    "yomi": "ひすうはんてい"
+  }
+]

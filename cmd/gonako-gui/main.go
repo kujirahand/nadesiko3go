@@ -47,7 +47,11 @@ type CommandItem struct {
 	Name       string     `json:"name"`
 	Type       string     `json:"type"`
 	Josi       [][]string `json:"josi"`
-	ReturnNone bool       `json:"returnNone"`
+	ReturnNone bool       `json:"returnNone,omitempty"`
+	Category   string     `json:"category,omitempty"`
+	Desc       string     `json:"desc,omitempty"`
+	Template   string     `json:"template,omitempty"`
+	Yomi       string     `json:"yomi,omitempty"`
 }
 
 // TemplateItem describes a sample nadesiko3 script file.
@@ -98,6 +102,14 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
 `
 
 func getCommandList() []CommandItem {
+	data, err := fs.ReadFile(uiFS, "ui/command-list.json")
+	if err == nil {
+		var items []CommandItem
+		if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
+			return items
+		}
+	}
+
 	reg := stdlib.NewRegistry(nodelib.New(), officelib.New(), pdflib.New(), imagelib.New(), guilib.New())
 	list := reg.FuncList()
 	items := make([]CommandItem, 0, len(list))
@@ -110,6 +122,8 @@ func getCommandList() []CommandItem {
 			Type:       item.Type,
 			Josi:       item.Josi,
 			ReturnNone: item.ReturnNone,
+			Desc:       fmt.Sprintf("命令『%s』を実行します", name),
+			Template:   name,
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
