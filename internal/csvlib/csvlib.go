@@ -41,12 +41,12 @@ func (p *Plugin) ResetEnv() {
 
 func (p *Plugin) FuncList() lexer.FuncList {
 	return lexer.FuncList{
-		"CSV取得":     {Name: "CSV取得", Type: "func", Josi: [][]string{{"を", "の", "で"}}, Pure: true},
-		"TSV取得":     {Name: "TSV取得", Type: "func", Josi: [][]string{{"を", "の", "で"}}, Pure: true},
-		"表CSV変換":    {Name: "表CSV変換", Type: "func", Josi: [][]string{{"を"}}, Pure: true},
-		"CSV変換":     {Name: "CSV変換", Type: "func", Josi: [][]string{{"を"}}, Pure: true},
-		"表TSV変換":    {Name: "表TSV変換", Type: "func", Josi: [][]string{{"を"}}, Pure: true},
-		"TSV変換":     {Name: "TSV変換", Type: "func", Josi: [][]string{{"を"}}, Pure: true},
+		"CSV取得":     {Name: "CSV取得", Type: "func", Josi: [][]string{{"を", "の", "で", "から"}}, Pure: true},
+		"TSV取得":     {Name: "TSV取得", Type: "func", Josi: [][]string{{"を", "の", "で", "から"}}, Pure: true},
+		"表CSV変換":    {Name: "表CSV変換", Type: "func", Josi: [][]string{{"を", "の", "から", "で"}}, Pure: true},
+		"CSV変換":     {Name: "CSV変換", Type: "func", Josi: [][]string{{"を", "の", "から", "で"}}, Pure: true},
+		"表TSV変換":    {Name: "表TSV変換", Type: "func", Josi: [][]string{{"を", "の", "から", "で"}}, Pure: true},
+		"TSV変換":     {Name: "TSV変換", Type: "func", Josi: [][]string{{"を", "の", "から", "で"}}, Pure: true},
 		"CSVオプション設定": {Name: "CSVオプション設定", Type: "func", Josi: [][]string{{"を", "で"}}, Pure: true, ReturnNone: true},
 	}
 }
