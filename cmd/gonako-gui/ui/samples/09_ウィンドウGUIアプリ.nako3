@@ -1,19 +1,21 @@
-// HTMLコードやURLからWebViewウィンドウを表示
+// ウィンドウのタイトル・サイズ設定とWebView表示
+{"タイトル": "マイアプリ", "サイズ": [800, 600]}のウィンドウ設定。
+
 HtmlText = 『<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
-    body { font-family: sans-serif; padding: 20px; background: #1e1e2e; color: #cdd6f4; text-align: center; }
+    body { font-family: sans-serif; padding: 24px; background: #1e1e2e; color: #cdd6f4; text-align: center; }
     h1 { color: #f38ba8; }
-    button { padding: 10px 20px; font-size: 16px; background: #89b4fa; color: #111; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button { padding: 10px 24px; font-size: 16px; background: #89b4fa; color: #111; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
     button:hover { background: #b4befe; }
     #msg { margin-top: 16px; font-size: 18px; color: #a6e3a1; }
   </style>
 </head>
 <body>
   <h1>🌸 なでしこ3 WebViewウィンドウ</h1>
-  <p>なでしこ3から独立したWebViewウィンドウを起動しました。</p>
+  <p>サイズ800x600のWebViewウィンドウを起動しました。</p>
   <button id="myBtn">ボタンをクリック</button>
   <div id="msg"></div>
   <script>
@@ -23,4 +25,5 @@ HtmlText = 『<!DOCTYPE html>
   </script>
 </body>
 </html>』
+
 HtmlTextでウィンドウ作成。

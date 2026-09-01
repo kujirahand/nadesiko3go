@@ -165,6 +165,14 @@ func goSpecificDocs() map[string]CommandDoc {
 			Desc:     "指定したURLまたはHTMLコードからWebViewウィンドウを新規作成して表示する",
 			Template: "【URLまたはHTML】でウィンドウ作成",
 		},
+		"ウィンドウ設定": {
+			Name:     "ウィンドウ設定",
+			Type:     "func",
+			Josi:     [][]string{{"の", "で", "を", "に"}},
+			Category: "GUI",
+			Desc:     "辞書オブジェクトでウィンドウのタイトルやサイズ（幅・高さ）を設定する",
+			Template: "【{タイトル, サイズ: [幅, 高さ]}】のウィンドウ設定",
+		},
 		"エクセルブック作成": {
 			Name:     "エクセルブック作成",
 			Type:     "func",
