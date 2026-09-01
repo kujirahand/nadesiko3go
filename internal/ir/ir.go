@@ -11,9 +11,12 @@ type Program struct {
 	Main    int     `json:"main"`
 	// Globals names each global slot. LoadGlobal and StoreGlobal address them
 	// by index, so the name is only needed to report a value back by name.
-	Globals   []string     `json:"globals"`
-	Sources   []SourceFile `json:"sources"`
-	Positions []SourcePos  `json:"positions"`
+	Globals []string `json:"globals"`
+	// ConstGlobals lists the global slots that hold a constant. They are
+	// written once with InitGlobal and refuse an ordinary store afterwards.
+	ConstGlobals []int        `json:"constGlobals,omitempty"`
+	Sources      []SourceFile `json:"sources"`
+	Positions    []SourcePos  `json:"positions"`
 }
 
 type ConstKind uint8
@@ -37,9 +40,14 @@ type Func struct {
 	Name    string  `json:"name"`
 	Params  []Param `json:"params"`
 	NumVars int     `json:"numVars"`
-	Code    []Inst  `json:"code"`
-	Async   bool    `json:"async"`
-	Pure    bool    `json:"pure"`
+	// ConstVars lists the local slots that hold a constant.
+	ConstVars []int `json:"constVars,omitempty"`
+	// NumCaptures is how many cells this function closes over. Captures are
+	// addressed separately from locals so that the two cannot be confused.
+	NumCaptures int    `json:"numCaptures,omitempty"`
+	Code        []Inst `json:"code"`
+	Async       bool   `json:"async"`
+	Pure        bool   `json:"pure"`
 	// Captures lists the enclosing function's variables this one closes over.
 	Captures []Capture `json:"captures,omitempty"`
 	// MaxStack is the deepest the operand stack gets in this function. The
@@ -48,11 +56,17 @@ type Func struct {
 }
 
 // Capture threads one variable from the enclosing function into a nested one.
-// The two share the same storage, so an assignment on either side is visible
-// to the other — which is what makes a counter closure work.
+// The two share the same cell, so an assignment on either side is visible to
+// the other — which is what makes a counter closure work.
+//
+// Its position in Func.Captures is the index the nested function uses.
 type Capture struct {
-	FromParent int `json:"fromParent"` // 外側の関数のスロット番号
-	ToSlot     int `json:"toSlot"`     // 内側の関数のスロット番号
+	// FromParent is where to take the cell from in the enclosing function.
+	FromParent int `json:"fromParent"`
+	// ParentIsCapture says whether that index is one of the enclosing
+	// function's own captures rather than one of its locals. A function
+	// nested two deep reaches an outer variable this way.
+	ParentIsCapture bool `json:"parentIsCapture,omitempty"`
 }
 
 type Param struct {

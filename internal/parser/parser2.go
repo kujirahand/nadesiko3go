@@ -526,9 +526,14 @@ func (p *Parser) yIncDec() *ast.Node {
 	}
 
 	target := p.getAssignmentVarName(word)
+	// 単なる変数なら名前は Value に、添字付きなら Name に入っている
+	name := target.Name
+	if name == "" {
+		name = target.StringValue()
+	}
 	end := p.peekSourceMap(nil)
 	return &ast.Node{
-		Type: ast.Inc, Name: target.Name, NameToken: target.NameToken,
+		Type: ast.Inc, Name: name, NameToken: target.NameToken,
 		Index: target.Index, Blocks: []*ast.Node{value}, Josi: action.Josi,
 		SourceMap: m, End: &end,
 	}

@@ -59,10 +59,14 @@ func (c *Compiler) compileStatement(n *ast.Node) {
 
 	case ast.DefLocalVar:
 		// 関数の中なら局所変数、外ならモジュール変数。名前は構文解析で解決済み。
+		c.compileExpr(n.Block(0))
+		if n.VarType == "定数" {
+			c.declareConst(n.Name, n)
+			return
+		}
 		if c.fn.name != "main" {
 			c.slot(n.Name)
 		}
-		c.compileExpr(n.Block(0))
 		c.storeVar(n.Name, n)
 		return
 
@@ -141,8 +145,12 @@ func (c *Compiler) compileDefVarList(n *ast.Node) {
 		if i < len(n.Names)-1 {
 			c.emit(ir.OpDup, 0, 0, n)
 		}
-		c.emit(ir.OpConst, c.constNumber(float64(i)), 0, n)
+		c.emit(ir.OpLoadConst, c.constNumber(float64(i)), 0, n)
 		c.emit(ir.OpIndexGet, 0, 1, n)
+		if n.VarType == "定数" {
+			c.declareConst(name.StringValue(), n)
+			continue
+		}
 		if c.fn.name != "main" {
 			c.slot(name.StringValue())
 		}
@@ -156,6 +164,7 @@ func (c *Compiler) compileDefVarList(n *ast.Node) {
 // compileLetArray compiles 『A[1]=値』. blocks[0] is the value and the rest are
 // the indexes, in the order they were written.
 func (c *Compiler) compileLetArray(n *ast.Node) {
+	c.checkWritable(n.Name, "は既に定義済みなので、値を代入することはできません。", n)
 	indexes := n.Blocks[1:]
 	c.loadVar(n.Name, n)
 	for _, idx := range indexes {
@@ -169,6 +178,7 @@ func (c *Compiler) compileLetArray(n *ast.Node) {
 
 // compileInc compiles 『(変数)を(値)だけ増やす』.
 func (c *Compiler) compileInc(n *ast.Node) {
+	c.checkWritable(n.Name, "は既に定義済みなので、値を増減することはできません。", n)
 	if len(n.Index) > 0 {
 		// 添字付きの対象。読んで足して書き戻す。
 		c.loadVar(n.Name, n)
@@ -238,12 +248,12 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	limit := c.slot(c.tempName("回上限"))
 	saved := c.slot(c.tempName("回数退避"))
 
-	c.emit(ir.OpLoadGlobal, c.globalSlot(SysCount), 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialKaisu), 0, n)
 	c.emit(ir.OpStoreLocal, saved, 0, n)
 
 	c.compileExpr(n.Block(0))
 	c.emit(ir.OpStoreLocal, limit, 0, n)
-	c.emit(ir.OpConst, c.constNumber(1), 0, n)
+	c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	c.emit(ir.OpStoreLocal, counter, 0, n)
 
 	top := c.here()
@@ -255,15 +265,15 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	// 『回数』と『それ』に現在の回数を入れる
 	c.emit(ir.OpLoadLocal, counter, 0, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysCount), 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialKaisu), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 
 	loop := c.pushLoop()
 	c.compileStatement(n.Block(1))
 	c.patchContinues(loop, c.here())
 
 	c.emit(ir.OpLoadLocal, counter, 0, n)
-	c.emit(ir.OpConst, c.constNumber(1), 0, n)
+	c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
 	c.emit(ir.OpStoreLocal, counter, 0, n)
 	c.emit(ir.OpJump, top, 0, n)
@@ -273,12 +283,13 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	// 抜けた後に退避しておいた値へ戻す。『抜ける』もここへ来る。
 	c.emit(ir.OpLoadLocal, saved, 0, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysCount), 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialKaisu), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 }
 
 // compileFor compiles 『AからBまで繰り返す』.
 func (c *Compiler) compileFor(n *ast.Node) {
+	c.checkWritable(n.Word, "はループ変数に指定できません。別の変数名を指定してください。", n)
 	counter := c.slot(c.tempName("繰返"))
 	limit := c.slot(c.tempName("繰返上限"))
 	step := c.slot(c.tempName("繰返増分"))
@@ -291,11 +302,11 @@ func (c *Compiler) compileFor(n *ast.Node) {
 		c.compileExpr(to)
 		c.emit(ir.OpStoreLocal, rangeVar, 0, n)
 		c.emit(ir.OpLoadLocal, rangeVar, 0, n)
-		c.emit(ir.OpConst, c.constString("先頭"), 0, n)
+		c.emit(ir.OpLoadConst, c.constString("先頭"), 0, n)
 		c.emit(ir.OpIndexGet, 0, 1, n)
 		c.emit(ir.OpStoreLocal, counter, 0, n)
 		c.emit(ir.OpLoadLocal, rangeVar, 0, n)
-		c.emit(ir.OpConst, c.constString("末尾"), 0, n)
+		c.emit(ir.OpLoadConst, c.constString("末尾"), 0, n)
 		c.emit(ir.OpIndexGet, 0, 1, n)
 		c.emit(ir.OpStoreLocal, limit, 0, n)
 	} else {
@@ -308,7 +319,7 @@ func (c *Compiler) compileFor(n *ast.Node) {
 	if inc != nil && inc.Type != ast.Nop {
 		c.compileExpr(inc)
 	} else {
-		c.emit(ir.OpConst, c.constNumber(1), 0, n)
+		c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	}
 	if n.LoopDirection == "down" {
 		c.emit(ir.OpUnary, int(ir.UnaryNeg), 0, n)
@@ -329,7 +340,7 @@ func (c *Compiler) compileFor(n *ast.Node) {
 	// ループ変数と『それ』に現在値を入れる
 	c.emit(ir.OpLoadLocal, counter, 0, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 	if n.Word != "" {
 		if c.fn.name != "main" || c.isLocal(n.Word) {
 			c.slot(n.Word)
@@ -358,6 +369,7 @@ func (c *Compiler) compileFor(n *ast.Node) {
 // The three values the loop takes over — 『対象』『対象キー』『それ』 — are saved
 // and put back afterwards, so a nested loop leaves the outer one intact.
 func (c *Compiler) compileForeach(n *ast.Node) {
+	c.checkWritable(n.Word, "は『反復』のループ変数に指定できません。別の変数名を指定してください。", n)
 	target := c.slot(c.tempName("反復対象"))
 	keys := c.slot(c.tempName("反復キー"))
 	index := c.slot(c.tempName("反復添字"))
@@ -365,17 +377,17 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	savedKey := c.slot(c.tempName("対象キー退避"))
 	savedSore := c.slot(c.tempName("それ退避"))
 
-	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTarget), 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialTarget), 0, n)
 	c.emit(ir.OpStoreLocal, savedTarget, 0, n)
-	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTargetKey), 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialTargetKey), 0, n)
 	c.emit(ir.OpStoreLocal, savedKey, 0, n)
-	c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n)
 	c.emit(ir.OpStoreLocal, savedSore, 0, n)
 
 	if t := n.Block(0); t != nil && t.Type != ast.Nop {
 		c.compileExpr(t)
 	} else {
-		c.emit(ir.OpLoadLocal, SoreSlot, 0, n) // 対象の指定がなければ『それ』
+		c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n) // 対象の指定がなければ『それ』
 	}
 	c.emit(ir.OpStoreLocal, target, 0, n)
 
@@ -383,7 +395,7 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	c.emit(ir.OpLoadLocal, target, 0, n)
 	c.emit(ir.OpIterKeys, 0, 0, n)
 	c.emit(ir.OpStoreLocal, keys, 0, n)
-	c.emit(ir.OpConst, c.constNumber(0), 0, n)
+	c.emit(ir.OpLoadConst, c.constNumber(0), 0, n)
 	c.emit(ir.OpStoreLocal, index, 0, n)
 
 	top := c.here()
@@ -397,14 +409,14 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	c.emit(ir.OpLoadLocal, keys, 0, n)
 	c.emit(ir.OpLoadLocal, index, 0, n)
 	c.emit(ir.OpIndexGet, 0, 1, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTargetKey), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialTargetKey), 0, n)
 
 	// 『対象』と『それ』(必要ならループ変数)に今回の値を入れる
 	c.emit(ir.OpLoadLocal, target, 0, n)
-	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTargetKey), 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialTargetKey), 0, n)
 	c.emit(ir.OpIndexGet, 0, 1, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTarget), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialTarget), 0, n)
 	if n.Word != "" {
 		c.emit(ir.OpDup, 0, 0, n)
 		if c.fn.name != "main" || c.isLocal(n.Word) {
@@ -412,14 +424,14 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 		}
 		c.storeVar(n.Word, n)
 	}
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 
 	loop := c.pushLoop()
 	c.compileStatement(n.Block(1))
 	c.patchContinues(loop, c.here())
 
 	c.emit(ir.OpLoadLocal, index, 0, n)
-	c.emit(ir.OpConst, c.constNumber(1), 0, n)
+	c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
 	c.emit(ir.OpStoreLocal, index, 0, n)
 	c.emit(ir.OpJump, top, 0, n)
@@ -428,11 +440,11 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 
 	// 抜けた後に退避しておいた値へ戻す
 	c.emit(ir.OpLoadLocal, savedTarget, 0, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTarget), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialTarget), 0, n)
 	c.emit(ir.OpLoadLocal, savedKey, 0, n)
-	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTargetKey), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialTargetKey), 0, n)
 	c.emit(ir.OpLoadLocal, savedSore, 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 }
 
 // compileSwitch compiles 『(値)で条件分岐』. blocks[0] is the value, blocks[1]

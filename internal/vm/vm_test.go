@@ -219,3 +219,77 @@ func TestGlobalsAreIndexed(t *testing.T) {
 		t.Fatalf("『対象』の書き込みで失敗した: %v", err)
 	}
 }
+
+// TestConstantsRefuseAssignment pins the messages nako_gen.mts gives when a
+// constant is written to. The compiler refuses before emitting any IR, so
+// these are syntax errors rather than runtime ones.
+func TestConstantsRefuseAssignment(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{
+			name: "代入",
+			code: "Aとは定数=1\nA=2",
+			want: "[文法エラー]main.nako3(2行目): 定数『A』は既に定義済みなので、値を代入することはできません。",
+		},
+		{
+			name: "増減",
+			code: "Aとは定数=1\nAを1だけ増やす",
+			want: "[文法エラー]main.nako3(2行目): 定数『A』は既に定義済みなので、値を増減することはできません。",
+		},
+		{
+			name: "繰り返しのループ変数",
+			code: "Aとは定数=1\nAを1から3まで繰り返す\nここまで",
+			want: "[文法エラー]main.nako3(2行目): 定数『A』はループ変数に指定できません。別の変数名を指定してください。",
+		},
+		{
+			name: "反復のループ変数",
+			code: "Aとは定数=1\nAで[1]を反復\nここまで",
+			want: "[文法エラー]main.nako3(2行目): 定数『A』は『反復』のループ変数に指定できません。別の変数名を指定してください。",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := vm.RunSource(tt.code, "main.nako3", nil)
+			if err == nil {
+				t.Fatal("定数への代入が通ってしまった")
+			}
+			if got := err.Error(); got != tt.want {
+				t.Errorf("Error()\n got %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestConstantsCanBeRead pins that a constant is still an ordinary value to
+// read, and that a loop with no variable of its own does not touch one.
+func TestConstantsCanBeRead(t *testing.T) {
+	tests := []struct{ code, want string }{
+		{"Aとは定数=1\nAを表示", "1"},
+		{"Aとは定数=1\n[9]を反復\n対象を表示\nここまで", "9"},
+		{"Aとは定数=「あ」\n(A&\"い\")を表示", "あい"},
+	}
+	for _, tt := range tests {
+		r, err := vm.RunSource(tt.code, "main.nako3", nil)
+		if err != nil {
+			t.Errorf("%q: %v", tt.code, err)
+			continue
+		}
+		if r.Log != tt.want {
+			t.Errorf("%q = %q, want %q", tt.code, r.Log, tt.want)
+		}
+	}
+}
+
+// TestNestedClosureReachesOuterVariable pins that a function nested two deep
+// reaches a variable of the outermost one, which needs the capture to be
+// threaded through the middle function.
+func TestNestedClosureReachesOuterVariable(t *testing.T) {
+	code := "●(Nで)二重とは\nM=N\n(関数()\n(関数()\nM=M+1\nMで戻る\nここまで)で戻る\nここまで)で戻る\nここまで\n" +
+		"F=10で二重\nG=(F())\n(G())を表示\n(G())を表示"
+	r, err := vm.RunSource(code, "main.nako3", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Log != "11\n12" {
+		t.Errorf("log = %q, want \"11\\n12\"", r.Log)
+	}
+}

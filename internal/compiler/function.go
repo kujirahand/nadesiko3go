@@ -60,7 +60,10 @@ func (c *Compiler) declareLocalName(name string) {
 	}
 	// 外側の関数が持っている名前なら、新しいスロットを作らずに捕捉する。
 	// そうしないと、閉じ込めた変数を内側の代入が隠してしまう。
-	if _, ok := c.resolveLocal(name); ok {
+	if _, ok := c.fn.slots[name]; ok {
+		return
+	}
+	if _, ok := c.captureInto(len(c.fnStack), name); ok {
 		return
 	}
 	c.slot(name)
@@ -68,14 +71,15 @@ func (c *Compiler) declareLocalName(name string) {
 
 // compileFuncBody emits a function body into prog.Funcs[index].
 //
-// Arguments arrive on the stack in source order, so the body pops them into
-// their slots in reverse. Slot 0 is 『それ』, which is also the return value
-// when the function ends without a 『戻る』.
+// The caller puts the arguments straight into their slots, so the body starts
+// with an empty operand stack. 『それ』 is the return value when the function
+// ends without a 『戻る』.
 func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
-	fn := &funcCtx{name: n.Name, slots: map[string]int{"それ": SoreSlot}, numVars: 1}
-	if fn.name == "" {
-		fn.name = "(無名関数)"
+	name := n.Name
+	if name == "" {
+		name = "(無名関数)"
 	}
+	fn := newFuncCtx(name)
 
 	params := make([]ir.Param, 0, len(n.Args))
 	for _, a := range n.Args {
@@ -97,21 +101,23 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 	c.declareLocals(n.Block(0))
 
 	// 引数は呼び出し側がスロットへ直接入れるので、本体は空のスタックで始まる
-	c.emit(ir.OpConst, c.constString(""), 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n) // 『それ』の初期値は空文字列
+	c.emit(ir.OpLoadConst, c.constString(""), 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n) // 『それ』の初期値は空文字列
 	c.compileStatement(n.Block(0))
 	// 『戻る』がないまま終わったら『それ』を返す
-	c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
+	c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n)
 	c.emit(ir.OpReturn, 1, 0, n)
 
 	c.prog.Funcs[index] = ir.Func{
-		Name:     fn.name,
-		Params:   params,
-		NumVars:  fn.numVars,
-		Code:     fn.code,
-		Async:    n.AsyncFn,
-		Captures: fn.captures,
-		MaxStack: c.maxStack(index, fn.code),
+		Name:        fn.name,
+		Params:      params,
+		NumVars:     fn.numVars,
+		ConstVars:   sortedSlots(fn.constSlots),
+		NumCaptures: len(fn.captures),
+		Code:        fn.code,
+		Async:       n.AsyncFn,
+		Captures:    fn.captures,
+		MaxStack:    c.maxStack(index, fn.code),
 	}
 
 	c.fn = c.fnStack[len(c.fnStack)-1]

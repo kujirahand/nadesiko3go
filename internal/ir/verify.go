@@ -23,9 +23,11 @@ func StackDelta(inst Inst) (needs int, delta int) {
 	switch inst.Op {
 	case OpNop, OpJump, OpTry, OpEndTry:
 		return 0, 0
-	case OpConst, OpLoadLocal, OpLoadGlobal, OpMakeFunc:
+	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
-	case OpPop, OpStoreLocal, OpStoreGlobal, OpThrow:
+	case OpPop, OpThrow,
+		OpStoreLocal, OpInitLocal, OpStoreCapture,
+		OpStoreGlobal, OpInitGlobal, OpStoreSpecial:
 		return 1, -1
 	case OpJumpIfFalse, OpJumpIfTrue:
 		return 1, -1
@@ -65,8 +67,18 @@ func (p Program) Validate() error {
 	if p.Main < 0 || p.Main >= len(p.Funcs) {
 		return fmt.Errorf("Mainが関数範囲外です: %d", p.Main)
 	}
+	constGlobals := map[int]bool{}
+	for _, slot := range p.ConstGlobals {
+		if slot < 0 || slot >= len(p.Globals) {
+			return fmt.Errorf("定数グローバルが範囲外です: %d", slot)
+		}
+		if constGlobals[slot] {
+			return fmt.Errorf("定数グローバルが重複しています: %d", slot)
+		}
+		constGlobals[slot] = true
+	}
 	for fi := range p.Funcs {
-		if err := p.validateFunc(fi); err != nil {
+		if err := p.validateFunc(fi, constGlobals); err != nil {
 			return err
 		}
 	}
@@ -81,7 +93,7 @@ func (p Program) Validate() error {
 	return p.VerifyStacks()
 }
 
-func (p Program) validateFunc(fi int) error {
+func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 	f := p.Funcs[fi]
 	bad := func(i int, format string, args ...any) error {
 		return &InvalidIRError{Func: fi, Inst: i, Msg: fmt.Sprintf(format, args...)}
@@ -89,9 +101,27 @@ func (p Program) validateFunc(fi int) error {
 	if f.NumVars < len(f.Params) {
 		return bad(0, "NumVars(%d)がParams(%d)より小さいです", f.NumVars, len(f.Params))
 	}
+	if len(f.Captures) != f.NumCaptures {
+		return bad(0, "NumCaptures(%d)とCaptures(%d)が食い違っています", f.NumCaptures, len(f.Captures))
+	}
 	for _, c := range f.Captures {
-		if c.ToSlot < 0 || c.ToSlot >= f.NumVars {
-			return bad(0, "捕捉先のスロットが範囲外です: %d", c.ToSlot)
+		if c.FromParent < 0 {
+			return bad(0, "捕捉元のスロットが負です: %d", c.FromParent)
+		}
+	}
+	constVars := map[int]bool{}
+	for _, slot := range f.ConstVars {
+		if slot < 0 || slot >= f.NumVars {
+			return bad(0, "定数スロットが範囲外です: %d", slot)
+		}
+		if constVars[slot] {
+			return bad(0, "定数スロットが重複しています: %d", slot)
+		}
+		constVars[slot] = true
+	}
+	for i, p := range f.Params {
+		if p.Slot < 0 || p.Slot >= f.NumVars {
+			return bad(0, "Params[%d].Slotが範囲外です: %d", i, p.Slot)
 		}
 	}
 	for i, inst := range f.Code {
@@ -99,17 +129,38 @@ func (p Program) validateFunc(fi int) error {
 			return bad(i, "Posが範囲外です: %d", inst.Pos)
 		}
 		switch inst.Op {
-		case OpConst:
+		case OpLoadConst:
 			if inst.A < 0 || inst.A >= len(p.Consts) {
 				return bad(i, "定数の添字が範囲外です: %d", inst.A)
 			}
-		case OpLoadLocal, OpStoreLocal:
+		case OpLoadLocal, OpStoreLocal, OpInitLocal:
 			if inst.A < 0 || inst.A >= f.NumVars {
 				return bad(i, "ローカルスロットが範囲外です: %d", inst.A)
 			}
-		case OpLoadGlobal, OpStoreGlobal:
+			// 定数セルへの通常の書き込みと、変数セルの初期化を弾く
+			if inst.Op == OpStoreLocal && constVars[inst.A] {
+				return bad(i, "定数スロット%dへStoreLocalしています", inst.A)
+			}
+			if inst.Op == OpInitLocal && !constVars[inst.A] {
+				return bad(i, "変数スロット%dへInitLocalしています", inst.A)
+			}
+		case OpLoadCapture, OpStoreCapture:
+			if inst.A < 0 || inst.A >= f.NumCaptures {
+				return bad(i, "捕捉スロットが範囲外です: %d", inst.A)
+			}
+		case OpLoadGlobal, OpStoreGlobal, OpInitGlobal:
 			if inst.A < 0 || inst.A >= len(p.Globals) {
 				return bad(i, "グローバルスロットが範囲外です: %d", inst.A)
+			}
+			if inst.Op == OpStoreGlobal && constGlobals[inst.A] {
+				return bad(i, "定数グローバル%dへStoreGlobalしています", inst.A)
+			}
+			if inst.Op == OpInitGlobal && !constGlobals[inst.A] {
+				return bad(i, "変数グローバル%dへInitGlobalしています", inst.A)
+			}
+		case OpLoadSpecial, OpStoreSpecial:
+			if !Special(inst.A).Valid() {
+				return bad(i, "システム値の番号が範囲外です: %d", inst.A)
 			}
 		case OpCallUser, OpMakeFunc:
 			if inst.A < 0 || inst.A >= len(p.Funcs) {

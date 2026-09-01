@@ -22,30 +22,30 @@ var binaryOps = map[string]ir.BinaryOp{
 // compileExpr compiles a node that produces exactly one value on the stack.
 func (c *Compiler) compileExpr(n *ast.Node) {
 	if n == nil {
-		c.emit(ir.OpConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, nil)
+		c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, nil)
 		return
 	}
 	switch n.Type {
 	case ast.Nop, ast.EOL, ast.Comment:
 		// 値が要る場所に来たら『それ』を使う。引数の省略がこの形になる。
-		c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
+		c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n)
 		return
 
 	case ast.Number:
-		c.emit(ir.OpConst, c.constNumber(n.NumberValue()), 0, n)
+		c.emit(ir.OpLoadConst, c.constNumber(n.NumberValue()), 0, n)
 		return
 
 	case ast.String:
-		c.emit(ir.OpConst, c.constString(n.StringValue()), 0, n)
+		c.emit(ir.OpLoadConst, c.constString(n.StringValue()), 0, n)
 		return
 
 	case ast.Bool:
 		b, _ := n.Value.(bool)
-		c.emit(ir.OpConst, c.constant(ir.Const{Kind: ir.ConstBool, Bool: b}), 0, n)
+		c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstBool, Bool: b}), 0, n)
 		return
 
 	case ast.Null:
-		c.emit(ir.OpConst, c.constant(ir.Const{Kind: ir.ConstNull}), 0, n)
+		c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstNull}), 0, n)
 		return
 
 	case ast.Word, ast.Variable:
@@ -116,7 +116,7 @@ func (c *Compiler) compileExpr(n *ast.Node) {
 	case ast.Block:
 		// 括弧の中に文が書かれた場合。最後の『それ』が値になる。
 		c.compileBlockValue(n)
-		c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
+		c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n)
 		return
 	}
 
@@ -185,7 +185,7 @@ func (c *Compiler) compileCall(n *ast.Node) {
 	if index, ok := c.userFuncs[n.Name]; ok {
 		c.emit(ir.OpCallUser, index, argc, n)
 		c.emit(ir.OpDup, 0, 0, n)
-		c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+		c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 		return
 	}
 
@@ -200,11 +200,11 @@ func (c *Compiler) compileCall(n *ast.Node) {
 	if entry.Item.ReturnNone {
 		// 戻り値のない命令。呼び出しの結果は捨て、『それ』も変えない。
 		c.emit(ir.OpPop, 0, 0, n)
-		c.emit(ir.OpConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, n)
+		c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, n)
 		return
 	}
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 }
 
 // compileCallVariable calls a function held in a variable. The arguments are
@@ -221,7 +221,7 @@ func (c *Compiler) compileCallVariable(n *ast.Node) {
 	}
 	c.emit(ir.OpCallValue, 0, len(n.Blocks), n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 }
 
 // callStdByName emits a call to a command by name, for the code the compiler
@@ -245,7 +245,7 @@ func (c *Compiler) compileCallValue(n *ast.Node) {
 	}
 	c.emit(ir.OpCallValue, 0, len(n.Blocks)-1, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 }
 
 // compileFuncPointer pushes a reference to a named function.

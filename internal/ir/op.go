@@ -13,16 +13,29 @@ const (
 
 	// --- 定数と変数 ---
 
-	// OpConst pushes Consts[A].
-	OpConst
-	// OpLoadLocal pushes local slot A.
+	// OpLoadConst pushes Consts[A].
+	OpLoadConst
+	// OpLoadLocal pushes local cell A.
 	OpLoadLocal
-	// OpStoreLocal pops a value into local slot A.
+	// OpStoreLocal pops a value into local cell A. It fails on a constant.
 	OpStoreLocal
-	// OpLoadGlobal pushes global Consts[A] (the name).
+	// OpInitLocal pops a value into local cell A once. Only a constant cell
+	// is initialized this way, and only the first time.
+	OpInitLocal
+	// OpLoadCapture pushes captured cell A, which the enclosing frame shares.
+	OpLoadCapture
+	// OpStoreCapture pops a value into captured cell A.
+	OpStoreCapture
+	// OpLoadGlobal pushes global cell A.
 	OpLoadGlobal
-	// OpStoreGlobal pops a value into the global named by Consts[A].
+	// OpStoreGlobal pops a value into global cell A.
 	OpStoreGlobal
+	// OpInitGlobal pops a value into global cell A once.
+	OpInitGlobal
+	// OpLoadSpecial pushes the system value A (『それ』『対象』など).
+	OpLoadSpecial
+	// OpStoreSpecial pops a value into the system value A.
+	OpStoreSpecial
 
 	// --- スタック操作 ---
 
@@ -112,6 +125,55 @@ const (
 	BinShiftR0                     // shift_r0
 )
 
+// Special identifies one of the values the language keeps outside the ordinary
+// variable scopes.
+//
+// 『それ』 belongs to the running function, the way a local does. The others are
+// shared by the whole program, because that is where the TypeScript version
+// keeps them (its system variable table).
+type Special uint16
+
+const (
+	SpecialSore         Special = iota // それ
+	SpecialTarget                      // 対象
+	SpecialTargetKey                   // 対象キー
+	SpecialKaisu                       // 回数
+	SpecialErrorMessage                // エラーメッセージ
+	SpecialMatched                     // 抽出文字列
+	// SpecialCount is how many system values there are, for range checks.
+	SpecialCount
+)
+
+// SpecialNames gives each system value its nadesiko name.
+var SpecialNames = [SpecialCount]string{
+	SpecialSore: "それ", SpecialTarget: "対象", SpecialTargetKey: "対象キー",
+	SpecialKaisu: "回数", SpecialErrorMessage: "エラーメッセージ", SpecialMatched: "抽出文字列",
+}
+
+// SpecialByName finds a system value by name.
+func SpecialByName(name string) (Special, bool) {
+	for i, n := range SpecialNames {
+		if n == name {
+			return Special(i), true
+		}
+	}
+	return 0, false
+}
+
+// IsFrameSpecial reports whether the value belongs to the running function
+// rather than to the program as a whole.
+func (s Special) IsFrameSpecial() bool { return s == SpecialSore }
+
+// Valid reports whether the id names a system value.
+func (s Special) Valid() bool { return s < SpecialCount }
+
+func (s Special) String() string {
+	if s.Valid() {
+		return SpecialNames[s]
+	}
+	return "Special?"
+}
+
 // UnaryOp identifies the operator an OpUnary instruction applies.
 type UnaryOp uint16
 
@@ -122,9 +184,11 @@ const (
 
 // opNames gives each opcode a readable name for disassembly and errors.
 var opNames = map[Op]string{
-	OpNop: "Nop", OpConst: "Const",
-	OpLoadLocal: "LoadLocal", OpStoreLocal: "StoreLocal",
-	OpLoadGlobal: "LoadGlobal", OpStoreGlobal: "StoreGlobal",
+	OpNop: "Nop", OpLoadConst: "LoadConst",
+	OpLoadLocal: "LoadLocal", OpStoreLocal: "StoreLocal", OpInitLocal: "InitLocal",
+	OpLoadCapture: "LoadCapture", OpStoreCapture: "StoreCapture",
+	OpLoadGlobal: "LoadGlobal", OpStoreGlobal: "StoreGlobal", OpInitGlobal: "InitGlobal",
+	OpLoadSpecial: "LoadSpecial", OpStoreSpecial: "StoreSpecial",
 	OpPop: "Pop", OpDup: "Dup",
 	OpBinary: "Binary", OpUnary: "Unary",
 	OpMakeArray: "MakeArray", OpMakeDict: "MakeDict",

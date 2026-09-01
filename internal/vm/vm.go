@@ -25,9 +25,12 @@ type VM struct {
 	registry *stdlib.Registry
 	host     Host
 
-	// globals holds module variables and the system variables the loops set,
-	// indexed by the slot the IR addresses them with.
-	globals []value.Value
+	// globals holds the module variables, indexed by the slot the IR
+	// addresses them with.
+	globals []*value.Cell
+	// specials holds the system values that belong to the program as a whole.
+	// 『それ』 is not here: it belongs to the running frame.
+	specials [ir.SpecialCount]value.Value
 	// globalIndex finds a global by name, for the commands that reach one
 	// through stdlib.Context and for reporting values back.
 	globalIndex map[string]int
@@ -75,19 +78,22 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 	loop := event.New(startTime)
 	loop.MaxCallbacks = options.MaxCallbacks
 
-	globals := make([]value.Value, len(prog.Globals))
+	constGlobals := map[int]bool{}
+	for _, slot := range prog.ConstGlobals {
+		constGlobals[slot] = true
+	}
+	globals := make([]*value.Cell, len(prog.Globals))
 	index := make(map[string]int, len(prog.Globals))
 	for i, name := range prog.Globals {
 		index[name] = i
+		globals[i] = value.NewCell(!constGlobals[i])
 		// システム定数を持つ名前は、その値から始める
 		if v, ok := registry.Const(name); ok {
-			globals[i] = v
-			continue
+			globals[i].Value = v
 		}
-		globals[i] = value.Undefined()
 	}
 
-	return &VM{
+	m := &VM{
 		prog:        prog,
 		registry:    registry,
 		host:        h,
@@ -98,6 +104,15 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		callbacks:   map[host.CallbackID]*value.Func{},
 		options:     options,
 	}
+	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
+	for id := ir.Special(0); id < ir.SpecialCount; id++ {
+		if v, ok := registry.Const(ir.SpecialNames[id]); ok {
+			m.specials[id] = v
+			continue
+		}
+		m.specials[id] = value.String("")
+	}
+	return m
 }
 
 // startTime is where the virtual clock begins. A fixed instant keeps a program
@@ -114,11 +129,15 @@ func (m *VM) Vars(prefix string, names []string) map[string]value.Value {
 	out := make(map[string]value.Value, len(names))
 	for _, name := range names {
 		if i, ok := m.globalIndex[prefix+name]; ok {
-			out[name] = m.globals[i]
+			out[name] = m.globals[i].Get()
 			continue
 		}
 		if i, ok := m.globalIndex[name]; ok {
-			out[name] = m.globals[i]
+			out[name] = m.globals[i].Get()
+			continue
+		}
+		if id, ok := ir.SpecialByName(name); ok {
+			out[name] = m.specials[id]
 			continue
 		}
 		out[name] = value.Undefined()
@@ -147,13 +166,17 @@ func (m *VM) Run() (err error) {
 
 // frame is one function activation.
 //
-// Slots are cells rather than plain values so that a nested function can share
-// one with the frame that created it. That sharing is what makes a closure
-// see later assignments to a captured variable.
+// Locals and captures are separate index spaces, so that the verifier can
+// check each on its own and a captured cell cannot be mistaken for a local.
+// Both hold cells rather than plain values, because a nested function shares
+// a cell with the frame that created it.
 type frame struct {
-	fn    *ir.Func
-	slots []*value.Value
-	stack []value.Value
+	fn       *ir.Func
+	locals   []*value.Cell
+	captures []*value.Cell
+	stack    []value.Value
+	// sore is 『それ』, which belongs to this activation.
+	sore value.Value
 	// handlers stacks the error-monitored regions this frame has entered.
 	handlers []handler
 }
@@ -196,7 +219,7 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 
 // callClosure runs one function and returns its value. captured holds the
 // cells the closure shares with the frame that created it.
-func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value) value.Value {
+func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) value.Value {
 	if index < 0 || index >= len(m.prog.Funcs) {
 		m.fail(fmt.Sprintf("関数の呼び出し先がありません: %d", index), ir.SourcePos{})
 	}
@@ -208,16 +231,23 @@ func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value)
 	defer func() { m.depth-- }()
 
 	fn := &m.prog.Funcs[index]
-	f := &frame{fn: fn, slots: make([]*value.Value, fn.NumVars)}
-	for i := range f.slots {
-		v := value.Undefined()
-		f.slots[i] = &v
+	constVars := map[int]bool{}
+	for _, slot := range fn.ConstVars {
+		constVars[slot] = true
 	}
-	// 捕捉した変数は、外側のフレームと同じセルを指す
-	for i, cap := range fn.Captures {
-		if i < len(captured) && cap.ToSlot >= 0 && cap.ToSlot < len(f.slots) {
-			f.slots[cap.ToSlot] = captured[i]
+	f := &frame{fn: fn, sore: value.String("")}
+	f.locals = make([]*value.Cell, fn.NumVars)
+	for i := range f.locals {
+		f.locals[i] = value.NewCell(!constVars[i])
+	}
+	// 捕捉したセルは、外側のフレームと同じものを指す
+	f.captures = make([]*value.Cell, fn.NumCaptures)
+	for i := range f.captures {
+		if i < len(captured) && captured[i] != nil {
+			f.captures[i] = captured[i]
+			continue
 		}
+		f.captures[i] = value.NewCell(true)
 	}
 	// 引数はスタックではなくスロットへ直接入れる。関数本体は空のスタックで
 	// 始まるので、検証器が入口の深さを0と決められる。
@@ -225,8 +255,9 @@ func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value)
 		if i >= len(args) {
 			break
 		}
-		if p.Slot >= 0 && p.Slot < len(f.slots) {
-			*f.slots[p.Slot] = args[i]
+		if p.Slot >= 0 && p.Slot < len(f.locals) {
+			f.locals[p.Slot].Value = args[i]
+			f.locals[p.Slot].Initialized = true
 		}
 	}
 	return m.run(f)

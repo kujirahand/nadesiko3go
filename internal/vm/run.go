@@ -62,7 +62,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		switch inst.Op {
 		case ir.OpNop:
 
-		case ir.OpConst:
+		case ir.OpLoadConst:
 			f.push(m.constValue(inst.A))
 
 		case ir.OpPop:
@@ -74,16 +74,34 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(v)
 
 		case ir.OpLoadLocal:
-			f.push(*f.slots[inst.A])
+			f.push(f.locals[inst.A].Get())
 
 		case ir.OpStoreLocal:
-			*f.slots[inst.A] = f.pop()
+			m.setCell(f.locals[inst.A], f.pop(), inst)
+
+		case ir.OpInitLocal:
+			m.initCell(f.locals[inst.A], f.pop(), inst)
+
+		case ir.OpLoadCapture:
+			f.push(f.captures[inst.A].Get())
+
+		case ir.OpStoreCapture:
+			m.setCell(f.captures[inst.A], f.pop(), inst)
 
 		case ir.OpLoadGlobal:
-			f.push(m.globals[inst.A])
+			f.push(m.globals[inst.A].Get())
 
 		case ir.OpStoreGlobal:
-			m.globals[inst.A] = f.pop()
+			m.setCell(m.globals[inst.A], f.pop(), inst)
+
+		case ir.OpInitGlobal:
+			m.initCell(m.globals[inst.A], f.pop(), inst)
+
+		case ir.OpLoadSpecial:
+			f.push(m.loadSpecial(f, ir.Special(inst.A)))
+
+		case ir.OpStoreSpecial:
+			m.storeSpecial(f, ir.Special(inst.A), f.pop())
 
 		case ir.OpBinary:
 			b := f.pop()
@@ -209,11 +227,53 @@ func (m *VM) constString(i int) string {
 	return m.prog.Consts[i].Str
 }
 
-// loadGlobalByName reads a global the way a command names it, rather than by
-// the slot the IR uses.
+// setCell writes a variable cell. A constant getting here means the compiler
+// let an assignment through, which is broken IR rather than a bad program.
+func (m *VM) setCell(cell *value.Cell, v value.Value, inst ir.Inst) {
+	if !cell.Set(v) {
+		m.failAt("定数へ代入しようとしました。", inst.Pos)
+	}
+}
+
+// initCell writes a constant cell for the first time.
+func (m *VM) initCell(cell *value.Cell, v value.Value, inst ir.Inst) {
+	if !cell.Init(v) {
+		m.failAt("定数を二度初期化しようとしました。", inst.Pos)
+	}
+}
+
+// loadSpecial reads a system value. 『それ』 comes from the running frame; the
+// rest are shared by the program.
+func (m *VM) loadSpecial(f *frame, id ir.Special) value.Value {
+	if !id.Valid() {
+		return value.Undefined()
+	}
+	if id.IsFrameSpecial() {
+		return f.sore
+	}
+	return m.specials[id]
+}
+
+func (m *VM) storeSpecial(f *frame, id ir.Special, v value.Value) {
+	if !id.Valid() {
+		return
+	}
+	if id.IsFrameSpecial() {
+		f.sore = v
+		return
+	}
+	m.specials[id] = v
+}
+
+// loadGlobalByName reads a value the way a command names it, rather than by
+// the slot the IR uses. A system value is found by name too, because that is
+// how the commands refer to 『対象』 and 『抽出文字列』.
 func (m *VM) loadGlobalByName(name string) value.Value {
+	if id, ok := ir.SpecialByName(name); ok && !id.IsFrameSpecial() {
+		return m.specials[id]
+	}
 	if i, ok := m.globalIndex[name]; ok {
-		return m.globals[i]
+		return m.globals[i].Get()
 	}
 	if v, ok := m.registry.Const(name); ok {
 		return v
@@ -221,17 +281,22 @@ func (m *VM) loadGlobalByName(name string) value.Value {
 	return value.Undefined()
 }
 
-// storeGlobalByName writes a global a command names. A name with no slot is
-// dropped: the compiler reserves one for every system variable, so this only
-// happens for a name nothing can ever read back.
+// storeGlobalByName writes a value a command names.
 func (m *VM) storeGlobalByName(name string, v value.Value) {
+	if id, ok := ir.SpecialByName(name); ok && !id.IsFrameSpecial() {
+		m.specials[id] = v
+		return
+	}
 	if i, ok := m.globalIndex[name]; ok {
-		m.globals[i] = v
+		m.globals[i].Set(v)
 	}
 }
 
-// makeClosure builds a function value, taking a reference to each variable the
+// makeClosure builds a function value, taking a reference to each cell the
 // function closes over from the frame creating it.
+//
+// A capture can come from the creating frame's own locals or from its
+// captures, which is how a function nested two deep reaches an outer variable.
 //
 // A function with nothing to capture gets a shared value, so two references to
 // the same plain function compare equal.
@@ -245,14 +310,17 @@ func (m *VM) makeClosure(index int, f *frame) *value.Func {
 		m.funcValues[index] = fv
 		return fv
 	}
-	captured := make([]*value.Value, 0, len(fn.Captures))
+	captured := make([]*value.Cell, 0, len(fn.Captures))
 	for _, cap := range fn.Captures {
-		if cap.FromParent >= 0 && cap.FromParent < len(f.slots) {
-			captured = append(captured, f.slots[cap.FromParent])
+		source := f.locals
+		if cap.ParentIsCapture {
+			source = f.captures
+		}
+		if cap.FromParent >= 0 && cap.FromParent < len(source) {
+			captured = append(captured, source[cap.FromParent])
 			continue
 		}
-		v := value.Undefined()
-		captured = append(captured, &v)
+		captured = append(captured, value.NewCell(true))
 	}
 	return &value.Func{ID: index, Captured: captured}
 }

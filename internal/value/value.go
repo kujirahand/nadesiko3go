@@ -27,11 +27,11 @@ type Value struct {
 // Func is an opaque runtime function reference. Executable Go callbacks do not
 // cross the value boundary; the VM resolves ID in its own function table.
 //
-// Captured holds the variables the function closed over, shared with the
-// enclosing frame rather than copied.
+// Captured holds the cells the function closed over, shared with the enclosing
+// frame rather than copied.
 type Func struct {
 	ID       int
-	Captured []*Value
+	Captured []*Cell
 }
 
 func Undefined() Value       { return Value{kind: KindUndefined} }
