@@ -149,6 +149,22 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>ファイルを上書き保存</td>
           </tr>
           <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>Cmd</kbd> + <kbd>C</kbd></td>
+            <td>選択範囲をコピー</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>V</kbd> / <kbd>Cmd</kbd> + <kbd>V</kbd></td>
+            <td>クリップボードから貼り付け</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>X</kbd> / <kbd>Cmd</kbd> + <kbd>X</kbd></td>
+            <td>選択範囲を切り取り</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>A</kbd> / <kbd>Cmd</kbd> + <kbd>A</kbd></td>
+            <td>すべて選択</td>
+          </tr>
+          <tr>
             <td><kbd>Tab</kbd></td>
             <td>タブ文字（インデント）を挿入</td>
           </tr>
@@ -525,10 +541,79 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  editor.addEventListener('keydown', (e) => {
+  editor.addEventListener('keydown', async (e) => {
+    const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
     if (e.key === 'Tab') {
       e.preventDefault();
       insertTextAtCursor('\t');
+      return;
+    }
+
+    // [Cmd]+[A] / [Ctrl]+[A] --- 全選択
+    if (isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
+      e.preventDefault();
+      editor.select();
+      return;
+    }
+
+    // [Cmd]+[C] / [Ctrl]+[C] --- コピー
+    if (isCmdOrCtrl && (e.key === 'c' || e.key === 'C')) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      if (start !== end) {
+        const selectedText = editor.value.substring(start, end);
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(selectedText);
+            setStatus('選択範囲をコピーしました');
+          }
+        } catch (err) {
+          // fallback to native
+        }
+      }
+      return;
+    }
+
+    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り
+    if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
+      const start = editor.selectionStart;
+      const end = editor.selectionEnd;
+      if (start !== end) {
+        const selectedText = editor.value.substring(start, end);
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(selectedText);
+          }
+          e.preventDefault();
+          editor.value = editor.value.substring(0, start) + editor.value.substring(end);
+          editor.selectionStart = editor.selectionEnd = start;
+          updateLineNumbers();
+          updateCharCount();
+          updateCursorPos();
+          setStatus('選択範囲を切り取りました');
+        } catch (err) {
+          // fallback to native
+        }
+      }
+      return;
+    }
+
+    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け
+    if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text) {
+            e.preventDefault();
+            insertTextAtCursor(text);
+            setStatus('クリップボードから貼り付けました');
+          }
+        }
+      } catch (err) {
+        // fallback to native
+      }
+      return;
     }
   });
 
