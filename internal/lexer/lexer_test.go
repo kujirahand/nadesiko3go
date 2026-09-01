@@ -300,6 +300,8 @@ func sameValue(got, want any) bool {
 	case string:
 		g, ok := got.(string)
 		return ok && g == w
+	case nil:
+		return got == nil
 	}
 	return false
 }
