@@ -1,7 +1,10 @@
 // Package errs defines nadesiko-compatible error kinds and source locations.
 package errs
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 type Kind uint8
 
@@ -18,8 +21,15 @@ type NakoError struct {
 	Msg  string
 }
 
+// mainPrefixRE matches a name quoted in an error message that still carries the
+// main module's namespace prefix.
+var mainPrefixRE = regexp.MustCompile(`『main__(.+?)』`)
+
 func (e *NakoError) Error() string {
-	return fmt.Sprintf("[%sエラー]%s(%d行目): %s", e.Kind.String(), e.File, e.Line+1, e.Msg)
+	// 『main__関数名』のように名前空間が付いたままだと読みにくいので、
+	// メインモジュールの接頭辞だけは省いて表示する (#1223)
+	msg := mainPrefixRE.ReplaceAllString(e.Msg, "『$1』")
+	return fmt.Sprintf("[%sエラー]%s(%d行目): %s", e.Kind.String(), e.File, e.Line+1, msg)
 }
 
 // CompatType returns the TypeScript error class name used by compat fixtures.

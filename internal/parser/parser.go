@@ -377,7 +377,7 @@ func (p *Parser) yDefFuncCommon(nodeType ast.NodeType, tokType lexer.TokenType) 
 					panic(r)
 				}
 				p.failToken(nodeToStr(funcName, 0, "関数")+
-					"の定義で以下のエラーがありました。\n"+se.err.Msg, def)
+					"の定義で以下のエラーがありました。\n"+se.err.Error(), def)
 			}
 		}()
 		p.funcLevel++
@@ -516,7 +516,7 @@ func (p *Parser) yIF() *ast.Node {
 				if !ok {
 					panic(r)
 				}
-				p.failToken("『もし』文の条件で次のエラーがあります。\n"+se.err.Msg, mosi)
+				p.failToken("『もし』文の条件で次のエラーがあります。\n"+se.err.Error(), mosi)
 			}
 		}()
 		expr = p.yIFCond()

@@ -656,7 +656,7 @@ func (p *Parser) yCallFunc() *ast.Node {
 						panic(r)
 					}
 					p.failToken(fmt.Sprintf(
-						"『%sには...』で無名関数の定義で以下の間違いがあります。\n%s", funcName, se.err.Msg), t)
+						"『%sには...』で無名関数の定義で以下の間違いがあります。\n%s", funcName, se.err.Error()), t)
 				}
 			}()
 			funcObj = p.yMumeiFunc()

@@ -13,7 +13,22 @@ func (p *Parser) yLet() *ast.Node {
 	if p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"eq"}}) {
 		wordTok := p.get()
 		p.get() // eq
-		value := p.yCalc()
+		// 右辺の解析でエラーが起きたら、どの変数への代入かを添えて報告し直す。
+		// 元のエラー文面をそのまま連ねるので、2行の文面になる。
+		var value *ast.Node
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					se, ok := r.(syntaxError)
+					if !ok {
+						panic(r)
+					}
+					p.failAt(nodeToStr(wordTok, 1, "")+
+						"への代入文で計算式に以下の書き間違いがあります。\n"+se.err.Error(), m)
+				}
+			}()
+			value = p.yCalc()
+		}()
 		if value == nil || value.Type == ast.EOL {
 			p.failAt(nodeToStr(wordTok, 1, "")+"への代入文で計算式に書き間違いがあります。", m)
 		}

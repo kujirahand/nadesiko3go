@@ -116,3 +116,61 @@ func TestParseControlAndFunctionSyntax(t *testing.T) {
 		})
 	}
 }
+
+// The expected messages come from NakoCompiler.parse in nako3.mts. The compat
+// fixture 09_error pins the same four cases.
+func TestParseErrorMessages(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		kind errs.Kind
+		want string
+	}{
+		{
+			// 代入の右辺で起きたエラーは、どの変数への代入かを添えて
+			// 元の文面ごと report し直すので2行になる
+			name: "閉じ括弧なし",
+			code: "A=(1+2\nAを表示",
+			kind: errs.Syntax,
+			want: "[文法エラー]main.nako3(1行目): 単語『A』への代入文で計算式に以下の書き間違いがあります。\n" +
+				"[文法エラー]main.nako3(1行目): (...)の解析エラー。『数値1と数値2に演算子『+』を適用した式』の近く",
+		},
+		{
+			// メインモジュールの接頭辞 main__ は文面から省かれる #1223
+			name: "未解決の単語",
+			code: "未定義関数呼ぶ",
+			kind: errs.Syntax,
+			want: "[文法エラー]main.nako3(1行目): 不完全な文です。単語『未定義関数呼』が解決していません。",
+		},
+		{
+			name: "ここまでの不足",
+			code: "もし1=1ならば\n「T」と表示",
+			kind: errs.Syntax,
+			want: "[文法エラー]main.nako3(1行目): 『もし』文で『ここまで』がありません。",
+		},
+		{
+			name: "文字列の入れ子",
+			code: "「あ「い」を表示",
+			kind: errs.Lexer,
+			want: "[字句解析エラー]main.nako3(1行目): 『「』で始めた文字列の中に『「』を含めることはできません。",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parse(t, tt.code)
+			if err == nil {
+				t.Fatal("エラーになるはずが成功した")
+			}
+			nakoErr, ok := err.(*errs.NakoError)
+			if !ok {
+				t.Fatalf("エラー型 = %T, want *errs.NakoError", err)
+			}
+			if nakoErr.Kind != tt.kind {
+				t.Errorf("Kind = %v, want %v", nakoErr.Kind, tt.kind)
+			}
+			if got := nakoErr.Error(); got != tt.want {
+				t.Errorf("Error()\n got %q\nwant %q", got, tt.want)
+			}
+		})
+	}
+}
