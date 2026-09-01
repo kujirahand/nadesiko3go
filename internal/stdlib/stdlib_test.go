@@ -61,6 +61,47 @@ func TestEveryImplementationIsDeclared(t *testing.T) {
 	}
 }
 
+// TestEveryArrayCommandIsImplemented keeps the Go registry in sync with
+// plugin_system_array.mts. A command being present in ParserFuncList is not
+// enough: a nil Fn is accepted by the parser but fails only when it is called.
+func TestEveryArrayCommandIsImplemented(t *testing.T) {
+	r := stdlib.NewRegistry()
+	names := []string{
+		"配列結合", "配列只結合", "配列検索", "配列要素数", "要素数", "LEN",
+		"配列挿入", "配列一括挿入", "配列ソート", "配列数値変換", "配列数値ソート",
+		"配列カスタムソート", "配列逆順", "配列シャッフル", "配列削除", "配列切取",
+		"配列取出", "配列ポップ", "配列プッシュ", "配列追加", "配列複製", "配列範囲コピー",
+		"参照", "配列参照", "配列足", "配列最大値", "配列最小値", "配列合計", "配列入替",
+		"配列連番作成", "配列要素作成", "配列関数適用", "配列マップ", "配列フィルタ",
+		"表ソート", "表数値ソート", "表ピックアップ", "表完全一致ピックアップ", "表検索",
+		"表列数", "表行数", "表行列交換", "表右回転", "表重複削除", "表列取得",
+		"表列挿入", "表列削除", "表列合計", "表曖昧検索", "表正規表現ピックアップ",
+	}
+	for _, name := range names {
+		e, ok := r.Lookup(name)
+		if !ok {
+			t.Errorf("配列命令『%s』が登録されていない", name)
+			continue
+		}
+		if e.Fn == nil {
+			t.Errorf("配列命令『%s』に実装がない", name)
+		}
+	}
+}
+
+// TestEveryRegisteredCommandHasAnImplementation prevents signatures from
+// getting ahead of the runtime. Commands intentionally unsupported by the Go
+// backend still have an explicit implementation that returns that decision.
+func TestEveryRegisteredCommandHasAnImplementation(t *testing.T) {
+	r := stdlib.NewRegistry()
+	for id := 0; id < r.Len(); id++ {
+		e := r.Entry(id)
+		if e.Fn == nil {
+			t.Errorf("登録命令『%s』に実装がない", e.Name)
+		}
+	}
+}
+
 // TestRegistryIDsAreStable pins that the IDs the IR stores do not depend on map
 // iteration order.
 func TestRegistryIDsAreStable(t *testing.T) {
