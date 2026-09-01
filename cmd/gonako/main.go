@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -16,14 +17,19 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
+// Version is the current release version of gonako.
+var Version = "3.6.0"
+
 const usage = `gonako - なでしこ3 Go言語版
 
 使い方:
+  gonako <ファイル> [引数...]       なでしこのプログラムを実行する
   gonako run <ファイル> [引数...]   なでしこのプログラムを実行する
-  gonako -e <プログラム>            その場でプログラムを実行する
+  gonako -e <プログラム> [引数...]  その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
+  gonako version                    バージョン情報を表示する
 
 ファイル名に - を指定すると標準入力から読み込みます。
 
@@ -292,6 +298,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return nil
 	}
 	switch args[0] {
+	case "version", "-v", "--version":
+		fmt.Fprintf(stdout, "gonako v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
+		return nil
 	case "run":
 		return runFile(args[1:], stdout)
 	case "-e":
@@ -301,26 +310,35 @@ func run(args []string, stdout, stderr io.Writer) error {
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
 	}
-	if len(args) < 2 || args[0] != "compat" || args[1] != "run" {
-		fmt.Fprint(stderr, usage)
-		return fmt.Errorf("不明なサブコマンドです: %s", args[0])
+
+	if len(args) >= 2 && args[0] == "compat" && args[1] == "run" {
+		flags := flag.NewFlagSet("compat run", flag.ContinueOnError)
+		flags.SetOutput(stderr)
+		casesDir := flags.String("cases", "./testdata/compat/cases", "compat case JSONのディレクトリ")
+		outDir := flags.String("out", "./out", "結果JSONの出力ディレクトリ")
+		if err := flags.Parse(args[2:]); err != nil {
+			return err
+		}
+		if flags.NArg() != 0 {
+			return fmt.Errorf("余分な引数があります: %s", flags.Arg(0))
+		}
+
+		summary, err := compat.Run(*casesDir, *outDir)
+		if err != nil {
+			return err
+		}
+		fmt.Fprintf(stdout, "%dグループ・%dケースを実行し、結果を%sへ出力しました\n", summary.Groups, summary.Cases, *outDir)
+		return nil
 	}
 
-	flags := flag.NewFlagSet("compat run", flag.ContinueOnError)
-	flags.SetOutput(stderr)
-	casesDir := flags.String("cases", "./testdata/compat/cases", "compat case JSONのディレクトリ")
-	outDir := flags.String("out", "./out", "結果JSONの出力ディレクトリ")
-	if err := flags.Parse(args[2:]); err != nil {
-		return err
+	// ファイル直接指定の場合 (例: gonako main.nako3, gonako -)
+	if args[0] == "-" || strings.HasSuffix(args[0], ".nako3") || strings.HasSuffix(args[0], ".nako") {
+		return runFile(args, stdout)
 	}
-	if flags.NArg() != 0 {
-		return fmt.Errorf("余分な引数があります: %s", flags.Arg(0))
+	if _, err := os.Stat(args[0]); err == nil {
+		return runFile(args, stdout)
 	}
 
-	summary, err := compat.Run(*casesDir, *outDir)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(stdout, "%dグループ・%dケースを実行し、結果を%sへ出力しました\n", summary.Groups, summary.Cases, *outDir)
-	return nil
+	fmt.Fprint(stderr, usage)
+	return fmt.Errorf("不明なサブコマンドです: %s", args[0])
 }

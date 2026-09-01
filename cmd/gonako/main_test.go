@@ -55,6 +55,49 @@ func TestRunFileFromDisk(t *testing.T) {
 	}
 }
 
+func TestRunFileDirect(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "direct.nako3")
+	if err := os.WriteFile(path, []byte("A=コマンドライン\n「引数: {A}」と表示"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{path, "foo", "bar"}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "引数: foo,bar" {
+		t.Errorf("出力 = %q, want \"引数: foo,bar\"", got)
+	}
+}
+
+func TestRunFileWithShebang(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "shebang.nako3")
+	code := "#!/usr/bin/env gonako\n「shebang動いた」と表示"
+	if err := os.WriteFile(path, []byte(code), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{path}, &out, &errOut); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "shebang動いた" {
+		t.Errorf("出力 = %q, want \"shebang動いた\"", got)
+	}
+}
+
+func TestRunVersion(t *testing.T) {
+	for _, flag := range []string{"version", "-v", "--version"} {
+		var out, errOut bytes.Buffer
+		if err := run([]string{flag}, &out, &errOut); err != nil {
+			t.Fatalf("%s failed: %v", flag, err)
+		}
+		if !strings.HasPrefix(out.String(), "gonako v3.6.0") {
+			t.Errorf("%s 出力 = %q", flag, out.String())
+		}
+	}
+}
+
 // TestRunReportsNakoError pins that a program's own error comes back as a
 // nadesiko message rather than a Go one.
 func TestRunReportsNakoError(t *testing.T) {

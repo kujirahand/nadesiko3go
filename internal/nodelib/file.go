@@ -22,7 +22,7 @@ func constants() map[string]any {
 		"ナデシコランタイム":       "gonako",
 		"ナデシコランタイムパス":     exe,
 		"母艦パス":           bokan,
-		"ファイルコピーデフォルト動作": "overwrite",
+		"ファイルコピーデフォルト動作": "上書禁止",
 		"AJAXオプション":       "",
 		"圧縮解凍ツールパス":      "zip",
 	}
@@ -71,25 +71,55 @@ func commands() map[string]command {
 			return value.Undefined(), nil
 		}}
 	m["ファイル移動"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
-		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
-			return value.Undefined(), os.Rename(str(a, 0), str(a, 1))
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			src := str(a, 0)
+			dest := str(a, 1)
+			if err := copyMergeWithProgress(src, dest, isOverwrite(ctx), ctx); err != nil {
+				return value.Undefined(), err
+			}
+			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
+				_ = os.RemoveAll(src)
+			}
+			return value.Undefined(), nil
 		}}
-	m["ファイル上書移動"] = m["ファイル移動"]
+	m["ファイル上書移動"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			src := str(a, 0)
+			dest := str(a, 1)
+			if err := copyMergeWithProgress(src, dest, true, ctx); err != nil {
+				return value.Undefined(), err
+			}
+			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
+				_ = os.RemoveAll(src)
+			}
+			return value.Undefined(), nil
+		}}
 	m["ファイル移動時"] = command{josi: [][]string{{"で", "を", "の"}, {"から", "を"}, {"に", "へ"}},
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			if err := os.Rename(str(a, 1), str(a, 2)); err != nil {
-				return value.Undefined(), fileError("移動でき", str(a, 1), err)
+			src := str(a, 1)
+			dest := str(a, 2)
+			if err := copyMergeWithProgress(src, dest, isOverwrite(ctx), ctx); err != nil {
+				return value.Undefined(), err
+			}
+			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
+				_ = os.RemoveAll(src)
 			}
 			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
 				return ctx.CallFunc(fn, nil)
 			}
 			return value.Undefined(), nil
 		}}
-	m["ファイルコピー"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true, fn: copyFile}
-	m["ファイル上書コピー"] = m["ファイルコピー"]
+	m["ファイルコピー"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			return value.Undefined(), copyMergeWithProgress(str(a, 0), str(a, 1), isOverwrite(ctx), ctx)
+		}}
+	m["ファイル上書コピー"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			return value.Undefined(), copyMergeWithProgress(str(a, 0), str(a, 1), true, ctx)
+		}}
 	m["ファイルコピー時"] = command{josi: [][]string{{"で", "を", "の"}, {"から", "を"}, {"に", "へ"}},
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			if _, err := copyFile(ctx, a[1:]); err != nil {
+			if err := copyMergeWithProgress(str(a, 1), str(a, 2), isOverwrite(ctx), ctx); err != nil {
 				return value.Undefined(), err
 			}
 			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
@@ -212,7 +242,10 @@ func commands() map[string]command {
 		dir, _ := os.UserHomeDir()
 		return value.String(filepath.Join(dir, "Documents")), nil
 	}}
-	m["母艦パス取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
+	m["母艦パス取得"] = command{fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+		if v := ctx.SysVar("母艦パス"); v.Kind() == value.KindString && value.ToString(v) != "" {
+			return v, nil
+		}
 		exe, err := os.Executable()
 		if err != nil {
 			return value.String(""), nil
@@ -286,15 +319,109 @@ func appendFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	return value.Undefined(), nil
 }
 
-func copyFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
-	data, err := os.ReadFile(str(a, 0))
+func isOverwrite(ctx stdlib.Context) bool {
+	mode := value.ToString(ctx.SysVar("ファイルコピーデフォルト動作"))
+	return mode == "上書き" || mode == "上書" || mode == "overwrite"
+}
+
+type filePair struct {
+	src string
+	rel string
+}
+
+func listFilesRecursive(baseDir, curPath string) []filePair {
+	info, err := os.Stat(curPath)
 	if err != nil {
-		return value.Undefined(), fileError("読み込め", str(a, 0), err)
+		return nil
 	}
-	if err := os.WriteFile(str(a, 1), data, 0o644); err != nil {
-		return value.Undefined(), fileError("書き込め", str(a, 1), err)
+	if !info.IsDir() {
+		rel, err := filepath.Rel(baseDir, curPath)
+		if err != nil {
+			rel = filepath.Base(curPath)
+		}
+		return []filePair{{src: curPath, rel: rel}}
 	}
-	return value.Undefined(), nil
+	var res []filePair
+	entries, err := os.ReadDir(curPath)
+	if err != nil {
+		return nil
+	}
+	for _, e := range entries {
+		sub := listFilesRecursive(baseDir, filepath.Join(curPath, e.Name()))
+		res = append(res, sub...)
+	}
+	return res
+}
+
+func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context) error {
+	cbVal := ctx.CommandState("__fileProcessCallback")
+	cbFn, hasCb := toFunc(ctx, cbVal)
+	ctx.SetCommandState("__fileProcessStop", value.Bool(false))
+
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return fileError("読み込め", src, err)
+	}
+
+	if !overwrite {
+		if _, err := os.Stat(dest); err == nil {
+			return errors.New("ファイルコピー先に同名のファイルまたはフォルダが存在します: " + dest)
+		}
+	}
+
+	if !srcInfo.IsDir() {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return fileError("読み込め", src, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return fileError("作成でき", filepath.Dir(dest), err)
+		}
+		if err := os.WriteFile(dest, data, 0o644); err != nil {
+			return fileError("書き込め", dest, err)
+		}
+		if hasCb {
+			d := value.NewDict()
+			d.Set("件数", value.Number(1))
+			d.Set("現在", value.Number(1))
+			progress := value.DictValue(d)
+			ctx.SetSysVar("対象", progress)
+			_, _ = ctx.CallFunc(cbFn, []value.Value{progress})
+		}
+		return nil
+	}
+
+	// ディレクトリのマージコピー
+	files := listFilesRecursive(src, src)
+	total := len(files)
+
+	for i, f := range files {
+		stopVal := ctx.CommandState("__fileProcessStop")
+		if value.ToBool(stopVal) {
+			break
+		}
+		destFile := filepath.Join(dest, f.rel)
+		if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
+			return fileError("作成でき", filepath.Dir(destFile), err)
+		}
+		data, err := os.ReadFile(f.src)
+		if err != nil {
+			return fileError("読み込め", f.src, err)
+		}
+		if err := os.WriteFile(destFile, data, 0o644); err != nil {
+			return fileError("書き込め", destFile, err)
+		}
+
+		if hasCb {
+			d := value.NewDict()
+			d.Set("件数", value.Number(float64(total)))
+			d.Set("現在", value.Number(float64(i+1)))
+			progress := value.DictValue(d)
+			ctx.SetSysVar("対象", progress)
+			_, _ = ctx.CallFunc(cbFn, []value.Value{progress})
+		}
+	}
+	return nil
 }
 
 func listFiles(_ stdlib.Context, a []value.Value) (value.Value, error) {

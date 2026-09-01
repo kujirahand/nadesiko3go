@@ -3,6 +3,7 @@ package vm
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -118,6 +119,21 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		}
 		if name == "名前空間" && len(prog.Sources) > 0 {
 			globals[i].Value = value.String(filepath.Base(prog.Sources[0].Name))
+		}
+		if name == "母艦パス" && len(prog.Sources) > 0 && prog.Sources[0].Name != "" {
+			src := prog.Sources[0].Name
+			if src != "main.nako3" && src != "-" {
+				dir := filepath.Dir(src)
+				if abs, err := filepath.Abs(dir); err == nil {
+					globals[i].Value = value.String(abs)
+				} else {
+					globals[i].Value = value.String(dir)
+				}
+			} else {
+				if cwd, err := os.Getwd(); err == nil {
+					globals[i].Value = value.String(cwd)
+				}
+			}
 		}
 	}
 

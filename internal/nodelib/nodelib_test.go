@@ -198,6 +198,30 @@ func TestRunFile(t *testing.T) {
 	}
 }
 
+func TestBokanPathWhenRunningFile(t *testing.T) {
+	dir := t.TempDir()
+	subdir := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(subdir, "test.nako3")
+	code := `「母艦変数: {母艦パス}」と表示
+「母艦関数: {母艦パス取得}」と表示`
+	if err := os.WriteFile(path, []byte(code), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	if err := vm.RunFile(path, host); err != nil {
+		t.Fatal(err)
+	}
+	absSubdir, _ := filepath.Abs(subdir)
+	want := fmt.Sprintf("母艦変数: %s\n母艦関数: %s", absSubdir, absSubdir)
+	if got := strings.TrimRight(out.String(), "\n"); got != want {
+		t.Errorf("出力 = %q, want %q", got, want)
+	}
+}
+
 func TestCryptoCommands(t *testing.T) {
 	dir := t.TempDir()
 	got := runIn(t, dir, `
@@ -382,6 +406,56 @@ func TestFileEventCommands(t *testing.T) {
 		"移動存在: true",
 		"削除コールバック",
 		"削除存在: false",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestFileCopyAndMoveAdvanced(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+"dirSrc"のフォルダ作成
+"dirDest"のフォルダ作成
+「file1」を"dirSrc/1.txt"に保存
+「file2」を"dirSrc/2.txt"に保存
+「file3」を"dirSrc/3.txt"に保存
+「old」を"dirDest/c.txt"に保存
+
+CNT = 0
+●進捗CB
+　CNT = CNT + 1
+ここまで
+
+「進捗CB」をファイル処理時
+"dirSrc"を"dirDest"へファイル上書コピー
+「コピー後件数: {CNT}」と表示
+「1存在: {"dirDest/1.txt"が存在}」と表示
+「c存在: {"dirDest/c.txt"が存在}」と表示
+
+ファイルコピーデフォルト動作 = "overwrite"
+「updated」を"dirDest/1.txt"に保存
+"dirSrc"を"dirDest2"へファイル移動
+「移動後Src存在: {"dirSrc"が存在}」と表示
+「移動後Dest存在: {"dirDest2/2.txt"が存在}」と表示
+
+STOP_COUNT = 0
+●停止CB
+　STOP_COUNT = STOP_COUNT + 1
+　ファイル処理強制停止
+ここまで
+
+「停止CB」をファイル処理時
+"dirDest2"を"dirDest3"へファイル上書コピー
+「強制停止後コールバック数: {STOP_COUNT}」と表示
+`)
+	want := strings.Join([]string{
+		"コピー後件数: 3",
+		"1存在: true",
+		"c存在: true",
+		"移動後Src存在: false",
+		"移動後Dest存在: true",
+		"強制停止後コールバック数: 1",
 	}, "\n")
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
