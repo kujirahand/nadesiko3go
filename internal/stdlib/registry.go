@@ -5,6 +5,11 @@ import "github.com/kujirahand/nadesiko3go/internal/lexer"
 // ParserFuncList returns the plugin_system metadata needed by the lexer and
 // parser. Function implementations are added in later stages; keeping the
 // signatures here lets stage 1 parse the compatibility fixtures now.
+// nullConst and undefinedConst distinguish the two empty values in the
+// signature table, which a plain nil could not.
+type nullConst struct{}
+type undefinedConst struct{}
+
 func ParserFuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	addConst := func(name string, value any) {
@@ -24,9 +29,9 @@ func ParserFuncList() lexer.FuncList {
 	addConst("改行", "\n")
 	addConst("タブ", "\t")
 	addConst("空", "")
-	addConst("NULL", nil)
-	addConst("undefined", nil)
-	addConst("未定義", nil)
+	addConst("NULL", nullConst{})
+	addConst("undefined", undefinedConst{})
+	addConst("未定義", undefinedConst{})
 	addConst("エラーメッセージ", "")
 	addConst("対象", "")
 	addConst("対象キー", "")

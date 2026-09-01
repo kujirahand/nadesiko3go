@@ -48,6 +48,11 @@ const (
 	OpIndexGet
 	// OpIndexSet pops a value, B indexes and a container, and stores.
 	OpIndexSet
+	// OpIterKeys pops a container and pushes the array of keys to iterate:
+	// the indexes of an array, or the keys of a dictionary in insertion order.
+	OpIterKeys
+	// OpLen pops an array and pushes its length.
+	OpLen
 
 	// --- 呼び出し ---
 
@@ -57,6 +62,8 @@ const (
 	OpCallUser
 	// OpCallValue calls the function value under B arguments on the stack.
 	OpCallValue
+	// OpMakeFunc pushes a function value referring to Funcs[A].
+	OpMakeFunc
 	// OpReturn returns the top of the stack from the current function.
 	OpReturn
 
@@ -122,9 +129,11 @@ var opNames = map[Op]string{
 	OpBinary: "Binary", OpUnary: "Unary",
 	OpMakeArray: "MakeArray", OpMakeDict: "MakeDict",
 	OpIndexGet: "IndexGet", OpIndexSet: "IndexSet",
+	OpIterKeys: "IterKeys", OpLen: "Len",
 	OpCallStd: "CallStd", OpCallUser: "CallUser", OpCallValue: "CallValue",
-	OpReturn: "Return",
-	OpJump:   "Jump", OpJumpIfFalse: "JumpIfFalse", OpJumpIfTrue: "JumpIfTrue",
+	OpMakeFunc: "MakeFunc",
+	OpReturn:   "Return",
+	OpJump:     "Jump", OpJumpIfFalse: "JumpIfFalse", OpJumpIfTrue: "JumpIfTrue",
 	OpTry: "Try", OpEndTry: "EndTry", OpThrow: "Throw",
 }
 

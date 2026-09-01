@@ -12,8 +12,7 @@ import (
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
-	"github.com/kujirahand/nadesiko3go/internal/parser"
-	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 type Case struct {
@@ -38,11 +37,11 @@ type ErrorResult struct {
 }
 
 type Result struct {
-	Name   string                 `json:"name"`
-	Status string                 `json:"status"`
-	Log    string                 `json:"log"`
-	Vars   map[string]interface{} `json:"vars,omitempty"`
-	Error  *ErrorResult           `json:"error,omitempty"`
+	Name   string         `json:"name"`
+	Status string         `json:"status"`
+	Log    string         `json:"log"`
+	Vars   map[string]any `json:"vars,omitempty"`
+	Error  *ErrorResult   `json:"error,omitempty"`
 }
 
 type OutputGroup struct {
@@ -137,30 +136,7 @@ func Run(casesDir, outDir string) (Summary, error) {
 			Results:     make(map[string]Result, len(group.Cases)),
 		}
 		for _, testCase := range group.Cases {
-			result := Result{
-				Name:   testCase.Name,
-				Status: "error",
-				Log:    "",
-				Error: &ErrorResult{
-					Type:    "UnsupportedError",
-					Line:    nil,
-					Message: "未実装",
-				},
-			}
-			if _, parseErr := parser.ParseSource(*testCase.Code, "main.nako3", stdlib.ParserFuncList()); parseErr != nil {
-				var nakoErr *errs.NakoError
-				if errors.As(parseErr, &nakoErr) {
-					line := nakoErr.Line
-					result.Error = &ErrorResult{
-						Type:    nakoErr.CompatType(),
-						Line:    &line,
-						Message: nakoErr.Error(),
-					}
-				} else {
-					return Summary{}, fmt.Errorf("%s/%sの構文解析に失敗しました: %w", group.Group, testCase.Name, parseErr)
-				}
-			}
-			output.Results[testCase.Name] = result
+			output.Results[testCase.Name] = runCase(testCase)
 			summary.Cases++
 		}
 		if err := writeGroup(filepath.Join(outDir, group.Group+".json"), output); err != nil {
@@ -168,6 +144,40 @@ func Run(casesDir, outDir string) (Summary, error) {
 		}
 	}
 	return summary, nil
+}
+
+// runCase executes one fixture case and shapes the outcome the way SPEC.md
+// describes: status, printed log, and the error when it raised.
+func runCase(testCase Case) Result {
+	result := Result{Name: testCase.Name, Status: "ok"}
+	run, err := vm.RunSource(*testCase.Code, "main.nako3", testCase.Vars)
+	if run != nil {
+		result.Log = run.Log
+		if len(testCase.Vars) > 0 {
+			result.Vars = make(map[string]any, len(testCase.Vars))
+			for _, name := range testCase.Vars {
+				result.Vars[name] = encodeValue(run.Vars[name])
+			}
+		}
+	}
+	if err == nil {
+		return result
+	}
+
+	result.Status = "error"
+	var nakoErr *errs.NakoError
+	if errors.As(err, &nakoErr) {
+		line := nakoErr.Line
+		result.Error = &ErrorResult{
+			Type:    nakoErr.CompatType(),
+			Line:    &line,
+			Message: nakoErr.Error(),
+		}
+		return result
+	}
+	// なでしこのエラーとして表現できないもの。実装の不足を示す。
+	result.Error = &ErrorResult{Type: "UnsupportedError", Message: err.Error()}
+	return result
 }
 
 func writeGroup(filePath string, group OutputGroup) error {

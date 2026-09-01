@@ -71,7 +71,9 @@ func NewRegistry() *Registry {
 // constValue converts a constant from the signature table into a runtime value.
 func constValue(v any) value.Value {
 	switch x := v.(type) {
-	case nil:
+	case nil, undefinedConst:
+		return value.Undefined()
+	case nullConst:
 		return value.Null()
 	case bool:
 		return value.Bool(x)

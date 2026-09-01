@@ -1,0 +1,448 @@
+package vm
+
+import (
+	"fmt"
+	"math"
+
+	"github.com/kujirahand/nadesiko3go/internal/errs"
+	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/value"
+)
+
+// run executes a frame, resuming at an error handler when a runtime error is
+// raised inside an error-monitored region.
+//
+// The resume lives here rather than in the interpreter loop because the error
+// can come from anywhere: an instruction, a command, or a nested call.
+func (m *VM) run(f *frame) value.Value {
+	pc := 0
+	for {
+		result, handled, target := m.protect(f, pc)
+		if !handled {
+			return result
+		}
+		pc = target
+	}
+}
+
+// protect runs the loop from pc. When a runtime error escapes and this frame
+// has an error-monitored region open, it reports where to resume instead of
+// letting the error through.
+func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target int) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			return
+		}
+		np, isNako := r.(nakoPanic)
+		if !isNako || len(f.handlers) == 0 {
+			panic(r)
+		}
+		h := f.handlers[len(f.handlers)-1]
+		f.handlers = f.handlers[:len(f.handlers)-1]
+		f.stack = f.stack[:h.stackDepth]
+		// 『エラーメッセージ』で捕まえた内容を読めるようにする
+		m.globals["エラーメッセージ"] = value.String(np.err.Msg)
+		result, handled, target = value.Undefined(), true, h.target
+	}()
+	return m.execute(f, pc), false, 0
+}
+
+// execute is the interpreter loop for one frame.
+func (m *VM) execute(f *frame, pc int) value.Value {
+	for pc < len(f.fn.Code) {
+		inst := f.fn.Code[pc]
+		pc++
+
+		switch inst.Op {
+		case ir.OpNop:
+
+		case ir.OpConst:
+			f.push(m.constValue(inst.A))
+
+		case ir.OpPop:
+			f.pop()
+
+		case ir.OpDup:
+			v := f.pop()
+			f.push(v)
+			f.push(v)
+
+		case ir.OpLoadLocal:
+			f.push(f.slots[inst.A])
+
+		case ir.OpStoreLocal:
+			f.slots[inst.A] = f.pop()
+
+		case ir.OpLoadGlobal:
+			f.push(m.loadGlobal(m.constString(inst.A)))
+
+		case ir.OpStoreGlobal:
+			m.globals[m.constString(inst.A)] = f.pop()
+
+		case ir.OpBinary:
+			b := f.pop()
+			a := f.pop()
+			f.push(m.binary(ir.BinaryOp(inst.A), a, b))
+
+		case ir.OpUnary:
+			f.push(m.unary(ir.UnaryOp(inst.A), f.pop()))
+
+		case ir.OpMakeArray:
+			f.push(value.ArrayValue(value.NewArray(f.popN(inst.B)...)))
+
+		case ir.OpMakeDict:
+			items := f.popN(inst.B * 2)
+			d := value.NewDict()
+			for i := 0; i+1 < len(items); i += 2 {
+				d.Set(value.ToString(items[i]), items[i+1])
+			}
+			f.push(value.DictValue(d))
+
+		case ir.OpIndexGet:
+			indexes := f.popN(inst.B)
+			container := f.pop()
+			f.push(m.indexGet(container, indexes, inst.Pos))
+
+		case ir.OpIndexSet:
+			v := f.pop()
+			indexes := f.popN(inst.B)
+			container := f.pop()
+			f.push(m.indexSet(container, indexes, v, inst.Pos))
+
+		case ir.OpIterKeys:
+			f.push(m.iterKeys(f.pop()))
+
+		case ir.OpLen:
+			arr, ok := f.pop().Array()
+			if !ok {
+				f.push(value.Number(0))
+				break
+			}
+			f.push(value.Number(float64(arr.Len())))
+
+		case ir.OpMakeFunc:
+			f.push(value.FuncValue(m.funcValue(inst.A)))
+
+		case ir.OpCallStd:
+			args := f.popN(inst.B)
+			f.push(m.callStd(inst.A, args, inst.Pos))
+
+		case ir.OpCallUser:
+			args := f.popN(inst.B)
+			f.push(m.call(inst.A, args))
+
+		case ir.OpCallValue:
+			args := f.popN(inst.B)
+			callee := f.pop()
+			fnRef, ok := callee.Func()
+			if !ok {
+				m.failAt("関数ではない値を呼び出そうとしました。", inst.Pos)
+			}
+			f.push(m.call(fnRef.ID, args))
+
+		case ir.OpJump:
+			pc = inst.A
+
+		case ir.OpJumpIfFalse:
+			if !value.ToBool(f.pop()) {
+				pc = inst.A
+			}
+
+		case ir.OpJumpIfTrue:
+			if value.ToBool(f.pop()) {
+				pc = inst.A
+			}
+
+		case ir.OpTry:
+			f.handlers = append(f.handlers, handler{target: inst.A, stackDepth: len(f.stack)})
+
+		case ir.OpEndTry:
+			if n := len(f.handlers); n > 0 {
+				f.handlers = f.handlers[:n-1]
+			}
+
+		case ir.OpThrow:
+			m.failAt(value.ToString(f.pop()), inst.Pos)
+
+		case ir.OpReturn:
+			if inst.A == 0 {
+				return value.Undefined()
+			}
+			return f.pop()
+
+		default:
+			m.failAt(fmt.Sprintf("未知の命令です: %s", inst.Op), inst.Pos)
+		}
+	}
+	return value.Undefined()
+}
+
+// constValue turns a constant pool entry into a runtime value.
+func (m *VM) constValue(i int) value.Value {
+	if i < 0 || i >= len(m.prog.Consts) {
+		return value.Undefined()
+	}
+	k := m.prog.Consts[i]
+	switch k.Kind {
+	case ir.ConstNull:
+		return value.Null()
+	case ir.ConstBool:
+		return value.Bool(k.Bool)
+	case ir.ConstNumber:
+		return value.Number(k.Num)
+	case ir.ConstString:
+		return value.String(k.Str)
+	}
+	return value.Undefined()
+}
+
+func (m *VM) constString(i int) string {
+	if i < 0 || i >= len(m.prog.Consts) {
+		return ""
+	}
+	return m.prog.Consts[i].Str
+}
+
+// loadGlobal reads a module or system variable, falling back to the system
+// constants the standard library defines.
+func (m *VM) loadGlobal(name string) value.Value {
+	if v, ok := m.globals[name]; ok {
+		return v
+	}
+	if v, ok := m.registry.Const(name); ok {
+		return v
+	}
+	return value.Undefined()
+}
+
+// funcValue gives a function index a stable identity.
+func (m *VM) funcValue(index int) *value.Func {
+	if fv, ok := m.funcValues[index]; ok {
+		return fv
+	}
+	fv := &value.Func{ID: index}
+	m.funcValues[index] = fv
+	return fv
+}
+
+// callStd runs a standard library command.
+func (m *VM) callStd(id int, args []value.Value, pos int) value.Value {
+	e := m.registry.Entry(id)
+	if e == nil {
+		m.failAt(fmt.Sprintf("命令が見つかりません: %d", id), pos)
+	}
+	if e.Fn == nil {
+		m.failAt(fmt.Sprintf("命令『%s』はまだ実装されていません。", e.Name), pos)
+	}
+	v, err := e.Fn(m, args)
+	if err != nil {
+		m.failAt(err.Error(), pos)
+	}
+	return v
+}
+
+// --- 演算 ---
+
+func (m *VM) binary(op ir.BinaryOp, a, b value.Value) value.Value {
+	switch op {
+	case ir.BinAdd:
+		return value.Number(value.Add(value.ParseFloat(a), value.ParseFloat(b)))
+	case ir.BinSub:
+		return value.Number(value.Sub(a, b))
+	case ir.BinMul:
+		return value.Number(value.Mul(a, b))
+	case ir.BinDiv:
+		return value.Number(value.Div(a, b))
+	case ir.BinIntDiv:
+		return value.Number(value.IntDiv(a, b))
+	case ir.BinMod:
+		return value.Number(value.Mod(a, b))
+	case ir.BinPow:
+		return value.Number(value.Pow(a, b))
+	case ir.BinConcat:
+		return value.String(value.Concat(a, b))
+	case ir.BinEq:
+		return value.Bool(value.LooseEquals(a, b))
+	case ir.BinNotEq:
+		return value.Bool(!value.LooseEquals(a, b))
+	case ir.BinStrictEq:
+		return value.Bool(value.StrictEquals(a, b))
+	case ir.BinStrictNotEq:
+		return value.Bool(!value.StrictEquals(a, b))
+	case ir.BinLt:
+		return value.Bool(value.LessThan(a, b))
+	case ir.BinLtEq:
+		return value.Bool(value.LessEqual(a, b))
+	case ir.BinGt:
+		return value.Bool(value.GreaterThan(a, b))
+	case ir.BinGtEq:
+		return value.Bool(value.GreaterEqual(a, b))
+	case ir.BinShiftL:
+		return value.Number(value.ShiftLeft(a, b))
+	case ir.BinShiftR:
+		return value.Number(value.ShiftRight(a, b))
+	case ir.BinShiftR0:
+		return value.Number(value.ShiftRightZero(a, b))
+	}
+	return value.Undefined()
+}
+
+func (m *VM) unary(op ir.UnaryOp, v value.Value) value.Value {
+	switch op {
+	case ir.UnaryNot:
+		return value.Bool(!value.ToBool(v))
+	case ir.UnaryNeg:
+		return value.Number(-value.ToNumber(v))
+	}
+	return value.Undefined()
+}
+
+// --- 添字アクセス ---
+
+// indexGet reads through a chain of indexes, so that 『A[1][2]』 is one
+// instruction with two indexes.
+func (m *VM) indexGet(container value.Value, indexes []value.Value, pos int) value.Value {
+	cur := container
+	for _, idx := range indexes {
+		switch cur.Kind() {
+		case value.KindArray:
+			arr, _ := cur.Array()
+			cur = arr.Get(indexToInt(idx))
+		case value.KindDict:
+			d, _ := cur.Dict()
+			v, _ := d.Get(value.ToString(idx))
+			cur = v
+		case value.KindString:
+			s, _ := cur.String()
+			cur = value.String(runeAt(s, indexToInt(idx)))
+		default:
+			return value.Undefined()
+		}
+	}
+	return cur
+}
+
+// indexSet writes through a chain of indexes and returns the outermost
+// container, which the caller stores back into the variable.
+//
+// A missing intermediate container is created, so 『A[0][1]=値』 works even when
+// A held nothing.
+func (m *VM) indexSet(container value.Value, indexes []value.Value, v value.Value, pos int) value.Value {
+	if len(indexes) == 0 {
+		return v
+	}
+	cur := m.ensureContainer(container, indexes[0])
+	root := cur
+	for i := 0; i < len(indexes)-1; i++ {
+		next := m.indexGet(cur, indexes[i:i+1], pos)
+		next = m.ensureContainer(next, indexes[i+1])
+		m.storeOne(cur, indexes[i], next)
+		cur = next
+	}
+	m.storeOne(cur, indexes[len(indexes)-1], v)
+	return root
+}
+
+// ensureContainer returns v when it can already hold the index, and a fresh
+// array or dictionary otherwise.
+func (m *VM) ensureContainer(v value.Value, index value.Value) value.Value {
+	switch v.Kind() {
+	case value.KindArray, value.KindDict:
+		return v
+	}
+	if index.Kind() == value.KindString {
+		return value.DictValue(value.NewDict())
+	}
+	return value.ArrayValue(value.NewArray())
+}
+
+func (m *VM) storeOne(container value.Value, index value.Value, v value.Value) {
+	switch container.Kind() {
+	case value.KindArray:
+		arr, _ := container.Array()
+		arr.Set(indexToInt(index), v)
+	case value.KindDict:
+		d, _ := container.Dict()
+		d.Set(value.ToString(index), v)
+	}
+}
+
+// iterKeys lists what 『反復』 walks: the indexes of an array, or the keys of a
+// dictionary in insertion order.
+func (m *VM) iterKeys(v value.Value) value.Value {
+	switch v.Kind() {
+	case value.KindArray:
+		arr, _ := v.Array()
+		keys := make([]value.Value, arr.Len())
+		for i := range keys {
+			keys[i] = value.Number(float64(i))
+		}
+		return value.ArrayValue(value.NewArray(keys...))
+	case value.KindDict:
+		d, _ := v.Dict()
+		names := d.Keys()
+		keys := make([]value.Value, len(names))
+		for i, k := range names {
+			keys[i] = value.String(k)
+		}
+		return value.ArrayValue(value.NewArray(keys...))
+	}
+	return value.ArrayValue(value.NewArray())
+}
+
+// indexToInt converts an index to an array position. A non-numeric index
+// becomes -1, which reads as undefined and refuses to store.
+func indexToInt(v value.Value) int {
+	n := value.ToNumber(v)
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return -1
+	}
+	return int(n)
+}
+
+// runeAt reads one character of a string by rune index, never by byte.
+func runeAt(s string, i int) string {
+	if i < 0 {
+		return ""
+	}
+	for pos, r := range s {
+		_ = pos
+		if i == 0 {
+			return string(r)
+		}
+		i--
+	}
+	return ""
+}
+
+// --- エラー ---
+
+func (m *VM) fail(msg string, pos ir.SourcePos) {
+	panic(nakoPanic{&errs.NakoError{
+		Kind: errs.Runtime, File: m.fileName(pos.Source), Line: pos.Line, Msg: msg,
+	}})
+}
+
+func (m *VM) failAt(msg string, posIndex int) {
+	pos := ir.SourcePos{}
+	if posIndex >= 0 && posIndex < len(m.prog.Positions) {
+		pos = m.prog.Positions[posIndex]
+	}
+	m.fail(msg, pos)
+}
+
+func (m *VM) fileName(i int) string {
+	if i >= 0 && i < len(m.prog.Sources) {
+		return m.prog.Sources[i].Name
+	}
+	return ""
+}
+
+// --- stdlib.Context ---
+
+func (m *VM) Print(s string) { m.host.Print(s) }
+
+func (m *VM) SysVar(name string) value.Value { return m.loadGlobal(name) }
+
+func (m *VM) SetSysVar(name string, v value.Value) { m.globals[name] = v }

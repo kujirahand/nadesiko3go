@@ -152,6 +152,15 @@ func (n *Node) StringValue() string {
 	return s
 }
 
+// NumberValue returns Value as a float64, or 0 when it is not one.
+func (n *Node) NumberValue() float64 {
+	if n == nil {
+		return 0
+	}
+	f, _ := n.Value.(float64)
+	return f
+}
+
 // Block returns Blocks[i], or nil when there is no such child.
 func (n *Node) Block(i int) *Node {
 	if n == nil || i < 0 || i >= len(n.Blocks) {

@@ -142,7 +142,10 @@ func TestConstants(t *testing.T) {
 		{"改行", "\n"},
 		{"タブ", "\t"},
 		{"空", ""},
-		{"未定義", "null"},
+		// 空とNULLと未定義は別物。空は空文字列、NULLはnull、未定義はundefined。
+		{"NULL", "null"},
+		{"未定義", "undefined"},
+		{"undefined", "undefined"},
 	}
 	for _, tt := range tests {
 		v, ok := r.Const(tt.name)

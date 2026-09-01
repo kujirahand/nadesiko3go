@@ -7,10 +7,13 @@ import (
 	"testing"
 )
 
-func TestRunWritesUnsupportedResults(t *testing.T) {
+func TestRunWritesExecutionResults(t *testing.T) {
 	casesDir := t.TempDir()
 	outDir := t.TempDir()
-	fixture := `{"group":"01_sample","description":"sample","cases":[{"name":"one","code":"1を表示"},{"name":"two","code":"2を表示"}]}`
+	fixture := `{"group":"01_sample","description":"sample","cases":[` +
+		`{"name":"one","code":"1を表示"},` +
+		`{"name":"vars","code":"A=[1,2]","vars":["A"]},` +
+		`{"name":"error","code":"「わざと」でエラー発生"}]}`
 	if err := os.WriteFile(filepath.Join(casesDir, "01_sample.json"), []byte(fixture), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +22,7 @@ func TestRunWritesUnsupportedResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.Groups != 1 || summary.Cases != 2 {
+	if summary.Groups != 1 || summary.Cases != 3 {
 		t.Fatalf("unexpected summary: %+v", summary)
 	}
 
@@ -31,9 +34,16 @@ func TestRunWritesUnsupportedResults(t *testing.T) {
 	if err := json.Unmarshal(data, &output); err != nil {
 		t.Fatal(err)
 	}
-	got := output.Results["one"]
-	if got.Status != "error" || got.Error == nil || got.Error.Type != "UnsupportedError" {
-		t.Fatalf("unexpected result: %+v", got)
+
+	if got := output.Results["one"]; got.Status != "ok" || got.Log != "1" {
+		t.Errorf("表示の結果 = %+v, want status=ok log=1", got)
+	}
+	if got := output.Results["vars"]; got.Vars == nil {
+		t.Errorf("varsが出力されていない: %+v", got)
+	}
+	got := output.Results["error"]
+	if got.Status != "error" || got.Error == nil || got.Error.Type != "NakoRuntimeError" {
+		t.Errorf("エラーの結果 = %+v, want NakoRuntimeError", got)
 	}
 }
 
@@ -73,45 +83,123 @@ func TestSyncedFixturesLoad(t *testing.T) {
 	}
 }
 
-func TestSyncedFixturesReachStage1ParseGoal(t *testing.T) {
+// stage2Groups are the groups AGENTS.md §13 requires stage 2 to pass in full.
+var stage2Groups = []string{"01_literal", "02_operator", "03_type_convert", "07_flow"}
+
+// TestStage2GroupsPass runs the synced fixtures and compares them with the
+// expected values the TypeScript version generated. It is the completion
+// condition for stage 2, kept as a test so a regression is caught immediately.
+func TestStage2GroupsPass(t *testing.T) {
+	const casesDir = "../../testdata/compat/cases"
+	const expectedDir = "../../testdata/compat/expected"
+	if _, err := os.Stat(casesDir); err != nil {
+		t.Skip("差分fixtureが同期されていません")
+	}
 	outDir := t.TempDir()
-	_, err := Run(filepath.Join("..", "..", "testdata", "compat", "cases"), outDir)
-	if err != nil {
+	if _, err := Run(casesDir, outDir); err != nil {
 		t.Fatal(err)
 	}
 
-	wantErrors := map[string]string{
-		"文法エラー-未解決の単語":    "NakoSyntaxError",
-		"文法エラー-閉じ括弧なし":    "NakoSyntaxError",
-		"字句解析エラー-文字列の入れ子": "NakoLexerError",
-		"文法エラー-ここまでの不足":   "NakoSyntaxError",
-	}
-	gotErrors := map[string]string{}
-	entries, err := os.ReadDir(outDir)
+	groups, err := Load(casesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, entry := range entries {
-		data, err := os.ReadFile(filepath.Join(outDir, entry.Name()))
-		if err != nil {
-			t.Fatal(err)
-		}
-		var output OutputGroup
-		if err := json.Unmarshal(data, &output); err != nil {
-			t.Fatal(err)
-		}
-		for name, result := range output.Results {
-			if result.Error != nil && result.Error.Type != "UnsupportedError" {
-				gotErrors[name] = result.Error.Type
+	byName := map[string]Group{}
+	for _, g := range groups {
+		byName[g.Group] = g
+	}
+
+	for _, name := range stage2Groups {
+		t.Run(name, func(t *testing.T) {
+			group, ok := byName[name]
+			if !ok {
+				t.Fatalf("グループ %s がありません", name)
 			}
+			want := readResults(t, filepath.Join(expectedDir, name+".json"))
+			got := readResults(t, filepath.Join(outDir, name+".json"))
+			for _, c := range group.Cases {
+				if _, skip := c.Unsupported["go"]; skip {
+					continue
+				}
+				if _, skip := c.IntentionalDiff["go"]; skip {
+					continue
+				}
+				compareResult(t, c.Name, want[c.Name], got[c.Name])
+			}
+		})
+	}
+}
+
+// readResults loads one group's results as raw JSON, so that the comparison
+// sees exactly what was written rather than a re-encoded copy.
+func readResults(t *testing.T, path string) map[string]json.RawMessage {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out struct {
+		Results map[string]json.RawMessage `json:"results"`
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out.Results
+}
+
+// compareResult checks the fields SPEC.md says an implementation must match.
+func compareResult(t *testing.T, name string, wantRaw, gotRaw json.RawMessage) {
+	t.Helper()
+	var want, got Result
+	if err := json.Unmarshal(wantRaw, &want); err != nil {
+		t.Fatalf("%s: 期待値を読めません: %v", name, err)
+	}
+	if err := json.Unmarshal(gotRaw, &got); err != nil {
+		t.Fatalf("%s: 結果を読めません: %v", name, err)
+	}
+	if got.Status != want.Status {
+		t.Errorf("%s: status = %q, want %q", name, got.Status, want.Status)
+		return
+	}
+	if got.Log != want.Log {
+		t.Errorf("%s: log = %q, want %q", name, got.Log, want.Log)
+	}
+	if want.Status == "error" {
+		wantMsg, gotMsg := "", ""
+		if want.Error != nil {
+			wantMsg = want.Error.Message
+		}
+		if got.Error != nil {
+			gotMsg = got.Error.Message
+		}
+		if gotMsg != wantMsg {
+			t.Errorf("%s: エラー文面\n got %q\nwant %q", name, gotMsg, wantMsg)
 		}
 	}
-	if len(gotErrors) != len(wantErrors) {
-		t.Fatalf("解析エラー件数 = %d, want %d: %#v", len(gotErrors), len(wantErrors), gotErrors)
+	if !sameVars(wantRaw, gotRaw) {
+		t.Errorf("%s: vars が一致しません\n got %s\nwant %s", name, varsOf(gotRaw), varsOf(wantRaw))
 	}
-	for name, wantType := range wantErrors {
-		if gotErrors[name] != wantType {
-			t.Errorf("%s: %q != %q", name, gotErrors[name], wantType)
-		}
+}
+
+// sameVars compares the vars objects structurally, ignoring key order.
+func sameVars(wantRaw, gotRaw json.RawMessage) bool {
+	return string(canonicalVars(wantRaw)) == string(canonicalVars(gotRaw))
+}
+
+func varsOf(raw json.RawMessage) string { return string(canonicalVars(raw)) }
+
+// canonicalVars re-encodes the vars object so that map key order does not
+// affect the comparison.
+func canonicalVars(raw json.RawMessage) []byte {
+	var holder struct {
+		Vars map[string]any `json:"vars"`
 	}
+	if err := json.Unmarshal(raw, &holder); err != nil {
+		return []byte("(読み取り失敗)")
+	}
+	out, err := json.Marshal(holder.Vars)
+	if err != nil {
+		return []byte("(書き出し失敗)")
+	}
+	return out
 }
