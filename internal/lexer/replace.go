@@ -8,14 +8,33 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/lexer/josi"
 )
 
-// FuncItem describes a callable the lexer knows about. Only what the lexer and
-// parser need is kept here; the implementation lives in stdlib.
+// FuncItem describes a name the lexer and parser know about: a function, or a
+// variable or constant. The implementation of a function lives in stdlib; only
+// what the lexer and parser need is kept here.
 type FuncItem struct {
-	Type         string     // "func" のとき関数として扱う
-	Josi         [][]string // 引数ごとに受け付ける助詞
+	Name string
+	Type string     // "func" / "var" / "const"
+	Josi [][]string // 引数ごとに受け付ける助詞
+
+	// IsVariableJosi marks a function whose last parameter takes any number
+	// of arguments.
+	IsVariableJosi bool
+
 	VarNames     []string
 	FuncPointers []string // 関数ポインタで受け取る引数名。それ以外は ""
 	IsExport     *bool    // nil はモジュールの既定値に従う
+
+	// AsyncFn is set once the parser finds the function needs to await.
+	// It propagates outward: a function calling an async function is async.
+	AsyncFn bool
+
+	// Value holds the current value of a variable or constant.
+	Value any
+
+	// Pure marks a function with no side effects (実行速度優先 で使う).
+	Pure bool
+	// ReturnNone marks a function that returns nothing.
+	ReturnNone bool
 }
 
 // FuncList maps a namespaced function name (`mod__name`) to its definition.

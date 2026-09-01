@@ -74,6 +74,11 @@ type Parser struct {
 	isExportDefault    bool
 	isExportStack      []bool
 
+	// originalVarNames remembers a word token's name before namespace
+	// resolution rewrote it, so an assignment can look the original up again.
+	// The keys are pointers into tokens, which does not move during a parse.
+	originalVarNames map[*lexer.Token]string
+
 	// Warnings collects messages the TypeScript version logs instead of raising.
 	Warnings []string
 }

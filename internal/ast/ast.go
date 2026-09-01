@@ -143,6 +143,15 @@ func NewNode(t NodeType, tok *lexer.Token) *Node {
 	return n
 }
 
+// StringValue returns Value as a string, or "" when it is not one.
+func (n *Node) StringValue() string {
+	if n == nil {
+		return ""
+	}
+	s, _ := n.Value.(string)
+	return s
+}
+
 // Block returns Blocks[i], or nil when there is no such child.
 func (n *Node) Block(i int) *Node {
 	if n == nil || i < 0 || i >= len(n.Blocks) {
