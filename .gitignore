@@ -12,7 +12,6 @@ nadesiko3/
 *.swp
 nadesiko3go
 
-pkg/
 bin/
 /out/
 
