@@ -503,7 +503,11 @@ document.addEventListener('DOMContentLoaded', () => {
   editor.addEventListener('click', updateCursorPos);
 
   // グローバルおよびエディタのキーボードショートカット対応
-  window.addEventListener('keydown', (e) => {
+  window.addEventListener('keydown', async (e) => {
+    const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
     // F5 で実行
     if (e.key === 'F5') {
       e.preventDefault();
@@ -511,25 +515,25 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     // Ctrl+R / Cmd+R で実行
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'r' || e.key === 'R')) {
+    if (isCmdOrCtrl && (e.key === 'r' || e.key === 'R')) {
       e.preventDefault();
       runCode();
       return;
     }
     // Ctrl+Enter / Cmd+Enter で実行
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if (isCmdOrCtrl && e.key === 'Enter') {
       e.preventDefault();
       runCode();
       return;
     }
     // Ctrl+S / Cmd+S で保存
-    if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    if (isCmdOrCtrl && (e.key === 's' || e.key === 'S')) {
       e.preventDefault();
       saveFile();
       return;
     }
     // Ctrl+L でログ消去
-    if ((e.ctrlKey || e.metaKey) && (e.key === 'l' || e.key === 'L')) {
+    if (isCmdOrCtrl && (e.key === 'l' || e.key === 'L')) {
       e.preventDefault();
       btnClearLog.click();
       return;
@@ -538,82 +542,95 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') {
       closeModal();
       closeHamburger();
-    }
-  });
-
-  editor.addEventListener('keydown', async (e) => {
-    const isCmdOrCtrl = e.ctrlKey || e.metaKey;
-
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      insertTextAtCursor('\t');
       return;
     }
 
-    // [Cmd]+[A] / [Ctrl]+[A] --- 全選択
+    // [Cmd]+[A] / [Ctrl]+[A] --- 全選択 (フォーカス中のinput/textarea、またはエディタ)
     if (isCmdOrCtrl && (e.key === 'a' || e.key === 'A')) {
-      e.preventDefault();
-      editor.select();
+      if (isInput) {
+        e.preventDefault();
+        activeEl.select();
+      } else {
+        e.preventDefault();
+        editor.focus();
+        editor.select();
+      }
       return;
     }
 
-    // [Cmd]+[C] / [Ctrl]+[C] --- コピー
+    // [Cmd]+[C] / [Ctrl]+[C] --- コピー (フォーカス中のinput/textarea)
     if (isCmdOrCtrl && (e.key === 'c' || e.key === 'C')) {
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      if (start !== end) {
-        const selectedText = editor.value.substring(start, end);
+      const target = isInput ? activeEl : editor;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      if (start !== undefined && end !== undefined && start !== end) {
+        const selectedText = target.value.substring(start, end);
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(selectedText);
             setStatus('選択範囲をコピーしました');
           }
-        } catch (err) {
-          // fallback to native
-        }
+        } catch (err) {}
       }
       return;
     }
 
-    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り
+    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り (フォーカス中のinput/textarea)
     if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
-      const start = editor.selectionStart;
-      const end = editor.selectionEnd;
-      if (start !== end) {
-        const selectedText = editor.value.substring(start, end);
+      const target = isInput ? activeEl : editor;
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      if (start !== undefined && end !== undefined && start !== end) {
+        const selectedText = target.value.substring(start, end);
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(selectedText);
           }
           e.preventDefault();
-          editor.value = editor.value.substring(0, start) + editor.value.substring(end);
-          editor.selectionStart = editor.selectionEnd = start;
-          updateLineNumbers();
-          updateCharCount();
-          updateCursorPos();
+          target.value = target.value.substring(0, start) + target.value.substring(end);
+          target.selectionStart = target.selectionEnd = start;
+          if (target === editor) {
+            updateLineNumbers();
+            updateCharCount();
+            updateCursorPos();
+          }
+          target.dispatchEvent(new Event('input', { bubbles: true }));
           setStatus('選択範囲を切り取りました');
-        } catch (err) {
-          // fallback to native
-        }
+        } catch (err) {}
       }
       return;
     }
 
-    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け
+    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け (フォーカス中のinput/textarea)
     if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
+      const target = isInput ? activeEl : editor;
       try {
         if (navigator.clipboard && navigator.clipboard.readText) {
           const text = await navigator.clipboard.readText();
           if (text) {
             e.preventDefault();
-            insertTextAtCursor(text);
+            const start = target.selectionStart !== undefined ? target.selectionStart : target.value.length;
+            const end = target.selectionEnd !== undefined ? target.selectionEnd : start;
+            target.value = target.value.substring(0, start) + text + target.value.substring(end);
+            target.selectionStart = target.selectionEnd = start + text.length;
+            if (target === editor) {
+              updateLineNumbers();
+              updateCharCount();
+              updateCursorPos();
+            }
+            target.dispatchEvent(new Event('input', { bubbles: true }));
             setStatus('クリップボードから貼り付けました');
           }
         }
-      } catch (err) {
-        // fallback to native
-      }
+      } catch (err) {}
       return;
+    }
+  });
+
+  editor.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      insertTextAtCursor('\t');
     }
   });
 
