@@ -10,6 +10,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
@@ -157,6 +158,6 @@ func RunWithHost(code, filename string, h Host) error {
 func runtimeRegistry() *stdlib.Registry {
 	return stdlib.NewRegistry(
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
 	)
 }

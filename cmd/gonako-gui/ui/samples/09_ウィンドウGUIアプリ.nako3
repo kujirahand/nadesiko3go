@@ -1,12 +1,27 @@
-// ウィンドウアプリ用 (HTML/DOMボタンとイベント)
-「<html><body>
-<h1>なでしこ3 GUIアプリ</h1>
-<p>ボタンを押してテストしてください。</p>
-<button id='btn1' style='padding:8px 16px;background:#f38ba8;color:#fff;border:none;border-radius:4px;cursor:pointer;'>クリック</button>
-<div id='res' style='margin-top:10px;font-weight:bold;'></div>
-<script>
-document.getElementById('btn1').onclick = function() {
-  document.getElementById('res').innerText = 'ボタンがクリックされました！ (' + new Date().toLocaleTimeString() + ')';
-};
-</script>
-</body></html>」を表示。
+// HTMLコードやURLからWebViewウィンドウを表示
+HtmlText = 「<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #1e1e2e; color: #cdd6f4; text-align: center; }
+    h1 { color: #f38ba8; }
+    button { padding: 10px 20px; font-size: 16px; background: #89b4fa; color: #111; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #b4befe; }
+    #msg { margin-top: 16px; font-size: 18px; color: #a6e3a1; }
+  </style>
+</head>
+<body>
+  <h1>🌸 なでしこ3 WebViewウィンドウ</h1>
+  <p>なでしこ3から独立したWebViewウィンドウを起動しました。</p>
+  <button id="myBtn">ボタンをクリック</button>
+  <div id="msg"></div>
+  <script>
+    document.getElementById('myBtn').onclick = function() {
+      document.getElementById('msg').innerText = 'クリックされました！ (' + new Date().toLocaleTimeString() + ')';
+    };
+  </script>
+</body>
+</html>」
+
+HtmlTextでウィンドウ作成。

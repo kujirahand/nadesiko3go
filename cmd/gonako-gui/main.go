@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -97,7 +98,7 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
 `
 
 func getCommandList() []CommandItem {
-	reg := stdlib.NewRegistry(nodelib.New(), officelib.New(), pdflib.New(), imagelib.New())
+	reg := stdlib.NewRegistry(nodelib.New(), officelib.New(), pdflib.New(), imagelib.New(), guilib.New())
 	list := reg.FuncList()
 	items := make([]CommandItem, 0, len(list))
 	for name, item := range list {
