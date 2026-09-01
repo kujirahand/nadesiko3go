@@ -14,37 +14,34 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
-	"github.com/kujirahand/nadesiko3go/internal/imagelib"
-	"github.com/kujirahand/nadesiko3go/internal/officelib"
-	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 func init() {
-	vm.RegisterPlugin(sqlitelib.New(), officelib.New(), pdflib.New(), imagelib.New())
+	vm.RegisterPlugin(sqlitelib.New())
 }
 
-// Version is the current release version of gonako.
+// Version is the current release version of gonako-cui.
 var Version = "3.6.0"
 
-const usage = `gonako - なでしこ3 Go言語版
+const usage = `gonako-cui - なでしこ3 Go言語版 (軽量CUI版)
 
 使い方:
-  gonako <ファイル> [引数...]       なでしこのプログラムを実行する
-  gonako run <ファイル> [引数...]   なでしこのプログラムを実行する
-  gonako -e <プログラム> [引数...]  その場でプログラムを実行する
-  gonako build <ファイル> [オプション] 単一の実行ファイルに固める
-  gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
-  gonako compat run [--cases DIR] [--out DIR]
-  gonako version                    バージョン情報を表示する
+  gonako-cui <ファイル> [引数...]       なでしこのプログラムを実行する
+  gonako-cui run <ファイル> [引数...]   なでしこのプログラムを実行する
+  gonako-cui -e <プログラム> [引数...]  その場でプログラムを実行する
+  gonako-cui build <ファイル> [オプション] 単一の実行ファイルに固める
+  gonako-cui doctest [パス...]          DocTestのサンプルを実行して確かめる
+  gonako-cui compat run [--cases DIR] [--out DIR]
+  gonako-cui version                    バージョン情報を表示する
 
 ファイル名に - を指定すると標準入力から読み込みます。
 
 build のオプション:
   --out NAME       出力する実行ファイル名 (既定: ソース名から作る)
   --resource DIR   同梱するリソースのフォルダ
-  --runtime PATH   土台にするランタイム (既定: 実行中のgonako)
+  --runtime PATH   土台にするランタイム (既定: 実行中のgonako-cui)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
 
@@ -100,8 +97,6 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 	resource := flags.String("resource", "", "同梱するリソースのフォルダ")
 	runtimePath := flags.String("runtime", "", "土台にするランタイム")
 	list := flags.Bool("list", false, "同梱されているリソースの一覧を表示する")
-	// ファイル名はオプションの前でも後ろでも書けるようにする。flagは最初の
-	// 非フラグ引数で解析を止めるので、先に取り除いておく。
 	source, rest := splitSource(args)
 	if err := flags.Parse(rest); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -164,8 +159,6 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// splitSource pulls the first argument that is not a flag, or a flag's value,
-// out of the argument list.
 func splitSource(args []string) (source string, rest []string) {
 	valueExpected := false
 	for _, a := range args {
@@ -173,7 +166,6 @@ func splitSource(args []string) (source string, rest []string) {
 		case valueExpected:
 			valueExpected = false
 		case strings.HasPrefix(a, "-"):
-			// 『--out NAME』などの形なら次の引数は値
 			name := strings.TrimLeft(strings.Split(a, "=")[0], "-")
 			valueExpected = !strings.Contains(a, "=") && (name == "out" || name == "resource" || name == "runtime")
 		case source == "":
@@ -185,8 +177,6 @@ func splitSource(args []string) (source string, rest []string) {
 	return source, rest
 }
 
-// defaultOutputName drops the source extension, keeping the .exe suffix when
-// the runtime being packed is a Windows one.
 func defaultOutputName(source, runtimePath string) string {
 	name := strings.TrimSuffix(filepath.Base(source), filepath.Ext(source))
 	if strings.HasSuffix(runtimePath, ".exe") {
@@ -195,14 +185,8 @@ func defaultOutputName(source, runtimePath string) string {
 	return name
 }
 
-// defaultDocTestTargets are the manual and repository-owned fixtures used when
-// no path is given. Keeping fixed tests outside manual makes them available in
-// environments where the nadesiko3doc symlink is absent.
 var defaultDocTestTargets = []string{"manual/plugin_system", "testdata/doctest"}
 
-// runDocTests runs sample code from the manual and fixed test data, then
-// reports what did not match. Failures are summarised by reason and only the
-// first few are shown.
 func runDocTests(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctest", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -278,9 +262,6 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
 }
 
-// existingDocTestTargets lets the optional manual symlink be absent while the
-// repository-owned fixtures continue to run. An explicitly supplied missing
-// path is still reported by doctest.Collect.
 func existingDocTestTargets(targets []string) []string {
 	existing := make([]string, 0, len(targets))
 	for _, target := range targets {
@@ -300,8 +281,6 @@ func sortedCountKeys(counts map[string]int) []string {
 	return keys
 }
 
-// runBundled runs the program packed into this executable, if there is one.
-// It reports whether it ran, so main can fall back to the ordinary commands.
 func runBundled() (ran bool, err error) {
 	self, err := os.Executable()
 	if err != nil {
@@ -309,7 +288,7 @@ func runBundled() (ran bool, err error) {
 	}
 	packed, err := bundle.Open(self)
 	if err != nil {
-		return false, nil // 同梱されていない普通のgonako
+		return false, nil
 	}
 	defer packed.Close()
 
@@ -319,7 +298,6 @@ func runBundled() (ran bool, err error) {
 }
 
 func main() {
-	// 自分自身にプログラムが同梱されていれば、それを実行する
 	if ran, err := runBundled(); ran {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -340,7 +318,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 	switch args[0] {
 	case "version", "-v", "--version":
-		fmt.Fprintf(stdout, "gonako v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
+		fmt.Fprintf(stdout, "gonako-cui v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	case "run":
 		return runFile(args[1:], stdout)
@@ -375,7 +353,6 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return nil
 	}
 
-	// ファイル直接指定の場合 (例: gonako main.nako3, gonako -)
 	if args[0] == "-" || strings.HasSuffix(args[0], ".nako3") || strings.HasSuffix(args[0], ".nako") {
 		return runFile(args, stdout)
 	}

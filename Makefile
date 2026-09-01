@@ -3,20 +3,24 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build cmd gui install release test doctest sync-compat compat-run compat-check gen-command-list clean
+.PHONY: all build cmd cui gui install release test doctest sync-compat compat-run compat-check gen-command-list clean
 
 all: build
 
-build: cmd gui
+build: cmd cui gui
 
 cmd:
 	$(GO) build -o bin/gonako ./cmd/gonako
+
+cui:
+	$(GO) build -o bin/gonako-cui ./cmd/gonako-cui
 
 gui:
 	$(GO) build -o bin/gonako-gui ./cmd/gonako-gui
 
 install:
 	$(GO) install ./cmd/gonako
+	$(GO) install ./cmd/gonako-cui
 
 # 配布用に各プラットフォーム向けの単一バイナリを作る。
 # Goツールチェインさえあれば、受け取る側には何も要らない。
