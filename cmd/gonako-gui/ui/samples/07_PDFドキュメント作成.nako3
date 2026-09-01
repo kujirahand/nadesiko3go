@@ -1,6 +1,6 @@
 // PDFドキュメントの新規作成とテキスト描画 (pdflib)
-Doc = PDF新規作成
-Docにページ追加
-Docの「Hello, Nadesiko3 Go!」をテキスト描画
-Docを「output.pdf」へPDF保存
-「PDF出力完了: {"output.pdf"が存在}」と表示。
+HOME = 「HOME」の環境変数取得。
+PDF新規作成
+「Hello, Nadesiko3 Go!」を[100,100]へPDF文字描画
+「{HOME}/Desktop/output.pdf」へPDF保存
+「PDF出力完了」と表示。

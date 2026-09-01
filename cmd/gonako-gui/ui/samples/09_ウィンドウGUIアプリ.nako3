@@ -1,5 +1,6 @@
 // ウィンドウアプリ用 (HTML/DOMボタンとイベント)
-「<h1>なでしこ3 GUIアプリ</h1>
+「<html><body>
+<h1>なでしこ3 GUIアプリ</h1>
 <p>ボタンを押してテストしてください。</p>
 <button id='btn1' style='padding:8px 16px;background:#f38ba8;color:#fff;border:none;border-radius:4px;cursor:pointer;'>クリック</button>
 <div id='res' style='margin-top:10px;font-weight:bold;'></div>
@@ -7,4 +8,5 @@
 document.getElementById('btn1').onclick = function() {
   document.getElementById('res').innerText = 'ボタンがクリックされました！ (' + new Date().toLocaleTimeString() + ')';
 };
-</script>」を表示。
+</script>
+</body></html>」を表示。
