@@ -35,6 +35,9 @@ type Env interface {
 // Timer queues opaque callback IDs. The VM owns the corresponding functions
 // and controls their deterministic execution order.
 type Timer interface {
+	// Post schedules a callback to run once.
 	Post(at time.Time, callback CallbackID) TimerID
+	// PostEvery schedules a callback to run repeatedly, one interval apart.
+	PostEvery(at time.Time, interval time.Duration, callback CallbackID) TimerID
 	Cancel(id TimerID) bool
 }

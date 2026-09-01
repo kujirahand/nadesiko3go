@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
@@ -199,5 +200,75 @@ func TestNestedLoopSystemVars(t *testing.T) {
 				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestAsyncCommands pins the observable order of the timer commands. The clock
+// is virtual, so these run instantly however long the waits say (AGENTS.md §8).
+func TestAsyncCommands(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{
+			// 秒後のコールバックは、続きの文より後に動く
+			name: "秒後-コールバックは後で動く",
+			code: "「A」と表示\n0.01秒後には\n「C」と表示\nここまで\n「B」と表示\n0.1秒待つ",
+			want: "A\nB\nC",
+		},
+		{
+			// 待ち時間の短い順。積んだ順ではない。
+			name: "秒後-待ち時間の短い順",
+			code: "0.05秒後には\n「後」と表示\nここまで\n0.01秒後には\n「先」と表示\nここまで\n0.2秒待つ",
+			want: "先\n後",
+		},
+		{
+			name: "秒待つ-同期的に待つ",
+			code: "「A」と表示\n0.01秒待つ\n「B」と表示",
+			want: "A\nB",
+		},
+		{
+			// コールバックの中から『対象』で自分のタイマーを止める
+			name: "秒毎-タイマー停止",
+			code: "N=0\nF=関数()\nN=N+1\n「{N}」と表示\nもしN>=3ならば\n対象のタイマー停止\nここまで\nここまで\nFを0.01秒毎\n0.2秒待つ",
+			want: "1\n2\n3",
+		},
+		{
+			name: "並列的な逐次実行",
+			code: "「1」と表示\n0.01秒待つ\n「2」と表示\n0.01秒待つ\n「3」と表示",
+			want: "1\n2\n3",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPendingCallbacksRunAfterMain pins that a one-shot callback still due when
+// main ends is run rather than dropped.
+func TestPendingCallbacksRunAfterMain(t *testing.T) {
+	if got := run(t, "0.01秒後には\n「後」と表示\nここまで\n「先」と表示"); got != "先\n後" {
+		t.Errorf("log = %q, want \"先\\n後\"", got)
+	}
+}
+
+// TestVirtualClockDoesNotSleep pins that a long wait costs no real time.
+func TestVirtualClockDoesNotSleep(t *testing.T) {
+	started := time.Now()
+	if got := run(t, "10秒待つ\n「終」と表示"); got != "終" {
+		t.Errorf("log = %q, want \"終\"", got)
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Errorf("実時間 = %v。仮想時計なら待たないはず。", elapsed)
+	}
+}
+
+// TestRunawayTimerStops pins that a repeating timer nobody stops ends the run
+// with an error instead of hanging.
+func TestRunawayTimerStops(t *testing.T) {
+	_, err := vm.RunSource("F=関数()\nここまで\nFを0.001秒毎\n1000000秒待つ", "main.nako3", nil)
+	if err == nil {
+		t.Fatal("止まらないタイマーがエラーにならなかった")
 	}
 }

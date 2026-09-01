@@ -19,6 +19,17 @@ type Context interface {
 	// CallFunc runs a function value, which the commands that take a function
 	// argument need (『配列マップ』 and 『配列フィルタ』).
 	CallFunc(fn *value.Func, args []value.Value) (value.Value, error)
+
+	// SetTimer schedules fn and reports the timer id. The commands keep the
+	// id as a number, because that is what 『対象』 holds.
+	SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, error)
+	// CancelTimer stops one timer and reports whether there was one.
+	CancelTimer(id float64) bool
+	// CancelAllTimers stops every timer.
+	CancelAllTimers()
+	// Wait advances time by the given number of seconds, running the
+	// callbacks that come due in between.
+	Wait(seconds float64) error
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko

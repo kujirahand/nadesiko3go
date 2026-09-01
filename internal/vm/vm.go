@@ -3,8 +3,11 @@ package vm
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
+	"github.com/kujirahand/nadesiko3go/internal/event"
+	"github.com/kujirahand/nadesiko3go/internal/host"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -28,6 +31,12 @@ type VM struct {
 	// two references to the same function compare equal.
 	funcValues map[int]*value.Func
 
+	// loop orders the timer callbacks and owns the virtual clock.
+	loop *event.Loop
+	// callbacks maps a scheduled callback to the function it runs.
+	callbacks    map[host.CallbackID]*value.Func
+	nextCallback host.CallbackID
+
 	// depth guards against unbounded recursion.
 	depth int
 }
@@ -36,16 +45,23 @@ type VM struct {
 // a runtime error instead of exhausting the Go stack.
 const MaxDepth = 10000
 
-// New prepares a VM for a program.
-func New(prog *ir.Program, registry *stdlib.Registry, host Host) *VM {
+// New prepares a VM for a program. The loop starts at a fixed instant so that
+// two runs of the same program see the same clock.
+func New(prog *ir.Program, registry *stdlib.Registry, h Host) *VM {
 	return &VM{
 		prog:       prog,
 		registry:   registry,
-		host:       host,
+		host:       h,
 		globals:    map[string]value.Value{},
 		funcValues: map[int]*value.Func{},
+		loop:       event.New(startTime),
+		callbacks:  map[host.CallbackID]*value.Func{},
 	}
 }
+
+// startTime is where the virtual clock begins. A fixed instant keeps a program
+// that prints the time reproducible.
+var startTime = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 
 // Vars reads back the final value of the named variables. Names are looked up
 // with the prefix first, then bare, so that both module variables and system
@@ -84,7 +100,8 @@ func (m *VM) Run() (err error) {
 		}
 	}()
 	m.call(m.prog.Main, nil)
-	return nil
+	// main が終わった後に残っている単発のコールバックを流す
+	return m.runPendingCallbacks()
 }
 
 // frame is one function activation.

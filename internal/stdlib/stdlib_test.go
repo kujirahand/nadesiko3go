@@ -21,11 +21,16 @@ func (c *fakeContext) Print(s string)                    { c.out = append(c.out,
 func (c *fakeContext) SysVar(name string) value.Value    { return c.sysVar[name] }
 func (c *fakeContext) SetSysVar(n string, v value.Value) { c.sysVar[n] = v }
 
-// CallFunc is not exercised by these tests; the array commands that use it are
-// covered end to end in internal/vm.
+// The commands that call back into the VM or the timer queue are covered end
+// to end in internal/vm; here they only need to satisfy the interface.
 func (c *fakeContext) CallFunc(*value.Func, []value.Value) (value.Value, error) {
 	return value.Undefined(), nil
 }
+
+func (c *fakeContext) SetTimer(*value.Func, float64, bool) (float64, error) { return 0, nil }
+func (c *fakeContext) CancelTimer(float64) bool                             { return false }
+func (c *fakeContext) CancelAllTimers()                                     {}
+func (c *fakeContext) Wait(float64) error                                   { return nil }
 
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.
