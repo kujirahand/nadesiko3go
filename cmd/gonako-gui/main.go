@@ -49,6 +49,15 @@ type CommandItem struct {
 	ReturnNone bool       `json:"returnNone"`
 }
 
+// TemplateItem describes a sample nadesiko3 script file.
+type TemplateItem struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Category string `json:"category"`
+	Desc     string `json:"desc"`
+	Code     string `json:"code"`
+}
+
 // FileItem represents a single file or directory in the file browser.
 type FileItem struct {
 	Name    string `json:"name"`
@@ -106,6 +115,69 @@ func getCommandList() []CommandItem {
 		return items[i].Name < items[j].Name
 	})
 	return items
+}
+
+func getTemplateList() []TemplateItem {
+	entries, err := fs.ReadDir(uiFS, "ui/samples")
+	if err != nil {
+		return nil
+	}
+	var list []TemplateItem
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".nako3") {
+			continue
+		}
+		data, err := fs.ReadFile(uiFS, "ui/samples/"+e.Name())
+		if err != nil {
+			continue
+		}
+		code := string(data)
+		base := strings.TrimSuffix(e.Name(), ".nako3")
+		title := base
+		if idx := strings.Index(base, "_"); idx >= 0 {
+			title = base[idx+1:]
+		}
+
+		desc := title
+		lines := strings.Split(code, "\n")
+		if len(lines) > 0 && strings.HasPrefix(lines[0], "//") {
+			desc = strings.TrimSpace(strings.TrimPrefix(lines[0], "//"))
+		}
+
+		category := "サンプル"
+		switch {
+		case strings.Contains(base, "こんにちは"):
+			category = "基本"
+		case strings.Contains(base, "FizzBuzz"):
+			category = "制御構文"
+		case strings.Contains(base, "計算"):
+			category = "データ構造"
+		case strings.Contains(base, "ハッシュ") || strings.Contains(base, "ファイル"):
+			category = "システム"
+		case strings.Contains(base, "CSV"):
+			category = "ファイル処理"
+		case strings.Contains(base, "Excel"):
+			category = "オフィス"
+		case strings.Contains(base, "PDF"):
+			category = "オフィス"
+		case strings.Contains(base, "画像"):
+			category = "グラフィック"
+		case strings.Contains(base, "ウィンドウ"):
+			category = "GUI"
+		}
+
+		list = append(list, TemplateItem{
+			ID:       base,
+			Title:    title,
+			Category: category,
+			Desc:     desc,
+			Code:     code,
+		})
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
+	return list
 }
 
 func listFiles(dirPath string) DirListing {
@@ -256,7 +328,6 @@ func main() {
 		os.Exit(1)
 	}
 	defer w.Destroy()
-	installPlatformMenus()
 
 	w.SetTitle(*titleFlag)
 	w.SetSize(*widthFlag, *heightFlag, webview.HintNone)
@@ -295,6 +366,13 @@ func main() {
 	_ = w.Bind("getCommandList", func() string {
 		items := getCommandList()
 		b, _ := json.Marshal(items)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: ひな形一覧取得 (cmd/gonako-gui/ui/samples/*.nako3 から自動取得)
+	_ = w.Bind("getTemplateList", func() string {
+		templates := getTemplateList()
+		b, _ := json.Marshal(templates)
 		return string(b)
 	})
 

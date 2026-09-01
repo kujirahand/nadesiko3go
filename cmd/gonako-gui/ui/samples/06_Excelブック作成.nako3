@@ -1,0 +1,9 @@
+// Excelブックの作成と保存 (officelib)
+Book = エクセルブック作成
+Bookの「Sheet1」の「A1」に「品名」をエクセルセル設定
+Bookの「Sheet1」の「B1」に「価格」をエクセルセル設定
+Bookの「Sheet1」の「A2」に「りんご」をエクセルセル設定
+Bookの「Sheet1」の「B2」に150をエクセルセル設定
+
+Bookを「test.xlsx」へエクセル保存
+「Excel保存完了: {"test.xlsx"が存在}」と表示。

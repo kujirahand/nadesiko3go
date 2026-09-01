@@ -1,0 +1,6 @@
+// PDFドキュメントの新規作成とテキスト描画 (pdflib)
+Doc = PDF新規作成
+Docにページ追加
+Docの「Hello, Nadesiko3 Go!」をテキスト描画
+Docを「output.pdf」へPDF保存
+「PDF出力完了: {"output.pdf"が存在}」と表示。

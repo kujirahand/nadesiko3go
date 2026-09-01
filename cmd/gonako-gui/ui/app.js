@@ -1,147 +1,5 @@
 // なでしこ3 GUI (gonako-gui) Frontend Script
 
-const templateList = [
-  {
-    id: 'hello',
-    category: '基本',
-    title: 'こんにちは (基本構文)',
-    desc: '画面への文字列表示とループの基本',
-    code: `// なでしこ3の基本
-「こんにちは、なでしこ！」と表示。
-3回
-　　「{回数}回目の挨拶」と表示。
-ここまで`
-  },
-  {
-    id: 'fizzbuzz',
-    category: '制御構文',
-    title: 'FizzBuzz (繰り返しと分岐)',
-    desc: '1から30までのFizzBuzzを計算して出力',
-    code: `// 1から30までのFizzBuzz
-結果 = []
-Iを1から30まで繰り返す
-　　もし、(I % 15 = 0)ならば
-　　　　結果に「FizzBuzz」を配列追加。
-　　違えば、もし、(I % 3 = 0)ならば
-　　　　結果に「Fizz」を配列追加。
-　　違えば、もし、(I % 5 = 0)ならば
-　　　　結果に「Buzz」を配列追加。
-　　違えば
-　　　　結果にIを配列追加。
-　　ここまで
-ここまで
-結果を「, 」で配列結合して表示。`
-  },
-  {
-    id: 'calc',
-    category: 'データ構造',
-    title: '計算と変数・辞書・配列',
-    desc: '辞書オブジェクトや配列の操作',
-    code: `// 変数と計算、辞書
-A = 100
-B = 200
-C = A + B
-「{A} + {B} = {C}」を表示。
-
-名簿 = {}
-名簿["名前"] = "太郎"
-名簿["年齢"] = 25
-名簿["趣味"] = ["プログラミング", "読書", "旅行"]
-
-「名前: {名簿["名前"]}」と表示。
-「趣味数: {名簿["趣味"]の要素数}」と表示。`
-  },
-  {
-    id: 'dialog',
-    category: 'システム',
-    title: 'ファイル・ハッシュ・UUID',
-    desc: 'システム情報取得やSHA256ハッシュ計算',
-    code: `// ファイル・ハッシュ・UUID
-Msg = 「こんにちは」
-Sha = Msgを「sha256」でハッシュ値計算
-「SHA256: {Sha}」と表示。
-
-U = ランダムUUID生成
-「UUID: {U}」と表示。
-
-「カレント: {カレントディレクトリ取得}」と表示。
-「OS: {OS取得} ({OSアーキテクチャ取得})」と表示。`
-  },
-  {
-    id: 'csv',
-    category: 'ファイル処理',
-    title: 'CSVの生成と解析',
-    desc: '2次元配列からCSV変換とCSVパース',
-    code: `// CSVの生成と解析
-データ = [
-  ["名前", "点数"],
-  ["太郎", 85],
-  ["次郎", 92],
-  ["花子", 78]
-]
-CsvText = データからCSV変換
-「--- CSV出力 ---」を表示。
-CsvTextを表示。
-
-Parsed = CsvTextをCSV取得
-「件数: {Parsedの要素数 - 1}件」を表示。`
-  },
-  {
-    id: 'excel',
-    category: 'オフィス',
-    title: 'Excelブックの作成 (officelib)',
-    desc: 'Excelファイルのセル設定・計算・保存',
-    code: `// Excelファイルの作成
-Book = エクセルブック作成
-Bookの「Sheet1」の「A1」に「品名」をエクセルセル設定
-Bookの「Sheet1」の「B1」に「価格」をエクセルセル設定
-Bookの「Sheet1」の「A2」に「りんご」をエクセルセル設定
-Bookの「Sheet1」の「B2」に150をエクセルセル設定
-
-Bookを「test.xlsx」へエクセル保存
-「Excel保存完了: {"test.xlsx"が存在}」と表示。`
-  },
-  {
-    id: 'pdf',
-    category: 'オフィス',
-    title: 'PDFドキュメント作成 (pdflib)',
-    desc: 'PDFページの作成・テキスト描画・保存',
-    code: `// PDFドキュメント作成
-Doc = PDF新規作成
-Docにページ追加
-Docの「Hello, Nadesiko3 Go!」をテキスト描画
-Docを「output.pdf」へPDF保存
-「PDF出力完了: {"output.pdf"が存在}」と表示。`
-  },
-  {
-    id: 'image',
-    category: 'グラフィック',
-    title: '画像の生成と保存 (imagelib)',
-    desc: '画像キャンバスの作成・塗りつぶし・保存',
-    code: `// 画像の新規作成と保存
-Img = [200, 200]の画像新規作成
-Imgの[20, 20, 160, 160]を"#f38ba8"で四角描画
-Imgを「image.png」へ画像保存
-「画像保存完了: {"image.png"が存在}」と表示。`
-  },
-  {
-    id: 'window_gui',
-    category: 'GUI',
-    title: 'ウィンドウGUIアプリ (HTML/DOM)',
-    desc: 'ボタンや入力フォームを持ったGUI画面',
-    code: `// ウィンドウアプリ用コード
-「<h1>なでしこ3 GUIアプリ</h1>
-<p>ボタンを押してテストしてください。</p>
-<button id='btn1' style='padding:8px 16px;background:#f38ba8;color:#fff;border:none;border-radius:4px;cursor:pointer;'>クリック</button>
-<div id='res' style='margin-top:10px;font-weight:bold;'></div>
-<script>
-document.getElementById('btn1').onclick = function() {
-  document.getElementById('res').innerText = 'ボタンがクリックされました！ (' + new Date().toLocaleTimeString() + ')';
-};
-</script>」を表示。`
-  }
-];
-
 document.addEventListener('DOMContentLoaded', () => {
   const editor = document.getElementById('editor');
   const lineNumbers = document.getElementById('line-numbers');
@@ -197,13 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileList = document.getElementById('file-list');
 
   let allCommands = [];
+  let allTemplates = [];
   let currentDirPath = '';
   let parentDirPath = '';
   let homeDirPath = '';
   let currentFilePath = '';
 
-  // 初期プログラム
-  editor.value = templateList[0].code;
+  // 初期プレースホルダー
+  editor.value = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
   updateLineNumbers();
   updateCharCount();
 
@@ -218,7 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
   tabBtnCmd.addEventListener('click', () => activateTab(tabBtnCmd, tabContentCmd));
   tabBtnTemplate.addEventListener('click', () => {
     activateTab(tabBtnTemplate, tabContentTemplate);
-    renderTemplates(templateList);
+    if (allTemplates.length === 0) {
+      loadTemplates();
+    } else {
+      renderTemplates(allTemplates);
+    }
   });
   tabBtnFile.addEventListener('click', () => {
     activateTab(tabBtnFile, tabContentFile);
@@ -330,7 +193,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === modalOverlay) closeModal();
   });
 
-  // --- ひな形一覧の表示と検索 ---
+  // --- ひな形一覧の読み込みと検索 ---
+  async function loadTemplates() {
+    if (typeof window.getTemplateList === 'function') {
+      try {
+        const res = await window.getTemplateList();
+        allTemplates = typeof res === 'string' ? JSON.parse(res) : res;
+      } catch (err) {
+        console.error('ひな形読み込みエラー:', err);
+      }
+    }
+    if (allTemplates && allTemplates.length > 0) {
+      renderTemplates(allTemplates);
+      // 初回起動時、先頭のひな形をエディタにセット
+      if (editor.value.includes('なでしこ3の基本') && allTemplates[0].code) {
+        editor.value = allTemplates[0].code;
+        activeFileName.textContent = allTemplates[0].title;
+        updateLineNumbers();
+        updateCharCount();
+      }
+    }
+  }
+
   function renderTemplates(list) {
     templateListElem.innerHTML = '';
     templateCount.textContent = `${list.length}件`;
@@ -368,10 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
   templateSearch.addEventListener('input', () => {
     const q = templateSearch.value.trim().toLowerCase();
     if (!q) {
-      renderTemplates(templateList);
+      renderTemplates(allTemplates);
       return;
     }
-    const filtered = templateList.filter(t => 
+    const filtered = allTemplates.filter(t => 
       t.title.toLowerCase().includes(q) || 
       t.desc.toLowerCase().includes(q) || 
       t.category.toLowerCase().includes(q)
@@ -827,7 +711,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 初期化呼び出し ---
-  renderTemplates(templateList);
+  loadTemplates();
 
   if (typeof window.getAppInfo === 'function') {
     window.getAppInfo().then(infoStr => {
