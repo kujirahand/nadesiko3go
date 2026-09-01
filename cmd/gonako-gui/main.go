@@ -116,7 +116,10 @@ func getCommandList() []CommandItem {
 		}
 	}
 
-	reg := stdlib.NewRegistry(nodelib.New(), officelib.New(), pdflib.New(), imagelib.New(), guilib.New())
+	reg := stdlib.NewRegistry(
+		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+	)
 	list := reg.FuncList()
 	items := make([]CommandItem, 0, len(list))
 	for name, item := range list {
