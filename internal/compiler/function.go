@@ -1,6 +1,8 @@
 package compiler
 
 import (
+	"strings"
+
 	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 )
@@ -24,6 +26,44 @@ func (c *Compiler) compileFuncObj(n *ast.Node) {
 	index := len(c.prog.Funcs) - 1
 	c.compileFuncBody(index, n)
 	c.emit(ir.OpMakeFunc, index, 0, n)
+}
+
+// declareLocals reserves a slot for every name the body assigns to, without
+// descending into a nested function definition, which has its own scope.
+//
+// A name carrying a module prefix was resolved to a global by the parser and
+// stays one.
+func (c *Compiler) declareLocals(n *ast.Node) {
+	if n == nil {
+		return
+	}
+	switch n.Type {
+	case ast.DefFunc, ast.DefTest, ast.FuncObj:
+		return
+	case ast.Let, ast.DefLocalVar:
+		c.declareLocalName(n.Name)
+	case ast.DefLocalVarList:
+		for _, name := range n.Names {
+			c.declareLocalName(name.StringValue())
+		}
+	case ast.For, ast.Foreach:
+		c.declareLocalName(n.Word)
+	}
+	for _, b := range n.Blocks {
+		c.declareLocals(b)
+	}
+}
+
+func (c *Compiler) declareLocalName(name string) {
+	if name == "" || strings.Contains(name, "__") {
+		return
+	}
+	// 外側の関数が持っている名前なら、新しいスロットを作らずに捕捉する。
+	// そうしないと、閉じ込めた変数を内側の代入が隠してしまう。
+	if _, ok := c.resolveLocal(name); ok {
+		return
+	}
+	c.slot(name)
 }
 
 // compileFuncBody emits a function body into prog.Funcs[index].
@@ -52,6 +92,10 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 	c.fnStack = append(c.fnStack, c.fn)
 	c.fn = fn
 
+	// 本体が代入する名前を先にスロットにする。こうしないと関数の中の代入が
+	// グローバルになってしまい、入れ子の関数から捕捉することもできない。
+	c.declareLocals(n.Block(0))
+
 	// 引数はスタックに左から積まれているので、右の引数から順に取り出す
 	for i := len(params) - 1; i >= 0; i-- {
 		c.emit(ir.OpStoreLocal, fn.slots[params[i].Name], 0, n)
@@ -64,11 +108,12 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 	c.emit(ir.OpReturn, 1, 0, n)
 
 	c.prog.Funcs[index] = ir.Func{
-		Name:    fn.name,
-		Params:  params,
-		NumVars: fn.numVars,
-		Code:    fn.code,
-		Async:   n.AsyncFn,
+		Name:     fn.name,
+		Params:   params,
+		NumVars:  fn.numVars,
+		Code:     fn.code,
+		Async:    n.AsyncFn,
+		Captures: fn.captures,
 	}
 
 	c.fn = c.fnStack[len(c.fnStack)-1]

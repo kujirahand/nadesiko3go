@@ -16,6 +16,9 @@ type Context interface {
 	Print(s string)
 	SysVar(name string) value.Value
 	SetSysVar(name string, v value.Value)
+	// CallFunc runs a function value, which the commands that take a function
+	// argument need (『配列マップ』 and 『配列フィルタ』).
+	CallFunc(fn *value.Func, args []value.Value) (value.Value, error)
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko

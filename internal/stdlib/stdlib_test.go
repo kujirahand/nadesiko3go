@@ -21,6 +21,12 @@ func (c *fakeContext) Print(s string)                    { c.out = append(c.out,
 func (c *fakeContext) SysVar(name string) value.Value    { return c.sysVar[name] }
 func (c *fakeContext) SetSysVar(n string, v value.Value) { c.sysVar[n] = v }
 
+// CallFunc is not exercised by these tests; the array commands that use it are
+// covered end to end in internal/vm.
+func (c *fakeContext) CallFunc(*value.Func, []value.Value) (value.Value, error) {
+	return value.Undefined(), nil
+}
+
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.
 func TestEveryImplementationIsDeclared(t *testing.T) {

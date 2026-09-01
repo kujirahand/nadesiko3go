@@ -186,19 +186,22 @@ func (p *Parser) yValue() *ast.Node {
 	if p.check2([][]lexer.TokenType{{lexer.TypeFunc, lexer.TypeWord}, {"("}}) && p.peekDef().Josi == "" {
 		nameTok := p.get()
 		p.get() // '('
-		nameNode := p.wordNode(nameTok)
-		args := p.yGetArgParen(nameNode, nameTok.StringValue())
+		// 名前空間を解決してから呼び出す。変数に入った関数を『F()』と
+		// 呼ぶときも、変数名と同じ名前で引けるようにするため。
+		nameNode := p.getVarNameRef(p.wordNode(nameTok))
+		funcName := nameNode.StringValue()
+		args := p.yGetArgParen(nameNode, funcName)
 		if !p.check(")") {
 			p.failToken("C風関数呼び出しのエラー", nameTok)
 		}
 		closeTok := p.get()
 		f := p.metaOf(nameTok)
 		if f != nil && len(f.Josi) != len(args) && !f.IsVariableJosi {
-			p.failToken(fmt.Sprintf("関数『%s』で引数%d個が指定されましたが、%d個の引数を指定してください。", nameTok.StringValue(), len(args), len(f.Josi)), nameTok)
+			p.failToken(fmt.Sprintf("関数『%s』で引数%d個が指定されましたが、%d個の引数を指定してください。", funcName, len(args), len(f.Josi)), nameTok)
 		}
-		p.UsedFuncs[nameTok.StringValue()] = true
+		p.UsedFuncs[funcName] = true
 		end := p.peekSourceMap(nil)
-		n := &ast.Node{Type: ast.Func, Name: nameTok.StringValue(), Blocks: args, Josi: closeTok.Josi, Meta: f, AsyncFn: f != nil && f.AsyncFn, SourceMap: m, End: &end}
+		n := &ast.Node{Type: ast.Func, Name: funcName, Blocks: args, Josi: closeTok.Josi, Meta: f, AsyncFn: f != nil && f.AsyncFn, SourceMap: m, End: &end}
 		return p.yApplyCallValue(n)
 	}
 	if p.check(lexer.TypeDefFunc) {

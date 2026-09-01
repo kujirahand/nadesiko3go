@@ -165,6 +165,10 @@ func runCase(testCase Case) Result {
 	}
 
 	result.Status = "error"
+	// エラーで終わったケースのログは空にする。TS版のcompat_case.mjsは
+	// 実行できた場合の表示ログではなく、コンパイラ側の空のログを読むため。
+	result.Log = ""
+
 	var nakoErr *errs.NakoError
 	if errors.As(err, &nakoErr) {
 		line := nakoErr.Line

@@ -26,6 +26,8 @@ type funcCtx struct {
 	code    []ir.Inst
 	slots   map[string]int
 	numVars int
+	// captures lists the enclosing function's variables this one closes over.
+	captures []ir.Capture
 	// loops stacks the jump targets a 『抜ける』 or 『続ける』 needs.
 	loops []*loopCtx
 }
@@ -181,13 +183,55 @@ func (c *Compiler) isLocal(name string) bool {
 	return ok
 }
 
+// resolveLocal finds the slot a name lives in, capturing it from an enclosing
+// function when a nested function refers to it.
+func (c *Compiler) resolveLocal(name string) (int, bool) {
+	if slot, ok := c.fn.slots[name]; ok {
+		return slot, true
+	}
+	return c.captureInto(len(c.fnStack), name)
+}
+
+// captureInto makes name available in the function at the given depth of the
+// nesting chain, threading a capture through every level in between.
+//
+// Depth len(fnStack) is the function being compiled; 0 is the outermost. The
+// outermost is main, whose variables are module globals, so the search stops
+// before it.
+func (c *Compiler) captureInto(depth int, name string) (int, bool) {
+	fn := c.funcAt(depth)
+	if slot, ok := fn.slots[name]; ok {
+		return slot, true
+	}
+	if depth <= 1 {
+		return 0, false // main の変数はグローバルなので捕捉しない
+	}
+	parentSlot, ok := c.captureInto(depth-1, name)
+	if !ok {
+		return 0, false
+	}
+	slot := fn.numVars
+	fn.slots[name] = slot
+	fn.numVars++
+	fn.captures = append(fn.captures, ir.Capture{FromParent: parentSlot, ToSlot: slot})
+	return slot, true
+}
+
+// funcAt returns the function at a depth of the nesting chain.
+func (c *Compiler) funcAt(depth int) *funcCtx {
+	if depth >= len(c.fnStack) {
+		return c.fn
+	}
+	return c.fnStack[depth]
+}
+
 // loadVar pushes the value of a name.
 //
 // A name the parser resolved to a module-qualified global, a system constant,
 // or a system variable is not a local. Everything else is.
 func (c *Compiler) loadVar(name string, n *ast.Node) {
-	if c.isLocal(name) {
-		c.emit(ir.OpLoadLocal, c.fn.slots[name], 0, n)
+	if slot, ok := c.resolveLocal(name); ok {
+		c.emit(ir.OpLoadLocal, slot, 0, n)
 		return
 	}
 	c.emit(ir.OpLoadGlobal, c.constString(name), 0, n)
@@ -195,8 +239,8 @@ func (c *Compiler) loadVar(name string, n *ast.Node) {
 
 // storeVar pops a value into a name.
 func (c *Compiler) storeVar(name string, n *ast.Node) {
-	if c.isLocal(name) {
-		c.emit(ir.OpStoreLocal, c.fn.slots[name], 0, n)
+	if slot, ok := c.resolveLocal(name); ok {
+		c.emit(ir.OpStoreLocal, slot, 0, n)
 		return
 	}
 	c.emit(ir.OpStoreGlobal, c.constString(name), 0, n)

@@ -39,6 +39,16 @@ type Func struct {
 	Code    []Inst  `json:"code"`
 	Async   bool    `json:"async"`
 	Pure    bool    `json:"pure"`
+	// Captures lists the enclosing function's variables this one closes over.
+	Captures []Capture `json:"captures,omitempty"`
+}
+
+// Capture threads one variable from the enclosing function into a nested one.
+// The two share the same storage, so an assignment on either side is visible
+// to the other — which is what makes a counter closure work.
+type Capture struct {
+	FromParent int `json:"fromParent"` // 外側の関数のスロット番号
+	ToSlot     int `json:"toSlot"`     // 内側の関数のスロット番号
 }
 
 type Param struct {

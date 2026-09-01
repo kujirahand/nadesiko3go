@@ -72,6 +72,9 @@ func implementations() map[string]Impl {
 		return value.Undefined(), errors.New(value.ToString(arg(args, 0)))
 	}
 
+	stringImpls(m)
+	arrayImpls(m)
+	dictImpls(m)
 	return m
 }
 

@@ -191,7 +191,10 @@ func (c *Compiler) compileCall(n *ast.Node) {
 
 	entry, ok := c.registry.Lookup(n.Name)
 	if !ok {
-		c.fail(fmt.Sprintf("関数『%s』が見つかりません。", n.Name), n)
+		// 命令にも利用者定義関数にもない名前。変数に入った関数とみなして呼ぶ。
+		// 『F=関数(...)…ここまで』のあとの『F()』がこの形になる。
+		c.compileCallVariable(n)
+		return
 	}
 	c.emit(ir.OpCallStd, entry.ID, argc, n)
 	if entry.Item.ReturnNone {
@@ -200,6 +203,23 @@ func (c *Compiler) compileCall(n *ast.Node) {
 		c.emit(ir.OpConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, n)
 		return
 	}
+	c.emit(ir.OpDup, 0, 0, n)
+	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
+}
+
+// compileCallVariable calls a function held in a variable. The arguments are
+// already on the stack, so the callee has to go underneath them; it is easier
+// to re-emit both in the right order.
+func (c *Compiler) compileCallVariable(n *ast.Node) {
+	// さきほど積んだ引数を捨ててから、呼び出す値と引数を積み直す
+	for range n.Blocks {
+		c.emit(ir.OpPop, 0, 0, n)
+	}
+	c.loadVar(n.Name, n)
+	for _, a := range n.Blocks {
+		c.compileExpr(a)
+	}
+	c.emit(ir.OpCallValue, 0, len(n.Blocks), n)
 	c.emit(ir.OpDup, 0, 0, n)
 	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 }

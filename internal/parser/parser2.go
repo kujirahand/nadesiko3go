@@ -767,12 +767,18 @@ func (p *Parser) yCallFunc() *ast.Node {
 	return nil
 }
 
-// metaOf returns the function definition a func token refers to.
+// metaOf returns the function definition a token refers to.
+//
+// A name can also be a variable, and a variable holding a function has no
+// signature to check arguments against, so only a function entry counts.
 func (p *Parser) metaOf(t *lexer.Token) *lexer.FuncItem {
 	if t == nil {
 		return nil
 	}
-	return p.FuncList[t.StringValue()]
+	if item, ok := p.FuncList[t.StringValue()]; ok && item.Type == "func" {
+		return item
+	}
+	return nil
 }
 
 func toTokenTypes(names []string) []lexer.TokenType {

@@ -84,13 +84,26 @@ func TestSyncedFixturesLoad(t *testing.T) {
 	}
 }
 
-// stage2Groups are the groups AGENTS.md §13 requires stage 2 to pass in full.
-var stage2Groups = []string{"01_literal", "02_operator", "03_type_convert", "07_flow"}
+// passingGroups are the groups that must pass in full at the current stage.
+// Stage 2 added 01-03 and 07; stage 3 adds the rest except the ones that need
+// regular expressions (stage 4) and timers (stage 5).
+var passingGroups = []string{
+	"01_literal", "02_operator", "03_type_convert",
+	"04_string", "05_array", "06_dict", "07_flow", "09_error",
+}
 
-// TestStage2GroupsPass runs the synced fixtures and compares them with the
-// expected values the TypeScript version generated. It is the completion
-// condition for stage 2, kept as a test so a regression is caught immediately.
-func TestStage2GroupsPass(t *testing.T) {
+// knownFailures are cases that cannot pass as the fixture stands.
+var knownFailures = map[string]string{
+	// 期待値がTS版の生成したJavaScriptのソースそのもの。『(3をF)』はFを
+	// 呼び出さずFの値を表示するだけなので、他の実装では再現できない。
+	// 本家へ報告済み (kujirahand/nadesiko3#2454)。
+	"無名関数-変数に代入": "期待値がTS版の生成コードに依存している",
+}
+
+// TestFixtureGroupsPass runs the synced fixtures and compares them with the
+// expected values the TypeScript version generated. It encodes the completion
+// condition of the current stage, so a regression is caught immediately.
+func TestFixtureGroupsPass(t *testing.T) {
 	const casesDir = "../../testdata/compat/cases"
 	const expectedDir = "../../testdata/compat/expected"
 	if _, err := os.Stat(casesDir); err != nil {
@@ -110,7 +123,7 @@ func TestStage2GroupsPass(t *testing.T) {
 		byName[g.Group] = g
 	}
 
-	for _, name := range stage2Groups {
+	for _, name := range passingGroups {
 		t.Run(name, func(t *testing.T) {
 			group, ok := byName[name]
 			if !ok {
@@ -123,6 +136,9 @@ func TestStage2GroupsPass(t *testing.T) {
 					continue
 				}
 				if _, skip := c.IntentionalDiff["go"]; skip {
+					continue
+				}
+				if _, skip := knownFailures[c.Name]; skip {
 					continue
 				}
 				compareResult(t, c.Name, want[c.Name], got[c.Name])

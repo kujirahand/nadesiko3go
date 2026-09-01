@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -69,10 +70,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(v)
 
 		case ir.OpLoadLocal:
-			f.push(f.slots[inst.A])
+			f.push(*f.slots[inst.A])
 
 		case ir.OpStoreLocal:
-			f.slots[inst.A] = f.pop()
+			*f.slots[inst.A] = f.pop()
 
 		case ir.OpLoadGlobal:
 			f.push(m.loadGlobal(m.constString(inst.A)))
@@ -122,7 +123,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(value.Number(float64(arr.Len())))
 
 		case ir.OpMakeFunc:
-			f.push(value.FuncValue(m.funcValue(inst.A)))
+			f.push(value.FuncValue(m.makeClosure(inst.A, f)))
 
 		case ir.OpCallStd:
 			args := f.popN(inst.B)
@@ -139,7 +140,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			if !ok {
 				m.failAt("関数ではない値を呼び出そうとしました。", inst.Pos)
 			}
-			f.push(m.call(fnRef.ID, args))
+			f.push(m.callClosure(fnRef.ID, fnRef.Captured, args))
 
 		case ir.OpJump:
 			pc = inst.A
@@ -216,14 +217,31 @@ func (m *VM) loadGlobal(name string) value.Value {
 	return value.Undefined()
 }
 
-// funcValue gives a function index a stable identity.
-func (m *VM) funcValue(index int) *value.Func {
-	if fv, ok := m.funcValues[index]; ok {
+// makeClosure builds a function value, taking a reference to each variable the
+// function closes over from the frame creating it.
+//
+// A function with nothing to capture gets a shared value, so two references to
+// the same plain function compare equal.
+func (m *VM) makeClosure(index int, f *frame) *value.Func {
+	fn := &m.prog.Funcs[index]
+	if len(fn.Captures) == 0 {
+		if fv, ok := m.funcValues[index]; ok {
+			return fv
+		}
+		fv := &value.Func{ID: index}
+		m.funcValues[index] = fv
 		return fv
 	}
-	fv := &value.Func{ID: index}
-	m.funcValues[index] = fv
-	return fv
+	captured := make([]*value.Value, 0, len(fn.Captures))
+	for _, cap := range fn.Captures {
+		if cap.FromParent >= 0 && cap.FromParent < len(f.slots) {
+			captured = append(captured, f.slots[cap.FromParent])
+			continue
+		}
+		v := value.Undefined()
+		captured = append(captured, &v)
+	}
+	return &value.Func{ID: index, Captured: captured}
 }
 
 // callStd runs a standard library command.
@@ -446,3 +464,21 @@ func (m *VM) Print(s string) { m.host.Print(s) }
 func (m *VM) SysVar(name string) value.Value { return m.loadGlobal(name) }
 
 func (m *VM) SetSysVar(name string, v value.Value) { m.globals[name] = v }
+
+// CallFunc runs a function value on behalf of a command, converting a nadesiko
+// error into an ordinary error so the command can decide what to do.
+func (m *VM) CallFunc(fn *value.Func, args []value.Value) (result value.Value, err error) {
+	if fn == nil {
+		return value.Undefined(), errors.New("関数が指定されていません。")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			np, ok := r.(nakoPanic)
+			if !ok {
+				panic(r)
+			}
+			result, err = value.Undefined(), np.err
+		}
+	}()
+	return m.callClosure(fn.ID, fn.Captured, args), nil
+}

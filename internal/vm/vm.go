@@ -88,9 +88,13 @@ func (m *VM) Run() (err error) {
 }
 
 // frame is one function activation.
+//
+// Slots are cells rather than plain values so that a nested function can share
+// one with the frame that created it. That sharing is what makes a closure
+// see later assignments to a captured variable.
 type frame struct {
 	fn    *ir.Func
-	slots []value.Value
+	slots []*value.Value
 	stack []value.Value
 	// handlers stacks the error-monitored regions this frame has entered.
 	handlers []handler
@@ -127,8 +131,14 @@ func (f *frame) popN(n int) []value.Value {
 	return out
 }
 
-// call runs one function with the given arguments and returns its value.
+// call runs a named function with no captured variables.
 func (m *VM) call(index int, args []value.Value) value.Value {
+	return m.callClosure(index, nil, args)
+}
+
+// callClosure runs one function and returns its value. captured holds the
+// cells the closure shares with the frame that created it.
+func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value) value.Value {
 	if index < 0 || index >= len(m.prog.Funcs) {
 		m.fail(fmt.Sprintf("関数の呼び出し先がありません: %d", index), ir.SourcePos{})
 	}
@@ -140,9 +150,16 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 	defer func() { m.depth-- }()
 
 	fn := &m.prog.Funcs[index]
-	f := &frame{fn: fn, slots: make([]value.Value, fn.NumVars)}
+	f := &frame{fn: fn, slots: make([]*value.Value, fn.NumVars)}
 	for i := range f.slots {
-		f.slots[i] = value.Undefined()
+		v := value.Undefined()
+		f.slots[i] = &v
+	}
+	// 捕捉した変数は、外側のフレームと同じセルを指す
+	for i, cap := range fn.Captures {
+		if i < len(captured) && cap.ToSlot >= 0 && cap.ToSlot < len(f.slots) {
+			f.slots[cap.ToSlot] = captured[i]
+		}
 	}
 	// 引数は左から積まれた形で渡される。関数本体が順に取り出す。
 	f.stack = append(f.stack, args...)
