@@ -1,0 +1,273 @@
+●本家 test/node/plugin_node_test.mjs から移植した固定DocTest
+●plugin_node（Node/OS/ファイル/ネットワーク）関連の命令テスト
+
+■ 基本表示と計算
+
+{{{#nako3
+3を表示
+### 表示結果: 3
+}}}
+
+{{{#nako3
+1+2*3を表示
+### 表示結果: 7
+}}}
+
+{{{#nako3
+A=30;「--{A}--」を表示
+### 表示結果: --30--
+}}}
+
+■ ASSERT等
+
+{{{#nako3
+3と3がASSERT等
+「OK」を表示
+### 表示結果: OK
+}}}
+
+{{{#nako3
+「hello」と「hello」がASSERT等
+「OK」を表示
+### 表示結果: OK
+}}}
+
+■ パス操作
+
+{{{#nako3
+「/foo/bar/test.txt」のファイル名抽出を表示
+### 表示結果: test.txt
+}}}
+
+{{{#nako3
+「/foo/bar/test.txt」のパス抽出を表示
+### 表示結果: /foo/bar
+}}}
+
+{{{#nako3
+「/foo/bar/test.txt」の拡張子抽出を表示
+### 表示結果: .txt
+}}}
+
+{{{#nako3
+「a」と「b」をパス結合
+もし、(それ="a/b" または それ="a\b")ならば、「OK」を表示
+### 表示結果: OK
+}}}
+
+{{{#nako3
+TMP=一時フォルダ作成
+R=TMPで"sub/test.txt"を相対パス展開
+もし、(Rの文字数 > 0)ならば、「OK」を表示
+### 表示結果: OK
+}}}
+
+■ 暗号・ハッシュ・UUID・ランダム配列
+
+{{{#nako3
+「hello world」を「sha256」でハッシュ値計算を表示
+### 表示結果: b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9
+}}}
+
+{{{#nako3
+「hello world」を「md5」でハッシュ値計算を表示
+### 表示結果: 5eb63bbbe01eeed093cb22bb8f5acdc3
+}}}
+
+{{{#nako3
+「hello world」を「sha1」でハッシュ値計算を表示
+### 表示結果: 2aae6c35c94fcfb415dbe95f408b9ce91ee846ed
+}}}
+
+{{{#nako3
+(ハッシュ関数一覧取得の要素数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(ランダムUUID生成の文字数)を表示
+### 表示結果: 36
+}}}
+
+{{{#nako3
+(5のランダム配列生成の要素数)を表示
+### 表示結果: 5
+}}}
+
+■ ファイル・フォルダ操作 (一時フォルダ内)
+
+{{{#nako3
+TMP=一時フォルダ作成
+F=「{TMP}/test.txt」
+「abc」をFに保存
+「保存後存在: {Fが存在}」と表示
+「中身: {Fを開く}」と表示
+「サイズ: {Fのファイルサイズ取得}」と表示
+「123」をFに追記
+「追記後中身: {Fを開く}」と表示
+Fのファイル削除
+「削除後存在: {Fが存在}」と表示
+### 表示結果: 保存後存在: true
+### 中身: abc
+### サイズ: 3
+### 追記後中身: abc123
+### 削除後存在: false
+}}}
+
+{{{#nako3
+TMP=一時フォルダ作成
+D=「{TMP}/sub」
+Dのフォルダ作成
+「フォルダ存在: {Dがフォルダ存在}」と表示
+「ファイル扱い存在: {Dが存在}」と表示
+### 表示結果: フォルダ存在: true
+### ファイル扱い存在: false
+}}}
+
+{{{#nako3
+TMP=一時フォルダ作成
+F=「{TMP}/test.txt」
+「hello」をFに保存
+Info=Fのファイル情報取得
+「サイズ: {Info["サイズ"]}」と表示
+「ディレクトリ: {Info["ディレクトリ"]}」と表示
+### 表示結果: サイズ: 5
+### ディレクトリ: false
+}}}
+
+{{{#nako3
+TMP=一時フォルダ作成
+SRC=「{TMP}/src.txt」
+DST=「{TMP}/dst.txt」
+「copy test」をSRCに保存
+SRCをDSTにファイルコピー
+「DST内容: {DSTを開く}」と表示
+「SRC存在: {SRCが存在}」と表示
+### 表示結果: DST内容: copy test
+### SRC存在: true
+}}}
+
+{{{#nako3
+TMP=一時フォルダ作成
+SRC=「{TMP}/src.txt」
+DST=「{TMP}/dst.txt」
+「move test」をSRCに保存
+SRCをDSTにファイル移動
+「DST内容: {DSTを開く}」と表示
+「SRC存在: {SRCが存在}」と表示
+### 表示結果: DST内容: move test
+### SRC存在: false
+}}}
+
+■ 全ファイル列挙
+
+{{{#nako3
+TMP=一時フォルダ作成
+「{TMP}/sub」のフォルダ作成
+「1」を「{TMP}/a.txt」に保存
+「2」を「{TMP}/b.txt」に保存
+「3」を「{TMP}/sub/c.txt」に保存
+「4」を「{TMP}/sub/d.png」に保存
+L1=「{TMP}/*.txt」の全ファイル列挙
+「txt列挙数: {L1の要素数}」と表示
+L2=「{TMP}/*」の全ファイル列挙
+「全ファイル数: {L2の要素数}」と表示
+### 表示結果: txt列挙数: 3
+### 全ファイル数: 4
+}}}
+
+■ バイナリ読
+
+{{{#nako3
+TMP=一時フォルダ作成
+F=「{TMP}/bin.dat」
+「ABC」をFに保存
+Data=Fをバイナリ読
+「要素数: {Dataの要素数}」と表示
+「0番目: {Data[0]}」と表示
+### 表示結果: 要素数: 3
+### 0番目: 65
+}}}
+
+■ Zip圧縮・解凍
+
+{{{#nako3
+TMP=一時フォルダ作成
+SRC_DIR=「{TMP}/data」
+SRC_DIRのフォルダ作成
+「zip content」を「{SRC_DIR}/sample.txt」に保存
+ZIP_FILE=「{TMP}/test.zip」
+SRC_DIRをZIP_FILEに圧縮
+「ZIP存在: {ZIP_FILEが存在}」と表示
+OUT_DIR=「{TMP}/extracted」
+ZIP_FILEをOUT_DIRに解凍
+TARGET_FILE=「{OUT_DIR}/data/sample.txt」
+「解凍ファイル存在: {TARGET_FILEが存在}」と表示
+「解凍ファイル中身: {TARGET_FILEを開く}」と表示
+### 表示結果: ZIP存在: true
+### 解凍ファイル存在: true
+### 解凍ファイル中身: zip content
+}}}
+
+■ OS・環境・プロセス
+
+{{{#nako3
+(OS取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(OSアーキテクチャ取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(テンポラリフォルダの文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(ホームディレクトリ取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(デスクトップの文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(マイドキュメントの文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(母艦パス取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+Out=「echo doctest-ok」を起動待機
+Outのトリムを表示
+### 表示結果: doctest-ok
+}}}
+
+■ ネットワーク / POSTデータ
+
+{{{#nako3
+A={}
+A["x"]="100"
+A["y"]="200"
+AのPOSTデータ生成を表示
+### 表示結果: x=100&y=200
+}}}
+
+{{{#nako3
+(自分IPアドレス取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
+
+{{{#nako3
+(自分IPV6アドレス取得の文字数 > 0)を表示
+### 表示結果: true
+}}}
