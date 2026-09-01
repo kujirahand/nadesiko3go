@@ -18,60 +18,106 @@
         <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (Ctrl+R / Cmd+R)">
           <span class="icon">▶</span> 実行
         </button>
+        <button id="btn-save" class="btn btn-secondary" title="現在のファイルを上書き保存 (Ctrl+S / Cmd+S)">
+          <span class="icon">💾</span> 保存
+        </button>
         <button id="btn-clear-log" class="btn btn-secondary" title="実行結果を消去">
-          <span class="icon">🗑</span> クリア
+          <span class="icon">🗑</span> ログ消去
         </button>
         <div class="separator"></div>
         <select id="select-sample" class="select-sample">
           <option value="">-- サンプルコード --</option>
           <option value="hello">こんにちは</option>
           <option value="fizzbuzz">FizzBuzz</option>
-          <option value="calc">計算と変数</option>
-          <option value="dialog">ファイル一覧とハッシュ</option>
+          <option value="calc">計算と辞書</option>
+          <option value="dialog">ファイルとハッシュ値</option>
           <option value="csv">CSVの処理</option>
         </select>
         <div class="separator"></div>
-        <button id="btn-copy-log" class="btn btn-secondary" title="実行結果をクリップボードにコピー">
-          <span class="icon">📋</span> 結果コピー
-        </button>
+        <span id="exec-status" class="status-indicator">待機中</span>
       </div>
     </header>
 
-    <!-- メインコンテンツ (エディタ + コンソール) -->
+    <!-- メインワークスペース -->
     <main class="workspace">
-      <!-- 左ペイン: エディタ -->
-      <section class="pane pane-editor">
-        <div class="pane-header">
-          <span class="pane-title">プログラム</span>
-          <div class="editor-tools">
-            <span id="char-count" class="badge">0 文字</span>
+      <!-- 左ペイン: ツールタブ (命令 / ファイル) -->
+      <aside class="sidebar" id="sidebar">
+        <!-- タブ切り替えボタン -->
+        <div class="sidebar-tabs">
+          <button id="tab-btn-cmd" class="tab-btn active">📖 命令</button>
+          <button id="tab-btn-file" class="tab-btn">📁 ファイル</button>
+        </div>
+
+        <!-- 命令タブコンテンツ -->
+        <div id="tab-content-cmd" class="tab-content active">
+          <div class="search-box-wrapper">
+            <input id="cmd-search" type="text" class="search-input" placeholder="命令を検索... (例: 表示, 文字, 配列)" />
+            <span id="cmd-count" class="badge">0件</span>
+          </div>
+          <div id="cmd-list" class="list-container cmd-list">
+            <!-- JavaScriptで動的生成 -->
           </div>
         </div>
-        <div class="editor-wrapper">
-          <div id="line-numbers" class="line-numbers">1</div>
-          <textarea id="editor" class="editor" spellcheck="false" placeholder="ここに なでしこ3 のプログラムを入力してください..."></textarea>
-        </div>
-      </section>
 
-      <!-- 区切り線 -->
-      <div class="splitter" id="splitter"></div>
+        <!-- ファイルタブコンテンツ -->
+        <div id="tab-content-file" class="tab-content">
+          <div class="file-nav-bar">
+            <button id="btn-file-up" class="btn-icon" title="上のフォルダへ">⬆</button>
+            <button id="btn-file-home" class="btn-icon" title="ホームフォルダへ">🏠</button>
+            <span id="current-dir-display" class="current-dir-text" title="現在のフォルダ">~/</span>
+          </div>
+          <div id="file-list" class="list-container file-list">
+            <!-- JavaScriptで動的生成 -->
+          </div>
+        </div>
+      </aside>
 
-      <!-- 右ペイン: 実行結果 -->
-      <section class="pane pane-output">
-        <div class="pane-header">
-          <span class="pane-title">実行結果 (コンソール)</span>
-          <span id="exec-status" class="status-indicator">待機中</span>
-        </div>
-        <div class="output-wrapper">
-          <pre id="output" class="output">ここに実行結果が表示されます。</pre>
-        </div>
-      </section>
+      <!-- 垂直スプリッター (左サイドバー / 右エディタ領域) -->
+      <div class="splitter-v" id="splitter-v"></div>
+
+      <!-- 右ペイン (上: エディタ / 下: 実行結果) -->
+      <div class="main-pane">
+        <!-- 上部: エディタ -->
+        <section class="pane pane-editor">
+          <div class="pane-header">
+            <div class="pane-header-left">
+              <span class="pane-title">エディタ</span>
+              <span id="active-file-name" class="file-badge">新規プログラム.nako3</span>
+            </div>
+            <div class="editor-tools">
+              <span id="char-count" class="badge">0 文字</span>
+            </div>
+          </div>
+          <div class="editor-wrapper">
+            <div id="line-numbers" class="line-numbers">1</div>
+            <textarea id="editor" class="editor" spellcheck="false" placeholder="ここに なでしこ3 のプログラムを入力してください..."></textarea>
+          </div>
+        </section>
+
+        <!-- 水平スプリッター (エディタ / 実行結果) -->
+        <div class="splitter-h" id="splitter-h"></div>
+
+        <!-- 下部: 実行結果 (コンソール) -->
+        <section class="pane pane-output" id="pane-output">
+          <div class="pane-header">
+            <span class="pane-title">実行結果 (コンソール)</span>
+            <div class="output-actions">
+              <button id="btn-copy-log" class="btn-sm" title="実行結果をコピー">📋 コピー</button>
+            </div>
+          </div>
+          <div class="output-wrapper">
+            <pre id="output" class="output">ここに実行結果が表示されます。</pre>
+          </div>
+        </section>
+      </div>
     </main>
 
     <!-- フッターステータスバー -->
     <footer class="statusbar">
       <div class="status-left">
         <span id="cursor-pos">行: 1, 列: 1</span>
+        <span class="status-sep">|</span>
+        <span id="status-msg">準備完了</span>
       </div>
       <div class="status-right">
         <span id="version-info">gonako-gui</span>
