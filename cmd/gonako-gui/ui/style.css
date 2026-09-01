@@ -486,6 +486,13 @@ body {
   background: rgba(203, 166, 247, 0.12);
   padding: 2px 6px;
   border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.file-badge.dirty {
+  color: var(--accent-yellow);
+  background: rgba(249, 226, 175, 0.18);
+  font-weight: 600;
 }
 
 .mode-badge {

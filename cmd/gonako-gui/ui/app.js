@@ -68,9 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let parentDirPath = '';
   let homeDirPath = '';
   let currentFilePath = '';
+  let currentFileDisplayName = '新規プログラム.nako3';
+  let savedContent = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
 
   // 初期プレースホルダー
-  editor.value = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
+  editor.value = savedContent;
+  updateFileTitleDisplay();
   updateLineNumbers();
   updateCharCount();
 
@@ -228,6 +231,30 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === modalOverlay) closeModal();
   });
 
+  // --- 変更検知と保存確認 ---
+  function updateFileTitleDisplay() {
+    const isModified = editor.value !== savedContent;
+    if (isModified) {
+      activeFileName.textContent = `(変更あり) ${currentFileDisplayName}`;
+      activeFileName.classList.add('dirty');
+    } else {
+      activeFileName.textContent = currentFileDisplayName;
+      activeFileName.classList.remove('dirty');
+    }
+  }
+
+  async function confirmSaveIfDirty() {
+    if (editor.value === savedContent) {
+      return true;
+    }
+    const choice = confirm(`「${currentFileDisplayName}」は変更されています。\n保存しますか？\n\n・「OK」を押すと保存して続行します。\n・「キャンセル」を押すと保存せずに続行します。`);
+    if (choice) {
+      const ok = await saveFile();
+      return ok;
+    }
+    return true; // 破棄して続行
+  }
+
   // --- ひな形一覧の読み込みと検索 ---
   async function loadTemplates() {
     if (typeof window.getTemplateList === 'function') {
@@ -242,7 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderTemplates(allTemplates);
       if (editor.value.includes('なでしこ3の基本') && allTemplates[0].code) {
         editor.value = allTemplates[0].code;
-        activeFileName.textContent = allTemplates[0].title;
+        savedContent = allTemplates[0].code;
+        currentFileDisplayName = allTemplates[0].title;
+        updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
       }
@@ -269,10 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="template-badge">${escapeHtml(t.category)}</span>
       `;
 
-      item.addEventListener('click', () => {
+      item.addEventListener('click', async () => {
+        if (!(await confirmSaveIfDirty())) return;
         editor.value = t.code;
+        savedContent = t.code;
         currentFilePath = '';
-        activeFileName.textContent = t.title;
+        currentFileDisplayName = t.title;
+        updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
@@ -317,7 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 命令の使い方を実行結果コンソールに表示
   function displayCommandHelp(cmd) {
     let josiText = '';
     if (cmd.josi && cmd.josi.length > 0) {
@@ -461,11 +492,12 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedContextFile = null;
   }
 
-  menuOpenEditor.addEventListener('click', () => {
+  menuOpenEditor.addEventListener('click', async () => {
     if (!selectedContextFile) return;
     if (selectedContextFile.isDir) {
       loadDirectory(selectedContextFile.path);
     } else {
+      if (!(await confirmSaveIfDirty())) return;
       openFile(selectedContextFile.path, selectedContextFile.name);
     }
     closeContextMenu();
@@ -524,17 +556,16 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         `;
 
-        // クリックでファイルを開く / フォルダに移動
-        item.addEventListener('click', (e) => {
+        item.addEventListener('click', async (e) => {
           if (e.target.classList.contains('item-more-btn')) return;
           if (file.isDir) {
             loadDirectory(file.path);
           } else {
+            if (!(await confirmSaveIfDirty())) return;
             openFile(file.path, file.name);
           }
         });
 
-        // 「…」ボタンクリックでポップアップメニュー表示
         const moreBtn = item.querySelector('.item-more-btn');
         moreBtn.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -542,7 +573,6 @@ document.addEventListener('DOMContentLoaded', () => {
           openContextMenu(rect.left, rect.bottom + 4, file);
         });
 
-        // 右クリックでもメニュー表示
         item.addEventListener('contextmenu', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -572,6 +602,8 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('新規ファイル作成機能が利用できません');
       return;
     }
+    if (!(await confirmSaveIfDirty())) return;
+
     try {
       setStatus('新規ファイルを作成中...');
       const res = await window.createNewFile(currentDirPath || homeDirPath);
@@ -597,9 +629,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
         editor.value = data.content;
+        savedContent = data.content;
         currentFilePath = filePath;
-        activeFileName.textContent = fileName;
+        currentFileDisplayName = fileName;
         activeFileName.title = filePath;
+        updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
@@ -614,30 +648,37 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function saveFile() {
-    if (!currentFilePath) {
-      const name = prompt('保存するファイル名（例: my_script.nako3）:', 'program.nako3');
-      if (!name) return;
-      currentFilePath = (currentDirPath || homeDirPath) + '/' + name;
-      activeFileName.textContent = name;
+    let targetPath = currentFilePath;
+    if (!targetPath) {
+      const name = prompt('保存するファイル名（例: my_script.nako3）:', currentFileDisplayName.startsWith('新規') ? currentFileDisplayName : 'program.nako3');
+      if (!name) return false;
+      targetPath = (currentDirPath || homeDirPath) + '/' + name;
+      currentFilePath = targetPath;
+      currentFileDisplayName = name;
       activeFileName.title = currentFilePath;
     }
 
-    if (typeof window.saveFile !== 'function') return;
+    if (typeof window.saveFile !== 'function') return false;
     try {
-      setStatus(`保存中: ${currentFilePath}...`);
-      const res = await window.saveFile(currentFilePath, editor.value);
+      setStatus(`保存中: ${currentFileDisplayName}...`);
+      const res = await window.saveFile(targetPath, editor.value);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        setStatus(`保存完了: ${activeFileName.textContent}`);
+        savedContent = editor.value;
+        updateFileTitleDisplay();
+        setStatus(`保存完了: ${currentFileDisplayName}`);
         if (tabContentFile.classList.contains('active')) {
           loadDirectory(currentDirPath);
         }
+        return true;
       } else {
         alert(`保存に失敗しました: ${data.error}`);
         setStatus(`保存エラー: ${data.error}`);
+        return false;
       }
     } catch (err) {
       console.error('保存エラー:', err);
+      return false;
     }
   }
 
@@ -671,12 +712,14 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.value = editor.value.substring(0, start) + text + editor.value.substring(end);
     editor.selectionStart = editor.selectionEnd = start + text.length;
     editor.focus();
+    updateFileTitleDisplay();
     updateLineNumbers();
     updateCharCount();
     updateCursorPos();
   }
 
   editor.addEventListener('input', () => {
+    updateFileTitleDisplay();
     updateLineNumbers();
     updateCharCount();
   });
@@ -777,6 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
           target.value = target.value.substring(0, start) + target.value.substring(end);
           target.selectionStart = target.selectionEnd = start;
           if (target === editor) {
+            updateFileTitleDisplay();
             updateLineNumbers();
             updateCharCount();
             updateCursorPos();
@@ -801,6 +845,7 @@ document.addEventListener('DOMContentLoaded', () => {
             target.value = target.value.substring(0, start) + text + target.value.substring(end);
             target.selectionStart = target.selectionEnd = start + text.length;
             if (target === editor) {
+              updateFileTitleDisplay();
               updateLineNumbers();
               updateCharCount();
               updateCursorPos();
