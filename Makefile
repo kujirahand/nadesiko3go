@@ -3,11 +3,13 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build gui install release test doctest sync-compat compat-run compat-check clean
+.PHONY: all build cmd gui install release test doctest sync-compat compat-run compat-check clean
 
 all: build
 
-build:
+build: cmd gui
+
+cmd:
 	$(GO) build -o bin/gonako ./cmd/gonako
 
 gui:
