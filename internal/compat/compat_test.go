@@ -78,7 +78,8 @@ func TestSyncedFixturesLoad(t *testing.T) {
 	for _, group := range groups {
 		total += len(group.Cases)
 	}
-	if len(groups) != 11 || total != 239 {
+	// 件数が動いたら、本家の再同期があったということ。SOURCE と一緒に見直す。
+	if len(groups) != 11 || total != 241 {
 		t.Fatalf("同期fixtureの件数が変わりました: %d groups, %d cases", len(groups), total)
 	}
 }
