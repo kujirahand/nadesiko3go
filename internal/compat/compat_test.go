@@ -85,11 +85,11 @@ func TestSyncedFixturesLoad(t *testing.T) {
 }
 
 // passingGroups are the groups that must pass in full at the current stage.
-// Stage 2 added 01-03 and 07; stage 3 adds the rest except the ones that need
-// regular expressions (stage 4) and timers (stage 5).
+// Stage 2 added 01-03 and 07, stage 3 the rest of 04-09, stage 4 the regular
+// expressions. Only 10_async is left, which stage 5 covers.
 var passingGroups = []string{
 	"01_literal", "02_operator", "03_type_convert",
-	"04_string", "05_array", "06_dict", "07_flow", "09_error",
+	"04_string", "05_array", "06_dict", "07_flow", "09_error", "11_regexp",
 }
 
 // knownFailures are cases that cannot pass as the fixture stands.

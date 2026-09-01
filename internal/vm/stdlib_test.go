@@ -1,6 +1,10 @@
 package vm_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/vm"
+)
 
 // Expected values come from the compat fixtures, which the TypeScript version
 // generated. These keep a failure readable when one command breaks.
@@ -130,5 +134,49 @@ func TestCallFunctionInVariable(t *testing.T) {
 	code := "F=関数(A)\nA*2で戻る\nここまで\n(F(3))を表示"
 	if got := run(t, code); got != "6" {
 		t.Errorf("F(3) = %q, want \"6\"", got)
+	}
+}
+
+func TestRegexpCommands(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{"正規表現置換", `("a1b2c3"の"/[0-9]/g"を"-"に正規表現置換)を表示`, "a-b-c-"},
+		{"正規表現置換-日本語", `("あいうえお"の"/[いう]/g"を"*"に正規表現置換)を表示`, "あ**えお"},
+		{"正規表現置換-グループ参照", `("2024-01-02"の"/(\d+)-(\d+)-(\d+)/"を"$1年$2月$3日"に正規表現置換)を表示`, "2024年01月02日"},
+		{"正規表現区切", `A="a1b22c"を"/[0-9]+/"で正規表現区切` + "\nAを表示", "a,b,c"},
+		{"正規表現マッチ", `A=("abc123"を"/[0-9]+/"で正規表現マッチ)` + "\nAを表示", "123"},
+		// gが付くと一致した全体の配列を返す
+		{"正規表現マッチ-全件", `A=("a1b2"を"/[0-9]/g"で正規表現マッチ)` + "\nAを表示", "1,2"},
+		{"正規表現マッチ-なし", `A=("abc"を"/[0-9]+/"で正規表現マッチ)` + "\nAを表示", "null"},
+		// 部分マッチは『抽出文字列』に入る
+		{"抽出文字列", `A=("2024-01"を"/(\d+)-(\d+)/"で正規表現マッチ)` + "\n抽出文字列を表示", "2024,01"},
+		{"文字クラスと日本語", `("あa1"の"/[^0-9]/g"を"*"に正規表現置換)を表示`, "**1"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestRegexpUnsupported pins the message a pattern RE2 cannot handle produces,
+// rather than a Go regexp error leaking out.
+func TestRegexpUnsupported(t *testing.T) {
+	_, err := vm.RunSource(`("abab"を"/(ab)\1/"で正規表現マッチ)を表示`, "main.nako3", nil)
+	if err == nil {
+		t.Fatal("エラーになるはずが成功した")
+	}
+	want := "[実行時エラー]main.nako3(1行目): 正規表現『/(ab)\\1/』の後方参照や先読みには対応していません。"
+	if got := err.Error(); got != want {
+		t.Errorf("Error()\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestSoreStartsEmpty pins that 『それ』 starts as an empty string, not as
+// undefined. An omitted argument reads it, so the difference is visible.
+func TestSoreStartsEmpty(t *testing.T) {
+	if got := run(t, "それを表示"); got != "" {
+		t.Errorf("それ = %q, want \"\"", got)
 	}
 }

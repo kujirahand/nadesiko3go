@@ -78,6 +78,8 @@ func constValue(v any) value.Value {
 		return value.Undefined()
 	case nullConst:
 		return value.Null()
+	case emptyArrayConst:
+		return value.ArrayValue(value.NewArray())
 	case bool:
 		return value.Bool(x)
 	case string:

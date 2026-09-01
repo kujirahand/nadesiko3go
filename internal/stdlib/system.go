@@ -75,6 +75,7 @@ func implementations() map[string]Impl {
 	stringImpls(m)
 	arrayImpls(m)
 	dictImpls(m)
+	regexpImpls(m)
 	return m
 }
 

@@ -86,6 +86,9 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 	mainIndex := c.prog.Main
 
 	c.fn = main
+	// 『それ』の初期値は空文字列。未定義ではない。
+	c.emit(ir.OpConst, c.constString(""), 0, tree)
+	c.emit(ir.OpStoreLocal, SoreSlot, 0, tree)
 	c.compileBlockValue(tree)
 	c.emit(ir.OpReturn, 0, 0, tree)
 	c.prog.Funcs[mainIndex].Code = main.code

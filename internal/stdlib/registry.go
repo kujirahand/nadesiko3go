@@ -10,6 +10,9 @@ import "github.com/kujirahand/nadesiko3go/internal/lexer"
 type nullConst struct{}
 type undefinedConst struct{}
 
+// emptyArrayConst marks a constant whose value is a fresh empty array.
+type emptyArrayConst struct{}
+
 func ParserFuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	addConst := func(name string, value any) {
@@ -36,6 +39,8 @@ func ParserFuncList() lexer.FuncList {
 	addConst("対象", "")
 	addConst("対象キー", "")
 	addConst("回数", "")
+	// 『正規表現マッチ』が部分マッチを入れる先。初期値は空の配列。
+	addConst("抽出文字列", emptyArrayConst{})
 
 	addFunc("表示", [][]string{{"を", "と"}})
 	list["表示"].ReturnNone = true
