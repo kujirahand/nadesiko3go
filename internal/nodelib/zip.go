@@ -41,6 +41,53 @@ func zipCommands(m map[string]command) {
 			return value.Bool(true), nil
 		},
 	}
+
+	m["圧縮解凍ツールパス変更"] = command{
+		josi:       [][]string{{"に", "へ"}},
+		returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			ctx.SetSysVar("圧縮解凍ツールパス", argAt(a, 0))
+			return value.Undefined(), nil
+		},
+	}
+
+	m["圧縮時"] = command{
+		josi: [][]string{{"で", "の"}, {"を", "から"}, {"に", "へ"}},
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			src := str(a, 1)
+			dst := str(a, 2)
+			if dst == "" {
+				dst = src + ".zip"
+			}
+			if err := createZip(src, dst); err != nil {
+				return value.Bool(false), err
+			}
+			ctx.SetSysVar("対象", value.Bool(true))
+			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+				return ctx.CallFunc(fn, []value.Value{value.Bool(true)})
+			}
+			return value.Bool(true), nil
+		},
+	}
+
+	m["解凍時"] = command{
+		josi: [][]string{{"で", "の"}, {"を", "から"}, {"に", "へ"}},
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			src := str(a, 1)
+			dst := str(a, 2)
+			if dst == "" {
+				dst = "."
+			}
+			if err := extractZip(src, dst); err != nil {
+				return value.Bool(false), err
+			}
+			ctx.SetSysVar("対象", value.Bool(true))
+			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+				return ctx.CallFunc(fn, []value.Value{value.Bool(true)})
+			}
+			return value.Bool(true), nil
+		},
+	}
 }
 
 func createZip(src, dst string) error {

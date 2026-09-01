@@ -1,6 +1,9 @@
 package nodelib_test
 
 import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -309,6 +312,215 @@ PostData = AのPOSTデータ生成
 		!strings.Contains(got, "IP取得: true") ||
 		!strings.Contains(got, "IPV6取得: true") {
 		t.Errorf("NetCommands unexpected result: %s", got)
+	}
+}
+
+func TestEncodingCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+「sjisサポート: {"sjis"の文字コード変換サポート判定}」と表示
+「eucサポート: {"euc-jp"の文字コード変換サポート判定}」と表示
+「unknownサポート: {"unknown_xxx"の文字コード変換サポート判定}」と表示
+
+「こんにちは」を"sjis.txt"にSJISファイル保存
+「sjis読: {"sjis.txt"をSJISファイル読}」と表示
+
+「さようなら」を"euc.txt"にEUCファイル保存
+「euc読: {"euc.txt"をEUCファイル読}」と表示
+
+Bin = 「テスト」をSJIS変換
+「sjis復元: {BinからSJIS取得}」と表示
+
+Bin2 = 「日本語」を"euc-jp"へエンコーディング変換
+「euc復元: {Bin2を"euc-jp"からエンコーディング取得}」と表示
+`)
+	want := strings.Join([]string{
+		"sjisサポート: true",
+		"eucサポート: true",
+		"unknownサポート: false",
+		"sjis読: こんにちは",
+		"euc読: さようなら",
+		"sjis復元: テスト",
+		"euc復元: 日本語",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestFileEventCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+●コピーCB
+　「コピーコールバック」と表示
+ここまで
+●移動CB
+　「移動コールバック」と表示
+ここまで
+●削除CB
+　「削除コールバック」と表示
+ここまで
+
+「data」を"orig.txt"に保存
+ファイル処理強制停止
+「停止設定完了」と表示
+
+"orig.txt"を"copied.txt"へ「コピーCB」でファイルコピー時
+「コピー存在: {"copied.txt"が存在}」と表示
+
+"copied.txt"を"moved.txt"へ「移動CB」でファイル移動時
+「移動存在: {"moved.txt"が存在}」と表示
+
+"moved.txt"を「削除CB」でファイル削除時
+「削除存在: {"moved.txt"が存在}」と表示
+`)
+	want := strings.Join([]string{
+		"停止設定完了",
+		"コピーコールバック",
+		"コピー存在: true",
+		"移動コールバック",
+		"移動存在: true",
+		"削除コールバック",
+		"削除存在: false",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestProcessAndStdinEventCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+●(Sで)起動CB
+　「起動コールバック: {Sのトリム}」と表示
+ここまで
+「echo 起動テスト」を「起動CB」で起動時
+`)
+	want := "起動コールバック: 起動テスト"
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader("入力行テスト\n"), nil)
+	code := `●取得CB
+　「取得: {対象}」と表示
+ここまで
+「取得CB」を標準入力取得時`
+	if err := vm.RunProgram(code, "main.nako3", host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "取得: 入力行テスト" {
+		t.Errorf("got %q, want %q", got, "取得: 入力行テスト")
+	}
+}
+
+func TestZipEventCommands(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+●圧縮CB
+　「圧縮完了: {対象}」と表示
+ここまで
+●解凍CB
+　「解凍完了: {対象}」と表示
+ここまで
+
+"zip_src"のフォルダ作成
+「file text」を"zip_src/a.txt"に保存
+"zip_src"を"out.zip"へ「圧縮CB」で圧縮時
+「zip存在: {"out.zip"が存在}」と表示
+
+"out.zip"を"zip_dest"へ「解凍CB」で解凍時
+「解凍存在: {"zip_dest/zip_src/a.txt"が存在}」と表示
+
+"7z"に圧縮解凍ツールパス変更
+「パス変更OK」と表示
+`)
+	want := strings.Join([]string{
+		"圧縮完了: true",
+		"zip存在: true",
+		"解凍完了: true",
+		"解凍存在: true",
+		"パス変更OK",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestNetExtendedCommands(t *testing.T) {
+	dir := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			fmt.Fprint(w, "GET応答")
+			return
+		}
+		if r.Method == http.MethodPost {
+			_ = r.ParseMultipartForm(10 << 20)
+			if r.MultipartForm != nil && len(r.MultipartForm.Value["name"]) > 0 {
+				val := r.FormValue("name")
+				fmt.Fprintf(w, "FORM応答:%s", val)
+				return
+			}
+			_ = r.ParseForm()
+			val := r.FormValue("name")
+			fmt.Fprintf(w, "POST応答:%s", val)
+			return
+		}
+	}))
+	defer server.Close()
+
+	code := fmt.Sprintf(`
+●AJAX_CB
+　「AJAX受信: {対象}」と表示
+ここまで
+●GET_CB
+　「GET受信: {対象}」と表示
+ここまで
+●POST_CB
+　「POST受信: {対象}」と表示
+ここまで
+●FORM_CB
+　「FORM受信: {対象}」と表示
+ここまで
+●ERR_CB
+　「エラーハンドラ」と表示
+ここまで
+
+URL = "%s"
+URLへ「AJAX_CB」でAJAX送信時
+URLへ「GET_CB」でGET送信時
+Ans1 = URLのAJAX保障送信
+「保障GET: {Ans1}」と表示
+
+Params = {}
+Params["name"] = "test"
+「POST_CB」でURLへParamsをPOST送信時
+Ans2 = URLへParamsをPOST保障送信
+「保障POST: {Ans2}」と表示
+
+「FORM_CB」でURLへParamsをPOSTフォーム送信時
+Ans3 = URLへParamsをPOSTフォーム保障送信
+「保障FORM: {Ans3}」と表示
+
+"dummy"にAJAXオプション設定
+「ERR_CB」のAJAX失敗時
+「オプション設定完了」と表示
+`, server.URL)
+
+	got := runIn(t, dir, code)
+	want := strings.Join([]string{
+		"AJAX受信: GET応答",
+		"GET受信: GET応答",
+		"保障GET: GET応答",
+		"POST受信: POST応答:test",
+		"保障POST: POST応答:test",
+		"FORM受信: FORM応答:test",
+		"保障FORM: FORM応答:test",
+		"オプション設定完了",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
 

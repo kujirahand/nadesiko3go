@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strings"
 
@@ -61,6 +62,18 @@ func osCommands(m map[string]command) {
 		return value.String(sb.String()), nil
 	}}
 
+	m["標準入力取得時"] = command{josi: [][]string{{"を", "の", "で"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+		line, err := ctx.ReadLine()
+		if err != nil {
+			return value.Undefined(), errors.New("『標準入力取得時』命令で標準入力が取得できません。")
+		}
+		ctx.SetSysVar("対象", value.String(line))
+		if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+			return ctx.CallFunc(fn, []value.Value{value.String(line)})
+		}
+		return value.Undefined(), nil
+	}}
+
 	m["コンソールクリア"] = command{returnNone: true, fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
 		ctx.Write("\x1b[2J\x1b[H")
 		return value.Undefined(), nil
@@ -80,6 +93,24 @@ func osCommands(m map[string]command) {
 			return value.Undefined(), nil
 		}}
 	m["プロセス終"] = m["強制終了"]
+
+	m["強制終了時"] = command{josi: [][]string{{"を", "の", "で"}}, returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			fn, ok := toFunc(ctx, argAt(a, 0))
+			if !ok {
+				return value.Undefined(), nil
+			}
+			c := make(chan os.Signal, 1)
+			signal.Notify(c, os.Interrupt)
+			go func() {
+				<-c
+				res, _ := ctx.CallFunc(fn, nil)
+				if value.ToBool(res) || res.Kind() == value.KindUndefined {
+					ctx.Exit(0)
+				}
+			}()
+			return value.Undefined(), nil
+		}}
 
 	m["コマンドライン"] = command{fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
 		args := ctx.Args()
@@ -118,6 +149,17 @@ func osCommands(m map[string]command) {
 
 	m["起動"] = command{josi: [][]string{{"を", "の"}}, returnNone: true, fn: runCommandAsync}
 	m["コマンド実行"] = m["起動"]
+	m["起動時"] = command{josi: [][]string{{"で", "の"}, {"を", "の"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+		out, err := runCommand(ctx, a[1:])
+		if err != nil {
+			return value.Undefined(), err
+		}
+		ctx.SetSysVar("対象", out)
+		if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+			return ctx.CallFunc(fn, []value.Value{out})
+		}
+		return out, nil
+	}}
 
 	m["ブラウザ起動"] = command{josi: [][]string{{"を", "で", "の"}}, returnNone: true, fn: openBrowser}
 	m["エクスプローラー起動"] = command{josi: [][]string{{"を", "で", "の"}}, returnNone: true, fn: openBrowser}

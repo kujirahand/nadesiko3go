@@ -2,7 +2,10 @@ module github.com/kujirahand/nadesiko3go
 
 go 1.27.0
 
-require modernc.org/sqlite v1.57.0
+require (
+	golang.org/x/text v0.38.0
+	modernc.org/sqlite v1.57.0
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect

@@ -23,6 +23,8 @@ func constants() map[string]any {
 		"ナデシコランタイムパス":     exe,
 		"母艦パス":           bokan,
 		"ファイルコピーデフォルト動作": "overwrite",
+		"AJAXオプション":       "",
+		"圧縮解凍ツールパス":      "zip",
 	}
 }
 
@@ -58,13 +60,54 @@ func commands() map[string]command {
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			return value.Undefined(), os.Remove(str(a, 0))
 		}}
+	m["ファイル削除時"] = command{josi: [][]string{{"で", "を", "の"}, {"の", "を"}},
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			if err := os.RemoveAll(str(a, 1)); err != nil {
+				return value.Undefined(), fileError("削除でき", str(a, 1), err)
+			}
+			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+				return ctx.CallFunc(fn, nil)
+			}
+			return value.Undefined(), nil
+		}}
 	m["ファイル移動"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			return value.Undefined(), os.Rename(str(a, 0), str(a, 1))
 		}}
 	m["ファイル上書移動"] = m["ファイル移動"]
+	m["ファイル移動時"] = command{josi: [][]string{{"で", "を", "の"}, {"から", "を"}, {"に", "へ"}},
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			if err := os.Rename(str(a, 1), str(a, 2)); err != nil {
+				return value.Undefined(), fileError("移動でき", str(a, 1), err)
+			}
+			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+				return ctx.CallFunc(fn, nil)
+			}
+			return value.Undefined(), nil
+		}}
 	m["ファイルコピー"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true, fn: copyFile}
 	m["ファイル上書コピー"] = m["ファイルコピー"]
+	m["ファイルコピー時"] = command{josi: [][]string{{"で", "を", "の"}, {"から", "を"}, {"に", "へ"}},
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			if _, err := copyFile(ctx, a[1:]); err != nil {
+				return value.Undefined(), err
+			}
+			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
+				return ctx.CallFunc(fn, nil)
+			}
+			return value.Undefined(), nil
+		}}
+	m["ファイル処理時"] = command{josi: [][]string{{"を", "で", "の"}}, returnNone: true,
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+			ctx.SetCommandState("__fileProcessCallback", argAt(a, 0))
+			ctx.SetCommandState("__fileProcessStop", value.Bool(false))
+			return value.Undefined(), nil
+		}}
+	m["ファイル処理強制停止"] = command{returnNone: true,
+		fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+			ctx.SetCommandState("__fileProcessStop", value.Bool(true))
+			return value.Undefined(), nil
+		}}
 
 	m["ファイルサイズ取得"] = command{josi: [][]string{{"の", "を", "から"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
@@ -181,6 +224,7 @@ func commands() map[string]command {
 	cryptoCommands(m)
 	netCommands(m)
 	zipCommands(m)
+	encodingCommands(m)
 	return m
 }
 
@@ -351,4 +395,15 @@ func str(args []value.Value, i int) string {
 		return ""
 	}
 	return value.ToString(args[i])
+}
+
+func toFunc(ctx stdlib.Context, v value.Value) (*value.Func, bool) {
+	if fn, ok := v.Func(); ok {
+		return fn, true
+	}
+	if v.Kind() == value.KindString {
+		fn := ctx.FindFunc(value.ToString(v))
+		return fn, fn != nil
+	}
+	return nil, false
 }
