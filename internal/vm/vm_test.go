@@ -3,6 +3,7 @@ package vm_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -179,5 +180,42 @@ func TestLogTrimsTrailingWhitespace(t *testing.T) {
 	}
 	if got := run(t, "「a」を表示\n「」を表示"); got != "a" {
 		t.Errorf("log = %q, want \"a\"", got)
+	}
+}
+
+// TestOptionsStopRunawayPrograms pins that the limits turn a program that
+// would never finish into one failing case, rather than a hung compat run.
+func TestOptionsStopRunawayPrograms(t *testing.T) {
+	tests := []struct{ name, code string }{
+		// 終わらない繰り返し
+		{"命令数の上限", "A=0\nA<1の間\nA=0\nここまで"},
+		// 止まらない再帰
+		{"呼び出しの深さの上限", "●Fとは\nFを実行\nここまで\nFを実行"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			done := make(chan error, 1)
+			go func() {
+				_, err := vm.RunSource(tt.code, "main.nako3", nil)
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				if err == nil {
+					t.Fatal("終わらないはずのプログラムが成功した")
+				}
+			case <-time.After(30 * time.Second):
+				t.Fatal("上限が効かず、実行が終わらなかった")
+			}
+		})
+	}
+}
+
+// TestGlobalsAreIndexed pins that a system variable has a slot even when the
+// program never mentions it, so a command can always write one.
+func TestGlobalsAreIndexed(t *testing.T) {
+	// 『秒後』は『対象』へタイマーIDを書く。プログラム側は読んでいない。
+	if _, err := vm.RunSource("0.01秒後には\nここまで", "main.nako3", nil); err != nil {
+		t.Fatalf("『対象』の書き込みで失敗した: %v", err)
 	}
 }

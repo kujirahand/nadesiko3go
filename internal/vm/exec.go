@@ -65,7 +65,7 @@ func RunSource(code, filename string, wantVars []string) (*Result, error) {
 		return nil, err
 	}
 	out := &Collector{}
-	machine := New(prog, registry, out)
+	machine := New(prog, registry, out, DefaultOptions())
 	runErr := machine.Run()
 	result := &Result{Log: out.Log(), Vars: machine.Vars(VarPrefix, wantVars)}
 	if runErr != nil {

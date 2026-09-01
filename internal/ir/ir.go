@@ -2,15 +2,16 @@
 // execution backends.
 package ir
 
-import "fmt"
-
 const CurrentVersion = 1
 
 type Program struct {
-	Version   int          `json:"version"`
-	Consts    []Const      `json:"consts"`
-	Funcs     []Func       `json:"funcs"`
-	Main      int          `json:"main"`
+	Version int     `json:"version"`
+	Consts  []Const `json:"consts"`
+	Funcs   []Func  `json:"funcs"`
+	Main    int     `json:"main"`
+	// Globals names each global slot. LoadGlobal and StoreGlobal address them
+	// by index, so the name is only needed to report a value back by name.
+	Globals   []string     `json:"globals"`
 	Sources   []SourceFile `json:"sources"`
 	Positions []SourcePos  `json:"positions"`
 }
@@ -41,6 +42,9 @@ type Func struct {
 	Pure    bool    `json:"pure"`
 	// Captures lists the enclosing function's variables this one closes over.
 	Captures []Capture `json:"captures,omitempty"`
+	// MaxStack is the deepest the operand stack gets in this function. The
+	// validator recomputes it, so a mismatch means the IR is inconsistent.
+	MaxStack int `json:"maxStack"`
 }
 
 // Capture threads one variable from the enclosing function into a nested one.
@@ -54,6 +58,10 @@ type Capture struct {
 type Param struct {
 	Name      string   `json:"name"`
 	Particles []string `json:"particles"`
+	// Slot is the local the caller puts this argument in. Arguments never
+	// reach the body through the operand stack, so a function body always
+	// starts with an empty one (docs/vm.md §3.3).
+	Slot int `json:"slot"`
 }
 
 type Inst struct {
@@ -72,29 +80,4 @@ type SourcePos struct {
 	Offset int `json:"offset"`
 	Line   int `json:"line"`
 	Column int `json:"column"`
-}
-
-func (p Program) Validate() error {
-	if p.Version != CurrentVersion {
-		return fmt.Errorf("非対応のIRバージョンです: %d (対応: %d)", p.Version, CurrentVersion)
-	}
-	if p.Main < 0 || p.Main >= len(p.Funcs) {
-		return fmt.Errorf("Mainが関数範囲外です: %d", p.Main)
-	}
-	for functionIndex, function := range p.Funcs {
-		for instructionIndex, instruction := range function.Code {
-			if instruction.Pos < 0 || instruction.Pos >= len(p.Positions) {
-				return fmt.Errorf("Funcs[%d].Code[%d]のPosが範囲外です: %d", functionIndex, instructionIndex, instruction.Pos)
-			}
-		}
-	}
-	for i, position := range p.Positions {
-		if position.Source < 0 || position.Source >= len(p.Sources) {
-			return fmt.Errorf("Positions[%d].Sourceが範囲外です: %d", i, position.Source)
-		}
-		if position.Line < 0 || position.Column < 0 || position.Offset < 0 {
-			return fmt.Errorf("Positions[%d]に負のソース位置があります", i)
-		}
-	}
-	return nil
 }

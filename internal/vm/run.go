@@ -43,7 +43,7 @@ func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target
 		f.handlers = f.handlers[:len(f.handlers)-1]
 		f.stack = f.stack[:h.stackDepth]
 		// 『エラーメッセージ』で捕まえた内容を読めるようにする
-		m.globals["エラーメッセージ"] = value.String(np.err.Msg)
+		m.storeGlobalByName("エラーメッセージ", value.String(np.err.Msg))
 		result, handled, target = value.Undefined(), true, h.target
 	}()
 	return m.execute(f, pc), false, 0
@@ -52,6 +52,10 @@ func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target
 // execute is the interpreter loop for one frame.
 func (m *VM) execute(f *frame, pc int) value.Value {
 	for pc < len(f.fn.Code) {
+		m.executed++
+		if m.options.MaxInstructions > 0 && m.executed > m.options.MaxInstructions {
+			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", f.fn.Code[pc].Pos)
+		}
 		inst := f.fn.Code[pc]
 		pc++
 
@@ -76,10 +80,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			*f.slots[inst.A] = f.pop()
 
 		case ir.OpLoadGlobal:
-			f.push(m.loadGlobal(m.constString(inst.A)))
+			f.push(m.globals[inst.A])
 
 		case ir.OpStoreGlobal:
-			m.globals[m.constString(inst.A)] = f.pop()
+			m.globals[inst.A] = f.pop()
 
 		case ir.OpBinary:
 			b := f.pop()
@@ -205,16 +209,25 @@ func (m *VM) constString(i int) string {
 	return m.prog.Consts[i].Str
 }
 
-// loadGlobal reads a module or system variable, falling back to the system
-// constants the standard library defines.
-func (m *VM) loadGlobal(name string) value.Value {
-	if v, ok := m.globals[name]; ok {
-		return v
+// loadGlobalByName reads a global the way a command names it, rather than by
+// the slot the IR uses.
+func (m *VM) loadGlobalByName(name string) value.Value {
+	if i, ok := m.globalIndex[name]; ok {
+		return m.globals[i]
 	}
 	if v, ok := m.registry.Const(name); ok {
 		return v
 	}
 	return value.Undefined()
+}
+
+// storeGlobalByName writes a global a command names. A name with no slot is
+// dropped: the compiler reserves one for every system variable, so this only
+// happens for a name nothing can ever read back.
+func (m *VM) storeGlobalByName(name string, v value.Value) {
+	if i, ok := m.globalIndex[name]; ok {
+		m.globals[i] = v
+	}
 }
 
 // makeClosure builds a function value, taking a reference to each variable the
@@ -461,9 +474,9 @@ func (m *VM) fileName(i int) string {
 
 func (m *VM) Print(s string) { m.host.Print(s) }
 
-func (m *VM) SysVar(name string) value.Value { return m.loadGlobal(name) }
+func (m *VM) SysVar(name string) value.Value { return m.loadGlobalByName(name) }
 
-func (m *VM) SetSysVar(name string, v value.Value) { m.globals[name] = v }
+func (m *VM) SetSysVar(name string, v value.Value) { m.storeGlobalByName(name, v) }
 
 // CallFunc runs a function value on behalf of a command, converting a nadesiko
 // error into an ordinary error so the command can decide what to do.

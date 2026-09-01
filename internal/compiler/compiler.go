@@ -18,7 +18,14 @@ const (
 	SysTarget    = "対象"
 	SysTargetKey = "対象キー"
 	SysCount     = "回数"
+	SysErrorMsg  = "エラーメッセージ"
+	SysMatched   = "抽出文字列"
 )
+
+// systemGlobals always get a slot, whether or not the program mentions them.
+// A command can write one at any time — 『秒後』 sets 『対象』, an error handler
+// sets 『エラーメッセージ』 — so the slot has to exist before the program runs.
+var systemGlobals = []string{SysTarget, SysTargetKey, SysCount, SysErrorMsg, SysMatched}
 
 // funcCtx is the function currently being compiled.
 type funcCtx struct {
@@ -49,7 +56,9 @@ type Compiler struct {
 	// constIndex dedupes the constant pool.
 	constIndex map[ir.Const]int
 	posIndex   map[ir.SourcePos]int
-	file       string
+	// globalIndex maps a global's name to its slot.
+	globalIndex map[string]int
+	file        string
 }
 
 // compileError carries a failure out of the recursive walk.
@@ -58,14 +67,18 @@ type compileError struct{ err *errs.NakoError }
 // Compile turns a parsed program into IR.
 func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *ir.Program, err error) {
 	c := &Compiler{
-		registry:   registry,
-		userFuncs:  map[string]int{},
-		constIndex: map[ir.Const]int{},
-		posIndex:   map[ir.SourcePos]int{},
-		file:       filename,
+		registry:    registry,
+		userFuncs:   map[string]int{},
+		constIndex:  map[ir.Const]int{},
+		posIndex:    map[ir.SourcePos]int{},
+		globalIndex: map[string]int{},
+		file:        filename,
 	}
 	c.prog.Version = ir.CurrentVersion
 	c.prog.Sources = []ir.SourceFile{{Name: filename}}
+	for _, name := range systemGlobals {
+		c.globalSlot(name)
+	}
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -93,6 +106,7 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 	c.emit(ir.OpReturn, 0, 0, tree)
 	c.prog.Funcs[mainIndex].Code = main.code
 	c.prog.Funcs[mainIndex].NumVars = main.numVars
+	c.prog.Funcs[mainIndex].MaxStack = c.maxStack(mainIndex, main.code)
 
 	if err := c.prog.Validate(); err != nil {
 		return nil, err
@@ -159,6 +173,28 @@ func (c *Compiler) constString(s string) int {
 
 func (c *Compiler) constNumber(n float64) int {
 	return c.constant(ir.Const{Kind: ir.ConstNumber, Num: n})
+}
+
+// globalSlot returns the slot of a global, allocating one the first time the
+// name is used.
+func (c *Compiler) globalSlot(name string) int {
+	if i, ok := c.globalIndex[name]; ok {
+		return i
+	}
+	c.prog.Globals = append(c.prog.Globals, name)
+	i := len(c.prog.Globals) - 1
+	c.globalIndex[name] = i
+	return i
+}
+
+// maxStack reports the deepest the operand stack gets, using the same walk the
+// verifier uses so that the two cannot drift apart.
+func (c *Compiler) maxStack(index int, code []ir.Inst) int {
+	depth, err := ir.ComputeMaxStack(index, ir.Func{Code: code})
+	if err != nil {
+		c.fail(err.Error(), nil)
+	}
+	return depth
 }
 
 // patch fills in the jump target of an instruction emitted earlier.
@@ -237,7 +273,7 @@ func (c *Compiler) loadVar(name string, n *ast.Node) {
 		c.emit(ir.OpLoadLocal, slot, 0, n)
 		return
 	}
-	c.emit(ir.OpLoadGlobal, c.constString(name), 0, n)
+	c.emit(ir.OpLoadGlobal, c.globalSlot(name), 0, n)
 }
 
 // storeVar pops a value into a name.
@@ -246,5 +282,5 @@ func (c *Compiler) storeVar(name string, n *ast.Node) {
 		c.emit(ir.OpStoreLocal, slot, 0, n)
 		return
 	}
-	c.emit(ir.OpStoreGlobal, c.constString(name), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(name), 0, n)
 }

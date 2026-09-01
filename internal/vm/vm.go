@@ -25,8 +25,12 @@ type VM struct {
 	registry *stdlib.Registry
 	host     Host
 
-	// globals holds module variables and the system variables the loops set.
-	globals map[string]value.Value
+	// globals holds module variables and the system variables the loops set,
+	// indexed by the slot the IR addresses them with.
+	globals []value.Value
+	// globalIndex finds a global by name, for the commands that reach one
+	// through stdlib.Context and for reporting values back.
+	globalIndex map[string]int
 	// funcValues gives every function index a stable value identity, so that
 	// two references to the same function compare equal.
 	funcValues map[int]*value.Func
@@ -37,25 +41,62 @@ type VM struct {
 	callbacks    map[host.CallbackID]*value.Func
 	nextCallback host.CallbackID
 
-	// depth guards against unbounded recursion.
-	depth int
+	// depth counts the nested calls, and executed counts the instructions
+	// run, so that a broken program stops instead of hanging.
+	depth    int
+	executed uint64
+	options  Options
 }
 
-// MaxDepth bounds how deep user function calls may nest before the VM reports
-// a runtime error instead of exhausting the Go stack.
-const MaxDepth = 10000
+// Options bounds what one run may do. Without them a runaway program would
+// hang the whole compat run rather than failing one case.
+type Options struct {
+	// MaxFrames bounds how deep calls may nest.
+	MaxFrames int
+	// MaxInstructions bounds how many instructions one run may execute.
+	MaxInstructions uint64
+	// MaxCallbacks bounds how many timer callbacks one run may dispatch.
+	MaxCallbacks int
+}
+
+// DefaultOptions is generous enough for a program that means it, and small
+// enough that a mistake fails quickly.
+func DefaultOptions() Options {
+	return Options{
+		MaxFrames:       10000,
+		MaxInstructions: 200_000_000,
+		MaxCallbacks:    event.DefaultMaxCallbacks,
+	}
+}
 
 // New prepares a VM for a program. The loop starts at a fixed instant so that
 // two runs of the same program see the same clock.
-func New(prog *ir.Program, registry *stdlib.Registry, h Host) *VM {
+func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *VM {
+	loop := event.New(startTime)
+	loop.MaxCallbacks = options.MaxCallbacks
+
+	globals := make([]value.Value, len(prog.Globals))
+	index := make(map[string]int, len(prog.Globals))
+	for i, name := range prog.Globals {
+		index[name] = i
+		// システム定数を持つ名前は、その値から始める
+		if v, ok := registry.Const(name); ok {
+			globals[i] = v
+			continue
+		}
+		globals[i] = value.Undefined()
+	}
+
 	return &VM{
-		prog:       prog,
-		registry:   registry,
-		host:       h,
-		globals:    map[string]value.Value{},
-		funcValues: map[int]*value.Func{},
-		loop:       event.New(startTime),
-		callbacks:  map[host.CallbackID]*value.Func{},
+		prog:        prog,
+		registry:    registry,
+		host:        h,
+		globals:     globals,
+		globalIndex: index,
+		funcValues:  map[int]*value.Func{},
+		loop:        loop,
+		callbacks:   map[host.CallbackID]*value.Func{},
+		options:     options,
 	}
 }
 
@@ -72,12 +113,12 @@ func (m *VM) Vars(prefix string, names []string) map[string]value.Value {
 	}
 	out := make(map[string]value.Value, len(names))
 	for _, name := range names {
-		if v, ok := m.globals[prefix+name]; ok {
-			out[name] = v
+		if i, ok := m.globalIndex[prefix+name]; ok {
+			out[name] = m.globals[i]
 			continue
 		}
-		if v, ok := m.globals[name]; ok {
-			out[name] = v
+		if i, ok := m.globalIndex[name]; ok {
+			out[name] = m.globals[i]
 			continue
 		}
 		out[name] = value.Undefined()
@@ -160,7 +201,7 @@ func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value)
 		m.fail(fmt.Sprintf("関数の呼び出し先がありません: %d", index), ir.SourcePos{})
 	}
 	m.depth++
-	if m.depth > MaxDepth {
+	if m.options.MaxFrames > 0 && m.depth > m.options.MaxFrames {
 		m.depth--
 		m.fail("関数の呼び出しが深すぎます。再帰が止まらなくなっていませんか。", ir.SourcePos{})
 	}
@@ -178,7 +219,15 @@ func (m *VM) callClosure(index int, captured []*value.Value, args []value.Value)
 			f.slots[cap.ToSlot] = captured[i]
 		}
 	}
-	// 引数は左から積まれた形で渡される。関数本体が順に取り出す。
-	f.stack = append(f.stack, args...)
+	// 引数はスタックではなくスロットへ直接入れる。関数本体は空のスタックで
+	// 始まるので、検証器が入口の深さを0と決められる。
+	for i, p := range fn.Params {
+		if i >= len(args) {
+			break
+		}
+		if p.Slot >= 0 && p.Slot < len(f.slots) {
+			*f.slots[p.Slot] = args[i]
+		}
+	}
 	return m.run(f)
 }

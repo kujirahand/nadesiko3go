@@ -238,7 +238,7 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	limit := c.slot(c.tempName("回上限"))
 	saved := c.slot(c.tempName("回数退避"))
 
-	c.emit(ir.OpLoadGlobal, c.constString(SysCount), 0, n)
+	c.emit(ir.OpLoadGlobal, c.globalSlot(SysCount), 0, n)
 	c.emit(ir.OpStoreLocal, saved, 0, n)
 
 	c.compileExpr(n.Block(0))
@@ -255,7 +255,7 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	// 『回数』と『それ』に現在の回数を入れる
 	c.emit(ir.OpLoadLocal, counter, 0, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysCount), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysCount), 0, n)
 	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 
 	loop := c.pushLoop()
@@ -273,7 +273,7 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 	// 抜けた後に退避しておいた値へ戻す。『抜ける』もここへ来る。
 	c.emit(ir.OpLoadLocal, saved, 0, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysCount), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysCount), 0, n)
 	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 }
 
@@ -365,9 +365,9 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	savedKey := c.slot(c.tempName("対象キー退避"))
 	savedSore := c.slot(c.tempName("それ退避"))
 
-	c.emit(ir.OpLoadGlobal, c.constString(SysTarget), 0, n)
+	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTarget), 0, n)
 	c.emit(ir.OpStoreLocal, savedTarget, 0, n)
-	c.emit(ir.OpLoadGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTargetKey), 0, n)
 	c.emit(ir.OpStoreLocal, savedKey, 0, n)
 	c.emit(ir.OpLoadLocal, SoreSlot, 0, n)
 	c.emit(ir.OpStoreLocal, savedSore, 0, n)
@@ -397,14 +397,14 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 	c.emit(ir.OpLoadLocal, keys, 0, n)
 	c.emit(ir.OpLoadLocal, index, 0, n)
 	c.emit(ir.OpIndexGet, 0, 1, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTargetKey), 0, n)
 
 	// 『対象』と『それ』(必要ならループ変数)に今回の値を入れる
 	c.emit(ir.OpLoadLocal, target, 0, n)
-	c.emit(ir.OpLoadGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpLoadGlobal, c.globalSlot(SysTargetKey), 0, n)
 	c.emit(ir.OpIndexGet, 0, 1, n)
 	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysTarget), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTarget), 0, n)
 	if n.Word != "" {
 		c.emit(ir.OpDup, 0, 0, n)
 		if c.fn.name != "main" || c.isLocal(n.Word) {
@@ -428,9 +428,9 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 
 	// 抜けた後に退避しておいた値へ戻す
 	c.emit(ir.OpLoadLocal, savedTarget, 0, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysTarget), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTarget), 0, n)
 	c.emit(ir.OpLoadLocal, savedKey, 0, n)
-	c.emit(ir.OpStoreGlobal, c.constString(SysTargetKey), 0, n)
+	c.emit(ir.OpStoreGlobal, c.globalSlot(SysTargetKey), 0, n)
 	c.emit(ir.OpLoadLocal, savedSore, 0, n)
 	c.emit(ir.OpStoreLocal, SoreSlot, 0, n)
 }

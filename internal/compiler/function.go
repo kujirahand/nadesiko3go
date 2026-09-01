@@ -83,10 +83,10 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 		if name == "" {
 			continue
 		}
-		p := ir.Param{Name: name}
-		params = append(params, p)
-		fn.slots[name] = fn.numVars
+		slot := fn.numVars
 		fn.numVars++
+		fn.slots[name] = slot
+		params = append(params, ir.Param{Name: name, Slot: slot})
 	}
 
 	c.fnStack = append(c.fnStack, c.fn)
@@ -96,10 +96,7 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 	// グローバルになってしまい、入れ子の関数から捕捉することもできない。
 	c.declareLocals(n.Block(0))
 
-	// 引数はスタックに左から積まれているので、右の引数から順に取り出す
-	for i := len(params) - 1; i >= 0; i-- {
-		c.emit(ir.OpStoreLocal, fn.slots[params[i].Name], 0, n)
-	}
+	// 引数は呼び出し側がスロットへ直接入れるので、本体は空のスタックで始まる
 	c.emit(ir.OpConst, c.constString(""), 0, n)
 	c.emit(ir.OpStoreLocal, SoreSlot, 0, n) // 『それ』の初期値は空文字列
 	c.compileStatement(n.Block(0))
@@ -114,6 +111,7 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 		Code:     fn.code,
 		Async:    n.AsyncFn,
 		Captures: fn.captures,
+		MaxStack: c.maxStack(index, fn.code),
 	}
 
 	c.fn = c.fnStack[len(c.fnStack)-1]
