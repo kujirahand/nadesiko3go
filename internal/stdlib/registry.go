@@ -40,6 +40,10 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("AND", [][]string{{"と"}, {"の"}})
 	addFunc("XOR", [][]string{{"と"}, {"の"}})
 	addFunc("真偽判定", [][]string{{"の", "を"}})
+	// 『??』と『A…B』は構文側から名前で引かれるので、署名が要る
+	addFunc("ハテナ関数実行", [][]string{{"の", "を", "と"}})
+	list["ハテナ関数実行"].ReturnNone = true
+	addFunc("範囲", [][]string{{"から"}, {"の", "までの"}})
 	addFunc("エラー発生", [][]string{{"の", "で"}})
 	list["エラー発生"].ReturnNone = true
 

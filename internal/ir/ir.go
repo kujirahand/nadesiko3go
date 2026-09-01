@@ -46,15 +46,6 @@ type Param struct {
 	Particles []string `json:"particles"`
 }
 
-type Op uint16
-
-const (
-	OpNop Op = iota
-	OpConst
-	OpCall
-	OpReturn
-)
-
 type Inst struct {
 	Op  Op  `json:"op"`
 	A   int `json:"a"`
