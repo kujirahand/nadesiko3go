@@ -1,4 +1,8 @@
 # Binaries for programs and plugins
+
+# なでしこ3
+nadesiko3/
+
 *.exe
 *.exe~
 *.dll
@@ -10,6 +14,7 @@ nadesiko3go
 
 pkg/
 bin/
+/out/
 
 # Test binary, built with `go test -c`
 *.test

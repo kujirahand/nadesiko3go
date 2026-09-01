@@ -1,27 +1,21 @@
-# param
-EXE=cnako3go
-PARSER_Y_GO=parser/y.go
-PARSER_TMP=parser/_parser_generated.y
+GO ?= go
+
+.PHONY: all build test sync-compat compat-run compat-check
 
 all: build
 
-build: $(PARSER_Y_GO)
-	go build -o cnako3go
+build:
+	$(GO) build -o bin/gonako ./cmd/gonako
 
-parser/y.go: $(PARSER_TMP)
-	goyacc -o parser/y.go parser/_parser_generated.y
-
-$(PARSER_TMP): token/token.go parser/parser.go.y
-	cnako3 parser/extract_token.nako3
-
-.PHONY: clean
-clean:
-	rm -f $(EXE)
-	rm -f $(PARSER_Y_GO)
-	rm -f $(PARSER_TMP)
-
-.PHONY: test
 test:
-	go test .
+	$(GO) test ./...
 
+sync-compat:
+	./scripts/sync-compat-fixtures.sh
+
+compat-run:
+	$(GO) run ./cmd/gonako compat run --cases ./testdata/compat/cases --out ./out
+
+compat-check:
+	cd nadesiko3 && npm run compat:check -- ../out
 
