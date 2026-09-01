@@ -114,6 +114,7 @@ CGOや別配布のSQLiteライブラリは不要です。
 ```bash
 go version          # go version go1.27.0 ... を確認
 make test           # テスト
+make doctest        # manualとtestdata/doctestのサンプルを実行
 make sync-compat    # 本家の差分fixtureをGo側へ同期
 make compat-run     # 全ケースを実行して out/ へ出力
 make compat-check   # 本家のoracleと照合して通過率を出す

@@ -22,7 +22,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako run <ファイル> [引数...]   なでしこのプログラムを実行する
   gonako -e <プログラム>            その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
-  gonako doctest [パス...]          マニュアルのサンプルを実行して確かめる
+  gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
 
 ファイル名に - を指定すると標準入力から読み込みます。
@@ -35,7 +35,7 @@ build のオプション:
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
-  パスを省略すると manual/plugin_system を対象にします。
+  パスを省略すると manual/plugin_system と testdata/doctest を対象にします。
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -151,12 +151,14 @@ func defaultOutputName(source, runtimePath string) string {
 	return name
 }
 
-// defaultDocTestTarget is where the manual lives when no path is given.
-const defaultDocTestTarget = "manual/plugin_system"
+// defaultDocTestTargets are the manual and repository-owned fixtures used when
+// no path is given. Keeping fixed tests outside manual makes them available in
+// environments where the nadesiko3doc symlink is absent.
+var defaultDocTestTargets = []string{"manual/plugin_system", "testdata/doctest"}
 
-// runDocTests runs the sample code in the manual and reports what did not
-// match. The whole manual is far larger than what is implemented so far, so
-// the failures are summarised by reason and only the first few are shown.
+// runDocTests runs sample code from the manual and fixed test data, then
+// reports what did not match. Failures are summarised by reason and only the
+// first few are shown.
 func runDocTests(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctest", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -166,12 +168,12 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	}
 	targets := flags.Args()
 	if len(targets) == 0 {
-		targets = []string{defaultDocTestTarget}
+		targets = existingDocTestTargets(defaultDocTestTargets)
 	}
 
 	tests, err := doctest.Collect(targets, doctest.CNako)
 	if err != nil {
-		return fmt.Errorf("マニュアルを読み込めません: %w", err)
+		return fmt.Errorf("DocTest対象を読み込めません: %w", err)
 	}
 	if len(tests) == 0 {
 		fmt.Fprintln(stdout, "[DocTest] 対象のサンプルコードがありません。")
@@ -227,6 +229,19 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
+}
+
+// existingDocTestTargets lets the optional manual symlink be absent while the
+// repository-owned fixtures continue to run. An explicitly supplied missing
+// path is still reported by doctest.Collect.
+func existingDocTestTargets(targets []string) []string {
+	existing := make([]string, 0, len(targets))
+	for _, target := range targets {
+		if _, err := os.Stat(target); err == nil || !os.IsNotExist(err) {
+			existing = append(existing, target)
+		}
+	}
+	return existing
 }
 
 func sortedCountKeys(counts map[string]int) []string {

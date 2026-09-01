@@ -1,5 +1,5 @@
-// Package doctest runs the sample code written in the manual and checks that
-// it prints what the manual says it prints.
+// Package doctest runs sample code from the manual and fixed test data, then
+// checks that it prints the documented result.
 //
 // The format is the one nadesiko3/doc/doctest.md defines: a 『{{{#nako3』 block
 // whose body contains a 『### 表示結果:』 line. A block without one is prose, not
@@ -29,7 +29,7 @@ const (
 	WNako Runtime = "wnako"
 )
 
-// Test is one sample block taken from the manual.
+// Test is one sample block taken from a DocTest text file.
 type Test struct {
 	File string
 	// Line is where 『{{{#nako3』 was, counting from 1.
@@ -48,7 +48,7 @@ var (
 	trailingSpace = regexp.MustCompile(`\s+$`)
 )
 
-// Extract pulls the sample blocks out of one manual page. A block with no
+// Extract pulls the sample blocks out of one DocTest file. A block with no
 // expected output is skipped.
 func Extract(text, file string) []Test {
 	lines := splitLines(text)

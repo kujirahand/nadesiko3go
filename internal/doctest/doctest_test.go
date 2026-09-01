@@ -1,6 +1,9 @@
 package doctest
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+)
 
 func TestExtractDisplayResult(t *testing.T) {
 	text := "説明\n{{{#nako3\n「A」と表示。\n### 表示結果: A\n### B\n「B」と表示。\n}}}\n"
@@ -65,5 +68,16 @@ func TestClassifyMissingCommand(t *testing.T) {
 	result := Run(test)
 	if result.OK || Classify(result) != FailMissingCommand {
 		t.Fatalf("Classify = %v, err=%v", Classify(result), result.Err)
+	}
+}
+
+func TestCollectCoreFixtures(t *testing.T) {
+	target := filepath.Join("..", "..", "testdata", "doctest", "core")
+	tests, err := Collect([]string{target}, CNako)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := len(tests), 573; got != want {
+		t.Fatalf("core DocTest = %d件, want %d件", got, want)
 	}
 }

@@ -30,8 +30,8 @@ clean:
 test:
 	$(GO) test ./...
 
-# マニュアルのサンプルコードを実行して、書かれている表示結果と一致するか確かめる。
-# 対象を絞るときは make doctest ARGS="manual/plugin_system/表示.txt"
+# マニュアルと固定サンプルを実行して、書かれている表示結果と一致するか確かめる。
+# 対象を絞るときは make doctest DOCTEST_ARGS="testdata/doctest/core/plugin_system.txt"
 DOCTEST_ARGS ?=
 doctest:
 	$(GO) run ./cmd/gonako doctest $(DOCTEST_ARGS)
@@ -44,4 +44,3 @@ compat-run:
 
 compat-check:
 	cd nadesiko3 && npm run compat:check -- ../out
-

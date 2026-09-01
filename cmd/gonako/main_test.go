@@ -75,6 +75,19 @@ func TestRunNeedsAFile(t *testing.T) {
 	}
 }
 
+func TestExistingDocTestTargetsSkipsMissingOptionalPaths(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "fixtures")
+	if err := os.Mkdir(existing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	got := existingDocTestTargets([]string{filepath.Join(dir, "manual"), existing})
+	if len(got) != 1 || got[0] != existing {
+		t.Fatalf("existingDocTestTargets = %v, want [%s]", got, existing)
+	}
+}
+
 // TestBuildAndRunBundle pins the whole packaging path from the command line:
 // build a program with resources, then run the result somewhere the resources
 // do not exist.
