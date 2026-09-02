@@ -34,6 +34,9 @@
         <div class="menu-dropdown-wrapper">
           <button id="btn-hamburger" class="btn-hamburger" title="メニュー">☰</button>
           <div id="hamburger-menu" class="hamburger-menu" style="display: none;">
+            <button id="menu-item-build-app" class="menu-item" title="開いているファイルをメインにして、そのフォルダ以下を1つの実行ファイルに梱包します">
+              <span class="menu-icon">📦</span> このフォルダを実行ファイルに変換
+            </button>
             <button id="menu-item-shortcuts" class="menu-item">
               <span class="menu-icon">⌨️</span> ショートカットキー一覧
             </button>
@@ -61,9 +64,15 @@
           <div class="search-box-wrapper">
             <input id="cmd-search" type="text" class="search-input" placeholder="命令を検索... (例: 表示, 文字, 配列)" />
             <span id="cmd-count" class="badge">0件</span>
+            <button id="cmd-search-clear" class="search-clear-btn" title="検索条件をクリア" hidden>×</button>
           </div>
           <div id="cmd-list" class="list-container cmd-list">
             <!-- JavaScriptで動的生成 -->
+          </div>
+          <div class="sort-bar">
+            <span class="sort-bar-label">表示順:</span>
+            <button id="cmd-sort-group" class="sort-btn active" data-sort="group">グループ順</button>
+            <button id="cmd-sort-name" class="sort-btn" data-sort="name">名前順</button>
           </div>
         </div>
 
@@ -243,6 +252,9 @@
     <div class="context-menu-item" id="menu-reveal-finder">📂 <span id="label-reveal-finder">Finderで表示</span></div>
   </div>
 
+  <!-- なでしこ3の文法定義と、それを使う色分け部品。app.js より先に読み込む -->
+  <script src="nako-syntax.js"></script>
+  <script src="editor-highlight.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

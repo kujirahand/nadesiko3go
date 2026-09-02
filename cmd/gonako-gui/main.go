@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -31,6 +32,24 @@ import (
 
 //go:embed ui/*
 var uiFS embed.FS
+
+// appVersion is what the editor reports and what a converted macOS app
+// records in its Info.plist.
+const appVersion = "3.6.0"
+
+// guiPlugins is the command set a GUI program can use. It goes both into the
+// default runtime registry (so that a bundled program compiles and runs with
+// the same commands) and into the editor's own registry.
+func guiPlugins() []stdlib.Plugin {
+	return []stdlib.Plugin{
+		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+	}
+}
+
+func init() {
+	vm.RegisterPlugin(sqlitelib.New(), officelib.New(), pdflib.New(), imagelib.New(), guilib.New())
+}
 
 // RunResult is the JSON structure returned to JavaScript after execution.
 type RunResult struct {
@@ -337,6 +356,11 @@ func revealInFinder(targetPath string) error {
 }
 
 func main() {
+	// 実行ファイルに変換されたアプリなら、エディタではなくそのアプリを動かす
+	if runBundledApp() {
+		return
+	}
+
 	flags := flag.NewFlagSet("gonako-gui", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Print(usage)
@@ -425,10 +449,7 @@ func main() {
 	w.SetTitle(*titleFlag)
 	w.SetSize(*widthFlag, *heightFlag, webview.HintNone)
 
-	guiRegistry := stdlib.NewRegistry(
-		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
-	)
+	guiRegistry := stdlib.NewRegistry(guiPlugins()...)
 
 	// Go ↔ JavaScript バインディング: なでしこコードの実行
 	_ = w.Bind("runNakoCode", func(code string) string {
@@ -451,7 +472,7 @@ func main() {
 	_ = w.Bind("getAppInfo", func() string {
 		home, _ := os.UserHomeDir()
 		info := AppInfo{
-			Version:    "3.6.0",
+			Version:    appVersion,
 			OS:         runtime.GOOS,
 			Arch:       runtime.GOARCH,
 			HomeDir:    home,
@@ -486,16 +507,22 @@ func main() {
 	_ = w.Bind("readFile", func(path string) string {
 		data, err := os.ReadFile(path)
 		res := struct {
-			OK      bool   `json:"ok"`
-			Content string `json:"content,omitempty"`
-			Path    string `json:"path"`
-			Error   string `json:"error,omitempty"`
+			OK       bool   `json:"ok"`
+			Content  string `json:"content,omitempty"`
+			IsBinary bool   `json:"isBinary,omitempty"`
+			Path     string `json:"path"`
+			Error    string `json:"error,omitempty"`
 		}{
 			Path: path,
 		}
 		if err != nil {
 			res.OK = false
 			res.Error = err.Error()
+		} else if !utf8.Valid(data) {
+			// PNGなどのバイナリファイル。文字コード範囲外のバイトを含むので、
+			// 中身は送らず「編集不可」の表示だけJS側に任せる。
+			res.OK = true
+			res.IsBinary = true
 		} else {
 			res.OK = true
 			res.Content = string(data)
@@ -558,6 +585,13 @@ func main() {
 		} else {
 			res.OK = true
 		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: フォルダを実行ファイルに変換
+	_ = w.Bind("buildAppFromFolder", func(folderPath, entryPath, outPath, title string) string {
+		res := buildAppFromFolder(folderPath, entryPath, outPath, title)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})

@@ -3,6 +3,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   const editor = document.getElementById('editor');
   const lineNumbers = document.getElementById('line-numbers');
+  // シンタックスハイライト部品 (editor-highlight.js)。
+  // 別のエディタ部品に差し替えるときは、ここで生成するオブジェクトを
+  // refresh() / setEnabled() / destroy() を持つ実装に置き換えればよい。
+  const highlighter = (window.GonakoHighlighter && window.GonakoHighlighter.create(editor)) || null;
   const output = document.getElementById('output');
   const windowPreview = document.getElementById('window-preview');
   const btnRun = document.getElementById('btn-run');
@@ -23,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hamburgerMenu = document.getElementById('hamburger-menu');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
+  const menuItemBuildApp = document.getElementById('menu-item-build-app');
   const modalOverlay = document.getElementById('modal-overlay');
   const modalClose = document.getElementById('modal-close');
   const modalTitle = document.getElementById('modal-title');
@@ -51,7 +56,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // 命令タブ要素
   const cmdSearch = document.getElementById('cmd-search');
   const cmdCount = document.getElementById('cmd-count');
+  const cmdSearchClear = document.getElementById('cmd-search-clear');
   const cmdList = document.getElementById('cmd-list');
+  const cmdSortGroupBtn = document.getElementById('cmd-sort-group');
+  const cmdSortNameBtn = document.getElementById('cmd-sort-name');
+  const collapsedCmdGroups = new Set();
+  let cmdSortMode = localStorage.getItem('gonako-cmd-sort-mode') || 'group';
 
   // ひな形タブ要素
   const templateSearch = document.getElementById('template-search');
@@ -82,6 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFileDisplayName = '新規プログラム.nako3';
   let currentTemplateBaseName = '';
   let savedContent = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
+  let isBinaryFile = false; // PNGなど文字コード範囲外のファイルを開いている間はtrue
+  let currentOS = ''; // getAppInfo() から受け取る 'darwin' / 'windows' / 'linux'
+  const defaultEditorPlaceholder = editor.getAttribute('placeholder') || '';
 
   // 初期プレースホルダー
   editor.value = savedContent;
@@ -358,13 +371,105 @@ document.addEventListener('DOMContentLoaded', () => {
 
   menuItemShortcuts.addEventListener('click', openShortcutsModal);
   menuItemAbout.addEventListener('click', openAboutModal);
+
+  // --- フォルダを実行ファイルに変換 ---
+  function pathDirName(p) {
+    const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+    return i > 0 ? p.slice(0, i) : p;
+  }
+
+  function pathBaseName(p) {
+    const i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+    return i >= 0 ? p.slice(i + 1) : p;
+  }
+
+  // 開いているファイルをメインにして、そのフォルダ以下を1つの実行ファイルに梱包する。
+  // .nako3 なら起動と同時にそのプログラムを実行し、.html ならWebViewで開くアプリになる。
+  async function buildAppFromCurrentFolder() {
+    closeHamburger();
+    if (typeof window.buildAppFromFolder !== 'function') {
+      await showAlertDialog('変換できません', 'この機能は gonako-gui 上でのみ使えます。');
+      return;
+    }
+    if (!currentFilePath || isBinaryFile) {
+      await showAlertDialog('変換できません',
+        'メインにするファイル (.nako3 または .html) を、ファイルタブから開いてください。');
+      return;
+    }
+
+    const ext = (/\.([^.\\/]+)$/.exec(currentFileDisplayName) || ['', ''])[1].toLowerCase();
+    const isProgram = ext === 'nako3' || ext === 'nako';
+    const isHTML = ext === 'html' || ext === 'htm';
+    if (!isProgram && !isHTML) {
+      await showAlertDialog('変換できません',
+        `『${currentFileDisplayName}』は変換できません。\nなでしこプログラム (.nako3) かHTMLファイル (.html) を開いてください。`);
+      return;
+    }
+
+    // ディスク上のファイルを梱包するので、編集中の内容は先に保存しておく
+    if (editor.value !== savedContent && !(await saveFile())) return;
+
+    const folder = pathDirName(currentFilePath);
+    const isWindows = currentOS === 'windows';
+    const sep = isWindows ? '\\' : '/';
+    // macOSは .app フォルダ、Windowsは .exe、それ以外は拡張子なしの実行ファイル
+    const outExt = isWindows ? '.exe' : (currentOS === 'darwin' ? '.app' : '');
+    // 出力先は1つ上のフォルダ。梱包するフォルダの中に置くと自分自身を巻き込む
+    const defaultOut = `${pathDirName(folder)}${sep}app${outExt}`;
+
+    const kindLabel = isProgram ? 'プログラムを実行するアプリ' : 'HTMLを表示するアプリ';
+    const outPath = await showPromptDialog('このフォルダを実行ファイルに変換',
+      `フォルダ『${folder}』以下をすべて梱包し、${kindLabel}を作ります。\n` +
+      `メインファイル: ${currentFileDisplayName}\n\n出力先のパス:`,
+      defaultOut);
+    if (!outPath) return;
+
+    const title = pathBaseName(outPath).replace(/\.(exe|app)$/i, '');
+    setStatus('実行ファイルに変換中...');
+    menuItemBuildApp.disabled = true;
+    try {
+      const res = await window.buildAppFromFolder(folder, currentFilePath, outPath, title);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok) {
+        setStatus(`変換完了: ${data.path}`);
+        await showAlertDialog('変換しました',
+          `${data.path}\nサイズ: ${formatBytes(data.size)}`);
+        if (typeof window.revealInFinder === 'function') {
+          window.revealInFinder(data.path);
+        }
+      } else {
+        setStatus(`変換エラー: ${data.error}`);
+        await showAlertDialog('変換エラー', data.error || '変換に失敗しました。');
+      }
+    } catch (err) {
+      console.error('変換エラー:', err);
+      await showAlertDialog('変換エラー', `${err.message || err}`);
+    } finally {
+      menuItemBuildApp.disabled = false;
+    }
+  }
+
+  menuItemBuildApp.addEventListener('click', buildAppFromCurrentFolder);
   modalClose.addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) closeModal();
   });
 
+  // バイナリファイル表示から抜けるとき（ひな形・新規ファイルの読み込み時）に呼ぶ
+  function clearBinaryState() {
+    if (!isBinaryFile) return;
+    isBinaryFile = false;
+    editor.readOnly = false;
+    editor.placeholder = defaultEditorPlaceholder;
+  }
+
   // --- 変更検知と保存確認 ---
   function updateFileTitleDisplay() {
+    if (isBinaryFile) {
+      activeFileName.textContent = `(編集不可) ${currentFileDisplayName}`;
+      activeFileName.classList.remove('dirty');
+      return;
+    }
     const isModified = editor.value !== savedContent;
     if (isModified) {
       activeFileName.textContent = `(変更あり) ${currentFileDisplayName}`;
@@ -376,7 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function confirmSaveIfDirty() {
-    if (editor.value === savedContent) {
+    // バイナリファイルは編集できないので、保存確認なしで切り替えてよい
+    if (isBinaryFile || editor.value === savedContent) {
       return true;
     }
     const action = await showSaveConfirmDialog(currentFileDisplayName);
@@ -406,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (allTemplates && allTemplates.length > 0) {
       renderTemplates(allTemplates);
       if (editor.value.includes('なでしこ3の基本') && allTemplates[0].code) {
+        clearBinaryState();
         editor.value = allTemplates[0].code;
         savedContent = allTemplates[0].code;
         currentFileDisplayName = allTemplates[0].title;
@@ -439,6 +546,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       item.addEventListener('click', async () => {
         if (!(await confirmSaveIfDirty())) return;
+        clearBinaryState();
         editor.value = t.code;
         savedContent = t.code;
         currentFilePath = '';
@@ -486,6 +594,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (allCommands && allCommands.length > 0) {
       renderCommands(allCommands);
+      // 命令名を色分けできるようにシンタックス定義へ登録し、エディタを塗り直す
+      if (window.NakoSyntax) {
+        window.NakoSyntax.setCommands(allCommands);
+        if (highlighter) highlighter.setEnabled(true);
+      }
     }
   }
 
@@ -521,62 +634,120 @@ document.addEventListener('DOMContentLoaded', () => {
     execStatus.className = 'status-indicator';
   }
 
+  function createCmdItem(cmd) {
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.draggable = true;
+    item.title = `クリック: 使い方を表示 / ダブルクリックまたはドラッグ: 構文を挿入 (${cmd.name})`;
+
+    let josiText = '';
+    if (cmd.josi && cmd.josi.length > 0) {
+      josiText = cmd.josi.map(group => group[0]).join(' / ');
+    }
+
+    item.innerHTML = `
+      <div class="item-left">
+        <span class="item-icon">⚡</span>
+        <span class="item-name">${escapeHtml(cmd.name)}</span>
+      </div>
+      ${josiText ? `<span class="cmd-item-josi">${escapeHtml(josiText)}</span>` : ''}
+    `;
+
+    item.addEventListener('click', () => {
+      document.querySelectorAll('#cmd-list .list-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      displayCommandHelp(cmd);
+      setStatus(`命令「${cmd.name}」の使い方を表示しました (ダブルクリックまたはDnDで挿入)`);
+    });
+
+    item.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      const template = cmd.template || cmd.name;
+      insertTextAtCursor(template);
+      displayCommandHelp(cmd);
+      setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
+    });
+
+    item.addEventListener('dragstart', (e) => {
+      const template = cmd.template || cmd.name;
+      e.dataTransfer.setData('text/plain', template);
+      e.dataTransfer.setData('application/json', JSON.stringify(cmd));
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+
+    return item;
+  }
+
+  function renderCommandsFlat(commands) {
+    const sorted = [...commands].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    sorted.forEach(cmd => cmdList.appendChild(createCmdItem(cmd)));
+  }
+
+  function renderCommandsGrouped(commands) {
+    const groups = new Map();
+    commands.forEach(cmd => {
+      const category = cmd.category || 'その他';
+      if (!groups.has(category)) groups.set(category, []);
+      groups.get(category).push(cmd);
+    });
+
+    const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ja'));
+
+    groupNames.forEach(groupName => {
+      const items = groups.get(groupName).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+      const collapsed = collapsedCmdGroups.has(groupName);
+
+      const groupEl = document.createElement('div');
+      groupEl.className = 'cmd-group' + (collapsed ? ' collapsed' : '');
+
+      const header = document.createElement('div');
+      header.className = 'cmd-group-header';
+      header.innerHTML = `
+        <span class="cmd-group-toggle">▾</span>
+        <span class="cmd-group-name">${escapeHtml(groupName)}</span>
+        <span class="cmd-group-count">${items.length}件</span>
+      `;
+      header.addEventListener('click', () => {
+        if (collapsedCmdGroups.has(groupName)) {
+          collapsedCmdGroups.delete(groupName);
+        } else {
+          collapsedCmdGroups.add(groupName);
+        }
+        groupEl.classList.toggle('collapsed');
+      });
+
+      const itemsEl = document.createElement('div');
+      itemsEl.className = 'cmd-group-items';
+      items.forEach(cmd => itemsEl.appendChild(createCmdItem(cmd)));
+
+      groupEl.appendChild(header);
+      groupEl.appendChild(itemsEl);
+      cmdList.appendChild(groupEl);
+    });
+  }
+
   function renderCommands(commands) {
     cmdList.innerHTML = '';
     cmdCount.textContent = `${commands.length}件`;
 
-    commands.forEach(cmd => {
-      const item = document.createElement('div');
-      item.className = 'list-item';
-      item.draggable = true;
-      item.title = `クリック: 使い方を表示 / ダブルクリックまたはドラッグ: 構文を挿入 (${cmd.name})`;
-
-      let josiText = '';
-      if (cmd.josi && cmd.josi.length > 0) {
-        josiText = cmd.josi.map(group => group[0]).join(' / ');
-      }
-
-      item.innerHTML = `
-        <div class="item-left">
-          <span class="item-icon">⚡</span>
-          <span class="item-name">${escapeHtml(cmd.name)}</span>
-        </div>
-        ${josiText ? `<span class="cmd-item-josi">${escapeHtml(josiText)}</span>` : ''}
-      `;
-
-      item.addEventListener('click', () => {
-        document.querySelectorAll('#cmd-list .list-item').forEach(el => el.classList.remove('selected'));
-        item.classList.add('selected');
-        displayCommandHelp(cmd);
-        setStatus(`命令「${cmd.name}」の使い方を表示しました (ダブルクリックまたはDnDで挿入)`);
-      });
-
-      item.addEventListener('dblclick', (e) => {
-        e.preventDefault();
-        const template = cmd.template || cmd.name;
-        insertTextAtCursor(template);
-        displayCommandHelp(cmd);
-        setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
-      });
-
-      item.addEventListener('dragstart', (e) => {
-        const template = cmd.template || cmd.name;
-        e.dataTransfer.setData('text/plain', template);
-        e.dataTransfer.setData('application/json', JSON.stringify(cmd));
-        e.dataTransfer.effectAllowed = 'copy';
-      });
-
-      cmdList.appendChild(item);
-    });
+    if (cmdSortMode === 'group') {
+      renderCommandsGrouped(commands);
+    } else {
+      renderCommandsFlat(commands);
+    }
   }
 
-  cmdSearch.addEventListener('input', () => {
+  function setCmdSortMode(mode) {
+    cmdSortMode = mode;
+    localStorage.setItem('gonako-cmd-sort-mode', mode);
+    cmdSortGroupBtn.classList.toggle('active', mode === 'group');
+    cmdSortNameBtn.classList.toggle('active', mode === 'name');
     const query = cmdSearch.value.trim().toLowerCase();
-    if (!query) {
-      renderCommands(allCommands);
-      return;
-    }
-    const filtered = allCommands.filter(c => {
+    renderCommands(query ? filterCommands(query) : allCommands);
+  }
+
+  function filterCommands(query) {
+    return allCommands.filter(c => {
       if (c.name.toLowerCase().includes(query)) return true;
       if (c.desc && c.desc.toLowerCase().includes(query)) return true;
       if (c.category && c.category.toLowerCase().includes(query)) return true;
@@ -584,7 +755,23 @@ document.addEventListener('DOMContentLoaded', () => {
       if (c.josi && c.josi.some(group => group.some(j => j.toLowerCase().includes(query)))) return true;
       return false;
     });
-    renderCommands(filtered);
+  }
+
+  cmdSortGroupBtn.addEventListener('click', () => setCmdSortMode('group'));
+  cmdSortNameBtn.addEventListener('click', () => setCmdSortMode('name'));
+  setCmdSortMode(cmdSortMode);
+
+  cmdSearch.addEventListener('input', () => {
+    const query = cmdSearch.value.trim().toLowerCase();
+    cmdSearchClear.hidden = !query;
+    renderCommands(query ? filterCommands(query) : allCommands);
+  });
+
+  cmdSearchClear.addEventListener('click', () => {
+    cmdSearch.value = '';
+    cmdSearchClear.hidden = true;
+    renderCommands(allCommands);
+    cmdSearch.focus();
   });
 
   // --- エディタへのドラッグ＆ドロップ対応 ---
@@ -768,8 +955,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await window.readFile(filePath);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        editor.value = data.content;
-        savedContent = data.content;
+        isBinaryFile = !!data.isBinary;
+        editor.value = isBinaryFile ? '' : data.content;
+        editor.readOnly = isBinaryFile;
+        editor.placeholder = isBinaryFile
+          ? 'このファイルはバイナリ形式のため、エディタでは表示・編集できません。'
+          : defaultEditorPlaceholder;
+        savedContent = editor.value;
         currentFilePath = filePath;
         currentFileDisplayName = fileName;
         currentTemplateBaseName = '';
@@ -778,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
-        setStatus(`開きました: ${fileName}`);
+        setStatus(isBinaryFile ? `編集不可(バイナリ): ${fileName}` : `開きました: ${fileName}`);
       } else {
         await showAlertDialog('エラー', `ファイルを開けませんでした: ${data.error}`);
         setStatus(`エラー: ${data.error}`);
@@ -789,6 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function saveFile() {
+    if (isBinaryFile) return false;
     let targetPath = currentFilePath;
     if (!targetPath) {
       let defaultName = 'program.nako3';
@@ -837,6 +1030,8 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSave.addEventListener('click', saveFile);
 
   // --- エディタ操作 ---
+  // エディタの表示（行番号と色分け）を更新する。
+  // editor.value を書き換えたところは必ずここを通す。
   function updateLineNumbers() {
     const lines = editor.value.split('\n').length;
     let numbers = '';
@@ -844,6 +1039,7 @@ document.addEventListener('DOMContentLoaded', () => {
       numbers += i + '\n';
     }
     lineNumbers.textContent = numbers;
+    if (highlighter) highlighter.refresh();
   }
 
   function updateCharCount() {
@@ -1202,6 +1398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.getAppInfo().then(infoStr => {
       try {
         const info = JSON.parse(infoStr);
+        currentOS = info.os || '';
         versionInfo.textContent = `gonako-gui v${info.version || '3.6.0'} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
         desktopDirPath = info.desktopDir || homeDirPath;

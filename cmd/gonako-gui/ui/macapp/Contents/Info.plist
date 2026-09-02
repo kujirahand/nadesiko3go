@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOSアプリ(.app)のひな形。
+  「このフォルダを実行ファイルに変換」で二重波かっこの項目を差し替えて書き出す。
+  差し替えるのは Executable / Identifier / Name / Version / Icon の5つ。
+  ここを直したら gonako-gui の再ビルドが必要 (embed.FSに入るため)。
+  注意: このコメントに二重波かっこを書くと、テンプレートとして解釈されてしまう。
+-->
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>ja</string>
+	<key>CFBundleExecutable</key>
+	<string>{{.Executable}}</string>
+	<key>CFBundleIconFile</key>
+	<string>{{.Icon}}</string>
+	<key>CFBundleIdentifier</key>
+	<string>{{.Identifier}}</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>{{.Name}}</string>
+	<key>CFBundleDisplayName</key>
+	<string>{{.Name}}</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>{{.Version}}</string>
+	<key>CFBundleVersion</key>
+	<string>{{.Version}}</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>10.13</string>
+	<!-- Retinaで滲まないようにする -->
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+</dict>
+</plist>

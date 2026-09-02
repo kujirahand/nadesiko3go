@@ -173,7 +173,8 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  width: 200px;
+  /* 「このフォルダを実行ファイルに変換」が1行に収まる幅 */
+  width: 270px;
   display: flex;
   flex-direction: column;
   padding: 4px 0;
@@ -314,6 +315,25 @@ body {
   border-color: var(--accent-pink);
 }
 
+.search-clear-btn {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.search-clear-btn:hover {
+  background-color: var(--accent-pink);
+  color: #fff;
+}
+
 /* ファイルナビゲーションバー */
 .file-nav-bar {
   display: flex;
@@ -418,6 +438,103 @@ body {
   background: rgba(249, 226, 175, 0.12);
   padding: 1px 5px;
   border-radius: 3px;
+}
+
+/* 表示順（グループ順/名前順）切り替えバー */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid var(--border-color);
+  flex: none;
+}
+
+.sort-bar-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.sort-btn {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sort-btn:hover {
+  color: var(--text-main);
+}
+
+.sort-btn.active {
+  color: #fff;
+  background-color: var(--accent-pink);
+  border-color: var(--accent-pink);
+}
+
+/* 命令一覧のグループ（ツリー）表示 */
+.cmd-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.cmd-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  background-color: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.cmd-group-header:hover {
+  background-color: var(--bg-hover);
+}
+
+.cmd-group-toggle {
+  display: inline-block;
+  width: 10px;
+  font-size: 10px;
+  transition: transform 0.1s;
+}
+
+.cmd-group.collapsed .cmd-group-toggle {
+  transform: rotate(-90deg);
+}
+
+.cmd-group-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmd-group-count {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.cmd-group-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.cmd-group.collapsed .cmd-group-items {
+  display: none;
+}
+
+.cmd-group .list-item {
+  padding-left: 26px;
 }
 
 .file-item-ext {
@@ -584,6 +701,80 @@ body {
   border-color: var(--accent-pink);
   background-color: rgba(243, 139, 168, 0.05);
 }
+
+.editor[readonly] {
+  cursor: not-allowed;
+  color: var(--text-muted);
+}
+
+/* .editor 本体は色分けレイヤーの下に隠すため文字色を透明にしているので、
+   プレースホルダーだけは明示的に色を指定しないと見えなくなる */
+.editor::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+  -webkit-text-fill-color: var(--text-muted);
+}
+
+/* --- シンタックスハイライト (editor-highlight.js が生成する重ね合わせ) --- */
+.editor-host {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-host > .editor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* 文字は背面の .editor-highlight が描くので、こちらは透明にする。
+     キャレットと選択範囲は textarea 側が描き続ける。 */
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--text-main);
+}
+
+.editor-highlight {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  /* .editor と同じ枠取り (border 2px + padding 12px) にしないと文字がずれる */
+  padding: 12px;
+  border: 2px solid transparent;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  tab-size: 4;
+  white-space: pre;
+  overflow: hidden;
+  color: var(--text-main);
+  pointer-events: none;
+}
+
+/* IME変換中と、色分けを止めているとき (巨大ファイル等) は素の textarea を見せる */
+.editor-host.is-composing > .editor,
+.editor-host.is-plain > .editor {
+  color: var(--text-main);
+  -webkit-text-fill-color: var(--text-main);
+}
+
+.editor-host.is-composing > .editor-highlight,
+.editor-host.is-plain > .editor-highlight {
+  visibility: hidden;
+}
+
+/* トークンの配色 */
+.tk-comment { color: #6c7086; font-style: italic; }
+.tk-string { color: var(--accent-green); }
+.tk-embed { color: var(--accent-teal); }
+.tk-number { color: var(--accent-yellow); }
+.tk-keyword { color: var(--accent-pink); font-weight: 600; }
+.tk-josi { color: #7f849c; }
+.tk-func { color: var(--accent-blue); }
+.tk-const { color: var(--accent-mauve); }
+.tk-word { color: var(--text-main); }
+.tk-operator { color: var(--accent-teal); }
+.tk-deffunc { color: var(--accent-mauve); font-weight: 600; }
 
 /* 実行結果 (コンソール / ウィンドウプレビュー) 領域 */
 .pane-output {

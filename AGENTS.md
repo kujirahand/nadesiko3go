@@ -429,8 +429,9 @@ gonako build かんたんゲーム.nako3 --resource ./images --out かんたん�
 
 ## 11. GUI版（webview_go）
 
-日本語入力（IME）が死活問題なので、OSネイティブのWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用しています。
-`internal/host` や `internal/vm` をCUI版と共有し、バイナリ埋め込み（`//go:embed`）のWebエディタUIからなでしこプログラムを実行できます。
+- 日本語入力（IME）が死活問題なので、OSネイティブのWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用しています。
+- `internal/host` や `internal/vm` をCUI版と共有し、バイナリ埋め込み（`//go:embed`）のWebエディタUIからなでしこプログラムを実行できます。
+- 開発エディタは、`cmd/gonako-gui/ui/*`にあるリソースから起動します。実体はgo build時点でコンパイル済みバイナリの中にコピーされ、実行時はembed.FS（メモリ上の仮想FS）から読み出されます。そのため、エディタを変更したら、再ビルドが必要です。
 
 ---
 

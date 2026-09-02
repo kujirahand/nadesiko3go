@@ -35,8 +35,29 @@ const footerSize = len(magic) + 8
 // programEntry is where the compiled program lives inside the payload.
 const programEntry = "program.ir.json"
 
+// manifestEntry says what kind of application the payload is. A payload
+// written before manifests existed has none, and is a compiled program.
+const manifestEntry = "manifest.json"
+
 // resourcePrefix is the folder resources are stored under.
 const resourcePrefix = "resources/"
+
+// The kinds of application a bundle can carry.
+const (
+	// KindProgram runs a compiled なでしこ program on startup.
+	KindProgram = "nako3"
+	// KindHTML opens a bundled HTML file in a WebView window.
+	KindHTML = "html"
+)
+
+// manifest is the payload's description of itself.
+type manifest struct {
+	Kind string `json:"kind"`
+	// Entry is the start page inside the resources, for KindHTML.
+	Entry string `json:"entry,omitempty"`
+	// Title is the window title the runtime should use.
+	Title string `json:"title,omitempty"`
+}
 
 // ErrNoBundle reports a file with nothing appended to it. It is the ordinary
 // case for the plain runtime, not a failure.
@@ -47,6 +68,12 @@ type Bundle struct {
 	Program *ir.Program
 	// Name is the source file the program was built from, for error messages.
 	Name string
+	// Kind is KindProgram or KindHTML.
+	Kind string
+	// Entry is the start page inside the resources, for KindHTML.
+	Entry string
+	// Title is the window title the runtime should use, if it opens one.
+	Title string
 
 	reader *zip.Reader
 	file   *os.File
@@ -78,6 +105,15 @@ func (b *Bundle) ReadResource(name string) ([]byte, bool) {
 	return data, true
 }
 
+// ResourceFS exposes the bundled resources as a file system, so that a
+// runtime can serve them to a WebView with http.FileServer.
+func (b *Bundle) ResourceFS() (fs.FS, error) {
+	if b == nil || b.reader == nil {
+		return nil, errors.New("バンドルが開かれていません")
+	}
+	return fs.Sub(b.reader, strings.TrimSuffix(resourcePrefix, "/"))
+}
+
 // Resources lists the bundled resource paths, for `gonako build --list`.
 func (b *Bundle) Resources() []string {
 	if b == nil || b.reader == nil {
@@ -92,13 +128,61 @@ func (b *Bundle) Resources() []string {
 	return names
 }
 
-// Build writes a bundled executable: the runtime, then the payload, then the
-// footer.
+// Spec describes the application to pack.
+type Spec struct {
+	// Kind is KindProgram or KindHTML. Empty means KindProgram.
+	Kind string
+	// Program is the compiled program, required for KindProgram.
+	Program *ir.Program
+	// Name is the source file the program was built from, for error messages.
+	Name string
+	// Entry is the start page inside the resources, required for KindHTML.
+	Entry string
+	// Title is the window title the runtime should use, if it opens one.
+	Title string
+	// ResourceDir is the folder to pack, or "" for none.
+	ResourceDir string
+	// Flat stores the resources without the folder's own name in front, so
+	// that a folder packed whole keeps the paths its files had inside it.
+	Flat bool
+	// Skip names files that must not be packed, by absolute path. The
+	// executable being written into the folder it packs is the usual case.
+	Skip map[string]bool
+}
+
+// Build writes a bundled executable carrying a compiled program.
 //
 // runtimePath names the runtime to build on. Passing one built for another
 // platform is how cross-platform packaging works — appending bytes needs no Go
 // toolchain on the machine doing it.
 func Build(outPath, runtimePath string, prog *ir.Program, name, resourceDir string) error {
+	return BuildSpec(outPath, runtimePath, Spec{
+		Kind:        KindProgram,
+		Program:     prog,
+		Name:        name,
+		ResourceDir: resourceDir,
+	})
+}
+
+// BuildSpec writes a bundled executable: the runtime, then the payload, then
+// the footer.
+func BuildSpec(outPath, runtimePath string, spec Spec) error {
+	if spec.Kind == "" {
+		spec.Kind = KindProgram
+	}
+	switch spec.Kind {
+	case KindProgram:
+		if spec.Program == nil {
+			return errors.New("同梱するプログラムがありません")
+		}
+	case KindHTML:
+		if spec.Entry == "" {
+			return errors.New("開始ページが指定されていません")
+		}
+	default:
+		return fmt.Errorf("知らない種類のアプリです: %s", spec.Kind)
+	}
+
 	runtime, err := readRuntime(runtimePath)
 	if err != nil {
 		return err
@@ -114,7 +198,7 @@ func Build(outPath, runtimePath string, prog *ir.Program, name, resourceDir stri
 		return fmt.Errorf("ランタイムを書き出せません: %w", err)
 	}
 
-	payload, err := buildPayload(prog, name, resourceDir)
+	payload, err := buildPayload(spec)
 	if err != nil {
 		return err
 	}
@@ -160,25 +244,28 @@ func payloadSize(data []byte) (uint64, bool) {
 	return size, true
 }
 
-// buildPayload zips the program together with the resource folder.
-func buildPayload(prog *ir.Program, name, resourceDir string) ([]byte, error) {
+// buildPayload zips the manifest and the program together with the resource
+// folder.
+func buildPayload(spec Spec) ([]byte, error) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 
-	encoded, err := json.Marshal(bundledProgram{Name: name, Program: prog})
-	if err != nil {
-		return nil, fmt.Errorf("IRを書き出せません: %w", err)
-	}
-	w, err := zw.Create(programEntry)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := w.Write(encoded); err != nil {
-		return nil, err
+	if err := addJSON(zw, manifestEntry, manifest{
+		Kind:  spec.Kind,
+		Entry: spec.Entry,
+		Title: spec.Title,
+	}); err != nil {
+		return nil, fmt.Errorf("マニフェストを書き出せません: %w", err)
 	}
 
-	if resourceDir != "" {
-		if err := addResources(zw, resourceDir); err != nil {
+	if spec.Program != nil {
+		if err := addJSON(zw, programEntry, bundledProgram{Name: spec.Name, Program: spec.Program}); err != nil {
+			return nil, fmt.Errorf("IRを書き出せません: %w", err)
+		}
+	}
+
+	if spec.ResourceDir != "" {
+		if err := addResources(zw, spec.ResourceDir, spec.Flat, spec.Skip); err != nil {
 			return nil, err
 		}
 	}
@@ -188,17 +275,36 @@ func buildPayload(prog *ir.Program, name, resourceDir string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// addJSON writes one JSON entry into the payload.
+func addJSON(zw *zip.Writer, name string, v any) error {
+	encoded, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	w, err := zw.Create(name)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(encoded)
+	return err
+}
+
 // addResources copies a folder into the payload, keeping the folder name the
 // build was given.
 //
 // A program that read 『images/a.png』 during development asks for the same
-// path once packed, so the prefix has to survive (AGENTS.md §10).
-func addResources(zw *zip.Writer, dir string) error {
+// path once packed, so the prefix has to survive (AGENTS.md §10). Packing a
+// whole folder as an application is the exception: there the program already
+// runs from inside the folder, so flat is what keeps its paths working.
+func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) error {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return err
 	}
-	prefix := resourcePrefixFor(dir, root)
+	prefix := ""
+	if !flat {
+		prefix = resourcePrefixFor(dir, root)
+	}
 	info, err := os.Stat(root)
 	if err != nil {
 		return fmt.Errorf("リソース『%s』を読み込めません: %w", dir, err)
@@ -211,7 +317,18 @@ func addResources(zw *zip.Writer, dir string) error {
 		if err != nil {
 			return err
 		}
+		// 「.git」のような隠しフォルダは、丸ごと梱包すると邪魔なので飛ばす
+		if name := fi.Name(); strings.HasPrefix(name, ".") && p != root {
+			if fi.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if fi.IsDir() {
+			return nil
+		}
+		// 出力先の実行ファイル自身を巻き込まない
+		if skip[p] {
 			return nil
 		}
 		rel, err := filepath.Rel(root, p)
@@ -299,12 +416,33 @@ func Open(execPath string) (*Bundle, error) {
 		return nil, fmt.Errorf("バンドルを読めません: %w", err)
 	}
 
-	prog, name, err := readProgram(reader)
-	if err != nil {
-		f.Close()
-		return nil, err
+	// マニフェストのないバンドルは、マニフェストができる前に作られた
+	// プログラム同梱の実行ファイル。
+	mf := manifest{Kind: KindProgram}
+	if entry, err := reader.Open(manifestEntry); err == nil {
+		data, readErr := io.ReadAll(entry)
+		entry.Close()
+		if readErr != nil {
+			f.Close()
+			return nil, readErr
+		}
+		if err := json.Unmarshal(data, &mf); err != nil {
+			f.Close()
+			return nil, fmt.Errorf("バンドルのマニフェストを読めません: %w", err)
+		}
 	}
-	return &Bundle{Program: prog, Name: name, reader: reader, file: f}, nil
+
+	packed := &Bundle{Kind: mf.Kind, Entry: mf.Entry, Title: mf.Title, reader: reader, file: f}
+	if mf.Kind == KindProgram {
+		prog, name, err := readProgram(reader)
+		if err != nil {
+			f.Close()
+			return nil, err
+		}
+		packed.Program = prog
+		packed.Name = name
+	}
+	return packed, nil
 }
 
 func readProgram(reader *zip.Reader) (*ir.Program, string, error) {
