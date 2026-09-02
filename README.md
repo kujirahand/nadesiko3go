@@ -14,12 +14,12 @@ TypeScript版の生成コードに依存しているケースです
 
 **macOS / Linux (ターミナル):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.sh | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.ps1 | iex
 ```
 
 

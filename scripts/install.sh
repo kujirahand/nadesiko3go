@@ -3,7 +3,7 @@ set -euo pipefail
 
 # nadesiko3go (gonako) インストーラー (macOS / Linux 用)
 # 使い方:
-#   curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.sh | bash
 
 REPO="kujirahand/nadesiko3go"
 DEFAULT_VERSION="3.8.1"
