@@ -67,7 +67,7 @@ nadesiko3go/
 ├── go.mod
 ├── cmd/
 │   ├── gonako/            CUI本体。実行・ビルド・fixture実行のサブコマンド
-│   └── gonako-gui/        GUI版（Wails）。段階8
+│   └── gonako-gui/        GUI版（webview_go）。段階8
 ├── internal/
 │   ├── prepare/           前処理（全角記号の正規化など。nako_prepare 相当）
 │   ├── lexer/             字句解析（nako_lexer 相当）
@@ -422,8 +422,39 @@ gonako build かんたんゲーム.nako3 --resource ./images --out かんたん�
 クロスコンパイルは `GOOS` / `GOARCH` を指定してランタイム本体を用意しておき、
 それにペイロードを追記するだけなので、**ビルド機にGoツールチェインが要りません**。
 
-> 注意: macOSの署名済みバイナリは末尾追記で署名が壊れます。
-> 配布時は追記後に `codesign` し直す手順を用意します。
+### ペイロードの中身
+
+ペイロードのzipには `manifest.json` を入れ、**アプリの種類**を持たせます。
+
+| 種類 | 起動時の動作 | 中身 |
+|---|---|---|
+| `nako3` | 同梱したプログラムを実行する | `program.ir.json` + `resources/` |
+| `html` | 同梱した開始ページをWebViewで開く | `resources/`（`entry` が開始ページ） |
+
+マニフェストのない古いバンドルは `nako3` として読みます（後方互換）。
+
+リソースの入れ方は2通りあります。`gonako build --resource ./images` は
+**フォルダ名を残して** `resources/images/…` に入れるので、開発中に
+`「images/a.png」を開く` と書いたコードがそのまま動きます。GUI版の
+「フォルダを実行ファイルに変換」（→ 11節）は逆に**フォルダの中身を平らに**
+入れるので、`「data/x.csv」を開く` がそのまま動きます。どちらも
+「開発時に書いたパスがそのまま通る」という一点に揃えてあります。
+
+### 署名まわり（実機で確認した結果）
+
+**追記しても署名は壊れません。むしろ `codesign` し直すと壊れます。**
+
+macOSのad-hoc署名が守る範囲は CodeDirectory の `codeLimit` までで、
+その後ろに足したバイトは対象外です。Apple Silicon機で、追記しただけの
+バイナリがそのまま起動することを確認しています。
+
+一方、追記済みのファイルを `codesign --force --sign -` にかけると、
+Mach-Oの末尾に余分なデータがある状態なので
+`main executable failed strict validation` で拒否され、書き換えられた
+実行ファイルは起動時に SIGKILL されます（exit 137）。
+
+したがって**署名には触らない**のが正解です。Windowsも同様に、PEローダは
+末尾の余分なデータを見ません。
 
 ---
 
@@ -432,6 +463,52 @@ gonako build かんたんゲーム.nako3 --resource ./images --out かんたん�
 - 日本語入力（IME）が死活問題なので、OSネイティブのWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用しています。
 - `internal/host` や `internal/vm` をCUI版と共有し、バイナリ埋め込み（`//go:embed`）のWebエディタUIからなでしこプログラムを実行できます。
 - 開発エディタは、`cmd/gonako-gui/ui/*`にあるリソースから起動します。実体はgo build時点でコンパイル済みバイナリの中にコピーされ、実行時はembed.FS（メモリ上の仮想FS）から読み出されます。そのため、エディタを変更したら、再ビルドが必要です。
+
+### エディタの色分け
+
+`textarea` の背面に色分けした `pre` を重ねる方式で、外部ライブラリは足していません。
+差し替えられるよう2つに分けてあります。
+
+- `ui/nako-syntax.js` --- 言語定義。`internal/lexer` の予約語・助詞・字句規則を
+  表示用に移植したもので、DOMには触りません。命令名の色分けには
+  `command-list.json` を注入します
+- `ui/editor-highlight.js` --- 表示部品。`create()` が返す
+  `refresh` / `setEnabled` / `destroy` の3つだけを `app.js` が使うので、
+  CodeMirror等に置き換えても `app.js` は変えずに済みます
+
+IME変換中は未確定文字が `textarea` にしか無いため、色分けを止めて
+`textarea` の文字を見せます（`compositionstart` / `compositionend`）。
+
+### フォルダを実行ファイルに変換
+
+ハンバーガーメニューの「このフォルダを実行ファイルに変換」で、開いている
+ファイルをメインにして、そのフォルダ以下を1つのアプリに梱包します（→ 10節）。
+拡張子で種類が決まり、`.nako3` なら起動と同時にそのプログラムを実行、
+`.html` ならそのページをWebViewで開くアプリになります。
+
+ランタイムには **gonako-gui 自身のコピー**（`os.Executable()`）を使うので、
+**作る側にも受け取る側にもGoツールチェインが要りません**。
+
+OSごとの後始末が要ります。
+
+| OS | 出力 | 追加でやること |
+|---|---|---|
+| macOS | `app.app` | `ui/macapp/` のひな形から `.app` を組み立てる。`Info.plist` に名前を埋め、アイコンを入れる。署名には触らない（→ 10節） |
+| Windows | `app.exe` | PEのサブシステムを CUI→GUI に書き換え、コンソール窓が出ないようにする |
+| その他 | `app` | なし |
+
+アイコンの持たせ方がOSで違います。macOSは `.app` の中に `AppIcon.icns` を
+置くので**アプリごとに差し替えられ**、フォルダに `icon.icns` があれば
+それを使います。Windowsはアイコンが実行ファイルのリソース領域に入るため、
+`.syso` を **gonako-gui 自身に**持たせています。変換後のexeはそのコピーなので
+アイコンを引き継ぎますが、**アプリごとの差し替えはできません**（PEの
+リソース書き換えが要る。必要になったら `tc-hib/winres` などを検討）。
+
+アイコンの作り直し方は `scripts/make-app-icon.go` の冒頭に書いてあります。
+
+> Windows向けのビルドは cgo（WebView2）が要るためmacOSからクロスコンパイル
+> できません。上のPE書き換えとアイコンは、PEの構造としては検証済みですが、
+> **Windows実機での動作確認は未了**です。
 
 ---
 
@@ -469,7 +546,7 @@ JS生成と違い、**標準命令の実装を二重に持つ必要がありま�
 | 5 | `event` と非同期命令 | `10` グループが通過。**全グループ通過（非対応3件・意図的差異2件を除く）** |
 | 6 | `nodelib`。CUI版の完成 | 実用スクリプトが動く。単一バイナリを配布できる |
 | 7 | `bundle`。プログラムとリソースの単一ファイル梱包 | `gonako build` の成果物が別マシンで動く |
-| 8 | GUI版（Wails） | IMEで日本語入力ができる |
+| 8 | GUI版（webview_go） | IMEで日本語入力ができる |
 | 9 | オフィス処理・PDF作成・画像生成 | 各機能のテストが通る |
 | 10 | `gogen`。Goコード生成バックエンド | 3系統の差分fixtureが一致する |
 
