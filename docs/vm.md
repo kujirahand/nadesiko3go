@@ -86,14 +86,13 @@ type VM struct {
     program  *ir.Program
     registry *stdlib.Registry
     host     host.Host
-    loop     event.Driver
+    loop     *event.Loop
 
-    stack   []value.Value
-    frames  []Frame
-    globals []*value.Cell
+    globals  []*value.Cell
+    specials [ir.SpecialCount]value.Value
 
-    callbacks map[host.CallbackID]*Callback
-    nextCallbackID host.CallbackID
+    callbacks map[host.CallbackID]queuedCallback
+    // ...
 }
 ```
 
@@ -123,25 +122,16 @@ VM境界までであり、IR、bundle、Host APIには出さない。
 実装を単純にするため、最初は全ローカル変数を `[]*value.Cell` で持つ。
 捕捉されないローカルだけ値配列にする最適化は、互換fixtureが通った後に検討する。
 
-### 3.3 呼び出しフレーム
+### 3.3 呼び出しフレームと特殊変数
 
 ```go
 type Frame struct {
-    FuncIndex int
-    IP        int
-    StackBase int
-    Locals    []*value.Cell
-    Captures  []*value.Cell
-    Special   SpecialVars
-    Handlers  []Handler
-}
-
-type SpecialVars struct {
-    Sore         value.Value // それ
-    Target       value.Value // 対象
-    TargetKey    value.Value // 対象キー
-    Count        value.Value // 回数
-    ErrorMessage value.Value // エラーメッセージ
+    Func     *ir.Func
+    Locals   []*value.Cell
+    Captures []*value.Cell
+    Stack    []value.Value
+    Specials [ir.SpecialCount]value.Value // それ、対象、対象キー、回数、エラーメッセージ等
+    Handlers []Handler
 }
 ```
 
@@ -150,8 +140,10 @@ type SpecialVars struct {
 - 定数セルは `InitLocal` / `InitGlobal` で一度だけ初期化でき、その後の書き込みを拒否する。
 - 関数の明示的な戻り値がなければ、そのフレームの `それ` を返す。
 - 呼び出し結果は呼び出し元の `それ` にも設定する。
-- `対象`、`対象キー`、`回数` はフレーム内の動的な特殊値とする。入れ子ループでの
-  保存と復元は、コンパイラがローカルスロットへ退避するIRを生成して行う。
+- **特殊変数はフレーム（ローカル変数）単位で保持**:
+  - `それ`、`対象`、`対象キー`、`回数`、`エラーメッセージ` は、TypeScript版の `__setSysVar`（グローバル共有）の挙動とは異なり、呼び出しフレームごとに独立したローカル変数として管理される。
+  - 子フレームは呼び出し元の特殊変数を値コピーして開始する。ただし `それ` は空文字列で初期化し、タイマーコールバックの `対象` は実行中のタイマーIDで上書きする。
+  - これにより、ループ処理内から呼び出された別関数が `対象` や `回数` を変更しても、呼び出し元の特殊変数は保護される。入れ子ループでの一時的な保存・復元は、コンパイラがローカルスロットへ退避・復元するIRを生成して行う。
 
 ## 4. オペランドスタックの規約
 

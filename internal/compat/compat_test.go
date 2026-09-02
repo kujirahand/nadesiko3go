@@ -93,12 +93,7 @@ var passingGroups = []string{
 }
 
 // knownFailures are cases that cannot pass as the fixture stands.
-var knownFailures = map[string]string{
-	// 期待値がTS版の生成したJavaScriptのソースそのもの。『(3をF)』はFを
-	// 呼び出さずFの値を表示するだけなので、他の実装では再現できない。
-	// 本家へ報告済み (kujirahand/nadesiko3#2456)。
-	"無名関数-変数に代入": "期待値がTS版の生成コードに依存している",
-}
+var knownFailures = map[string]string{}
 
 // TestFixtureGroupsPass runs the synced fixtures and compares them with the
 // expected values the TypeScript version generated. It encodes the completion

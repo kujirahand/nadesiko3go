@@ -45,7 +45,7 @@ func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target
 		f.handlers = f.handlers[:len(f.handlers)-1]
 		f.stack = f.stack[:h.stackDepth]
 		// 『エラーメッセージ』で捕まえた内容を読めるようにする
-		m.storeGlobalByName("エラーメッセージ", value.String(np.err.Msg))
+		f.specials[ir.SpecialErrorMessage] = value.String(np.err.Msg)
 		result, handled, target = value.Undefined(), true, h.target
 	}()
 	return m.execute(f, pc), false, 0
@@ -250,14 +250,14 @@ func (m *VM) initCell(cell *value.Cell, v value.Value, pos int) {
 	}
 }
 
-// loadSpecial reads a system value. 『それ』 comes from the running frame; the
-// rest are shared by the program.
+// loadSpecial reads a system value. Frame specials come from the running frame;
+// the rest are shared by the program.
 func (m *VM) loadSpecial(f *frame, id ir.Special) value.Value {
 	if !id.Valid() {
 		return value.Undefined()
 	}
 	if id.IsFrameSpecial() {
-		return f.sore
+		return f.specials[id]
 	}
 	return m.specials[id]
 }
@@ -267,7 +267,7 @@ func (m *VM) storeSpecial(f *frame, id ir.Special, v value.Value) {
 		return
 	}
 	if id.IsFrameSpecial() {
-		f.sore = v
+		f.specials[id] = v
 		return
 	}
 	m.specials[id] = v
@@ -277,7 +277,13 @@ func (m *VM) storeSpecial(f *frame, id ir.Special, v value.Value) {
 // the slot the IR uses. A system value is found by name too, because that is
 // how the commands refer to 『対象』 and 『抽出文字列』.
 func (m *VM) loadGlobalByName(name string) value.Value {
-	if id, ok := ir.SpecialByName(name); ok && !id.IsFrameSpecial() {
+	if id, ok := ir.SpecialByName(name); ok {
+		if id.IsFrameSpecial() {
+			if m.current != nil {
+				return m.current.specials[id]
+			}
+			return m.specials[id]
+		}
 		return m.specials[id]
 	}
 	if i, ok := m.globalIndex[name]; ok {
@@ -291,7 +297,15 @@ func (m *VM) loadGlobalByName(name string) value.Value {
 
 // storeGlobalByName writes a value a command names.
 func (m *VM) storeGlobalByName(name string, v value.Value) {
-	if id, ok := ir.SpecialByName(name); ok && !id.IsFrameSpecial() {
+	if id, ok := ir.SpecialByName(name); ok {
+		if id.IsFrameSpecial() {
+			if m.current != nil {
+				m.current.specials[id] = v
+				return
+			}
+			m.specials[id] = v
+			return
+		}
 		m.specials[id] = v
 		return
 	}

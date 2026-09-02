@@ -162,7 +162,14 @@ func SpecialByName(name string) (Special, bool) {
 
 // IsFrameSpecial reports whether the value belongs to the running function
 // rather than to the program as a whole.
-func (s Special) IsFrameSpecial() bool { return s == SpecialSore }
+func (s Special) IsFrameSpecial() bool {
+	switch s {
+	case SpecialSore, SpecialTarget, SpecialTargetKey, SpecialKaisu, SpecialErrorMessage:
+		return true
+	default:
+		return false
+	}
+}
 
 // Valid reports whether the id names a system value.
 func (s Special) Valid() bool { return s < SpecialCount }

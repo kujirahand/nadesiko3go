@@ -87,18 +87,29 @@ func (m *VM) CallDynamic(callee value.Value, args []value.Value, pos int) value.
 	return m.callClosure(fnRef.ID, fnRef.Captured, args)
 }
 
-// SpecialValue reads a program-wide system value (not 『それ』, which belongs
-// to the running call and is a generated function's own local variable).
+// DefaultSpecials returns a copy of the default system values.
+func (m *VM) DefaultSpecials() [ir.SpecialCount]value.Value {
+	return m.specials
+}
+
+// SpecialValue reads a system value.
 func (m *VM) SpecialValue(id ir.Special) value.Value {
-	if !id.Valid() || id.IsFrameSpecial() {
+	if !id.Valid() {
 		return value.Undefined()
+	}
+	if id.IsFrameSpecial() && m.current != nil {
+		return m.current.specials[id]
 	}
 	return m.specials[id]
 }
 
-// SetSpecialValue writes a program-wide system value.
+// SetSpecialValue writes a system value.
 func (m *VM) SetSpecialValue(id ir.Special, v value.Value) {
-	if !id.Valid() || id.IsFrameSpecial() {
+	if !id.Valid() {
+		return
+	}
+	if id.IsFrameSpecial() && m.current != nil {
+		m.current.specials[id] = v
 		return
 	}
 	m.specials[id] = v

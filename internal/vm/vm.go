@@ -61,6 +61,9 @@ type VM struct {
 	callbacks    map[host.CallbackID]queuedCallback
 	nextCallback host.CallbackID
 
+	current            *frame
+	pendingTimerTarget float64
+
 	// depth counts the nested calls, and executed counts the instructions
 	// run, so that a broken program stops instead of hanging.
 	depth    int
@@ -250,8 +253,9 @@ type frame struct {
 	locals   []*value.Cell
 	captures []*value.Cell
 	stack    []value.Value
-	// sore is 『それ』, which belongs to this activation.
-	sore value.Value
+	// specials holds the system values that belong to this activation:
+	// 『それ』, 『対象』, 『対象キー』, 『回数』, 『エラーメッセージ』.
+	specials [ir.SpecialCount]value.Value
 	// handlers stacks the error-monitored regions this frame has entered.
 	handlers []handler
 }
@@ -263,8 +267,10 @@ type handler struct {
 }
 
 type queuedCallback struct {
-	fn   *value.Func
-	args []value.Value
+	fn      *value.Func
+	args    []value.Value
+	isTimer bool
+	timerID host.CallbackID
 }
 
 func (f *frame) push(v value.Value) { f.stack = append(f.stack, v) }
@@ -339,7 +345,24 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	defer func() { m.depth-- }()
 
 	fn := &m.prog.Funcs[index]
-	f := &frame{fn: fn, sore: value.String("")}
+	specials := m.specials
+	if m.current != nil {
+		// A callee starts with the caller's dynamic system values, but owns a
+		// copy so changes made by the callee cannot leak back into the caller.
+		specials = m.current.specials
+	}
+	f := &frame{
+		fn:       fn,
+		specials: specials,
+	}
+	f.specials[ir.SpecialSore] = value.String("")
+	if m.pendingTimerTarget != 0 {
+		f.specials[ir.SpecialTarget] = value.Number(m.pendingTimerTarget)
+		m.pendingTimerTarget = 0
+	}
+	prev := m.current
+	m.current = f
+	defer func() { m.current = prev }()
 	// 深さは命令列から分かっている。伸ばしながら積み直さない。
 	f.stack = make([]value.Value, 0, fn.MaxStack)
 	// セルは1つずつ確保せず、1回のまとめ確保から切り出す。呼び出し1回に

@@ -154,6 +154,15 @@ func TestCoreCommands(t *testing.T) {
 		{"真偽判定", []value.Value{num(1)}, "真"},
 		{"数列判定", []value.Value{str("123")}, "true"},
 		{"数列判定", []value.Value{str("あ")}, "false"},
+		{"TOSTR", []value.Value{num(123)}, "123"},
+		{"TOINT", []value.Value{str("123")}, "123"},
+		{"INT", []value.Value{str("123")}, "123"},
+		{"TOFLOAT", []value.Value{str("12.5")}, "12.5"},
+		{"FLOAT", []value.Value{str("12.5")}, "12.5"},
+		{"TYPEOF", []value.Value{num(1)}, "number"},
+		{"ください", nil, "undefined"},
+		{"お願", nil, "undefined"},
+		{"です", nil, "undefined"},
 	}
 	for _, tt := range tests {
 		e, ok := r.Lookup(tt.name)

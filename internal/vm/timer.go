@@ -22,7 +22,7 @@ func (m *VM) SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, er
 
 	m.nextCallback++
 	id := m.nextCallback
-	m.callbacks[id] = queuedCallback{fn: fn}
+	m.callbacks[id] = queuedCallback{fn: fn, isTimer: true, timerID: id}
 
 	at := m.loop.Now().Add(delay)
 	var timerID host.TimerID
@@ -82,6 +82,10 @@ func (m *VM) dispatch(id host.CallbackID) error {
 	callback, ok := m.callbacks[id]
 	if !ok {
 		return nil // 停止済みのタイマー
+	}
+	if callback.isTimer {
+		m.pendingTimerTarget = float64(callback.timerID)
+		defer func() { m.pendingTimerTarget = 0 }()
 	}
 	_, err := m.CallFunc(callback.fn, callback.args)
 	return err

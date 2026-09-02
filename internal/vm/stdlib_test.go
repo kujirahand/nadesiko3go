@@ -221,6 +221,26 @@ func TestSoreStartsEmpty(t *testing.T) {
 	}
 }
 
+// TestFrameSpecialsAreInheritedAndIsolated pins the dynamic-scope rule for
+// frame-local system values: a callee sees the caller's current values, but
+// writes only to its own frame.
+func TestFrameSpecialsAreInheritedAndIsolated(t *testing.T) {
+	code := `対象="親"
+回数=7
+●確認
+「入:{対象}/{回数}」と表示
+対象="子"
+回数=99
+「子:{対象}/{回数}」と表示
+ここまで
+確認
+「親:{対象}/{回数}」と表示`
+	want := "入:親/7\n子:子/99\n親:親/7"
+	if got := run(t, code); got != want {
+		t.Errorf("frame specials = %q, want %q", got, want)
+	}
+}
+
 // TestNestedLoopSystemVars pins that a nested loop puts back the system
 // variables it took over. 『回』 saves 『回数』 and 『反復』 saves 『対象』
 // 『対象キー』『それ』; 『繰返』 saves nothing, matching nako_gen.mts.
@@ -326,5 +346,31 @@ func TestRealSleepWaits(t *testing.T) {
 	}
 	if strings.TrimSpace(out.String()) != "完了" {
 		t.Errorf("output = %q, want '完了'", out.String())
+	}
+}
+
+func TestAliasesAndPoliteCommands(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		want string
+	}{
+		{"TYPEOF", `(123のTYPEOF)を表示`, "number"},
+		{"TOSTR", `(123をTOSTR)を表示`, "123"},
+		{"TOINT", `("456"をTOINT)を表示`, "456"},
+		{"INT", `("789"のINT)を表示`, "789"},
+		{"TOFLOAT", `("1.5"をTOFLOAT)を表示`, "1.5"},
+		{"FLOAT", `("2.5"のFLOAT)を表示`, "2.5"},
+		{"敬語-ください", "「こんにちは」を表示\nください", "こんにちは"},
+		{"敬語-お願", "「よろしく」を表示\nお願", "よろしく"},
+		{"敬語-です", "「元気」を表示\nです", "元気"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := run(t, tt.code)
+			if got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
 	}
 }

@@ -222,3 +222,33 @@ func TestValidateCaptureAndSpecial(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateCallUserRejectsCapturingFunc(t *testing.T) {
+	p := ir.Program{
+		Version:   ir.CurrentVersion,
+		Consts:    []ir.Const{{Kind: ir.ConstNumber, Num: 1}},
+		Globals:   []string{"A"},
+		Sources:   []ir.SourceFile{{Name: "main.nako3"}},
+		Positions: []ir.SourcePos{{}},
+		Funcs: []ir.Func{
+			{
+				Name:     "main",
+				NumVars:  1,
+				Code:     []ir.Inst{{Op: ir.OpCallUser, A: 1}, {Op: ir.OpPop}, {Op: ir.OpReturn}},
+				MaxStack: 1,
+			},
+			{
+				Name:        "closure",
+				NumVars:     1,
+				NumCaptures: 1,
+				Captures:    []ir.Capture{{FromParent: 0}},
+				Code:        []ir.Inst{{Op: ir.OpReturn}},
+				MaxStack:    0,
+			},
+		},
+	}
+	err := p.Validate()
+	if err == nil || !strings.Contains(err.Error(), "捕捉を必要とする関数") {
+		t.Fatalf("Validate = %v, want error containing '捕捉を必要とする関数'", err)
+	}
+}

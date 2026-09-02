@@ -17,13 +17,13 @@ type generator struct {
 // exec{i} alongside it — to out.
 func (g *generator) genFunc(out *bytes.Buffer, i int, fn *ir.Func) {
 	tries := tryTargets(fn.Code)
-	hasSore := usesSore(fn.Code)
+	hasSpecials := usesSpecials(fn.Code)
 
 	if len(tries) == 0 {
-		g.genSimple(out, i, fn, hasSore)
+		g.genSimple(out, i, fn, hasSpecials)
 		return
 	}
-	g.genWithHandlers(out, i, fn, hasSore, tries)
+	g.genWithHandlers(out, i, fn, hasSpecials, tries)
 }
 
 // tryTargets collects the distinct resume points an OpTry in fn opens, which
@@ -57,14 +57,13 @@ func jumpTargets(code []ir.Inst) map[int]bool {
 	return targets
 }
 
-// usesSore reports whether fn reads or writes 『それ』, which decides whether
-// the generated function needs a local variable for it at all (an unused one
-// is a Go compile error, not just a lint warning).
-func usesSore(code []ir.Inst) bool {
+// usesSpecials reports whether fn reads or writes any frame-local system value,
+// which decides whether the generated function needs a local variable array for it.
+func usesSpecials(code []ir.Inst) bool {
 	for _, inst := range code {
 		switch inst.Op {
 		case ir.OpLoadSpecial, ir.OpStoreSpecial:
-			if ir.Special(inst.A) == ir.SpecialSore {
+			if ir.Special(inst.A).IsFrameSpecial() {
 				return true
 			}
 		}
@@ -143,10 +142,10 @@ func label(pc, codeLen int) string {
 // genSimple emits the common case: a function with no エラー監視, so no
 // recover, no resumable dispatch, no handler stack — just the unrolled
 // instructions with goto standing in for jumps.
-func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSore bool) {
+func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSpecials bool) {
 	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell) rt.Value {\n", i)
-	if hasSore {
-		out.WriteString("\tsore := rt.String(\"\")\n\t_ = sore\n")
+	if hasSpecials {
+		out.WriteString("\tspecials := m.DefaultSpecials()\n\t_ = specials\n")
 	}
 	if len(fn.Code) == 0 {
 		out.WriteString("\treturn rt.Undefined()\n}\n\n")
@@ -154,7 +153,7 @@ func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSore boo
 	}
 	out.WriteString(stackPrelude(fn.MaxStack))
 	out.WriteString("\tgoto L0\n")
-	g.emitBody(out, fn, retSimple, soreLocal(), "\treturn rt.Undefined()\n")
+	g.emitBody(out, fn, retSimple, specialsLocal(), "\treturn rt.Undefined()\n")
 	out.WriteString("}\n\n")
 }
 
@@ -163,18 +162,18 @@ func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSore boo
 // caught, exactly as internal/vm/run.go's run()/protect() do for the
 // interpreter (recover cannot resume a live call, so resuming means calling
 // execN again, fresh, rather than jumping back into the panicking one).
-func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, hasSore bool, tries []int) {
+func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, hasSpecials bool, tries []int) {
 	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell) rt.Value {\n", i)
-	out.WriteString("\tsore := rt.String(\"\")\n\t_ = sore\n")
+	out.WriteString("\tspecials := m.DefaultSpecials()\n\t_ = specials\n")
 	out.WriteString("\thandlers := []rt.Handler{}\n")
 	out.WriteString("\tpc := 0\n")
 	out.WriteString("\tfor {\n")
-	fmt.Fprintf(out, "\t\tresult, handled, target := exec%d(m, locals, captures, &sore, &handlers, pc)\n", i)
+	fmt.Fprintf(out, "\t\tresult, handled, target := exec%d(m, locals, captures, &specials, &handlers, pc)\n", i)
 	out.WriteString("\t\tif !handled {\n\t\t\treturn result\n\t\t}\n")
 	out.WriteString("\t\tpc = target\n\t}\n}\n\n")
 
-	fmt.Fprintf(out, "func exec%d(m *rt.Machine, locals, captures []*rt.Cell, sorePtr *rt.Value, handlers *[]rt.Handler, pcStart int) (result rt.Value, handled bool, target int) {\n", i)
-	_ = hasSore // sore always declared in the wrapper above; execN just uses the pointer
+	fmt.Fprintf(out, "func exec%d(m *rt.Machine, locals, captures []*rt.Cell, specialsPtr *[rt.SpecialCount]rt.Value, handlers *[]rt.Handler, pcStart int) (result rt.Value, handled bool, target int) {\n", i)
+	_ = hasSpecials
 	out.WriteString(`	defer func() {
 		r := recover()
 		if r == nil {
@@ -186,7 +185,7 @@ func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, hasSo
 		}
 		h := (*handlers)[len(*handlers)-1]
 		*handlers = (*handlers)[:len(*handlers)-1]
-		m.SetSysVar("エラーメッセージ", rt.String(msg))
+		(*specialsPtr)[rt.SpecialErrorMessage] = rt.String(msg)
 		result, handled, target = rt.Undefined(), true, h.Target
 	}()
 `)
@@ -202,7 +201,7 @@ func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, hasSo
 		out.WriteString("\treturn rt.Undefined(), false, 0\n}\n\n")
 		return
 	}
-	g.emitBody(out, fn, retHandled, sorePointer(), "\treturn rt.Undefined(), false, 0\n")
+	g.emitBody(out, fn, retHandled, specialsPointer(), "\treturn rt.Undefined(), false, 0\n")
 	out.WriteString("}\n\n")
 }
 
@@ -249,16 +248,30 @@ const (
 	retHandled
 )
 
-// soreAccess says how the current function's translated code reads and
-// writes 『それ』: genSimple keeps it as a plain local (sore), while
-// genWithHandlers' execN receives it by pointer (sorePtr) so it survives
-// being recreated on every resume after エラー監視 catches something.
-type soreAccess struct {
-	get, set string
+// specialsAccess says how the current function's translated code reads and
+// writes frame-local system values: genSimple keeps them as a plain local array,
+// while genWithHandlers' execN receives them by pointer (*specialsPtr) so they
+// survive being recreated on every resume after エラー監視 catches something.
+type specialsAccess struct {
+	isPtr bool
 }
 
-func soreLocal() soreAccess   { return soreAccess{get: "sore", set: "sore = pop()"} }
-func sorePointer() soreAccess { return soreAccess{get: "*sorePtr", set: "*sorePtr = pop()"} }
+func specialsLocal() specialsAccess   { return specialsAccess{isPtr: false} }
+func specialsPointer() specialsAccess { return specialsAccess{isPtr: true} }
+
+func (s specialsAccess) get(id int) string {
+	if s.isPtr {
+		return fmt.Sprintf("(*specialsPtr)[%d]", id)
+	}
+	return fmt.Sprintf("specials[%d]", id)
+}
+
+func (s specialsAccess) set(id int) string {
+	if s.isPtr {
+		return fmt.Sprintf("(*specialsPtr)[%d] = pop()", id)
+	}
+	return fmt.Sprintf("specials[%d] = pop()", id)
+}
 
 // emitBody writes fn.Code as straight-line Go statements, labelling only the
 // positions something actually jumps to (jumpTargets) — Go requires every
@@ -266,14 +279,14 @@ func sorePointer() soreAccess { return soreAccess{get: "*sorePtr", set: "*sorePt
 // stays unlabelled and is simply reached by falling out of the instruction
 // before it. tail is the function's final return, written last, labelled
 // with Lend only if some jump patches past the last instruction to reach it.
-func (g *generator) emitBody(out *bytes.Buffer, fn *ir.Func, ret retKind, sore soreAccess, tail string) {
+func (g *generator) emitBody(out *bytes.Buffer, fn *ir.Func, ret retKind, specials specialsAccess, tail string) {
 	codeLen := len(fn.Code)
 	targets := jumpTargets(fn.Code)
 	for pc, inst := range fn.Code {
 		if targets[pc] {
 			fmt.Fprintf(out, "%s:\n", label(pc, codeLen))
 		}
-		g.emitInst(out, inst, pc, codeLen, ret, sore)
+		g.emitInst(out, inst, pc, codeLen, ret, specials)
 	}
 	if targets[codeLen] {
 		out.WriteString("Lend:\n")
@@ -284,7 +297,7 @@ func (g *generator) emitBody(out *bytes.Buffer, fn *ir.Func, ret retKind, sore s
 // emitInst is internal/vm/run.go's execute() switch, statement for statement,
 // as Go source instead of interpreted cases (see the package doc for why
 // that keeps the two backends from drifting apart).
-func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, ret retKind, sore soreAccess) {
+func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, ret retKind, specials specialsAccess) {
 	switch inst.Op {
 	case ir.OpNop:
 		out.WriteString("\t_ = 0\n")
@@ -323,15 +336,15 @@ func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, r
 		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), inst.Pos)
 
 	case ir.OpLoadSpecial:
-		if ir.Special(inst.A) == ir.SpecialSore {
-			fmt.Fprintf(out, "\tpush(%s)\n", sore.get)
+		if ir.Special(inst.A).IsFrameSpecial() {
+			fmt.Fprintf(out, "\tpush(%s)\n", specials.get(inst.A))
 		} else {
 			fmt.Fprintf(out, "\tpush(m.SpecialValue(rt.Special(%d)))\n", inst.A)
 		}
 
 	case ir.OpStoreSpecial:
-		if ir.Special(inst.A) == ir.SpecialSore {
-			fmt.Fprintf(out, "\t%s\n", sore.set)
+		if ir.Special(inst.A).IsFrameSpecial() {
+			fmt.Fprintf(out, "\t%s\n", specials.set(inst.A))
 		} else {
 			fmt.Fprintf(out, "\tm.SetSpecialValue(rt.Special(%d), pop())\n", inst.A)
 		}

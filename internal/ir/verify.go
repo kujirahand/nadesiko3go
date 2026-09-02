@@ -162,7 +162,15 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if !Special(inst.A).Valid() {
 				return bad(i, "システム値の番号が範囲外です: %d", inst.A)
 			}
-		case OpCallUser, OpMakeFunc:
+		case OpCallUser:
+			if inst.A < 0 || inst.A >= len(p.Funcs) {
+				return bad(i, "関数の添字が範囲外です: %d", inst.A)
+			}
+			callee := &p.Funcs[inst.A]
+			if callee.NumCaptures > 0 || len(callee.Captures) > 0 {
+				return bad(i, "捕捉を必要とする関数%dをCallUserで直接呼び出しています", inst.A)
+			}
+		case OpMakeFunc:
 			if inst.A < 0 || inst.A >= len(p.Funcs) {
 				return bad(i, "関数の添字が範囲外です: %d", inst.A)
 			}

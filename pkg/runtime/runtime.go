@@ -92,10 +92,14 @@ func Binary(op BinaryOp, a, b Value) Value { return ops.Binary(op, a, b) }
 
 func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }
 
+// SpecialCount is the number of system values.
+const SpecialCount = ir.SpecialCount
+
 // SpecialSore is 『それ』, which a generated function keeps as its own local
 // variable rather than reading through the machine (AGENTS.md §4: it belongs
 // to the running call, not to the program).
 const SpecialSore = ir.SpecialSore
+const SpecialErrorMessage = ir.SpecialErrorMessage
 
 // DecodeProgram parses a Program from the JSON gogen embedded (AGENTS.md §6:
 // IR is the versioned, serializable boundary).

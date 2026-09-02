@@ -88,7 +88,7 @@ nadesiko3go/
 │   ├── errs/              エラー型・文面・ソース位置
 │   ├── host/              Host API定義。VMと標準命令の境界
 │   ├── stdlib/            plugin_system 相当。★互換保証の対象
-│   │   ├── system/  string/  array/  dict/  math/  datetime/  json/  regexp/
+│   │   └── system.go, string.go, array.go, dict.go, math.go, datetime.go, json.go, regexp.go
 │   ├── nodelib/           plugin_node 相当。ファイル・OS・プロセス・ネットワーク
 │   ├── csvlib/            plugin_csv 相当。CSVの読み書き
 │   ├── mathlib/           plugin_math 相当。三角関数など数学命令
@@ -121,9 +121,9 @@ nadesiko3go/
 戻り値は `nadesiko3-sqlite3` に合わせます。DB本体は整数ハンドルで管理し、
 GoのポインタをValueとして公開しません。
 
-`re/` と `stdlib/regexp/` も役割が違います。`re/` は**エンジンの抽象**
+`re/` と `stdlib` の正規表現命令（`regexp.go`）も役割が違います。`re/` は**エンジンの抽象**
 （パターンのコンパイル・マッチ・置換と、RE2 / regexp2 の切り替え）だけを持ち、
-`stdlib/regexp/` は**なでしこの命令**（`正規表現マッチ` など、JS形式の
+`stdlib/regexp.go` は**なでしこの命令**（`正規表現マッチ` など、JS形式の
 `/pattern/flags` 文字列の解釈と戻り値の形）を持ちます。前者は互換保証の対象外、
 後者は対象です。標準ライブラリの `regexp` と名前が衝突しないよう、
 抽象側は `regexp` ではなく `re` という名前にしてあります。
