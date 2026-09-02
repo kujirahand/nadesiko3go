@@ -15,6 +15,7 @@ nadesiko3go
 
 bin/
 /out/
+benchmark/build/
 
 # Test binary, built with `go test -c`
 *.test

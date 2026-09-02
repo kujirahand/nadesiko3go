@@ -3,7 +3,7 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build cmd cui gui install release test doctest sync-compat compat-run compat-check gen-command-list clean
+.PHONY: all build cmd cui gui install release test doctest sync-compat compat-run compat-check gen-command-list clean benchmark
 
 all: build
 
@@ -34,7 +34,10 @@ release:
 	done
 
 clean:
-	rm -rf bin out
+	rm -rf bin out benchmark/build
+
+benchmark: cmd
+	$(GO) run ./benchmark/runner.go
 
 test:
 	$(GO) test ./...
