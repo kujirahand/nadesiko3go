@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
   const menuItemBuildApp = document.getElementById('menu-item-build-app');
+  const menuItemGoBuild = document.getElementById('menu-item-go-build');
   const modalOverlay = document.getElementById('modal-overlay');
   const modalClose = document.getElementById('modal-close');
   const modalTitle = document.getElementById('modal-title');
@@ -449,7 +450,69 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 開いているなでしこプログラムをGo言語のソースに変換し、go buildで
+  // ネイティブ実行ファイルにする（AGENTS.md §12・docs/gogen.md）。
+  // 実行ファイルの隣に なでしこ3 Go版 のソースが無ければ、Go側が
+  // GitHubから最新masterを自動でダウンロードしてから使う。
+  async function buildWithGoFromCurrentFile() {
+    closeHamburger();
+    if (typeof window.buildWithGo !== 'function') {
+      await showAlertDialog('ビルドできません', 'この機能は gonako-gui 上でのみ使えます。');
+      return;
+    }
+    if (!currentFilePath || isBinaryFile) {
+      await showAlertDialog('ビルドできません',
+        'ビルドするファイル (.nako3) を、ファイルタブから開いてください。');
+      return;
+    }
+    const ext = (/\.([^.\\/]+)$/.exec(currentFileDisplayName) || ['', ''])[1].toLowerCase();
+    if (ext !== 'nako3' && ext !== 'nako') {
+      await showAlertDialog('ビルドできません',
+        `『${currentFileDisplayName}』はビルドできません。なでしこプログラム (.nako3) を開いてください。`);
+      return;
+    }
+
+    // ディスク上のファイルをビルドするので、編集中の内容は先に保存しておく
+    if (editor.value !== savedContent && !(await saveFile())) return;
+
+    const folder = pathDirName(currentFilePath);
+    const isWindows = currentOS === 'windows';
+    const sep = isWindows ? '\\' : '/';
+    const defaultOut = `${folder}${sep}${pathBaseName(currentFilePath).replace(/\.(nako3|nako)$/i, '')}${isWindows ? '.exe' : ''}`;
+
+    const outPath = await showPromptDialog('Go言語でビルド',
+      `『${currentFileDisplayName}』をGo言語のソースに変換し、go buildでネイティブ実行ファイルにします。\n` +
+      'ソースコードが見つからない場合は、実行ファイルと同じフォルダにGitHubから自動でダウンロードします（少し時間がかかります）。\n\n出力先のパス:',
+      defaultOut);
+    if (!outPath) return;
+
+    setStatus('Go言語でビルド中...（初回はソースのダウンロードも行います）');
+    menuItemGoBuild.disabled = true;
+    try {
+      const res = await window.buildWithGo(currentFilePath, outPath);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok) {
+        setStatus(`ビルド完了: ${data.path}`);
+        await showAlertDialog('ビルドしました',
+          `${data.path}\nサイズ: ${formatBytes(data.size)}` +
+          (data.downloaded ? '\n\n(初回のため、なでしこ3 Go版のソースをダウンロードしました)' : ''));
+        if (typeof window.revealInFinder === 'function') {
+          window.revealInFinder(data.path);
+        }
+      } else {
+        setStatus(`ビルドエラー: ${data.error}`);
+        await showAlertDialog('ビルドエラー', data.error || 'ビルドに失敗しました。');
+      }
+    } catch (err) {
+      console.error('ビルドエラー:', err);
+      await showAlertDialog('ビルドエラー', `${err.message || err}`);
+    } finally {
+      menuItemGoBuild.disabled = false;
+    }
+  }
+
   menuItemBuildApp.addEventListener('click', buildAppFromCurrentFolder);
+  menuItemGoBuild.addEventListener('click', buildWithGoFromCurrentFile);
   modalClose.addEventListener('click', closeModal);
   modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) closeModal();

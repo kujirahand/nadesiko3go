@@ -596,6 +596,13 @@ func main() {
 		return string(b)
 	})
 
+	// Go ↔ JavaScript バインディング: Go言語でビルド (gogen)
+	_ = w.Bind("buildWithGo", func(sourcePath, outPath string) string {
+		res := buildWithGo(sourcePath, outPath)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
 	// WebViewを開く
 	w.Navigate(finalURL)
 	w.Run()
