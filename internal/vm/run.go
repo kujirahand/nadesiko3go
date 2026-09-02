@@ -303,6 +303,18 @@ func (m *VM) storeGlobalByName(name string, v value.Value) {
 // A function with nothing to capture gets a shared value, so two references to
 // the same plain function compare equal.
 func (m *VM) makeClosure(index int, f *frame) *value.Func {
+	// FindFunc calls this with f == nil for a plain (uncaptured) function,
+	// relying on makeClosureFrom never touching locals/captures in that case.
+	if f == nil {
+		return m.makeClosureFrom(index, nil, nil)
+	}
+	return m.makeClosureFrom(index, f.locals, f.captures)
+}
+
+// makeClosureFrom is makeClosure without a *frame, for the gogen backend
+// (AGENTS.md §12), whose generated functions have no frame — just the same
+// locals and captures slices callClosure already built for the call.
+func (m *VM) makeClosureFrom(index int, locals, captures []*value.Cell) *value.Func {
 	fn := &m.prog.Funcs[index]
 	if len(fn.Captures) == 0 {
 		if fv, ok := m.funcValues[index]; ok {
@@ -314,9 +326,9 @@ func (m *VM) makeClosure(index int, f *frame) *value.Func {
 	}
 	captured := make([]*value.Cell, 0, len(fn.Captures))
 	for _, cap := range fn.Captures {
-		source := f.locals
+		source := locals
 		if cap.ParentIsCapture {
-			source = f.captures
+			source = captures
 		}
 		if cap.FromParent >= 0 && cap.FromParent < len(source) {
 			captured = append(captured, source[cap.FromParent])

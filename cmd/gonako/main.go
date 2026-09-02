@@ -13,9 +13,12 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
+	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
+	"github.com/kujirahand/nadesiko3go/internal/gogen"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
+	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
@@ -35,6 +38,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako run <ファイル> [引数...]   なでしこのプログラムを実行する
   gonako -e <プログラム> [引数...]  その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
+  gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
   gonako version                    バージョン情報を表示する
@@ -164,9 +168,105 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
+// defaultGoGenPlugins matches this binary's own registry (init above plus
+// vm's own defaultPlugins), so a program compiled for the ordinary gonako
+// runtime compiles for gengo's output the same way, command for command
+// (AGENTS.md §12: the registry gengo compiles the source against and the one
+// generated code builds at run time must agree exactly, or a command's ID
+// silently resolves to the wrong one).
+var defaultGoGenPlugins = []string{"nodelib", "csvlib", "mathlib", "sqlitelib", "officelib", "pdflib", "imagelib"}
+
+// genGo writes a Go source file that, once built with `go build`, is the
+// program — no Go toolchain needed to receive it, only to make it (AGENTS.md
+// §10, §12).
+func genGo(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("gengo", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	out := flags.String("out", "", "出力するGoソースファイル名")
+	pluginList := flags.String("plugins", strings.Join(defaultGoGenPlugins, ","),
+		"生成コードのレジストリに含めるプラグイン（カンマ区切り、空文字で標準命令のみ）")
+	pkgName := flags.String("package", "main", "生成するGoソースのパッケージ名")
+	source, rest := splitSourceFor(args, "out", "plugins", "package")
+	if err := flags.Parse(rest); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if source == "" && flags.NArg() > 0 {
+		source = flags.Arg(0)
+	}
+	if source == "" || flags.NArg() > 0 {
+		return errors.New("Go変換するファイルを1つ指定してください")
+	}
+
+	var plugins []string
+	if *pluginList != "" {
+		plugins = strings.Split(*pluginList, ",")
+	}
+	registry, err := gogen.BuildRegistry(plugins)
+	if err != nil {
+		return err
+	}
+
+	code, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	tree, err := parser.ParseSource(string(code), source, registry.FuncList())
+	if err != nil {
+		return err
+	}
+	prog, err := compiler.Compile(tree, source, registry)
+	if err != nil {
+		return err
+	}
+
+	src, err := gogen.Generate(prog, gogen.Options{Package: *pkgName, Plugins: plugins})
+	if err != nil {
+		return err
+	}
+
+	if *out == "" {
+		*out = strings.TrimSuffix(filepath.Base(source), filepath.Ext(source)) + ".go"
+	}
+	if err := os.WriteFile(*out, src, 0o644); err != nil {
+		return fmt.Errorf("出力ファイル『%s』を書き出せません: %w", *out, err)
+	}
+	fmt.Fprintf(stdout, "%s を作りました\n", *out)
+	fmt.Fprintf(stdout, "ビルドするには、%s と同じ場所に go.mod を用意し、以下を requireとreplaceに書いてください:\n", *out)
+	fmt.Fprintf(stdout, "  require github.com/kujirahand/nadesiko3go v0.0.0\n")
+	fmt.Fprintf(stdout, "  replace github.com/kujirahand/nadesiko3go => %s\n", mustAbs(mustExecutableModuleHint()))
+	return nil
+}
+
+// mustExecutableModuleHint is a best-effort guess at this checkout's own root,
+// for the replace directive genGo suggests. It is only ever wrong in a way
+// that leaves the user with an obviously-not-a-path placeholder to edit, never
+// a silently broken build.
+func mustExecutableModuleHint() string {
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return "/path/to/nadesiko3go"
+}
+
+func mustAbs(p string) string {
+	if abs, err := filepath.Abs(p); err == nil {
+		return abs
+	}
+	return p
+}
+
 // splitSource pulls the first argument that is not a flag, or a flag's value,
 // out of the argument list.
 func splitSource(args []string) (source string, rest []string) {
+	return splitSourceFor(args, "out", "resource", "runtime")
+}
+
+// splitSourceFor is splitSource, generalised over which flags take a value —
+// buildBundle and genGo each recognise a different set.
+func splitSourceFor(args []string, valueFlags ...string) (source string, rest []string) {
 	valueExpected := false
 	for _, a := range args {
 		switch {
@@ -175,7 +275,7 @@ func splitSource(args []string) (source string, rest []string) {
 		case strings.HasPrefix(a, "-"):
 			// 『--out NAME』などの形なら次の引数は値
 			name := strings.TrimLeft(strings.Split(a, "=")[0], "-")
-			valueExpected = !strings.Contains(a, "=") && (name == "out" || name == "resource" || name == "runtime")
+			valueExpected = !strings.Contains(a, "=") && containsString(valueFlags, name)
 		case source == "":
 			source = a
 			continue
@@ -183,6 +283,15 @@ func splitSource(args []string) (source string, rest []string) {
 		rest = append(rest, a)
 	}
 	return source, rest
+}
+
+func containsString(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 // defaultOutputName drops the source extension, keeping the .exe suffix when
@@ -348,6 +457,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runInline(args[1:], stdout)
 	case "build":
 		return buildBundle(args[1:], stdout, stderr)
+	case "gengo":
+		return genGo(args[1:], stdout, stderr)
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
 	}

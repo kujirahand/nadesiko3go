@@ -66,6 +66,29 @@ type VM struct {
 	depth    int
 	executed uint64
 	options  Options
+
+	// natives holds a Go-compiled stand-in for Funcs[index], for the gogen
+	// backend (AGENTS.md §12). callClosure calls it instead of interpreting
+	// bytecode, but everything around the call — depth limit, capture
+	// wiring, argument binding — stays exactly as it is for every other
+	// function, so the two backends cannot drift apart on that part.
+	natives map[int]NativeFunc
+}
+
+// NativeFunc is a function body the gogen backend compiled to Go, standing in
+// for a bytecode Func. It receives the same locals and captures callClosure
+// would give the interpreter, already populated with the call's arguments.
+type NativeFunc func(m *VM, locals, captures []*value.Cell) value.Value
+
+// SetNative registers fn as Funcs[index]'s implementation. Call it once per
+// function before running the program; an index without one still runs its
+// bytecode normally, so a program can mix generated and interpreted functions
+// (or have none registered at all, which is the plain VM).
+func (m *VM) SetNative(index int, fn NativeFunc) {
+	if m.natives == nil {
+		m.natives = map[int]NativeFunc{}
+	}
+	m.natives[index] = fn
 }
 
 // Options bounds what one run may do. Without them a runaway program would
@@ -316,6 +339,9 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 			f.locals[p.Slot].Value = args[i]
 			f.locals[p.Slot].Initialized = true
 		}
+	}
+	if native, ok := m.natives[index]; ok {
+		return native(m, f.locals, f.captures)
 	}
 	return m.run(f)
 }
