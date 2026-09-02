@@ -292,6 +292,27 @@ func (f *frame) popN(n int) []value.Value {
 	return out
 }
 
+// borrowN is popN without the copy: the result points into this frame's own
+// stack, which stays untouched while a call runs (the callee gets its own
+// frame). Only for arguments to a なでしこ function — callClosure copies each
+// one into a cell straight away and keeps nothing.
+//
+// A stdlib command must keep using popN: an Impl may hold on to the slice it
+// is given (『配列作成』 hands it to value.NewArray, which does not copy), and
+// the next thing pushed onto this stack would then change a value it kept.
+func (f *frame) borrowN(n int) []value.Value {
+	if n <= 0 {
+		return nil
+	}
+	if n > len(f.stack) {
+		n = len(f.stack)
+	}
+	at := len(f.stack) - n
+	out := f.stack[at:len(f.stack):len(f.stack)]
+	f.stack = f.stack[:at]
+	return out
+}
+
 // call runs a named function with no captured variables.
 func (m *VM) call(index int, args []value.Value) value.Value {
 	return m.callClosure(index, nil, args)
@@ -311,23 +332,37 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	defer func() { m.depth-- }()
 
 	fn := &m.prog.Funcs[index]
-	constVars := map[int]bool{}
-	for _, slot := range fn.ConstVars {
-		constVars[slot] = true
-	}
 	f := &frame{fn: fn, sore: value.String("")}
+	// 深さは命令列から分かっている。伸ばしながら積み直さない。
+	f.stack = make([]value.Value, 0, fn.MaxStack)
+	// セルは1つずつ確保せず、1回のまとめ確保から切り出す。呼び出し1回に
+	// つきローカル変数の数だけ確保していたのを、1回にする。
 	f.locals = make([]*value.Cell, fn.NumVars)
-	for i := range f.locals {
-		f.locals[i] = value.NewCell(!constVars[i])
+	if fn.NumVars > 0 {
+		cells := make([]value.Cell, fn.NumVars)
+		for i := range cells {
+			cells[i].Value = value.Undefined()
+			cells[i].Mutable = true
+			f.locals[i] = &cells[i]
+		}
+		// 定数のスロットだけ後から落とす。定数は数が少ないので、
+		// 呼び出しのたびに map を作るより数え上げるほうが速い。
+		for _, slot := range fn.ConstVars {
+			if slot >= 0 && slot < len(cells) {
+				cells[slot].Mutable = false
+			}
+		}
 	}
 	// 捕捉したセルは、外側のフレームと同じものを指す
-	f.captures = make([]*value.Cell, fn.NumCaptures)
-	for i := range f.captures {
-		if i < len(captured) && captured[i] != nil {
-			f.captures[i] = captured[i]
-			continue
+	if fn.NumCaptures > 0 {
+		f.captures = make([]*value.Cell, fn.NumCaptures)
+		for i := range f.captures {
+			if i < len(captured) && captured[i] != nil {
+				f.captures[i] = captured[i]
+				continue
+			}
+			f.captures[i] = value.NewCell(true)
 		}
-		f.captures[i] = value.NewCell(true)
 	}
 	// 引数はスタックではなくスロットへ直接入れる。関数本体は空のスタックで
 	// 始まるので、検証器が入口の深さを0と決められる。

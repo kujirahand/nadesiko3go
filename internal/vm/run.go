@@ -53,12 +53,16 @@ func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target
 
 // execute is the interpreter loop for one frame.
 func (m *VM) execute(f *frame, pc int) value.Value {
-	for pc < len(f.fn.Code) {
+	// 命令列と上限はループの間ずっと同じ。毎回たどり直さない。
+	code := f.fn.Code
+	maxInstructions := m.options.MaxInstructions
+	for pc < len(code) {
 		m.executed++
-		if m.options.MaxInstructions > 0 && m.executed > m.options.MaxInstructions {
-			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", f.fn.Code[pc].Pos)
+		if maxInstructions > 0 && m.executed > maxInstructions {
+			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", code[pc].Pos)
 		}
-		inst := f.fn.Code[pc]
+		// 命令は32バイトある。1命令ごとに丸ごと写さず、参照で読む。
+		inst := &code[pc]
 		pc++
 
 		switch inst.Op {
@@ -79,25 +83,25 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(f.locals[inst.A].Get())
 
 		case ir.OpStoreLocal:
-			m.setCell(f.locals[inst.A], f.pop(), inst)
+			m.setCell(f.locals[inst.A], f.pop(), inst.Pos)
 
 		case ir.OpInitLocal:
-			m.initCell(f.locals[inst.A], f.pop(), inst)
+			m.initCell(f.locals[inst.A], f.pop(), inst.Pos)
 
 		case ir.OpLoadCapture:
 			f.push(f.captures[inst.A].Get())
 
 		case ir.OpStoreCapture:
-			m.setCell(f.captures[inst.A], f.pop(), inst)
+			m.setCell(f.captures[inst.A], f.pop(), inst.Pos)
 
 		case ir.OpLoadGlobal:
 			f.push(m.globals[inst.A].Get())
 
 		case ir.OpStoreGlobal:
-			m.setCell(m.globals[inst.A], f.pop(), inst)
+			m.setCell(m.globals[inst.A], f.pop(), inst.Pos)
 
 		case ir.OpInitGlobal:
-			m.initCell(m.globals[inst.A], f.pop(), inst)
+			m.initCell(m.globals[inst.A], f.pop(), inst.Pos)
 
 		case ir.OpLoadSpecial:
 			f.push(m.loadSpecial(f, ir.Special(inst.A)))
@@ -154,11 +158,13 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(m.callStd(inst.A, args, inst.Pos))
 
 		case ir.OpCallUser:
-			args := f.popN(inst.B)
+			// 引数はコピーせずスタックの一部を貸す。呼び出し先は
+			// 受け取った値をセルへ写して、それきり持たない。
+			args := f.borrowN(inst.B)
 			f.push(m.call(inst.A, args))
 
 		case ir.OpCallValue:
-			args := f.popN(inst.B)
+			args := f.borrowN(inst.B)
 			callee := f.pop()
 			fnRef, ok := callee.Func()
 			if !ok {
@@ -231,16 +237,16 @@ func (m *VM) constString(i int) string {
 
 // setCell writes a variable cell. A constant getting here means the compiler
 // let an assignment through, which is broken IR rather than a bad program.
-func (m *VM) setCell(cell *value.Cell, v value.Value, inst ir.Inst) {
+func (m *VM) setCell(cell *value.Cell, v value.Value, pos int) {
 	if !cell.Set(v) {
-		m.failAt("定数へ代入しようとしました。", inst.Pos)
+		m.failAt("定数へ代入しようとしました。", pos)
 	}
 }
 
 // initCell writes a constant cell for the first time.
-func (m *VM) initCell(cell *value.Cell, v value.Value, inst ir.Inst) {
+func (m *VM) initCell(cell *value.Cell, v value.Value, pos int) {
 	if !cell.Init(v) {
-		m.failAt("定数を二度初期化しようとしました。", inst.Pos)
+		m.failAt("定数を二度初期化しようとしました。", pos)
 	}
 }
 

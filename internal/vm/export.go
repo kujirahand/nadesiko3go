@@ -116,13 +116,13 @@ func (m *VM) Globals() []*value.Cell { return m.globals }
 // StoreCell is OpStoreLocal / OpStoreCapture / OpStoreGlobal: write a cell,
 // failing the way an assignment to a constant does.
 func (m *VM) StoreCell(cell *value.Cell, v value.Value, pos int) {
-	m.setCell(cell, v, ir.Inst{Pos: pos})
+	m.setCell(cell, v, pos)
 }
 
 // InitCell is OpInitLocal / OpInitGlobal: write a constant cell the one time
 // it is allowed to be written.
 func (m *VM) InitCell(cell *value.Cell, v value.Value, pos int) {
-	m.initCell(cell, v, ir.Inst{Pos: pos})
+	m.initCell(cell, v, pos)
 }
 
 // Fail raises a runtime error the way any instruction does, unwinding to the
