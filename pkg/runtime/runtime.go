@@ -82,10 +82,12 @@ type UnaryOp = ir.UnaryOp
 type Special = ir.Special
 
 // Binary and Unary apply an operator. Generated code calls these rather than
-// the Machine methods of the same name so that the call reaches
-// internal/ops directly: an operator is the hottest thing in a program, and
-// a method on Machine adds a frame per operation that the interpreter does
-// not pay (measured at roughly a tenth of a loop's run time).
+// the Machine methods of the same name, and the difference is not stylistic:
+// Go inlines these package functions at the generated call site, but does not
+// inline the equivalent methods on Machine. That extra frame per operation
+// measured at about a tenth of an arithmetic loop's run time — it was most of
+// why generated code used to be slower than the interpreter it replaces.
+// `go build -gcflags=-m` on a generated file shows which way it went.
 func Binary(op BinaryOp, a, b Value) Value { return ops.Binary(op, a, b) }
 
 func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }

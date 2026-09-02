@@ -320,6 +320,13 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 
 // callClosure runs one function and returns its value. captured holds the
 // cells the closure shares with the frame that created it.
+//
+// ここは呼び出しのたびに通るので、確保の回数がそのまま速さになる。かつては
+// 1回の呼び出しで5個確保していた（スタックの伸長・変数ごとのセル・引数の
+// コピー・フレーム・定数判定用のマップ）。いまは3個
+// （フレーム・localsのスライス・セルのまとめ確保）で、これで
+// BenchmarkRecursion が -21%、BenchmarkCalls が -17% になっている
+// (internal/vm/bench_test.go)。増やすときは、その分だけ遅くなると思ってよい。
 func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) value.Value {
 	if index < 0 || index >= len(m.prog.Funcs) {
 		m.fail(fmt.Sprintf("関数の呼び出し先がありません: %d", index), ir.SourcePos{})

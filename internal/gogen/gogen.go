@@ -25,6 +25,30 @@
 // AGENTS.md §12 allows a dynamic feature to be limited rather than forcing
 // gogen to reach for one (a caller wanting async can keep using the VM
 // backend for that program).
+//
+// # 速さについて (Apple M4 / darwin-arm64, user時間)
+//
+//	                          VM        gogen
+//	ループ＋算術(500万回)      0.89s     0.84s
+//	再帰(フィボナッチ28)       0.47s     0.24s
+//
+// 関数呼び出しが多いほど有利になる。インタプリタの run/protect/execute の
+// 往復とディスパッチが丸ごと無くなるため。算術中心のループでは、演算1回の
+// 中身がVMと同じ (internal/ops) なので差は小さい。
+//
+// この数字に至るまでに踏んだ落とし穴を2つ残しておく。どちらも「薄いから
+// 速いはず」という思い込みが外れた例で、プロファイルを見るまで分からない。
+//
+//   - Machineのメソッド (m.Binary など) は、生成コードの呼び出し位置で
+//     インライン展開されない。1演算ごとに余計なフレームを踏み、それだけで
+//     全体の約1割を使っていた。pkg/runtime のパッケージ関数 (rt.Binary) は
+//     展開される。go build -gcflags=-m で確かめられる
+//   - 定数は m.ConstValue(i) で引かず、rt.Number(9) としてソースに直接
+//     書く。引くと、定数プールの境界検査と種別のswitchを毎回通る
+//
+// 残っている一番大きなコストはオペランドスタック (push/pop) で、プロファイル
+// 上は約25%。消すには式を直接Goの式へ組み立てる必要があり、「バイトコードの
+// 機械的な変換」という今の作りを変えることになる (docs/gogen.md §7)。
 package gogen
 
 import (
