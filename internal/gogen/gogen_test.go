@@ -178,6 +178,24 @@ F=10でカウンタ作成
 「  空白トリム対象  」の空白除去。
 それを表示
 `)
+
+	assertMatchesVM(t, "special_written_by_stdlib", `
+「前|後」から「|」まで切取
+「結果:{それ}/対象:{対象}」と表示
+`)
+
+	assertMatchesVM(t, "frame_specials_inherit_and_isolate", `
+対象="親"
+回数=7
+●確認
+「入:{対象}/{回数}」と表示
+対象="子"
+回数=99
+「子:{対象}/{回数}」と表示
+ここまで
+確認
+「親:{対象}/{回数}」と表示
+`)
 }
 
 // TestPluginRegistry checks that a program using a plugin beyond

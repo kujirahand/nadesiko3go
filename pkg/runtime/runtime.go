@@ -95,9 +95,8 @@ func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }
 // SpecialCount is the number of system values.
 const SpecialCount = ir.SpecialCount
 
-// SpecialSore is 『それ』, which a generated function keeps as its own local
-// variable rather than reading through the machine (AGENTS.md §4: it belongs
-// to the running call, not to the program).
+// SpecialSore is 『それ』, which a generated function reads from the current
+// call frame's system-value array rather than program-wide storage.
 const SpecialSore = ir.SpecialSore
 const SpecialErrorMessage = ir.SpecialErrorMessage
 

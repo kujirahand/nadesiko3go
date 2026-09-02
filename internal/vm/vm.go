@@ -79,9 +79,11 @@ type VM struct {
 }
 
 // NativeFunc is a function body the gogen backend compiled to Go, standing in
-// for a bytecode Func. It receives the same locals and captures callClosure
-// would give the interpreter, already populated with the call's arguments.
-type NativeFunc func(m *VM, locals, captures []*value.Cell) value.Value
+// for a bytecode Func. It receives the same locals, captures, and frame-local
+// system values callClosure gives the interpreter. Sharing the specials array
+// with the frame keeps generated LoadSpecial/StoreSpecial instructions and
+// stdlib Context.SysVar/SetSysVar calls on the same storage.
+type NativeFunc func(m *VM, locals, captures []*value.Cell, specials *[ir.SpecialCount]value.Value) value.Value
 
 // SetNative registers fn as Funcs[index]'s implementation. Call it once per
 // function before running the program; an index without one still runs its
@@ -406,7 +408,7 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 		}
 	}
 	if native, ok := m.natives[index]; ok {
-		return native(m, f.locals, f.captures)
+		return native(m, f.locals, f.captures, &f.specials)
 	}
 	return m.run(f)
 }

@@ -87,11 +87,6 @@ func (m *VM) CallDynamic(callee value.Value, args []value.Value, pos int) value.
 	return m.callClosure(fnRef.ID, fnRef.Captured, args)
 }
 
-// DefaultSpecials returns a copy of the default system values.
-func (m *VM) DefaultSpecials() [ir.SpecialCount]value.Value {
-	return m.specials
-}
-
 // SpecialValue reads a system value.
 func (m *VM) SpecialValue(id ir.Special) value.Value {
 	if !id.Valid() {

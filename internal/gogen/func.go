@@ -17,13 +17,12 @@ type generator struct {
 // exec{i} alongside it — to out.
 func (g *generator) genFunc(out *bytes.Buffer, i int, fn *ir.Func) {
 	tries := tryTargets(fn.Code)
-	hasSpecials := usesSpecials(fn.Code)
 
 	if len(tries) == 0 {
-		g.genSimple(out, i, fn, hasSpecials)
+		g.genSimple(out, i, fn)
 		return
 	}
-	g.genWithHandlers(out, i, fn, hasSpecials, tries)
+	g.genWithHandlers(out, i, fn, tries)
 }
 
 // tryTargets collects the distinct resume points an OpTry in fn opens, which
@@ -55,20 +54,6 @@ func jumpTargets(code []ir.Inst) map[int]bool {
 		}
 	}
 	return targets
-}
-
-// usesSpecials reports whether fn reads or writes any frame-local system value,
-// which decides whether the generated function needs a local variable array for it.
-func usesSpecials(code []ir.Inst) bool {
-	for _, inst := range code {
-		switch inst.Op {
-		case ir.OpLoadSpecial, ir.OpStoreSpecial:
-			if ir.Special(inst.A).IsFrameSpecial() {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // constExpr writes Consts[i] as a Go literal rather than a lookup back into
@@ -142,18 +127,15 @@ func label(pc, codeLen int) string {
 // genSimple emits the common case: a function with no エラー監視, so no
 // recover, no resumable dispatch, no handler stack — just the unrolled
 // instructions with goto standing in for jumps.
-func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSpecials bool) {
-	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell) rt.Value {\n", i)
-	if hasSpecials {
-		out.WriteString("\tspecials := m.DefaultSpecials()\n\t_ = specials\n")
-	}
+func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func) {
+	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell, specialsPtr *[rt.SpecialCount]rt.Value) rt.Value {\n", i)
 	if len(fn.Code) == 0 {
 		out.WriteString("\treturn rt.Undefined()\n}\n\n")
 		return
 	}
 	out.WriteString(stackPrelude(fn.MaxStack))
 	out.WriteString("\tgoto L0\n")
-	g.emitBody(out, fn, retSimple, specialsLocal(), "\treturn rt.Undefined()\n")
+	g.emitBody(out, fn, retSimple, specialsPointer(), "\treturn rt.Undefined()\n")
 	out.WriteString("}\n\n")
 }
 
@@ -162,18 +144,16 @@ func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func, hasSpecials
 // caught, exactly as internal/vm/run.go's run()/protect() do for the
 // interpreter (recover cannot resume a live call, so resuming means calling
 // execN again, fresh, rather than jumping back into the panicking one).
-func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, hasSpecials bool, tries []int) {
-	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell) rt.Value {\n", i)
-	out.WriteString("\tspecials := m.DefaultSpecials()\n\t_ = specials\n")
+func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, tries []int) {
+	fmt.Fprintf(out, "func native%d(m *rt.Machine, locals, captures []*rt.Cell, specialsPtr *[rt.SpecialCount]rt.Value) rt.Value {\n", i)
 	out.WriteString("\thandlers := []rt.Handler{}\n")
 	out.WriteString("\tpc := 0\n")
 	out.WriteString("\tfor {\n")
-	fmt.Fprintf(out, "\t\tresult, handled, target := exec%d(m, locals, captures, &specials, &handlers, pc)\n", i)
+	fmt.Fprintf(out, "\t\tresult, handled, target := exec%d(m, locals, captures, specialsPtr, &handlers, pc)\n", i)
 	out.WriteString("\t\tif !handled {\n\t\t\treturn result\n\t\t}\n")
 	out.WriteString("\t\tpc = target\n\t}\n}\n\n")
 
 	fmt.Fprintf(out, "func exec%d(m *rt.Machine, locals, captures []*rt.Cell, specialsPtr *[rt.SpecialCount]rt.Value, handlers *[]rt.Handler, pcStart int) (result rt.Value, handled bool, target int) {\n", i)
-	_ = hasSpecials
 	out.WriteString(`	defer func() {
 		r := recover()
 		if r == nil {
@@ -248,29 +228,18 @@ const (
 	retHandled
 )
 
-// specialsAccess says how the current function's translated code reads and
-// writes frame-local system values: genSimple keeps them as a plain local array,
-// while genWithHandlers' execN receives them by pointer (*specialsPtr) so they
-// survive being recreated on every resume after エラー監視 catches something.
-type specialsAccess struct {
-	isPtr bool
-}
+// specialsAccess writes accesses to the VM frame's system-value array. Both
+// generated instructions and stdlib Context calls use this same storage.
+type specialsAccess struct{}
 
-func specialsLocal() specialsAccess   { return specialsAccess{isPtr: false} }
-func specialsPointer() specialsAccess { return specialsAccess{isPtr: true} }
+func specialsPointer() specialsAccess { return specialsAccess{} }
 
 func (s specialsAccess) get(id int) string {
-	if s.isPtr {
-		return fmt.Sprintf("(*specialsPtr)[%d]", id)
-	}
-	return fmt.Sprintf("specials[%d]", id)
+	return fmt.Sprintf("(*specialsPtr)[%d]", id)
 }
 
 func (s specialsAccess) set(id int) string {
-	if s.isPtr {
-		return fmt.Sprintf("(*specialsPtr)[%d] = pop()", id)
-	}
-	return fmt.Sprintf("specials[%d] = pop()", id)
+	return fmt.Sprintf("(*specialsPtr)[%d] = pop()", id)
 }
 
 // emitBody writes fn.Code as straight-line Go statements, labelling only the
