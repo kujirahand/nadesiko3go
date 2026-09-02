@@ -66,8 +66,10 @@ fixtureは `scripts/sync-compat-fixtures.sh` で本家からコピーし、コ�
 nadesiko3go/
 ├── go.mod
 ├── cmd/
-│   ├── gonako/            CUI本体。実行・ビルド・fixture実行のサブコマンド
+│   ├── gonako/            CUI本体（フル機能）。実行・ビルド・fixture実行のサブコマンド
+│   ├── gonako-cui/        軽量CUI版。標準コア+SQLiteのみに絞った別バイナリ（8MB台）
 │   └── gonako-gui/        GUI版（webview_go）。段階8
+│       └── ui/            埋め込みエディタUI（//go:embed）。→ 11節
 ├── internal/
 │   ├── prepare/           前処理（全角記号の正規化など。nako_prepare 相当）
 │   ├── lexer/             字句解析（nako_lexer 相当）
@@ -88,10 +90,17 @@ nadesiko3go/
 │   ├── stdlib/            plugin_system 相当。★互換保証の対象
 │   │   ├── system/  string/  array/  dict/  math/  datetime/  json/  regexp/
 │   ├── nodelib/           plugin_node 相当。ファイル・OS・プロセス・ネットワーク
+│   ├── csvlib/            plugin_csv 相当。CSVの読み書き
+│   ├── mathlib/           plugin_math 相当。三角関数など数学命令
 │   ├── sqlitelib/         nadesiko3-sqlite3 相当。pure GoのSQLite命令
-│   ├── bundle/            単一ファイル梱包。リソースの仮想ファイルシステム
+│   ├── officelib/         表計算（Excelブック等）の作成命令。CUI版向け
+│   ├── pdflib/            PDF作成命令。CUI版向け
+│   ├── imagelib/          決定的なラスタ画像生成命令
+│   ├── guilib/            GUI版向け。WebViewウィンドウを開く命令（`ウィンドウ作成`）
+│   ├── bundle/            単一ファイル梱包。リソースの仮想ファイルシステム。→ 10節
 │   ├── gogen/             Goソース生成バックエンド（段階10）
-│   └── compat/            差分fixtureの実行と結果出力
+│   ├── compat/            差分fixtureの実行と結果出力
+│   └── doctest/           本家マニュアルのdoctestブロックを実行して結果を照合
 ├── testdata/
 │   └── compat/            本家からコピーした cases/ と expected/、コピー元のSOURCE
 ├── scripts/
