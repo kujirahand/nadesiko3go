@@ -2,11 +2,11 @@
 
 日本語プログラミング言語「なでしこ3」のGo言語実装です。
 基本ライブラリを含めて、本家(TypeScript版)と同じように動きます。
-現行のTypeScript版を置き換えるものではなく、インストール不要で配布しやすいCUI/GUIバックエンドを目標にしています。
+現行のTypeScript版を置き換えるものではなく、ランタイムのインストール不要で配布しやすい、CUI/GUIバックエンドを目標にしています。
 
-差分fixtureは **235/236 (99.6%)** 通過しています。残る1件は期待値が
-TypeScript版の生成コードに依存しているケースです
-（[本家Issue #2456](https://github.com/kujirahand/nadesiko3/issues/2456)）。
+ランタイム兼開発エディタで、ファイル1つだけで動く、`gonako-gui`と、コマンドラインから使う`gonako`を提供しています。
+
+----------------------------
 
 ## インストール方法
 
@@ -24,6 +24,8 @@ curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scrip
 irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.ps1 | iex
 ```
 
+----------------------------
+
 ### Homebrewでインストール
 
 Homebrewからもインストールできます。ただし、エディタ一体型の`gonako-gui`を使う場合には、Gatekeeperのブロックを解除が必要です。
@@ -38,6 +40,8 @@ brew install --cask gonako-gui   # GUI版
 # Gatekeeperのブロックを解除
 xattr -cr /Applications/なでしこ3.app
 ```
+
+----------------------------
 
 ## gonakoを使ってみよう
 
@@ -59,6 +63,8 @@ cat hello.nako3 | bin/gonako run - # 標準入力から読む
     「{回数}回目」と表示
 ここまで
 ```
+
+----------------------------
 
 ## 作ったものをそのまま渡す
 
@@ -90,7 +96,9 @@ gonako build ゲーム.nako3 --runtime ./gonako-linux-amd64 --out ゲーム-linu
 > macOSの署名済みバイナリは末尾追記で署名が壊れます。
 > 配布時は `codesign` し直してください。
 
-### Go言語でソースコードからインストール
+----------------------------
+
+## Go言語でソースコードからインストール
 
 gonako / gonako-gui をソースコードからコンパイルするのも簡単です。以下のコマンドを実行すると、/binフォルダ以下にgonako/gonako-guiが作成されます。
 
@@ -103,7 +111,9 @@ make build
 make release VERSION=3.8.1
 ```
 
-## できること
+----------------------------
+
+## 「gnako-gui」「gonako」で実現できること
 
 | 分野 | 内容 |
 |---|---|
