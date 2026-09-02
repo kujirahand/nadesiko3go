@@ -40,7 +40,7 @@ type Result struct {
 	Name   string         `json:"name"`
 	Status string         `json:"status"`
 	Log    string         `json:"log"`
-	Vars   map[string]any `json:"vars,omitempty"`
+	Vars   *orderedObject `json:"vars,omitempty"`
 	Error  *ErrorResult   `json:"error,omitempty"`
 }
 
@@ -154,10 +154,11 @@ func runCase(testCase Case) Result {
 	if run != nil {
 		result.Log = run.Log
 		if len(testCase.Vars) > 0 {
-			result.Vars = make(map[string]any, len(testCase.Vars))
+			vars := ordered()
 			for _, name := range testCase.Vars {
-				result.Vars[name] = encodeValue(run.Vars[name])
+				vars.set(name, encodeValue(run.Vars[name]))
 			}
+			result.Vars = vars
 		}
 	}
 	if err == nil {
