@@ -256,7 +256,25 @@ func (p Program) VerifyStacks() error {
 // The compiler and the verifier both call it, so the recorded MaxStack is a
 // genuine cross-check rather than a restatement.
 func ComputeMaxStack(fi int, f Func) (int, error) {
-	const unvisited = -1
+	maxDepth, _, err := ComputeDepths(fi, f)
+	return maxDepth, err
+}
+
+// Unvisited marks a position ComputeDepths could not reach. Unreachable code
+// has no stack depth to speak of, so a backend must not read one for it.
+const Unvisited = -1
+
+// ComputeDepths reports the deepest the operand stack gets and how deep it is
+// *before* each instruction (with one extra entry for the position past the
+// last instruction, which a jump can target).
+//
+// Because it fails when two paths meet at different depths, a successful
+// return is a proof that every instruction sees the stack at one fixed depth,
+// no matter how it was reached. internal/gogen leans on that to replace the
+// stack with plain Go variables named after the depth (→ gogen のパッケージ
+// コメント). Positions it never reached hold Unvisited.
+func ComputeDepths(fi int, f Func) (int, []int, error) {
+	const unvisited = Unvisited
 	maxDepth := 0
 	depths := make([]int, len(f.Code)+1)
 	for i := range depths {
@@ -272,11 +290,11 @@ func ComputeMaxStack(fi int, f Func) (int, error) {
 		item := work[len(work)-1]
 		work = work[:len(work)-1]
 		if item.at < 0 || item.at > len(f.Code) {
-			return 0, bad(item.at, "飛び先が命令範囲外です")
+			return 0, nil, bad(item.at, "飛び先が命令範囲外です")
 		}
 		if depths[item.at] != unvisited {
 			if depths[item.at] != item.depth {
-				return 0, bad(item.at, "合流点のスタック深さが違います: %d と %d",
+				return 0, nil, bad(item.at, "合流点のスタック深さが違います: %d と %d",
 					depths[item.at], item.depth)
 			}
 			continue
@@ -292,7 +310,7 @@ func ComputeMaxStack(fi int, f Func) (int, error) {
 		inst := f.Code[item.at]
 		needs, delta := StackDelta(inst)
 		if item.depth < needs {
-			return 0, bad(item.at, "%s に必要な値が足りません: 深さ%d, 必要%d",
+			return 0, nil, bad(item.at, "%s に必要な値が足りません: 深さ%d, 必要%d",
 				inst.Op, item.depth, needs)
 		}
 		next := item.depth + delta
@@ -314,5 +332,5 @@ func ComputeMaxStack(fi int, f Func) (int, error) {
 		}
 		work = append(work, todo{item.at + 1, next})
 	}
-	return maxDepth, nil
+	return maxDepth, depths, nil
 }
