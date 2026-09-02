@@ -8,6 +8,34 @@
 TypeScript版の生成コードに依存しているケースです
 （[本家Issue #2456](https://github.com/kujirahand/nadesiko3/issues/2456)）。
 
+## インストール方法
+
+### コマンド一発でインストール (ワンライナー)
+
+**macOS / Linux (ターミナル):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/main/scripts/install.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/main/scripts/install.ps1 | iex
+```
+
+
+### Homebrewでインストール
+
+```sh
+# Homebrewでtapを追加
+brew tap kujirahand/nadesiko3
+brew trust kujirahand/nadesiko3
+# インストール(CUI + GUI)
+brew install gonako          # CLI版
+brew install --cask gonako-gui   # GUI版
+# Gatekeeperのブロックを解除
+xattr -cr /Applications/なでしこ3.app
+```
+
 ## 使う
 
 ```bash
@@ -59,18 +87,20 @@ gonako build ゲーム.nako3 --runtime ./gonako-linux-amd64 --out ゲーム-linu
 > macOSの署名済みバイナリは末尾追記で署名が壊れます。
 > 配布時は `codesign` し直してください。
 
-### gonako 自体を配布する
+### gonako / gonako-gui 自体を配布する
 
 ```bash
 make release VERSION=1.0.0
 ```
 
-`bin/` に各プラットフォーム向けの単一バイナリができます。
+`bin/` に各プラットフォーム向けのCLIバイナリおよびGUIツール（.app / .exe / zip）が生成されます。
 
 ```
-gonako-1.0.0-darwin-arm64      gonako-1.0.0-linux-amd64
-gonako-1.0.0-darwin-amd64      gonako-1.0.0-linux-arm64
+gonako-1.0.0-darwin-arm64               gonako-1.0.0-linux-amd64
+gonako-1.0.0-darwin-amd64               gonako-1.0.0-linux-arm64
 gonako-1.0.0-windows-amd64.exe
+gonako-gui-1.0.0-darwin-arm64.app.zip   gonako-gui-1.0.0-darwin-amd64.app.zip
+gonako-gui-1.0.0-windows-amd64.zip
 ```
 
 ## できること

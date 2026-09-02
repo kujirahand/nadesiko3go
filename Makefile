@@ -3,7 +3,7 @@ GO ?= go
 VERSION ?= dev
 PLATFORMS ?= darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64
 
-.PHONY: all build cmd cui gui install release test doctest sync-compat compat-run compat-check gen-command-list clean benchmark
+.PHONY: all build cmd cui gui install release release-cli release-gui test doctest sync-compat compat-run compat-check gen-command-list clean benchmark
 
 all: build
 
@@ -22,16 +22,16 @@ install:
 	$(GO) install ./cmd/gonako
 	$(GO) install ./cmd/gonako-cui
 
-# 配布用に各プラットフォーム向けの単一バイナリを作る。
-# Goツールチェインさえあれば、受け取る側には何も要らない。
+# 配布用に各プラットフォーム向けのバイナリ・ツール（CLI・GUI）を作る。
 release:
-	@for platform in $(PLATFORMS); do \
-		os=$${platform%/*}; arch=$${platform#*/}; \
-		out=bin/gonako-$(VERSION)-$$os-$$arch; \
-		if [ "$$os" = "windows" ]; then out=$$out.exe; fi; \
-		echo "building $$out"; \
-		GOOS=$$os GOARCH=$$arch $(GO) build -trimpath -ldflags="-s -w" -o $$out ./cmd/gonako || exit 1; \
-	done
+	$(GO) run ./scripts/build-release.go -version $(VERSION) -platforms "$(PLATFORMS)"
+
+release-cli:
+	$(GO) run ./scripts/build-release.go -version $(VERSION) -platforms "$(PLATFORMS)" -skip-gui
+
+release-gui:
+	$(GO) run ./scripts/build-release.go -version $(VERSION) -platforms "$(PLATFORMS)" -skip-cli
+
 
 clean:
 	rm -rf bin out benchmark/build
