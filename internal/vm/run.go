@@ -8,6 +8,7 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/ops"
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
@@ -107,10 +108,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		case ir.OpBinary:
 			b := f.pop()
 			a := f.pop()
-			f.push(m.binary(ir.BinaryOp(inst.A), a, b))
+			f.push(ops.Binary(ir.BinaryOp(inst.A), a, b))
 
 		case ir.OpUnary:
-			f.push(m.unary(ir.UnaryOp(inst.A), f.pop()))
+			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 
 		case ir.OpMakeArray:
 			f.push(value.ArrayValue(value.NewArray(f.popN(inst.B)...)))
@@ -356,60 +357,6 @@ func (m *VM) callStd(id int, args []value.Value, pos int) value.Value {
 }
 
 // --- 演算 ---
-
-func (m *VM) binary(op ir.BinaryOp, a, b value.Value) value.Value {
-	switch op {
-	case ir.BinAdd:
-		return value.Number(value.Add(value.ParseFloat(a), value.ParseFloat(b)))
-	case ir.BinSub:
-		return value.Number(value.Sub(a, b))
-	case ir.BinMul:
-		return value.Number(value.Mul(a, b))
-	case ir.BinDiv:
-		return value.Number(value.Div(a, b))
-	case ir.BinIntDiv:
-		return value.Number(value.IntDiv(a, b))
-	case ir.BinMod:
-		return value.Number(value.Mod(a, b))
-	case ir.BinPow:
-		return value.Number(value.Pow(a, b))
-	case ir.BinConcat:
-		return value.String(value.Concat(a, b))
-	case ir.BinEq:
-		return value.Bool(value.LooseEquals(a, b))
-	case ir.BinNotEq:
-		return value.Bool(!value.LooseEquals(a, b))
-	case ir.BinStrictEq:
-		return value.Bool(value.StrictEquals(a, b))
-	case ir.BinStrictNotEq:
-		return value.Bool(!value.StrictEquals(a, b))
-	case ir.BinLt:
-		return value.Bool(value.LessThan(a, b))
-	case ir.BinLtEq:
-		return value.Bool(value.LessEqual(a, b))
-	case ir.BinGt:
-		return value.Bool(value.GreaterThan(a, b))
-	case ir.BinGtEq:
-		return value.Bool(value.GreaterEqual(a, b))
-	case ir.BinShiftL:
-		return value.Number(value.ShiftLeft(a, b))
-	case ir.BinShiftR:
-		return value.Number(value.ShiftRight(a, b))
-	case ir.BinShiftR0:
-		return value.Number(value.ShiftRightZero(a, b))
-	}
-	return value.Undefined()
-}
-
-func (m *VM) unary(op ir.UnaryOp, v value.Value) value.Value {
-	switch op {
-	case ir.UnaryNot:
-		return value.Bool(!value.ToBool(v))
-	case ir.UnaryNeg:
-		return value.Number(-value.ToNumber(v))
-	}
-	return value.Undefined()
-}
 
 // --- 添字アクセス ---
 

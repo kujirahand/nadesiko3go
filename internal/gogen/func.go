@@ -3,6 +3,8 @@ package gogen
 import (
 	"bytes"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 )
@@ -68,6 +70,64 @@ func usesSore(code []ir.Inst) bool {
 		}
 	}
 	return false
+}
+
+// constExpr writes Consts[i] as a Go literal rather than a lookup back into
+// the embedded program. A constant is known at generation time, so paying for
+// a bounds check and a kind switch on every use — which m.ConstValue does —
+// is pure overhead in generated code.
+//
+// Anything the literal form cannot express falls back to m.ConstValue, so a
+// constant kind added later still works, just without the speedup.
+func (g *generator) constExpr(i int) string {
+	if i < 0 || i >= len(g.prog.Consts) {
+		return fmt.Sprintf("m.ConstValue(%d)", i)
+	}
+	k := g.prog.Consts[i]
+	switch k.Kind {
+	case ir.ConstUndefined:
+		return "rt.Undefined()"
+	case ir.ConstNull:
+		return "rt.Null()"
+	case ir.ConstBool:
+		return fmt.Sprintf("rt.Bool(%t)", k.Bool)
+	case ir.ConstNumber:
+		// NaN や ±Inf はGoのリテラルで書けない。数は少ないので、その分だけ
+		// 定数プールから引く形に戻す。
+		if math.IsNaN(k.Num) || math.IsInf(k.Num, 0) {
+			return fmt.Sprintf("m.ConstValue(%d)", i)
+		}
+		return fmt.Sprintf("rt.Number(%s)", goNumber(k.Num))
+	case ir.ConstString:
+		return fmt.Sprintf("rt.String(%s)", strconv.Quote(k.Str))
+	}
+	return fmt.Sprintf("m.ConstValue(%d)", i)
+}
+
+// goNumber writes a float64 as a Go literal that reads back as exactly the
+// same value. A whole number is written without an exponent, because most
+// numbers in a なでしこ program are whole and 『5000000』 is easier to match
+// up with the source than 『5e+06』 when reading generated code.
+func goNumber(f float64) string {
+	if f == math.Trunc(f) && math.Abs(f) < 1e15 {
+		return strconv.FormatFloat(f, 'f', -1, 64)
+	}
+	return strconv.FormatFloat(f, 'g', -1, 64)
+}
+
+// emitStore and emitInit write a cell the way internal/vm's setCell and
+// initCell do, but as the two lines they actually are rather than through a
+// Machine method. Cell.Set and Cell.Init inline; a method on Machine does
+// not, and it would also build an ir.Inst per assignment just to carry the
+// source position. The failure messages must stay word for word what the
+// interpreter raises — AGENTS.md §9 makes those part of the compatibility
+// surface.
+func emitStore(out *bytes.Buffer, cell string, pos int) {
+	fmt.Fprintf(out, "\tif !%s.Set(pop()) {\n\t\tm.Fail(\"定数へ代入しようとしました。\", %d)\n\t}\n", cell, pos)
+}
+
+func emitInit(out *bytes.Buffer, cell string, pos int) {
+	fmt.Fprintf(out, "\tif !%s.Init(pop()) {\n\t\tm.Fail(\"定数を二度初期化しようとしました。\", %d)\n\t}\n", cell, pos)
 }
 
 // label names the goto target for code position pc, folding every pc at or
@@ -154,7 +214,9 @@ func stackPrelude(maxStack int) string {
 	if maxStack < 0 {
 		maxStack = 0
 	}
-	return fmt.Sprintf(`	st := make([]rt.Value, 0, %d)
+	return fmt.Sprintf(`	globals := m.Globals()
+	_ = globals
+	st := make([]rt.Value, 0, %d)
 	pop := func() rt.Value {
 		v := st[len(st)-1]
 		st = st[:len(st)-1]
@@ -228,7 +290,7 @@ func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, r
 		out.WriteString("\t_ = 0\n")
 
 	case ir.OpLoadConst:
-		fmt.Fprintf(out, "\tpush(m.ConstValue(%d))\n", inst.A)
+		fmt.Fprintf(out, "\tpush(%s)\n", g.constExpr(inst.A))
 
 	case ir.OpPop:
 		out.WriteString("\tpop()\n")
@@ -240,25 +302,25 @@ func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, r
 		fmt.Fprintf(out, "\tpush(locals[%d].Get())\n", inst.A)
 
 	case ir.OpStoreLocal:
-		fmt.Fprintf(out, "\tm.StoreCell(locals[%d], pop(), %d)\n", inst.A, inst.Pos)
+		emitStore(out, fmt.Sprintf("locals[%d]", inst.A), inst.Pos)
 
 	case ir.OpInitLocal:
-		fmt.Fprintf(out, "\tm.InitCell(locals[%d], pop(), %d)\n", inst.A, inst.Pos)
+		emitInit(out, fmt.Sprintf("locals[%d]", inst.A), inst.Pos)
 
 	case ir.OpLoadCapture:
 		fmt.Fprintf(out, "\tpush(captures[%d].Get())\n", inst.A)
 
 	case ir.OpStoreCapture:
-		fmt.Fprintf(out, "\tm.StoreCell(captures[%d], pop(), %d)\n", inst.A, inst.Pos)
+		emitStore(out, fmt.Sprintf("captures[%d]", inst.A), inst.Pos)
 
 	case ir.OpLoadGlobal:
-		fmt.Fprintf(out, "\tpush(m.GlobalCell(%d).Get())\n", inst.A)
+		fmt.Fprintf(out, "\tpush(globals[%d].Get())\n", inst.A)
 
 	case ir.OpStoreGlobal:
-		fmt.Fprintf(out, "\tm.StoreCell(m.GlobalCell(%d), pop(), %d)\n", inst.A, inst.Pos)
+		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), inst.Pos)
 
 	case ir.OpInitGlobal:
-		fmt.Fprintf(out, "\tm.InitCell(m.GlobalCell(%d), pop(), %d)\n", inst.A, inst.Pos)
+		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), inst.Pos)
 
 	case ir.OpLoadSpecial:
 		if ir.Special(inst.A) == ir.SpecialSore {
@@ -275,10 +337,10 @@ func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, r
 		}
 
 	case ir.OpBinary:
-		fmt.Fprintf(out, "\t{\n\t\tb := pop()\n\t\ta := pop()\n\t\tpush(m.Binary(rt.BinaryOp(%d), a, b))\n\t}\n", inst.A)
+		fmt.Fprintf(out, "\t{\n\t\tb := pop()\n\t\ta := pop()\n\t\tpush(rt.Binary(rt.BinaryOp(%d), a, b))\n\t}\n", inst.A)
 
 	case ir.OpUnary:
-		fmt.Fprintf(out, "\tpush(m.Unary(rt.UnaryOp(%d), pop()))\n", inst.A)
+		fmt.Fprintf(out, "\tpush(rt.Unary(rt.UnaryOp(%d), pop()))\n", inst.A)
 
 	case ir.OpMakeArray:
 		fmt.Fprintf(out, "\tpush(m.MakeArray(popN(%d)))\n", inst.B)

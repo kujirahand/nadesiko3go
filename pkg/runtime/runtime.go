@@ -25,6 +25,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
+	"github.com/kujirahand/nadesiko3go/internal/ops"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -79,6 +80,15 @@ type UnaryOp = ir.UnaryOp
 
 // Special identifies one of the system values (『それ』『対象』 …).
 type Special = ir.Special
+
+// Binary and Unary apply an operator. Generated code calls these rather than
+// the Machine methods of the same name so that the call reaches
+// internal/ops directly: an operator is the hottest thing in a program, and
+// a method on Machine adds a frame per operation that the interpreter does
+// not pay (measured at roughly a tenth of a loop's run time).
+func Binary(op BinaryOp, a, b Value) Value { return ops.Binary(op, a, b) }
+
+func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }
 
 // SpecialSore is 『それ』, which a generated function keeps as its own local
 // variable rather than reading through the machine (AGENTS.md §4: it belongs

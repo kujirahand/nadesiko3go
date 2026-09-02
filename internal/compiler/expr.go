@@ -57,6 +57,9 @@ func (c *Compiler) compileExpr(n *ast.Node) {
 		return
 
 	case ast.Not:
+		if c.tryEmitFolded(n) {
+			return
+		}
 		c.compileExpr(n.Block(0))
 		c.emit(ir.OpUnary, int(ir.UnaryNot), 0, n)
 		return
@@ -145,6 +148,10 @@ func (c *Compiler) compileOp(n *ast.Node) {
 	op, ok := binaryOps[n.Operator]
 	if !ok {
 		c.fail(fmt.Sprintf("演算子『%s』はまだ実行に対応していません。", n.Operator), n)
+	}
+	// 両辺がリテラルだけでできているなら、実行時ではなくここで計算する
+	if c.tryEmitFolded(n) {
+		return
 	}
 	c.compileExpr(n.Block(0))
 	c.compileExpr(n.Block(1))

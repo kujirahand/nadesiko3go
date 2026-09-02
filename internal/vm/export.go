@@ -15,6 +15,7 @@ package vm
 
 import (
 	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/ops"
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
@@ -22,10 +23,10 @@ import (
 func (m *VM) ConstValue(i int) value.Value { return m.constValue(i) }
 
 // Binary is OpBinary.
-func (m *VM) Binary(op ir.BinaryOp, a, b value.Value) value.Value { return m.binary(op, a, b) }
+func (m *VM) Binary(op ir.BinaryOp, a, b value.Value) value.Value { return ops.Binary(op, a, b) }
 
 // Unary is OpUnary.
-func (m *VM) Unary(op ir.UnaryOp, v value.Value) value.Value { return m.unary(op, v) }
+func (m *VM) Unary(op ir.UnaryOp, v value.Value) value.Value { return ops.Unary(op, v) }
 
 // IndexGet is OpIndexGet.
 func (m *VM) IndexGet(container value.Value, indexes []value.Value, pos int) value.Value {
@@ -106,6 +107,11 @@ func (m *VM) SetSpecialValue(id ir.Special, v value.Value) {
 // GlobalCell gives direct access to a module variable's cell, so generated
 // code can Get/Set/Init it exactly as a local or captured cell.
 func (m *VM) GlobalCell(i int) *value.Cell { return m.globals[i] }
+
+// Globals hands over the whole slice, which a generated function binds once
+// on entry so that reading a module variable is a slice index rather than a
+// method call per access.
+func (m *VM) Globals() []*value.Cell { return m.globals }
 
 // StoreCell is OpStoreLocal / OpStoreCapture / OpStoreGlobal: write a cell,
 // failing the way an assignment to a constant does.
