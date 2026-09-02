@@ -10,6 +10,8 @@ TypeScript版の生成コードに依存しているケースです
 
 ## インストール方法
 
+コマンドラインでコマンドを貼り付けて実行するとスムーズにインストールできます。
+
 ### コマンド一発でインストール (ワンライナー)
 
 **macOS / Linux (ターミナル):**
@@ -22,8 +24,9 @@ curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scrip
 irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.ps1 | iex
 ```
 
-
 ### Homebrewでインストール
+
+Homebrewからもインストールできます。ただし、エディタ一体型の`gonako-gui`を使う場合には、Gatekeeperのブロックを解除が必要です。
 
 ```sh
 # Homebrewでtapを追加
@@ -36,7 +39,7 @@ brew install --cask gonako-gui   # GUI版
 xattr -cr /Applications/なでしこ3.app
 ```
 
-## 使う
+## gonakoを使ってみよう
 
 ```bash
 make build              # bin/gonako ができる
@@ -87,20 +90,17 @@ gonako build ゲーム.nako3 --runtime ./gonako-linux-amd64 --out ゲーム-linu
 > macOSの署名済みバイナリは末尾追記で署名が壊れます。
 > 配布時は `codesign` し直してください。
 
-### gonako / gonako-gui 自体を配布する
+### Go言語でソースコードからインストール
+
+gonako / gonako-gui をソースコードからコンパイルするのも簡単です。以下のコマンドを実行すると、/binフォルダ以下にgonako/gonako-guiが作成されます。
 
 ```bash
-make release VERSION=1.0.0
-```
-
-`bin/` に各プラットフォーム向けのCLIバイナリおよびGUIツール（.app / .exe / zip）が生成されます。
-
-```
-gonako-1.0.0-darwin-arm64               gonako-1.0.0-linux-amd64
-gonako-1.0.0-darwin-amd64               gonako-1.0.0-linux-arm64
-gonako-1.0.0-windows-amd64.exe
-gonako-gui-1.0.0-darwin-arm64.app.zip   gonako-gui-1.0.0-darwin-amd64.app.zip
-gonako-gui-1.0.0-windows-amd64.zip
+# ビルド
+git clone https://github.com/kujirahand/nadesiko3go.git
+cd nadesiko3go
+make build
+# もし各種OSのリリースファイルを生成するなら
+make release VERSION=3.8.1
 ```
 
 ## できること
