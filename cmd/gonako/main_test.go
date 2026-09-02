@@ -22,6 +22,23 @@ func TestRunHelp(t *testing.T) {
 	}
 }
 
+func TestRunCompatCommands(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "command_list.json")
+	data := `[{"plugin":"plugin_system","type":"関数","name":"表示"},{"plugin":"plugin_system","type":"関数","name":"本家のみ"}]`
+	if err := os.WriteFile(source, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"compat", "commands", "--source", source, "--source-ref", "test-ref"}, &stdout, &stderr); err != nil {
+		t.Fatalf("compat commands: %v; stderr=%s", err, stderr.String())
+	}
+	for _, want := range []string{"比較元コミット: test-ref", "未実装 (1):\n  本家のみ", "Go版のみ"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("出力に%qがありません:\n%s", want, stdout.String())
+		}
+	}
+}
+
 func TestRunRejectsUnknownCommand(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

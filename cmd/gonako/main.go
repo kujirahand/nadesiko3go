@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
+	"github.com/kujirahand/nadesiko3go/internal/commanddiff"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
@@ -21,6 +23,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
+	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
@@ -41,6 +44,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
+  gonako compat commands [--source FILE]
   gonako version                    バージョン情報を表示する
 
 ファイル名に - を指定すると標準入力から読み込みます。
@@ -485,6 +489,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "%dグループ・%dケースを実行し、結果を%sへ出力しました\n", summary.Groups, summary.Cases, *outDir)
 		return nil
 	}
+	if len(args) >= 2 && args[0] == "compat" && args[1] == "commands" {
+		return runCommandDiff(args[2:], stdout, stderr)
+	}
 
 	// ファイル直接指定の場合 (例: gonako main.nako3, gonako -)
 	if args[0] == "-" || strings.HasSuffix(args[0], ".nako3") || strings.HasSuffix(args[0], ".nako") {
@@ -496,4 +503,57 @@ func run(args []string, stdout, stderr io.Writer) error {
 
 	fmt.Fprint(stderr, usage)
 	return fmt.Errorf("不明なサブコマンドです: %s", args[0])
+}
+
+func runCommandDiff(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("compat commands", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	source := flags.String("source", "./nadesiko3/doc/command_list.json", "本家のcommand_list.json")
+	sourceRef := flags.String("source-ref", "", "比較元のコミットID（省略時はGitから取得）")
+	if err := flags.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if flags.NArg() != 0 {
+		return fmt.Errorf("余分な引数があります: %s", flags.Arg(0))
+	}
+
+	f, err := os.Open(*source)
+	if err != nil {
+		return fmt.Errorf("比較元を開けません: %w", err)
+	}
+	defer f.Close()
+	report, err := commanddiff.Compare(f, stdlib.ParserFuncList())
+	if err != nil {
+		return err
+	}
+	ref := *sourceRef
+	if ref == "" {
+		ref = findGitRevision(*source)
+	}
+	commanddiff.WriteText(stdout, *source, ref, report)
+	return nil
+}
+
+func findGitRevision(source string) string {
+	dir, err := filepath.Abs(filepath.Dir(source))
+	if err != nil {
+		return ""
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			out, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+			if err == nil {
+				return strings.TrimSpace(string(out))
+			}
+			return ""
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
 }

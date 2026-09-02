@@ -80,13 +80,26 @@ Go版は標準でGoの標準ライブラリ `regexp`（RE2ベース）をラッ�
 
 ---
 
-## 6. 未対応命令・環境依存機能
+## 6. `plugin_system` の未実装命令 (Issue #15)
 
-| 命令・分野 | TypeScript版 | Go版 | 備考・代替手段 |
-|---|---|---|---|
-| **JavaScript連携** (`JS実行`, `ナデシコ`, `AWAIT実行` など) | 実行環境（V8/ブラウザ）のJSを直接実行可能 | 非対応 | Goランタイム上で動作するため、直接のJS実行は対象外。 |
-| **ブラウザDOM操作** (`HTML要素取得`, `クリック時` など) | `wnako3` でHTML/DOMを直接操作 | 非対応 (CUI) / WebView経由 (GUI) | Webブラウザ版 `wnako3` はaltJS方式を継続。Go版GUI (`gonako-gui`) ではWebViewウィンドウ内でHTMLを表示・連携します。 |
-| **多倍長整数演算** | `BigInt` 対応 | 未実装 | 必要性が生じるまで保留。 |
+本家の `doc/command_list.json` に掲載されている `plugin_system` の関数と、Go版の `stdlib.ParserFuncList()` を命令名で比較した結果、未実装なのは次の8命令です。
+
+- `JSメソッド実行`
+- `JS実行`
+- `JS関数実行`
+- `__DEBUG`
+- `__DEBUG_BP_WAIT`
+- `ナデシコ`
+- `ナデシコ続`
+- `終`
+
+比較元は本家 `nadesiko3` のコミット `8c3576ee8abdec93db1a72f9c9c26f48b9c2a773` です。現在の一覧は次のコマンドで再確認できます。
+
+```bash
+go run ./cmd/gonako compat commands
+```
+
+このコマンドは未実装命令に加えて、本家にはなくGo版だけに登録されている命令も表示します。定数および `plugin_system` 以外のプラグインは比較対象外です。
 
 ---
 
