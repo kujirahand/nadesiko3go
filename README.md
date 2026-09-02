@@ -144,6 +144,30 @@ SQLITE3閉じる
 `SQLITE3切替`に渡して操作対象を変更できます。SQLite実装はpure Goなので、
 CGOや別配布のSQLiteライブラリは不要です。
 
+## 実行速度
+
+代表的なアルゴリズム7本で、本家(`cnako3` / Node.js)とVM実行(`gonako`)、
+Goコード生成(`gogen`)を比較しています。結果と考察は
+**[benchmark/README.md](./benchmark/README.md)** にあります。
+
+| | 合計 | 対 cnako3 |
+|---|---:|---:|
+| cnako3 (Node.js) | 2649.3 ms | 1.00x |
+| gonako (VM実行) | 1877.0 ms | **1.41x** |
+| gogen (Goネイティブ) | 1873.7 ms | **1.41x** |
+
+得意・不得意がはっきり分かれます。起動の軽さ・文字列処理・辞書・関数呼び出しは
+本家より速く（文字列は約5倍、再帰は約2.6倍）、一方で**数値ループはV8のJITに負けます**
+（コラッツは約1/3）。数値を float64 一本で扱い、型を決めつける最適化をしない方針
+（AGENTS.md 12節）の帰結です。
+
+ベンチマークは自分の環境でも回せます。
+
+```bash
+make cmd                      # gonako本体をビルド
+go run ./benchmark/runner.go  # 測定してbenchmark/README.mdを再生成
+```
+
 ## 開発
 
 必要なGoバージョンとSQLiteドライバは`go.mod`で固定しています。
@@ -170,5 +194,6 @@ go test ./...
 ```
 
 設計と開発上の制約は [AGENTS.md](./AGENTS.md)、VMの詳細は
-[docs/vm.md](./docs/vm.md) を参照してください。
+[docs/vm.md](./docs/vm.md)、実行速度の比較は
+[benchmark/README.md](./benchmark/README.md) を参照してください。
 残作業は [Issue #9](https://github.com/kujirahand/nadesiko3go/issues/9) にまとめています。
