@@ -50,6 +50,14 @@ const (
 	OpBinary
 	// OpUnary applies unary operator A to the value on the stack.
 	OpUnary
+	// OpBinaryAt applies a binary operator to two operands read straight from
+	// where they live, and pushes the result. It is what the peephole pass
+	// makes of 『Load;Load;Binary』: three dispatches and four stack
+	// operations become one dispatch and one push.
+	//
+	// A packs the operator and the two operand kinds (→ EncodeBinaryAt),
+	// B is the index of the left operand and C of the right.
+	OpBinaryAt
 
 	// --- 集合 ---
 
@@ -125,6 +133,62 @@ const (
 	BinShiftR0                     // shift_r0
 )
 
+// Src says where a fused instruction reads an operand from. It covers the
+// places a value can be fetched without touching the operand stack, which is
+// the whole point of fusing: 『それ』 などのシステム値は入れていない (フレーム
+// ごとの読み分けが要り、素直な添字にならないため)。
+type Src uint8
+
+const (
+	SrcConst   Src = iota // Consts[i]
+	SrcLocal              // ローカルセル i
+	SrcCapture            // 捕捉セル i
+	SrcGlobal             // グローバルセル i
+	// srcCount is how many operand sources there are, for range checks.
+	srcCount
+)
+
+// Valid reports whether the id names an operand source.
+func (s Src) Valid() bool { return s < srcCount }
+
+func (s Src) String() string {
+	switch s {
+	case SrcConst:
+		return "Const"
+	case SrcLocal:
+		return "Local"
+	case SrcCapture:
+		return "Capture"
+	case SrcGlobal:
+		return "Global"
+	}
+	return "Src?"
+}
+
+// The A operand of OpBinaryAt holds three small numbers side by side. Keeping
+// the layout in these two functions means nothing else has to know it.
+const (
+	binaryAtOpBits   = 8
+	binaryAtKindBits = 4
+	binaryAtOpMask   = 1<<binaryAtOpBits - 1
+	binaryAtKindMask = 1<<binaryAtKindBits - 1
+)
+
+// EncodeBinaryAt packs an operator and its two operand kinds into the A
+// operand of an OpBinaryAt instruction.
+func EncodeBinaryAt(op BinaryOp, left, right Src) int {
+	return int(op)&binaryAtOpMask |
+		int(left)&binaryAtKindMask<<binaryAtOpBits |
+		int(right)&binaryAtKindMask<<(binaryAtOpBits+binaryAtKindBits)
+}
+
+// DecodeBinaryAt unpacks what EncodeBinaryAt made.
+func DecodeBinaryAt(a int) (op BinaryOp, left, right Src) {
+	return BinaryOp(a & binaryAtOpMask),
+		Src(a >> binaryAtOpBits & binaryAtKindMask),
+		Src(a >> (binaryAtOpBits + binaryAtKindBits) & binaryAtKindMask)
+}
+
 // Special identifies one of the values the language keeps outside the ordinary
 // variable scopes.
 //
@@ -197,7 +261,7 @@ var opNames = map[Op]string{
 	OpLoadGlobal: "LoadGlobal", OpStoreGlobal: "StoreGlobal", OpInitGlobal: "InitGlobal",
 	OpLoadSpecial: "LoadSpecial", OpStoreSpecial: "StoreSpecial",
 	OpPop: "Pop", OpDup: "Dup",
-	OpBinary: "Binary", OpUnary: "Unary",
+	OpBinary: "Binary", OpUnary: "Unary", OpBinaryAt: "BinaryAt",
 	OpMakeArray: "MakeArray", OpMakeDict: "MakeDict",
 	OpIndexGet: "IndexGet", OpIndexSet: "IndexSet",
 	OpIterKeys: "IterKeys", OpLen: "Len",

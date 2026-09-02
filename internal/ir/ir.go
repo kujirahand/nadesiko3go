@@ -2,7 +2,9 @@
 // execution backends.
 package ir
 
-const CurrentVersion = 1
+// CurrentVersion は、直列化されたIRの世代。バージョン2で Inst.C と
+// OpBinaryAt (スーパー命令) が加わった。
+const CurrentVersion = 2
 
 type Program struct {
 	Version int     `json:"version"`
@@ -78,10 +80,14 @@ type Param struct {
 	Slot int `json:"slot"`
 }
 
+// Inst is one instruction. Most instructions use A alone; B carries a count
+// (→ Op のコメント). C is used only by the fused instructions the peephole pass
+// makes, which need one operand more than A と B に収まる。
 type Inst struct {
 	Op  Op  `json:"op"`
 	A   int `json:"a"`
 	B   int `json:"b"`
+	C   int `json:"c,omitempty"`
 	Pos int `json:"pos"`
 }
 

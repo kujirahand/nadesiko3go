@@ -348,8 +348,16 @@ go test ./internal/vm/ -run XXX -bench . -benchtime 200x
 `OpMakeFunc` を持たない関数に限る、といった条件が要ります。
 
 ループ側はディスパッチ(約40%)とスタック操作(約23%)で大半が決まります。
-ここを縮めるにはスーパー命令（`LoadLocal`+`LoadLocal`+`Binary` を1命令に
-まとめる等）が要り、IRのバージョンと検証器とgogenの全部に手が入ります。
+ここはスーパー命令を1つ入れて縮めました（`internal/compiler/peephole.go`。
+`Load`+`Load`+`Binary` → `OpBinaryAt`）。IRのバージョンを2に上げ、検証器と
+gogenにも同じ命令を足してあります。`BenchmarkLoop` が-17%、`BenchmarkCalls`
+が-3%。
+
+このとき、被演算子の取得を `operandAt` という小さなメソッドに切り出した版も
+測りましたが、**その1段だけで改善分がほぼ消えました**（-17%が-2%になった）。
+`internal/vm/run.go` の `OpBinaryAt` を展開したまま置いてあるのはそのためです。
+`internal/ops` を切り出したときと同じ現象で、ディスパッチループの中では
+中継を1段挟むだけで測れるほど効きます。
 
 ---
 
@@ -617,6 +625,8 @@ JS生成と違い、**標準命令の実装を二重に持つ必要がありま�
 | 最適化 | 効く範囲 |
 |---|---|
 | 定数畳み込み（`internal/compiler/fold.go`） | VM・gogen |
+| 定数伝播（同上。『定数』宣言の値を後の式へ差し込む） | VM・gogen |
+| 覗き穴最適化とスーパー命令（`internal/compiler/peephole.go`） | VM・gogen |
 | 数値どうしの高速経路（`internal/ops`。両辺が数値なら ToPrimitive/ParseFloat を通さない） | VM・gogen |
 | 定数を `rt.Number(9)` としてソースへ直接埋め込む | gogen |
 | 演算子・変数代入をMachineのメソッド経由にせず、Goがインライン展開できる形で書く | gogen |

@@ -95,6 +95,10 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 
 	c.fnStack = append(c.fnStack, c.fn)
 	c.fn = fn
+	// 関数の本体は、呼ばれるたび先頭から順に動く。外側の『もし』や
+	// ループの中に定義が書かれていても、本体の中では直線として数える。
+	outerDepth := c.branchDepth
+	c.branchDepth = 0
 
 	// 本体が代入する名前を先にスロットにする。こうしないと関数の中の代入が
 	// グローバルになってしまい、入れ子の関数から捕捉することもできない。
@@ -108,18 +112,20 @@ func (c *Compiler) compileFuncBody(index int, n *ast.Node) {
 	c.emit(ir.OpLoadSpecial, int(ir.SpecialSore), 0, n)
 	c.emit(ir.OpReturn, 1, 0, n)
 
+	code := optimize(fn.code)
 	c.prog.Funcs[index] = ir.Func{
 		Name:        fn.name,
 		Params:      params,
 		NumVars:     fn.numVars,
 		ConstVars:   sortedSlots(fn.constSlots),
 		NumCaptures: len(fn.captures),
-		Code:        fn.code,
+		Code:        code,
 		Async:       n.AsyncFn,
 		Captures:    fn.captures,
-		MaxStack:    c.maxStack(index, fn.code),
+		MaxStack:    c.maxStack(index, code),
 	}
 
+	c.branchDepth = outerDepth
 	c.fn = c.fnStack[len(c.fnStack)-1]
 	c.fnStack = c.fnStack[:len(c.fnStack)-1]
 }

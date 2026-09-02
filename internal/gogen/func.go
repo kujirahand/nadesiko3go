@@ -88,6 +88,22 @@ func (g *generator) constExpr(i int) string {
 	return fmt.Sprintf("m.ConstValue(%d)", i)
 }
 
+// operandExpr writes one operand of a fused instruction as the Go expression
+// the Load it replaces would have pushed (→ compiler/peephole.go). A constant
+// becomes a literal here, the same as under OpLoadConst.
+func (g *generator) operandExpr(src ir.Src, index int) string {
+	switch src {
+	case ir.SrcConst:
+		return g.constExpr(index)
+	case ir.SrcLocal:
+		return fmt.Sprintf("locals[%d].Get()", index)
+	case ir.SrcCapture:
+		return fmt.Sprintf("captures[%d].Get()", index)
+	default:
+		return fmt.Sprintf("globals[%d].Get()", index)
+	}
+}
+
 // goNumber writes a float64 as a Go literal that reads back as exactly the
 // same value. A whole number is written without an exponent, because most
 // numbers in a なでしこ program are whole and 『5000000』 is easier to match
@@ -320,6 +336,11 @@ func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, r
 
 	case ir.OpBinary:
 		fmt.Fprintf(out, "\t{\n\t\tb := pop()\n\t\ta := pop()\n\t\tpush(rt.Binary(rt.BinaryOp(%d), a, b))\n\t}\n", inst.A)
+
+	case ir.OpBinaryAt:
+		op, left, right := ir.DecodeBinaryAt(inst.A)
+		fmt.Fprintf(out, "\tpush(rt.Binary(rt.BinaryOp(%d), %s, %s))\n",
+			op, g.operandExpr(left, inst.B), g.operandExpr(right, inst.C))
 
 	case ir.OpUnary:
 		fmt.Fprintf(out, "\tpush(rt.Unary(rt.UnaryOp(%d), pop()))\n", inst.A)

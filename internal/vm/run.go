@@ -114,6 +114,33 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			a := f.pop()
 			f.push(ops.Binary(ir.BinaryOp(inst.A), a, b))
 
+		case ir.OpBinaryAt:
+			// 取得を関数に切り出すと、その1段だけで測れるほど遅くなる
+			// (AGENTS.md §6)。ここは展開したまま置く。
+			op, left, right := ir.DecodeBinaryAt(inst.A)
+			var a, b value.Value
+			switch left {
+			case ir.SrcLocal:
+				a = f.locals[inst.B].Get()
+			case ir.SrcConst:
+				a = m.constValue(inst.B)
+			case ir.SrcGlobal:
+				a = m.globals[inst.B].Get()
+			default:
+				a = f.captures[inst.B].Get()
+			}
+			switch right {
+			case ir.SrcLocal:
+				b = f.locals[inst.C].Get()
+			case ir.SrcConst:
+				b = m.constValue(inst.C)
+			case ir.SrcGlobal:
+				b = m.globals[inst.C].Get()
+			default:
+				b = f.captures[inst.C].Get()
+			}
+			f.push(ops.Binary(op, a, b))
+
 		case ir.OpUnary:
 			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 

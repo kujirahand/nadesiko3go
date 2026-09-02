@@ -62,6 +62,7 @@ func (c *Compiler) compileStatement(n *ast.Node) {
 		c.compileExpr(n.Block(0))
 		if n.VarType == "定数" {
 			c.declareConst(n.Name, n)
+			c.recordConstValue(n.Name, n.Block(0))
 			return
 		}
 		if c.fn.name != "main" {
@@ -205,6 +206,7 @@ func (c *Compiler) compileInc(n *ast.Node) {
 // --- 制御構文 ---
 
 func (c *Compiler) compileIf(n *ast.Node) {
+	defer c.enterBranch()()
 	c.compileExpr(n.Block(0))
 	toElse := c.emit(ir.OpJumpIfFalse, 0, 0, n)
 	c.compileStatement(n.Block(1))
@@ -215,6 +217,7 @@ func (c *Compiler) compileIf(n *ast.Node) {
 }
 
 func (c *Compiler) compileWhile(n *ast.Node) {
+	defer c.enterBranch()()
 	top := c.here()
 	c.compileExpr(n.Block(0))
 	toEnd := c.emit(ir.OpJumpIfFalse, 0, 0, n)
@@ -228,6 +231,7 @@ func (c *Compiler) compileWhile(n *ast.Node) {
 
 // compileAtohantei compiles the loop that tests its condition after the body.
 func (c *Compiler) compileAtohantei(n *ast.Node) {
+	defer c.enterBranch()()
 	top := c.here()
 	loop := c.pushLoop()
 	c.compileStatement(n.Block(1))
@@ -244,6 +248,7 @@ func (c *Compiler) compileAtohantei(n *ast.Node) {
 // not clobber the count of the loop around it. 『それ』 is restored from the
 // same saved value, which is what the TypeScript version does.
 func (c *Compiler) compileRepeatTimes(n *ast.Node) {
+	defer c.enterBranch()()
 	counter := c.slot(c.tempName("回"))
 	limit := c.slot(c.tempName("回上限"))
 	saved := c.slot(c.tempName("回数退避"))
@@ -289,6 +294,7 @@ func (c *Compiler) compileRepeatTimes(n *ast.Node) {
 
 // compileFor compiles 『AからBまで繰り返す』.
 func (c *Compiler) compileFor(n *ast.Node) {
+	defer c.enterBranch()()
 	c.checkWritable(n.Word, "はループ変数に指定できません。別の変数名を指定してください。", n)
 	counter := c.slot(c.tempName("繰返"))
 	limit := c.slot(c.tempName("繰返上限"))
@@ -369,6 +375,7 @@ func (c *Compiler) compileFor(n *ast.Node) {
 // The three values the loop takes over — 『対象』『対象キー』『それ』 — are saved
 // and put back afterwards, so a nested loop leaves the outer one intact.
 func (c *Compiler) compileForeach(n *ast.Node) {
+	defer c.enterBranch()()
 	c.checkWritable(n.Word, "は『反復』のループ変数に指定できません。別の変数名を指定してください。", n)
 	target := c.slot(c.tempName("反復対象"))
 	keys := c.slot(c.tempName("反復キー"))
@@ -450,6 +457,7 @@ func (c *Compiler) compileForeach(n *ast.Node) {
 // compileSwitch compiles 『(値)で条件分岐』. blocks[0] is the value, blocks[1]
 // the 違えば block, and the rest are condition and body pairs.
 func (c *Compiler) compileSwitch(n *ast.Node) {
+	defer c.enterBranch()()
 	subject := c.slot(c.tempName("条件分岐"))
 	c.compileExpr(n.Block(0))
 	c.emit(ir.OpStoreLocal, subject, 0, n)
@@ -471,6 +479,7 @@ func (c *Compiler) compileSwitch(n *ast.Node) {
 }
 
 func (c *Compiler) compileTryExcept(n *ast.Node) {
+	defer c.enterBranch()()
 	toHandler := c.emit(ir.OpTry, 0, 0, n)
 	c.compileStatement(n.Block(0))
 	c.emit(ir.OpEndTry, 0, 0, n)
@@ -478,6 +487,13 @@ func (c *Compiler) compileTryExcept(n *ast.Node) {
 	c.patch(toHandler, c.here())
 	c.compileStatement(n.Block(1))
 	c.patch(toEnd, c.here())
+}
+
+// enterBranch marks the statements compiled until the returned function is
+// called as conditional: they may run zero times, or more than once. → fold.go
+func (c *Compiler) enterBranch() func() {
+	c.branchDepth++
+	return func() { c.branchDepth-- }
 }
 
 // --- ループの出入り ---

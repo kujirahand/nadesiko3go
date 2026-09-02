@@ -163,8 +163,9 @@ type Frame struct {
 
 ## 5. IR命令集合
 
-`Inst` は既存どおり `Op, A, B, Pos` の固定長とする。可変長データは定数プール、
-関数表、またはスタックで表す。
+`Inst` は `Op, A, B, C, Pos` の固定長とする。可変長データは定数プール、
+関数表、またはスタックで表す。`C` は覗き穴最適化が作るスーパー命令
+（→ 5.3 `BinaryAt`）だけが使い、それ以外の命令では0である。
 
 ### 5.1 基本・スタック
 
@@ -202,6 +203,14 @@ type Frame struct {
 |---|---:|---:|---|
 | `Unary` | `A=UnaryOp` | `0` | 否定、符号反転など |
 | `Binary` | `A=BinaryOp` | `-1` | 二項演算 |
+| `BinaryAt` | `A=BinaryOp+取得元`, `B`,`C`=添字 | `+1` | 両辺をスタックを経ずに読んで二項演算 |
+
+`BinaryAt` はコンパイラの覗き穴最適化（`internal/compiler/peephole.go`）が
+`Load;Load;Binary` の3命令をまとめたもので、意味は `Binary` と同じである。
+`A` に演算子と両辺の取得元（定数・ローカル・捕捉・グローバル）を詰め、
+`B` と `C` がその添字になる。詰め方は `ir.EncodeBinaryAt` / `ir.DecodeBinaryAt`
+の2つだけが知っていればよい。IR検証は取得元と添字を、対応する `Load` 命令と
+同じ基準で範囲検査する。
 
 演算子ごとの命令を増やさず、`UnaryOp` / `BinaryOp` の列挙値を使う。
 暗黙の型変換、等価比較、真偽判定は `internal/value` の純粋関数へまとめ、VM、標準命令、

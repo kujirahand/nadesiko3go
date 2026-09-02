@@ -8,6 +8,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
 // The system values are addressed by LoadSpecial and StoreSpecial rather than
@@ -21,6 +22,9 @@ type funcCtx struct {
 	numVars int
 	// constSlots marks the locals that hold a constant.
 	constSlots map[int]bool
+	// constLocals holds the value of the locals whose 『定数』 declaration is
+	// on the straight line of this function, so a later use can be folded.
+	constLocals map[int]value.Value
 	// captureIndex names this function's captures, and captures says where
 	// each one comes from in the enclosing function.
 	captureIndex map[string]int
@@ -34,6 +38,7 @@ func newFuncCtx(name string) *funcCtx {
 		name:         name,
 		slots:        map[string]int{},
 		constSlots:   map[int]bool{},
+		constLocals:  map[int]value.Value{},
 		captureIndex: map[string]int{},
 	}
 }
@@ -77,7 +82,14 @@ type Compiler struct {
 	// the ones that hold a constant.
 	globalIndex  map[string]int
 	constGlobals map[int]bool
-	file         string
+	// constGlobalValues holds the value of the module 『定数』 declared on the
+	// straight line of main. → fold.go
+	constGlobalValues map[int]value.Value
+	// branchDepth counts the conditionals and loops enclosing the statement
+	// being compiled. A 『定数』 declared inside one may never run, so only a
+	// declaration at depth 0 is recorded for propagation.
+	branchDepth int
+	file        string
 }
 
 // compileError carries a failure out of the recursive walk.
@@ -86,13 +98,14 @@ type compileError struct{ err *errs.NakoError }
 // Compile turns a parsed program into IR.
 func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *ir.Program, err error) {
 	c := &Compiler{
-		registry:     registry,
-		userFuncs:    map[string]int{},
-		constIndex:   map[ir.Const]int{},
-		posIndex:     map[ir.SourcePos]int{},
-		globalIndex:  map[string]int{},
-		constGlobals: map[int]bool{},
-		file:         filename,
+		registry:          registry,
+		userFuncs:         map[string]int{},
+		constIndex:        map[ir.Const]int{},
+		posIndex:          map[ir.SourcePos]int{},
+		globalIndex:       map[string]int{},
+		constGlobals:      map[int]bool{},
+		constGlobalValues: map[int]value.Value{},
+		file:              filename,
 	}
 	c.prog.Version = ir.CurrentVersion
 	c.prog.Sources = []ir.SourceFile{{Name: filename}}
@@ -121,9 +134,10 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, tree)
 	c.compileBlockValue(tree)
 	c.emit(ir.OpReturn, 0, 0, tree)
-	c.prog.Funcs[mainIndex].Code = main.code
+	mainCode := optimize(main.code)
+	c.prog.Funcs[mainIndex].Code = mainCode
 	c.prog.Funcs[mainIndex].NumVars = main.numVars
-	c.prog.Funcs[mainIndex].MaxStack = c.maxStack(mainIndex, main.code)
+	c.prog.Funcs[mainIndex].MaxStack = c.maxStack(mainIndex, mainCode)
 	c.prog.Funcs[mainIndex].ConstVars = sortedSlots(main.constSlots)
 	c.prog.ConstGlobals = sortedSlots(c.constGlobals)
 

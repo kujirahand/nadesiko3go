@@ -12,6 +12,18 @@ package compiler
 //
 // 効き方の例。『((1+2)*3)を表示』の生成コードは、畳み込み前は定数3つと
 // 演算2回（スタック操作5回）だったのが、定数1つになる。
+//
+// 定数伝播。『定数』で宣言された名前は、コンパイル時に代入が拒否される
+// (compiler.go の storeVar / declareConst) ので値が動かない。値がリテラルで
+// 決まるものは名前と値の対応を覚えておき、あとの式で名前が出てきたら値に
+// 置き換える。こうすると『定数Nは10』『(N*N)を表示』が定数1つに潰れる。
+//
+// 覚えるのは「関数の直線上にある宣言」だけ。もし文やループの中の宣言は
+// 実行されないまま先へ進むことがあり、そのとき現在の実装は未定義を読むので、
+// 値に置き換えると挙動が変わってしまう (branchDepth がこれを数えている)。
+// 同じ理由で、入れ子の関数の中から外側の定数を引くこともしない。関数は
+// 定義より前の行から呼べる (declareFuncs) ので、宣言がまだ実行されていない
+// 状態で本体が動きうる。
 
 import (
 	"math"
@@ -22,10 +34,16 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
-// foldConst evaluates n at compile time when it is made only of literals and
-// operators. It reports false for anything that reads a variable, calls a
-// command, or otherwise needs the program to be running.
-func foldConst(n *ast.Node) (value.Value, bool) {
+// maxFoldedString caps the string a fold may produce. 『"あ"*1000』 のような式を
+// 畳み込むと、実行時には一度しか作らない文字列を定数プールに抱え込むことに
+// なるので、大きくなったら実行時に任せる。
+const maxFoldedString = 4096
+
+// foldConst evaluates n at compile time when it is made only of literals,
+// operators, and 『定数』 whose value is already known. It reports false for
+// anything that reads a variable, calls a command, or otherwise needs the
+// program to be running.
+func (c *Compiler) foldConst(n *ast.Node) (value.Value, bool) {
 	if n == nil {
 		return value.Undefined(), false
 	}
@@ -46,15 +64,22 @@ func foldConst(n *ast.Node) (value.Value, bool) {
 	case ast.Null:
 		return value.Null(), true
 
+	case ast.Word, ast.Variable:
+		// 添字が付いていたら『A[0]』であって名前そのものではない
+		if len(n.Index) != 0 {
+			return value.Undefined(), false
+		}
+		return c.constValueOf(n.StringValue())
+
 	case ast.Not:
-		v, ok := foldConst(n.Block(0))
+		v, ok := c.foldConst(n.Block(0))
 		if !ok {
 			return value.Undefined(), false
 		}
 		return ops.Unary(ir.UnaryNot, v), true
 
 	case ast.Op:
-		return foldOp(n)
+		return c.foldOp(n)
 	}
 	return value.Undefined(), false
 }
@@ -62,7 +87,7 @@ func foldConst(n *ast.Node) (value.Value, bool) {
 // foldOp folds a binary operator node. 『かつ』 and 『または』 are left alone:
 // they short-circuit and yield an operand rather than a boolean, so they are
 // control flow, not arithmetic.
-func foldOp(n *ast.Node) (value.Value, bool) {
+func (c *Compiler) foldOp(n *ast.Node) (value.Value, bool) {
 	if n.Operator == "and" || n.Operator == "or" {
 		return value.Undefined(), false
 	}
@@ -70,11 +95,11 @@ func foldOp(n *ast.Node) (value.Value, bool) {
 	if !ok {
 		return value.Undefined(), false
 	}
-	a, ok := foldConst(n.Block(0))
+	a, ok := c.foldConst(n.Block(0))
 	if !ok {
 		return value.Undefined(), false
 	}
-	b, ok := foldConst(n.Block(1))
+	b, ok := c.foldConst(n.Block(1))
 	if !ok {
 		return value.Undefined(), false
 	}
@@ -101,6 +126,9 @@ func (c *Compiler) constantOf(v value.Value) (int, bool) {
 		return c.constNumber(f), true
 	case value.KindString:
 		s, _ := v.String()
+		if len(s) > maxFoldedString {
+			return 0, false
+		}
 		return c.constString(s), true
 	}
 	return 0, false
@@ -109,7 +137,7 @@ func (c *Compiler) constantOf(v value.Value) (int, bool) {
 // tryEmitFolded emits n as a single constant when it can be folded, and
 // reports whether it did.
 func (c *Compiler) tryEmitFolded(n *ast.Node) bool {
-	v, ok := foldConst(n)
+	v, ok := c.foldConst(n)
 	if !ok {
 		return false
 	}
@@ -119,4 +147,57 @@ func (c *Compiler) tryEmitFolded(n *ast.Node) bool {
 	}
 	c.emit(ir.OpLoadConst, index, 0, n)
 	return true
+}
+
+// constValueOf returns the value of a name declared 『定数』, when this compiler
+// has recorded one. It must not have side effects: folding is speculative, and
+// Compiler.resolve would allocate a global slot or thread a capture for a name
+// the emitted code never ends up reading.
+func (c *Compiler) constValueOf(name string) (value.Value, bool) {
+	if name == "" {
+		return value.Undefined(), false
+	}
+	if _, ok := ir.SpecialByName(name); ok {
+		return value.Undefined(), false // 『それ』などは定数ではない
+	}
+	if slot, ok := c.fn.slots[name]; ok {
+		v, ok := c.fn.constLocals[slot]
+		return v, ok
+	}
+	if len(c.fnStack) != 0 {
+		return value.Undefined(), false // 入れ子の関数からは外側を辿らない
+	}
+	if slot, ok := c.globalIndex[name]; ok {
+		v, ok := c.constGlobalValues[slot]
+		return v, ok
+	}
+	return value.Undefined(), false
+}
+
+// recordConstValue remembers the value of a 『定数』 just declared, so later
+// expressions can fold it away. It is called after declareConst, which has
+// already allocated the slot and refused a redeclaration.
+func (c *Compiler) recordConstValue(name string, init *ast.Node) {
+	if c.branchDepth != 0 {
+		return // 実行されるとは限らない宣言
+	}
+	v, ok := c.foldConst(init)
+	if !ok {
+		return
+	}
+	// 定数プールに入らない値 (NaN・巨大な文字列) は伝播させても
+	// 定数として出せないので、覚えない。
+	if _, ok := c.constantOf(v); !ok {
+		return
+	}
+	if slot, ok := c.fn.slots[name]; ok {
+		c.fn.constLocals[slot] = v
+		return
+	}
+	if len(c.fnStack) != 0 {
+		return
+	}
+	if slot, ok := c.globalIndex[name]; ok {
+		c.constGlobalValues[slot] = v
+	}
 }

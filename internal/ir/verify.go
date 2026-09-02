@@ -25,6 +25,9 @@ func StackDelta(inst Inst) (needs int, delta int) {
 		return 0, 0
 	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
+	case OpBinaryAt:
+		// 両辺をスタックを経ずに読むので、積むだけ
+		return 0, +1
 	case OpPop, OpThrow,
 		OpStoreLocal, OpInitLocal, OpStoreCapture,
 		OpStoreGlobal, OpInitGlobal, OpStoreSpecial:
@@ -162,6 +165,14 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if !Special(inst.A).Valid() {
 				return bad(i, "システム値の番号が範囲外です: %d", inst.A)
 			}
+		case OpBinaryAt:
+			_, left, right := DecodeBinaryAt(inst.A)
+			if err := p.checkSrc(fi, i, f, left, inst.B); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, right, inst.C); err != nil {
+				return err
+			}
 		case OpCallUser:
 			if inst.A < 0 || inst.A >= len(p.Funcs) {
 				return bad(i, "関数の添字が範囲外です: %d", inst.A)
@@ -182,10 +193,39 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 		if inst.B < 0 {
 			return bad(i, "Bが負です: %d", inst.B)
 		}
+		if inst.C < 0 {
+			return bad(i, "Cが負です: %d", inst.C)
+		}
 	}
 	// 実行が命令列の末尾を走り抜けないよう、必ず Return で終わる
 	if len(f.Code) == 0 || f.Code[len(f.Code)-1].Op != OpReturn {
 		return bad(len(f.Code), "関数がReturnで終わっていません")
+	}
+	return nil
+}
+
+// checkSrc range-checks one operand of a fused instruction. The plain
+// Load instructions are checked above; a fused operand names the same cells,
+// so it has to pass the same test.
+func (p Program) checkSrc(fi, i int, f Func, src Src, index int) error {
+	bad := func(format string, args ...any) error {
+		return &InvalidIRError{Func: fi, Inst: i, Msg: fmt.Sprintf(format, args...)}
+	}
+	limit := 0
+	switch src {
+	case SrcConst:
+		limit = len(p.Consts)
+	case SrcLocal:
+		limit = f.NumVars
+	case SrcCapture:
+		limit = f.NumCaptures
+	case SrcGlobal:
+		limit = len(p.Globals)
+	default:
+		return bad("被演算子の取得元が範囲外です: %d", src)
+	}
+	if index < 0 || index >= limit {
+		return bad("%sの添字が範囲外です: %d", src, index)
 	}
 	return nil
 }
