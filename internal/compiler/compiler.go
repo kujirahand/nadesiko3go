@@ -179,7 +179,7 @@ func (c *Compiler) lineOf(n *ast.Node) int {
 // --- 出力の補助 ---
 
 func (c *Compiler) emit(op ir.Op, a, b int, n *ast.Node) int {
-	c.fn.code = append(c.fn.code, ir.Inst{Op: op, A: a, B: b, Pos: c.pos(n)})
+	c.fn.code = append(c.fn.code, ir.Inst{Op: op, A: int32(a), B: int32(b), Pos: int32(c.pos(n))})
 	return len(c.fn.code) - 1
 }
 
@@ -249,7 +249,7 @@ func (c *Compiler) maxStack(index int, code []ir.Inst) int {
 }
 
 // patch fills in the jump target of an instruction emitted earlier.
-func (c *Compiler) patch(at int, target int) { c.fn.code[at].A = target }
+func (c *Compiler) patch(at int, target int) { c.fn.code[at].A = int32(target) }
 
 func (c *Compiler) here() int { return len(c.fn.code) }
 

@@ -59,7 +59,7 @@ func optimize(code []ir.Inst) []ir.Inst {
 	for i := range out {
 		switch out[i].Op {
 		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
-			out[i].A = moved[out[i].A]
+			out[i].A = int32(moved[out[i].A])
 		}
 	}
 	return out
@@ -73,7 +73,7 @@ func jumpTargets(code []ir.Inst) []bool {
 	for _, inst := range code {
 		switch inst.Op {
 		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
-			if inst.A >= 0 && inst.A <= len(code) {
+			if inst.A >= 0 && int(inst.A) <= len(code) {
 				targets[inst.A] = true
 			}
 		}

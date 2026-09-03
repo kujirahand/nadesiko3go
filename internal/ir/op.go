@@ -170,20 +170,20 @@ func (s Src) String() string {
 const (
 	binaryAtOpBits   = 8
 	binaryAtKindBits = 4
-	binaryAtOpMask   = 1<<binaryAtOpBits - 1
-	binaryAtKindMask = 1<<binaryAtKindBits - 1
+	binaryAtOpMask   int32 = 1<<binaryAtOpBits - 1
+	binaryAtKindMask int32 = 1<<binaryAtKindBits - 1
 )
 
 // EncodeBinaryAt packs an operator and its two operand kinds into the A
 // operand of an OpBinaryAt instruction.
-func EncodeBinaryAt(op BinaryOp, left, right Src) int {
-	return int(op)&binaryAtOpMask |
-		int(left)&binaryAtKindMask<<binaryAtOpBits |
-		int(right)&binaryAtKindMask<<(binaryAtOpBits+binaryAtKindBits)
+func EncodeBinaryAt(op BinaryOp, left, right Src) int32 {
+	return int32(op)&binaryAtOpMask |
+		int32(left)&binaryAtKindMask<<binaryAtOpBits |
+		int32(right)&binaryAtKindMask<<(binaryAtOpBits+binaryAtKindBits)
 }
 
 // DecodeBinaryAt unpacks what EncodeBinaryAt made.
-func DecodeBinaryAt(a int) (op BinaryOp, left, right Src) {
+func DecodeBinaryAt(a int32) (op BinaryOp, left, right Src) {
 	return BinaryOp(a & binaryAtOpMask),
 		Src(a >> binaryAtOpBits & binaryAtKindMask),
 		Src(a >> (binaryAtOpBits + binaryAtKindBits) & binaryAtKindMask)

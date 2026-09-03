@@ -65,9 +65,9 @@ func tryTargets(code []ir.Inst) []int {
 	seen := map[int]bool{}
 	var out []int
 	for _, inst := range code {
-		if inst.Op == ir.OpTry && !seen[inst.A] {
-			seen[inst.A] = true
-			out = append(out, inst.A)
+		if inst.Op == ir.OpTry && !seen[int(inst.A)] {
+			seen[int(inst.A)] = true
+			out = append(out, int(inst.A))
 		}
 	}
 	return out
@@ -84,7 +84,7 @@ func jumpTargets(code []ir.Inst) map[int]bool {
 	for _, inst := range code {
 		switch inst.Op {
 		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
-			targets[inst.A] = true
+			targets[int(inst.A)] = true
 		}
 	}
 	return targets
@@ -449,7 +449,7 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		if wantsFloat(d) && k.Kind == ir.ConstNumber && !math.IsNaN(k.Num) && !math.IsInf(k.Num, 0) {
 			live = setFloat(after(0), d, goNumber(k.Num))
 		} else {
-			live = setValue(after(0), d, e.g.constExpr(inst.A))
+			live = setValue(after(0), d, e.g.constExpr(int(inst.A)))
 		}
 
 	case ir.OpPop:
@@ -464,7 +464,7 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		}
 
 	case ir.OpLoadLocal:
-		if e.promoted[inst.A] {
+		if e.promoted[int(inst.A)] {
 			if wantsFloat(d) {
 				live = setFloat(after(0), d, fmt.Sprintf("l%d", inst.A))
 			} else {
@@ -475,38 +475,38 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		live = e.emitLoad(after(0), d, fmt.Sprintf("locals[%d]", inst.A), wantsFloat(d))
 
 	case ir.OpStoreLocal:
-		if e.promoted[inst.A] {
+		if e.promoted[int(inst.A)] {
 			fmt.Fprintf(out, "\tl%d = %s\n", inst.A, e.slotFloat(st, top(0)))
 			live = after(1)
 			break
 		}
-		emitStore(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		emitStore(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpInitLocal:
-		emitInit(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		emitInit(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpLoadCapture:
 		live = e.emitLoad(after(0), d, fmt.Sprintf("captures[%d]", inst.A), false)
 
 	case ir.OpStoreCapture:
-		emitStore(out, fmt.Sprintf("captures[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		emitStore(out, fmt.Sprintf("captures[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpLoadGlobal:
 		live = e.emitLoad(after(0), d, fmt.Sprintf("globals[%d]", inst.A), wantsFloat(d))
 
 	case ir.OpStoreGlobal:
-		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpInitGlobal:
-		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpLoadSpecial:
-		expr := e.specials.get(inst.A)
+		expr := e.specials.get(int(inst.A))
 		if !ir.Special(inst.A).IsFrameSpecial() {
 			expr = fmt.Sprintf("m.SpecialValue(rt.Special(%d))", inst.A)
 		}
@@ -515,7 +515,7 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 	case ir.OpStoreSpecial:
 		val := e.slotValue(st, top(0))
 		if ir.Special(inst.A).IsFrameSpecial() {
-			fmt.Fprintf(out, "\t%s\n", e.specials.set(inst.A, val))
+			fmt.Fprintf(out, "\t%s\n", e.specials.set(int(inst.A), val))
 		} else {
 			fmt.Fprintf(out, "\tm.SetSpecialValue(rt.Special(%d), %s)\n", inst.A, val)
 		}
@@ -535,10 +535,10 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		// 残るのは NaN・±Inf になる式だけなので、一般経路へ流して困らない。
 		bothConst := left == ir.SrcConst && right == ir.SrcConst
 		bothNum := !bothConst &&
-			e.g.srcIsNumber(e.fi, left, inst.B) && e.g.srcIsNumber(e.fi, right, inst.C)
+			e.g.srcIsNumber(e.fi, left, int(inst.B)) && e.g.srcIsNumber(e.fi, right, int(inst.C))
 		live = e.emitBinary(after(0), d, op,
-			e.g.operandExpr(e.fi, left, inst.B), e.g.operandExpr(e.fi, right, inst.C),
-			e.g.operandFloat(e.fi, left, inst.B), e.g.operandFloat(e.fi, right, inst.C),
+			e.g.operandExpr(e.fi, left, int(inst.B)), e.g.operandExpr(e.fi, right, int(inst.C)),
+			e.g.operandFloat(e.fi, left, int(inst.B)), e.g.operandFloat(e.fi, right, int(inst.C)),
 			bothNum, wantsFloat(d))
 
 	case ir.OpUnary:
@@ -550,27 +550,27 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		}
 
 	case ir.OpMakeArray:
-		live = setValue(after(inst.B), d-inst.B,
-			fmt.Sprintf("m.MakeArray(%s)", e.argSlice(st, d, inst.B)))
+		live = setValue(after(int(inst.B)), d-int(inst.B),
+			fmt.Sprintf("m.MakeArray(%s)", e.argSlice(st, d, int(inst.B))))
 
 	case ir.OpMakeDict:
-		n := inst.B * 2
+		n := int(inst.B) * 2
 		live = setValue(after(n), d-n,
 			fmt.Sprintf("m.MakeDict(%s)", e.argSlice(st, d, n)))
 
 	case ir.OpIndexGet:
-		base := d - inst.B - 1
-		live = setValue(after(inst.B+1), base,
+		base := d - int(inst.B) - 1
+		live = setValue(after(int(inst.B)+1), base,
 			fmt.Sprintf("m.IndexGet(%s, %s, %d)",
-				e.slotValue(st, base), e.argSlice(st, d, inst.B), inst.Pos))
+				e.slotValue(st, base), e.argSlice(st, d, int(inst.B)), int(inst.Pos)))
 
 	case ir.OpIndexSet:
-		base := d - inst.B - 2
-		live = setValue(after(inst.B+2), base,
+		base := d - int(inst.B) - 2
+		live = setValue(after(int(inst.B)+2), base,
 			fmt.Sprintf("m.IndexSet(%s, %s, %s, %d)",
 				e.slotValue(st, base),
-				e.argSliceRange(st, base+1, inst.B),
-				e.slotValue(st, top(0)), inst.Pos))
+				e.argSliceRange(st, base+1, int(inst.B)),
+				e.slotValue(st, top(0)), int(inst.Pos)))
 
 	case ir.OpIterKeys:
 		live = setValue(after(1), top(0), fmt.Sprintf("m.IterKeys(%s)", e.slotValue(st, top(0))))
@@ -587,22 +587,22 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 			fmt.Sprintf("rt.FuncValue(m.MakeClosure(%d, locals, captures))", inst.A))
 
 	case ir.OpCallStd:
-		live = setValue(after(inst.B), d-inst.B,
-			fmt.Sprintf("m.CallStd(%d, %s, %d)", inst.A, e.argSlice(st, d, inst.B), inst.Pos))
+		live = setValue(after(int(inst.B)), d-int(inst.B),
+			fmt.Sprintf("m.CallStd(%d, %s, %d)", inst.A, e.argSlice(st, d, int(inst.B)), int(inst.Pos)))
 
 	case ir.OpCallUser:
-		live = setValue(after(inst.B), d-inst.B,
-			fmt.Sprintf("m.CallUser(%d, %s)", inst.A, e.argSlice(st, d, inst.B)))
+		live = setValue(after(int(inst.B)), d-int(inst.B),
+			fmt.Sprintf("m.CallUser(%d, %s)", inst.A, e.argSlice(st, d, int(inst.B))))
 
 	case ir.OpCallValue:
-		base := d - inst.B - 1
-		live = setValue(after(inst.B+1), base,
+		base := d - int(inst.B) - 1
+		live = setValue(after(int(inst.B)+1), base,
 			fmt.Sprintf("m.CallDynamic(%s, %s, %d)",
-				e.slotValue(st, base), e.argSliceRange(st, base+1, inst.B), inst.Pos))
+				e.slotValue(st, base), e.argSliceRange(st, base+1, int(inst.B)), int(inst.Pos)))
 
 	case ir.OpJump:
-		e.convert(after(0), inst.A)
-		fmt.Fprintf(out, "\tgoto %s\n", label(inst.A, e.codeLen))
+		e.convert(after(0), int(inst.A))
+		fmt.Fprintf(out, "\tgoto %s\n", label(int(inst.A), e.codeLen))
 		return
 
 	case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
@@ -615,8 +615,8 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 			cond = "!(" + cond + ")"
 		}
 		fmt.Fprintf(out, "\tif %s {\n", cond)
-		e.convertIndent(after(1), inst.A)
-		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(inst.A, e.codeLen))
+		e.convertIndent(after(1), int(inst.A))
+		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(int(inst.A), e.codeLen))
 		live = after(1)
 
 	case ir.OpTry:
@@ -628,7 +628,7 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		live = append([]bool(nil), st...)
 
 	case ir.OpThrow:
-		fmt.Fprintf(out, "\tm.Fail(rt.ToString(%s), %d)\n", e.slotValue(st, top(0)), inst.Pos)
+		fmt.Fprintf(out, "\tm.Fail(rt.ToString(%s), %d)\n", e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
 	case ir.OpReturn:

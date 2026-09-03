@@ -3,8 +3,9 @@
 package ir
 
 // CurrentVersion は、直列化されたIRの世代。バージョン2で Inst.C と
-// OpBinaryAt (スーパー命令) が加わった。
-const CurrentVersion = 2
+// OpBinaryAt (スーパー命令) が加わった。バージョン3で Inst のフィールドを
+// int32 に縮小した (40B→20B)。
+const CurrentVersion = 3
 
 type Program struct {
 	Version int     `json:"version"`
@@ -83,12 +84,16 @@ type Param struct {
 // Inst is one instruction. Most instructions use A alone; B carries a count
 // (→ Op のコメント). C is used only by the fused instructions the peephole pass
 // makes, which need one operand more than A と B に収まる。
+//
+// フィールドは int32 で、構造体は20バイトになる。arm64/amd64 では int は
+// 8バイトだが、実際に入る値（スロット番号・添字・飛び先）は int32 で十分で、
+// 縮小によりCPUキャッシュラインに3命令入るようになる (40Bでは1命令)。
 type Inst struct {
-	Op  Op  `json:"op"`
-	A   int `json:"a"`
-	B   int `json:"b"`
-	C   int `json:"c,omitempty"`
-	Pos int `json:"pos"`
+	Op  Op    `json:"op"`
+	A   int32 `json:"a"`
+	B   int32 `json:"b"`
+	C   int32 `json:"c,omitempty"`
+	Pos int32 `json:"pos"`
 }
 
 type SourceFile struct {

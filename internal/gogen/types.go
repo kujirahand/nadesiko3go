@@ -111,7 +111,7 @@ func analyze(prog *ir.Program) *typeInfo {
 	for fi := range prog.Funcs {
 		for _, inst := range prog.Funcs[fi].Code {
 			if inst.Op == ir.OpMakeFunc {
-				info.escapes[inst.A] = true
+				info.escapes[int(inst.A)] = true
 			}
 		}
 	}
@@ -202,21 +202,21 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 		}
 		switch inst.Op {
 		case ir.OpLoadLocal:
-			dropLocal(pc, inst.A)
+			dropLocal(pc, int(inst.A))
 		case ir.OpLoadGlobal:
-			dropGlobal(pc, inst.A)
+			dropGlobal(pc, int(inst.A))
 		case ir.OpBinaryAt:
 			// 覗き穴最適化がまとめた Load が中に隠れている
 			_, left, right := ir.DecodeBinaryAt(inst.A)
 			if left == ir.SrcLocal {
-				dropLocal(pc, inst.B)
+				dropLocal(pc, int(inst.B))
 			} else if left == ir.SrcGlobal {
-				dropGlobal(pc, inst.B)
+				dropGlobal(pc, int(inst.B))
 			}
 			if right == ir.SrcLocal {
-				dropLocal(pc, inst.C)
+				dropLocal(pc, int(inst.C))
 			} else if right == ir.SrcGlobal {
-				dropGlobal(pc, inst.C)
+				dropGlobal(pc, int(inst.C))
 			}
 		}
 	}
@@ -231,13 +231,13 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 		top := stacks[pc][depths[pc]-1]
 		switch inst.Op {
 		case ir.OpStoreLocal, ir.OpInitLocal:
-			if locals[inst.A] && !top {
-				delete(locals, inst.A)
+			if locals[int(inst.A)] && !top {
+				delete(locals, int(inst.A))
 				changed = true
 			}
 		case ir.OpStoreGlobal, ir.OpInitGlobal:
-			if info.numericGlobals[inst.A] && !top {
-				info.numericGlobals[inst.A] = false
+			if info.numericGlobals[int(inst.A)] && !top {
+				info.numericGlobals[int(inst.A)] = false
 				changed = true
 			}
 		}
@@ -247,7 +247,7 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 		if inst.Op != ir.OpCallUser || depths[pc] == ir.Unvisited {
 			continue
 		}
-		if info.narrowParams(prog, inst.A, inst.B, stacks[pc], depths[pc]) {
+		if info.narrowParams(prog, int(inst.A), int(inst.B), stacks[pc], depths[pc]) {
 			changed = true
 		}
 	}
@@ -286,9 +286,9 @@ func writtenLocals(fn *ir.Func) []int {
 	var out []int
 	for _, inst := range fn.Code {
 		if inst.Op == ir.OpStoreLocal || inst.Op == ir.OpInitLocal {
-			if !seen[inst.A] {
-				seen[inst.A] = true
-				out = append(out, inst.A)
+			if !seen[int(inst.A)] {
+				seen[int(inst.A)] = true
+				out = append(out, int(inst.A))
 			}
 		}
 	}
@@ -357,18 +357,18 @@ func (info *typeInfo) dataflow(prog *ir.Program, fi int, fn *ir.Func, locals map
 		case ir.OpReturn:
 			continue
 		case ir.OpJump:
-			if merge(inst.A, out) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
 			}
 			continue
 		case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
-			if merge(inst.A, out) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
 			}
 		case ir.OpTry:
 			// 例外で飛び込むときは、Tryを積んだ時点の深さに戻る
-			if merge(inst.A, in[pc]) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), in[pc]) {
+				work = append(work, int(inst.A))
 			}
 		}
 		if merge(pc+1, out) {
@@ -417,7 +417,7 @@ func (info *typeInfo) transfer(prog *ir.Program, inst ir.Inst, st []bool, locals
 func (info *typeInfo) pushIsNumber(prog *ir.Program, inst ir.Inst, locals map[int]bool) bool {
 	switch inst.Op {
 	case ir.OpLoadConst:
-		return inst.A >= 0 && inst.A < len(prog.Consts) &&
+		return inst.A >= 0 && int(inst.A) < len(prog.Consts) &&
 			prog.Consts[inst.A].Kind == ir.ConstNumber
 	case ir.OpBinary:
 		return numericOp(ir.BinaryOp(inst.A))
@@ -429,9 +429,9 @@ func (info *typeInfo) pushIsNumber(prog *ir.Program, inst ir.Inst, locals map[in
 	case ir.OpLen:
 		return true
 	case ir.OpLoadLocal:
-		return locals[inst.A]
+		return locals[int(inst.A)]
 	case ir.OpLoadGlobal:
-		return info.numericGlobals[inst.A]
+		return info.numericGlobals[int(inst.A)]
 	}
 	return false
 }
@@ -523,11 +523,11 @@ func definiteAssigned(fn *ir.Func, depths []int, numGlobals int) (locals, global
 		out := append([]bool(nil), in[pc]...)
 		switch inst.Op {
 		case ir.OpStoreLocal, ir.OpInitLocal:
-			if inst.A >= 0 && inst.A < fn.NumVars {
-				out[inst.A] = true
+			if inst.A >= 0 && int(inst.A) < fn.NumVars {
+				out[int(inst.A)] = true
 			}
 		case ir.OpStoreGlobal, ir.OpInitGlobal:
-			if i := fn.NumVars + inst.A; inst.A >= 0 && i < width {
+			if i := fn.NumVars + int(inst.A); inst.A >= 0 && i < width {
 				out[i] = true
 			}
 		}
@@ -536,17 +536,17 @@ func definiteAssigned(fn *ir.Func, depths []int, numGlobals int) (locals, global
 		case ir.OpReturn:
 			continue
 		case ir.OpJump:
-			if merge(inst.A, out) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
 			}
 			continue
 		case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
-			if merge(inst.A, out) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
 			}
 		case ir.OpTry:
-			if merge(inst.A, in[pc]) {
-				work = append(work, inst.A)
+			if merge(int(inst.A), in[pc]) {
+				work = append(work, int(inst.A))
 			}
 		}
 		if merge(pc+1, out) {

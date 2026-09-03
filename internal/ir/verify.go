@@ -41,22 +41,22 @@ func StackDelta(inst Inst) (needs int, delta int) {
 	case OpBinary:
 		return 2, -1
 	case OpMakeArray:
-		return inst.B, 1 - inst.B
+		return int(inst.B), 1 - int(inst.B)
 	case OpMakeDict:
-		return inst.B * 2, 1 - inst.B*2
+		return int(inst.B) * 2, 1 - int(inst.B)*2
 	case OpIndexGet:
 		// container と B個の添字を取り、値を1つ積む
-		return inst.B + 1, -inst.B
+		return int(inst.B) + 1, -int(inst.B)
 	case OpIndexSet:
 		// container、B個の添字、値を取り、書き戻した container を積む
-		return inst.B + 2, -(inst.B + 1)
+		return int(inst.B) + 2, -(int(inst.B) + 1)
 	case OpCallStd, OpCallUser:
-		return inst.B, 1 - inst.B
+		return int(inst.B), 1 - int(inst.B)
 	case OpCallValue:
 		// 呼び出す値とB個の引数を取り、戻り値を1つ積む
-		return inst.B + 1, -inst.B
+		return int(inst.B) + 1, -int(inst.B)
 	case OpReturn:
-		return inst.A, -inst.A
+		return int(inst.A), -int(inst.A)
 	}
 	return 0, 0
 }
@@ -128,37 +128,37 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 		}
 	}
 	for i, inst := range f.Code {
-		if inst.Pos < 0 || inst.Pos >= len(p.Positions) {
+		if int(inst.Pos) < 0 || int(inst.Pos) >= len(p.Positions) {
 			return bad(i, "Posが範囲外です: %d", inst.Pos)
 		}
 		switch inst.Op {
 		case OpLoadConst:
-			if inst.A < 0 || inst.A >= len(p.Consts) {
+			if inst.A < 0 || int(inst.A) >= len(p.Consts) {
 				return bad(i, "定数の添字が範囲外です: %d", inst.A)
 			}
 		case OpLoadLocal, OpStoreLocal, OpInitLocal:
-			if inst.A < 0 || inst.A >= f.NumVars {
+			if inst.A < 0 || int(inst.A) >= f.NumVars {
 				return bad(i, "ローカルスロットが範囲外です: %d", inst.A)
 			}
 			// 定数セルへの通常の書き込みと、変数セルの初期化を弾く
-			if inst.Op == OpStoreLocal && constVars[inst.A] {
+			if inst.Op == OpStoreLocal && constVars[int(inst.A)] {
 				return bad(i, "定数スロット%dへStoreLocalしています", inst.A)
 			}
-			if inst.Op == OpInitLocal && !constVars[inst.A] {
+			if inst.Op == OpInitLocal && !constVars[int(inst.A)] {
 				return bad(i, "変数スロット%dへInitLocalしています", inst.A)
 			}
 		case OpLoadCapture, OpStoreCapture:
-			if inst.A < 0 || inst.A >= f.NumCaptures {
+			if inst.A < 0 || int(inst.A) >= f.NumCaptures {
 				return bad(i, "捕捉スロットが範囲外です: %d", inst.A)
 			}
 		case OpLoadGlobal, OpStoreGlobal, OpInitGlobal:
-			if inst.A < 0 || inst.A >= len(p.Globals) {
+			if inst.A < 0 || int(inst.A) >= len(p.Globals) {
 				return bad(i, "グローバルスロットが範囲外です: %d", inst.A)
 			}
-			if inst.Op == OpStoreGlobal && constGlobals[inst.A] {
+			if inst.Op == OpStoreGlobal && constGlobals[int(inst.A)] {
 				return bad(i, "定数グローバル%dへStoreGlobalしています", inst.A)
 			}
-			if inst.Op == OpInitGlobal && !constGlobals[inst.A] {
+			if inst.Op == OpInitGlobal && !constGlobals[int(inst.A)] {
 				return bad(i, "変数グローバル%dへInitGlobalしています", inst.A)
 			}
 		case OpLoadSpecial, OpStoreSpecial:
@@ -167,14 +167,14 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			}
 		case OpBinaryAt:
 			_, left, right := DecodeBinaryAt(inst.A)
-			if err := p.checkSrc(fi, i, f, left, inst.B); err != nil {
+			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
 				return err
 			}
-			if err := p.checkSrc(fi, i, f, right, inst.C); err != nil {
+			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
 				return err
 			}
 		case OpCallUser:
-			if inst.A < 0 || inst.A >= len(p.Funcs) {
+			if inst.A < 0 || int(inst.A) >= len(p.Funcs) {
 				return bad(i, "関数の添字が範囲外です: %d", inst.A)
 			}
 			callee := &p.Funcs[inst.A]
@@ -182,11 +182,11 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 				return bad(i, "捕捉を必要とする関数%dをCallUserで直接呼び出しています", inst.A)
 			}
 		case OpMakeFunc:
-			if inst.A < 0 || inst.A >= len(p.Funcs) {
+			if inst.A < 0 || int(inst.A) >= len(p.Funcs) {
 				return bad(i, "関数の添字が範囲外です: %d", inst.A)
 			}
 		case OpJump, OpJumpIfFalse, OpJumpIfTrue, OpTry:
-			if inst.A < 0 || inst.A > len(f.Code) {
+			if inst.A < 0 || int(inst.A) > len(f.Code) {
 				return bad(i, "飛び先が命令範囲外です: %d", inst.A)
 			}
 		}
@@ -322,13 +322,13 @@ func ComputeDepths(fi int, f Func) (int, []int, error) {
 		case OpReturn:
 			continue // ここで関数を抜ける
 		case OpJump:
-			work = append(work, todo{inst.A, next})
+			work = append(work, todo{int(inst.A), next})
 			continue
 		case OpJumpIfFalse, OpJumpIfTrue:
-			work = append(work, todo{inst.A, next})
+			work = append(work, todo{int(inst.A), next})
 		case OpTry:
 			// 例外で飛び込むときは、Tryを積んだ時点の深さに戻る
-			work = append(work, todo{inst.A, item.depth})
+			work = append(work, todo{int(inst.A), item.depth})
 		}
 		work = append(work, todo{item.at + 1, next})
 	}

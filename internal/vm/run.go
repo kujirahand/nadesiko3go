@@ -59,7 +59,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 	for pc < len(code) {
 		m.executed++
 		if maxInstructions > 0 && m.executed > maxInstructions {
-			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", code[pc].Pos)
+			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
 		}
 		// 命令は32バイトある。1命令ごとに丸ごと写さず、参照で読む。
 		inst := &code[pc]
@@ -69,7 +69,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		case ir.OpNop:
 
 		case ir.OpLoadConst:
-			f.push(m.constValue(inst.A))
+			f.push(m.constValue(int(inst.A)))
 
 		case ir.OpPop:
 			f.pop()
@@ -83,25 +83,25 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(f.locals[inst.A].Get())
 
 		case ir.OpStoreLocal:
-			m.setCell(f.locals[inst.A], f.pop(), inst.Pos)
+			m.setCell(f.locals[inst.A], f.pop(), int(inst.Pos))
 
 		case ir.OpInitLocal:
-			m.initCell(f.locals[inst.A], f.pop(), inst.Pos)
+			m.initCell(f.locals[inst.A], f.pop(), int(inst.Pos))
 
 		case ir.OpLoadCapture:
 			f.push(f.captures[inst.A].Get())
 
 		case ir.OpStoreCapture:
-			m.setCell(f.captures[inst.A], f.pop(), inst.Pos)
+			m.setCell(f.captures[inst.A], f.pop(), int(inst.Pos))
 
 		case ir.OpLoadGlobal:
 			f.push(m.globals[inst.A].Get())
 
 		case ir.OpStoreGlobal:
-			m.setCell(m.globals[inst.A], f.pop(), inst.Pos)
+			m.setCell(m.globals[inst.A], f.pop(), int(inst.Pos))
 
 		case ir.OpInitGlobal:
-			m.initCell(m.globals[inst.A], f.pop(), inst.Pos)
+			m.initCell(m.globals[inst.A], f.pop(), int(inst.Pos))
 
 		case ir.OpLoadSpecial:
 			f.push(m.loadSpecial(f, ir.Special(inst.A)))
@@ -123,7 +123,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			case ir.SrcLocal:
 				a = f.locals[inst.B].Get()
 			case ir.SrcConst:
-				a = m.constValue(inst.B)
+				a = m.constValue(int(inst.B))
 			case ir.SrcGlobal:
 				a = m.globals[inst.B].Get()
 			default:
@@ -133,7 +133,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			case ir.SrcLocal:
 				b = f.locals[inst.C].Get()
 			case ir.SrcConst:
-				b = m.constValue(inst.C)
+				b = m.constValue(int(inst.C))
 			case ir.SrcGlobal:
 				b = m.globals[inst.C].Get()
 			default:
@@ -145,10 +145,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 
 		case ir.OpMakeArray:
-			f.push(value.ArrayValue(value.NewArray(f.popN(inst.B)...)))
+			f.push(value.ArrayValue(value.NewArray(f.popN(int(inst.B))...)))
 
 		case ir.OpMakeDict:
-			items := f.popN(inst.B * 2)
+			items := f.popN(int(inst.B) * 2)
 			d := value.NewDict()
 			for i := 0; i+1 < len(items); i += 2 {
 				d.Set(value.ToString(items[i]), items[i+1])
@@ -156,15 +156,15 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(value.DictValue(d))
 
 		case ir.OpIndexGet:
-			indexes := f.popN(inst.B)
+			indexes := f.popN(int(inst.B))
 			container := f.pop()
-			f.push(m.indexGet(container, indexes, inst.Pos))
+			f.push(m.indexGet(container, indexes, int(inst.Pos)))
 
 		case ir.OpIndexSet:
 			v := f.pop()
-			indexes := f.popN(inst.B)
+			indexes := f.popN(int(inst.B))
 			container := f.pop()
-			f.push(m.indexSet(container, indexes, v, inst.Pos))
+			f.push(m.indexSet(container, indexes, v, int(inst.Pos)))
 
 		case ir.OpIterKeys:
 			f.push(m.iterKeys(f.pop()))
@@ -178,42 +178,42 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			f.push(value.Number(float64(arr.Len())))
 
 		case ir.OpMakeFunc:
-			f.push(value.FuncValue(m.makeClosure(inst.A, f)))
+			f.push(value.FuncValue(m.makeClosure(int(inst.A), f)))
 
 		case ir.OpCallStd:
-			args := f.popN(inst.B)
-			f.push(m.callStd(inst.A, args, inst.Pos))
+			args := f.popN(int(inst.B))
+			f.push(m.callStd(int(inst.A), args, int(inst.Pos)))
 
 		case ir.OpCallUser:
 			// 引数はコピーせずスタックの一部を貸す。呼び出し先は
 			// 受け取った値をセルへ写して、それきり持たない。
-			args := f.borrowN(inst.B)
-			f.push(m.call(inst.A, args))
+			args := f.borrowN(int(inst.B))
+			f.push(m.call(int(inst.A), args))
 
 		case ir.OpCallValue:
-			args := f.borrowN(inst.B)
+			args := f.borrowN(int(inst.B))
 			callee := f.pop()
 			fnRef, ok := callee.Func()
 			if !ok {
-				m.failAt("関数ではない値を呼び出そうとしました。", inst.Pos)
+				m.failAt("関数ではない値を呼び出そうとしました。", int(inst.Pos))
 			}
 			f.push(m.callClosure(fnRef.ID, fnRef.Captured, args))
 
 		case ir.OpJump:
-			pc = inst.A
+			pc = int(inst.A)
 
 		case ir.OpJumpIfFalse:
 			if !value.ToBool(f.pop()) {
-				pc = inst.A
+				pc = int(inst.A)
 			}
 
 		case ir.OpJumpIfTrue:
 			if value.ToBool(f.pop()) {
-				pc = inst.A
+				pc = int(inst.A)
 			}
 
 		case ir.OpTry:
-			f.handlers = append(f.handlers, handler{target: inst.A, stackDepth: len(f.stack)})
+			f.handlers = append(f.handlers, handler{target: int(inst.A), stackDepth: len(f.stack)})
 
 		case ir.OpEndTry:
 			if n := len(f.handlers); n > 0 {
@@ -221,7 +221,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			}
 
 		case ir.OpThrow:
-			m.failAt(value.ToString(f.pop()), inst.Pos)
+			m.failAt(value.ToString(f.pop()), int(inst.Pos))
 
 		case ir.OpReturn:
 			if inst.A == 0 {
@@ -230,7 +230,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			return f.pop()
 
 		default:
-			m.failAt(fmt.Sprintf("未知の命令です: %s", inst.Op), inst.Pos)
+			m.failAt(fmt.Sprintf("未知の命令です: %s", inst.Op), int(inst.Pos))
 		}
 	}
 	return value.Undefined()
