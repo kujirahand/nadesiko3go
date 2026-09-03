@@ -21,11 +21,13 @@ func (e *InvalidIRError) Error() string {
 // gives the verifier something to check the generated code against.
 func StackDelta(inst Inst) (needs int, delta int) {
 	switch inst.Op {
-	case OpNop, OpJump, OpTry, OpEndTry:
+	case OpNop, OpJump, OpTry, OpEndTry, OpBinaryAtStoreLocal,
+		OpJumpIfBinaryAt, OpJumpIfNotBinaryAt,
+		OpStoreSoreAndLocal, OpStoreSoreAndGlobal:
 		return 0, 0
 	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
-	case OpBinaryAt:
+	case OpBinaryAt, OpIndexGetAt:
 		// 両辺をスタックを経ずに読むので、積むだけ
 		return 0, +1
 	case OpPop, OpThrow,
@@ -40,6 +42,8 @@ func StackDelta(inst Inst) (needs int, delta int) {
 		return 1, 0
 	case OpBinary:
 		return 2, -1
+	case OpBinaryStoreLocal, OpBinaryStoreGlobal:
+		return 2, -2
 	case OpMakeArray:
 		return int(inst.B), 1 - int(inst.B)
 	case OpMakeDict:
@@ -173,6 +177,62 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
 				return err
 			}
+		case OpIndexGetAt:
+			arrSrc, idxSrc := DecodeIndexGetAt(inst.A)
+			if err := p.checkSrc(fi, i, f, arrSrc, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, idxSrc, int(inst.C)); err != nil {
+				return err
+			}
+		case OpBinaryAtStoreLocal:
+			_, left, right, dst := DecodeBinaryAtStoreLocal(inst.A)
+			if dst < 0 || int(dst) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", dst)
+			}
+			if constVars[int(dst)] {
+				return bad(i, "定数スロット%dへ代入しています", dst)
+			}
+			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
+				return err
+			}
+		case OpBinaryStoreLocal:
+			if inst.B < 0 || int(inst.B) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", inst.B)
+			}
+			if constVars[int(inst.B)] {
+				return bad(i, "定数スロット%dへ代入しています", inst.B)
+			}
+		case OpBinaryStoreGlobal:
+			if inst.B < 0 || int(inst.B) >= len(p.Globals) {
+				return bad(i, "代入先のグローバルスロットが範囲外です: %d", inst.B)
+			}
+			if constGlobals[int(inst.B)] {
+				return bad(i, "定数グローバル%dへ代入しています", inst.B)
+			}
+		case OpStoreSoreAndLocal:
+			if inst.A < 0 || int(inst.A) >= f.NumVars {
+				return bad(i, "読み出し元のローカルスロットが範囲外です: %d", inst.A)
+			}
+			if inst.B < 0 || int(inst.B) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", inst.B)
+			}
+			if constVars[int(inst.B)] {
+				return bad(i, "定数スロット%dへ代入しています", inst.B)
+			}
+		case OpStoreSoreAndGlobal:
+			if inst.A < 0 || int(inst.A) >= f.NumVars {
+				return bad(i, "読み出し元のローカルスロットが範囲外です: %d", inst.A)
+			}
+			if inst.B < 0 || int(inst.B) >= len(p.Globals) {
+				return bad(i, "代入先のグローバルスロットが範囲外です: %d", inst.B)
+			}
+			if constGlobals[int(inst.B)] {
+				return bad(i, "定数グローバル%dへ代入しています", inst.B)
+			}
 		case OpCallUser:
 			if inst.A < 0 || int(inst.A) >= len(p.Funcs) {
 				return bad(i, "関数の添字が範囲外です: %d", inst.A)
@@ -189,11 +249,24 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if inst.A < 0 || int(inst.A) > len(f.Code) {
 				return bad(i, "飛び先が命令範囲外です: %d", inst.A)
 			}
+		case OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
+			if inst.A < 0 || int(inst.A) > len(f.Code) {
+				return bad(i, "飛び先が命令範囲外です: %d", inst.A)
+			}
+			_, left, right, rightIdx := DecodeJumpBinaryAt(inst.C)
+			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, right, int(rightIdx)); err != nil {
+				return err
+			}
 		}
 		if inst.B < 0 {
 			return bad(i, "Bが負です: %d", inst.B)
 		}
-		if inst.C < 0 {
+		// JumpIfBinaryAt はCの上位16ビットを符号なしの添字として使う。
+		// 添字が32768以上ならint32全体は負になるが、正しいエンコードである。
+		if inst.C < 0 && inst.Op != OpJumpIfBinaryAt && inst.Op != OpJumpIfNotBinaryAt {
 			return bad(i, "Cが負です: %d", inst.C)
 		}
 	}
@@ -324,7 +397,7 @@ func ComputeDepths(fi int, f Func) (int, []int, error) {
 		case OpJump:
 			work = append(work, todo{int(inst.A), next})
 			continue
-		case OpJumpIfFalse, OpJumpIfTrue:
+		case OpJumpIfFalse, OpJumpIfTrue, OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
 			work = append(work, todo{int(inst.A), next})
 		case OpTry:
 			// 例外で飛び込むときは、Tryを積んだ時点の深さに戻る

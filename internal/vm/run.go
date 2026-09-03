@@ -109,10 +109,30 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		case ir.OpStoreSpecial:
 			m.storeSpecial(f, ir.Special(inst.A), f.pop())
 
+		case ir.OpStoreSoreAndLocal:
+			v := f.locals[inst.A].Get()
+			f.specials[ir.SpecialSore] = v
+			m.setCell(f.locals[inst.B], v, int(inst.Pos))
+
+		case ir.OpStoreSoreAndGlobal:
+			v := f.locals[inst.A].Get()
+			f.specials[ir.SpecialSore] = v
+			m.setCell(m.globals[inst.B], v, int(inst.Pos))
+
 		case ir.OpBinary:
 			b := f.pop()
 			a := f.pop()
 			f.push(ops.Binary(ir.BinaryOp(inst.A), a, b))
+
+		case ir.OpBinaryStoreLocal:
+			b := f.pop()
+			a := f.pop()
+			m.setCell(f.locals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
+
+		case ir.OpBinaryStoreGlobal:
+			b := f.pop()
+			a := f.pop()
+			m.setCell(m.globals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
 
 		case ir.OpBinaryAt:
 			// 取得を関数に切り出すと、その1段だけで測れるほど遅くなる
@@ -141,6 +161,31 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			}
 			f.push(ops.Binary(op, a, b))
 
+		case ir.OpBinaryAtStoreLocal:
+			op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+			var a, b value.Value
+			switch left {
+			case ir.SrcLocal:
+				a = f.locals[inst.B].Get()
+			case ir.SrcConst:
+				a = m.constValue(int(inst.B))
+			case ir.SrcGlobal:
+				a = m.globals[inst.B].Get()
+			default:
+				a = f.captures[inst.B].Get()
+			}
+			switch right {
+			case ir.SrcLocal:
+				b = f.locals[inst.C].Get()
+			case ir.SrcConst:
+				b = m.constValue(int(inst.C))
+			case ir.SrcGlobal:
+				b = m.globals[inst.C].Get()
+			default:
+				b = f.captures[inst.C].Get()
+			}
+			m.setCell(f.locals[dst], ops.Binary(op, a, b), int(inst.Pos))
+
 		case ir.OpUnary:
 			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 
@@ -159,6 +204,41 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			indexes := f.popN(int(inst.B))
 			container := f.pop()
 			f.push(m.indexGet(container, indexes, int(inst.Pos)))
+
+		case ir.OpIndexGetAt:
+			arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
+			var container, idxVal value.Value
+			switch arrSrc {
+			case ir.SrcLocal:
+				container = f.locals[inst.B].Get()
+			case ir.SrcGlobal:
+				container = m.globals[inst.B].Get()
+			case ir.SrcCapture:
+				container = f.captures[inst.B].Get()
+			default:
+				container = m.constValue(int(inst.B))
+			}
+			switch idxSrc {
+			case ir.SrcLocal:
+				idxVal = f.locals[inst.C].Get()
+			case ir.SrcConst:
+				idxVal = m.constValue(int(inst.C))
+			case ir.SrcGlobal:
+				idxVal = m.globals[inst.C].Get()
+			default:
+				idxVal = f.captures[inst.C].Get()
+			}
+
+			if arr, ok := container.Array(); ok {
+				if num, ok := idxVal.Number(); ok {
+					i := int(num)
+					if float64(i) == num && i >= 0 && i < arr.Len() {
+						f.push(arr.Get(i))
+						continue
+					}
+				}
+			}
+			f.push(m.indexGet(container, []value.Value{idxVal}, int(inst.Pos)))
 
 		case ir.OpIndexSet:
 			v := f.pop()
@@ -210,6 +290,72 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		case ir.OpJumpIfTrue:
 			if value.ToBool(f.pop()) {
 				pc = int(inst.A)
+			}
+
+		case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+			op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+			var a, b value.Value
+			switch left {
+			case ir.SrcLocal:
+				a = f.locals[inst.B].Get()
+			case ir.SrcConst:
+				a = m.constValue(int(inst.B))
+			case ir.SrcGlobal:
+				a = m.globals[inst.B].Get()
+			default:
+				a = f.captures[inst.B].Get()
+			}
+			switch right {
+			case ir.SrcLocal:
+				b = f.locals[rightIdx].Get()
+			case ir.SrcConst:
+				b = m.constValue(int(rightIdx))
+			case ir.SrcGlobal:
+				b = m.globals[rightIdx].Get()
+			default:
+				b = f.captures[rightIdx].Get()
+			}
+
+			var cond bool
+			if x, ok := a.Number(); ok {
+				if y, ok := b.Number(); ok {
+					switch op {
+					case ir.BinLt:
+						cond = x < y
+					case ir.BinLtEq:
+						cond = x <= y
+					case ir.BinGt:
+						cond = x > y
+					case ir.BinGtEq:
+						cond = x >= y
+					case ir.BinEq, ir.BinStrictEq:
+						cond = x == y
+					case ir.BinNotEq, ir.BinStrictNotEq:
+						cond = x != y
+					default:
+						cond = value.ToBool(ops.Binary(op, a, b))
+					}
+					if inst.Op == ir.OpJumpIfBinaryAt {
+						if cond {
+							pc = int(inst.A)
+						}
+					} else {
+						if !cond {
+							pc = int(inst.A)
+						}
+					}
+					continue
+				}
+			}
+			cond = value.ToBool(ops.Binary(op, a, b))
+			if inst.Op == ir.OpJumpIfBinaryAt {
+				if cond {
+					pc = int(inst.A)
+				}
+			} else {
+				if !cond {
+					pc = int(inst.A)
+				}
 			}
 
 		case ir.OpTry:

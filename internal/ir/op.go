@@ -58,6 +58,30 @@ const (
 	// A packs the operator and the two operand kinds (→ EncodeBinaryAt),
 	// B is the index of the left operand and C of the right.
 	OpBinaryAt
+	// OpBinaryAtStoreLocal applies a binary operator to two operands read
+	// straight from where they live, and stores the result directly into
+	// local cell dst without touching the operand stack. It fuses
+	// 『Load;Load;Binary;StoreLocal』 into a single instruction.
+	//
+	// A packs the operator, two operand kinds, and dst local slot
+	// (→ EncodeBinaryAtStoreLocal), B is left index, C is right index.
+	OpBinaryAtStoreLocal
+	// OpBinaryStoreLocal pops two operands, applies operator A, and stores
+	// the result directly into local slot B without pushing it to stack.
+	// It fuses 『Binary; StoreLocal』.
+	OpBinaryStoreLocal
+	// OpBinaryStoreGlobal pops two operands, applies operator A, and stores
+	// the result directly into global slot B without pushing it to stack.
+	// It fuses 『Binary; StoreGlobal』.
+	OpBinaryStoreGlobal
+	// OpStoreSoreAndLocal reads value from local slot A, and stores it into both
+	// 『それ』 (SpecialSore) and local slot B, without using the operand stack.
+	// It fuses 『LoadLocal; Dup; StoreSpecial; StoreLocal』.
+	OpStoreSoreAndLocal
+	// OpStoreSoreAndGlobal reads value from local slot A, and stores it into both
+	// 『それ』 (SpecialSore) and global slot B, without using the operand stack.
+	// It fuses 『LoadLocal; Dup; StoreSpecial; StoreGlobal』.
+	OpStoreSoreAndGlobal
 
 	// --- 集合 ---
 
@@ -67,6 +91,12 @@ const (
 	OpMakeDict
 	// OpIndexGet pops B indexes and a container, and pushes the element.
 	OpIndexGet
+	// OpIndexGetAt reads container and 1-D index straight from where they live,
+	// and pushes the element onto the operand stack. It fuses 『Load;Load;IndexGet 1』.
+	//
+	// A packs container and index source kinds (→ EncodeIndexGetAt),
+	// B is container slot, C is index slot/const.
+	OpIndexGetAt
 	// OpIndexSet pops a value, B indexes and a container, and stores.
 	OpIndexSet
 	// OpIterKeys pops a container and pushes the array of keys to iterate:
@@ -96,6 +126,20 @@ const (
 	OpJumpIfFalse
 	// OpJumpIfTrue pops a value and continues at Code[A] when it is truthy.
 	OpJumpIfTrue
+	// OpJumpIfBinaryAt evaluates a binary condition on two operands and jumps to
+	// Code[A] if the result is truthy, without touching the operand stack.
+	// It fuses 『BinaryAt; JumpIfTrue』 into one instruction.
+	//
+	// A is target PC, B is left index, C packs op, left/right Src, and right index
+	// (→ EncodeJumpBinaryAt).
+	OpJumpIfBinaryAt
+	// OpJumpIfNotBinaryAt evaluates a binary condition on two operands and jumps to
+	// Code[A] if the result is falsy, without touching the operand stack.
+	// It fuses 『BinaryAt; JumpIfFalse』 into one instruction.
+	//
+	// A is target PC, B is left index, C packs op, left/right Src, and right index
+	// (→ EncodeJumpBinaryAt).
+	OpJumpIfNotBinaryAt
 
 	// --- 例外 ---
 
@@ -168,10 +212,12 @@ func (s Src) String() string {
 // The A operand of OpBinaryAt holds three small numbers side by side. Keeping
 // the layout in these two functions means nothing else has to know it.
 const (
-	binaryAtOpBits   = 8
-	binaryAtKindBits = 4
-	binaryAtOpMask   int32 = 1<<binaryAtOpBits - 1
-	binaryAtKindMask int32 = 1<<binaryAtKindBits - 1
+	binaryAtOpBits           = 8
+	binaryAtKindBits         = 4
+	binaryAtOpMask    int32  = 1<<binaryAtOpBits - 1
+	binaryAtKindMask  int32  = 1<<binaryAtKindBits - 1
+	binaryAtDstShift         = binaryAtOpBits + binaryAtKindBits*2 // 16
+	binaryAtIndexMask uint32 = 1<<16 - 1
 )
 
 // EncodeBinaryAt packs an operator and its two operand kinds into the A
@@ -187,6 +233,42 @@ func DecodeBinaryAt(a int32) (op BinaryOp, left, right Src) {
 	return BinaryOp(a & binaryAtOpMask),
 		Src(a >> binaryAtOpBits & binaryAtKindMask),
 		Src(a >> (binaryAtOpBits + binaryAtKindBits) & binaryAtKindMask)
+}
+
+// EncodeBinaryAtStoreLocal packs an operator, two operand kinds, and dst local slot.
+func EncodeBinaryAtStoreLocal(op BinaryOp, left, right Src, dstLocal int32) int32 {
+	return int32(uint32(EncodeBinaryAt(op, left, right)) |
+		(uint32(dstLocal)&binaryAtIndexMask)<<binaryAtDstShift)
+}
+
+// DecodeBinaryAtStoreLocal unpacks what EncodeBinaryAtStoreLocal made.
+func DecodeBinaryAtStoreLocal(a int32) (op BinaryOp, left, right Src, dstLocal int32) {
+	op, left, right = DecodeBinaryAt(a)
+	dstLocal = int32(uint32(a) >> binaryAtDstShift & binaryAtIndexMask)
+	return op, left, right, dstLocal
+}
+
+// EncodeJumpBinaryAt packs operator, operand sources, and right index into C.
+func EncodeJumpBinaryAt(op BinaryOp, left, right Src, rightIndex int32) int32 {
+	return int32(uint32(EncodeBinaryAt(op, left, right)) |
+		(uint32(rightIndex)&binaryAtIndexMask)<<binaryAtDstShift)
+}
+
+// DecodeJumpBinaryAt unpacks what EncodeJumpBinaryAt made.
+func DecodeJumpBinaryAt(c int32) (op BinaryOp, left, right Src, rightIndex int32) {
+	op, left, right = DecodeBinaryAt(c)
+	rightIndex = int32(uint32(c) >> binaryAtDstShift & binaryAtIndexMask)
+	return op, left, right, rightIndex
+}
+
+// EncodeIndexGetAt packs container and index sources into A.
+func EncodeIndexGetAt(arrSrc, idxSrc Src) int32 {
+	return int32(arrSrc) | (int32(idxSrc) << 4)
+}
+
+// DecodeIndexGetAt unpacks container and index sources from A.
+func DecodeIndexGetAt(a int32) (arrSrc, idxSrc Src) {
+	return Src(a & 0xF), Src((a >> 4) & 0xF)
 }
 
 // Special identifies one of the values the language keeps outside the ordinary
@@ -262,13 +344,19 @@ var opNames = map[Op]string{
 	OpLoadSpecial: "LoadSpecial", OpStoreSpecial: "StoreSpecial",
 	OpPop: "Pop", OpDup: "Dup",
 	OpBinary: "Binary", OpUnary: "Unary", OpBinaryAt: "BinaryAt",
-	OpMakeArray: "MakeArray", OpMakeDict: "MakeDict",
-	OpIndexGet: "IndexGet", OpIndexSet: "IndexSet",
+	OpBinaryAtStoreLocal: "BinaryAtStoreLocal",
+	OpBinaryStoreLocal:   "BinaryStoreLocal",
+	OpBinaryStoreGlobal:  "BinaryStoreGlobal",
+	OpStoreSoreAndLocal:  "StoreSoreAndLocal",
+	OpStoreSoreAndGlobal: "StoreSoreAndGlobal",
+	OpMakeArray:          "MakeArray", OpMakeDict: "MakeDict",
+	OpIndexGet: "IndexGet", OpIndexGetAt: "IndexGetAt", OpIndexSet: "IndexSet",
 	OpIterKeys: "IterKeys", OpLen: "Len",
 	OpCallStd: "CallStd", OpCallUser: "CallUser", OpCallValue: "CallValue",
 	OpMakeFunc: "MakeFunc",
 	OpReturn:   "Return",
 	OpJump:     "Jump", OpJumpIfFalse: "JumpIfFalse", OpJumpIfTrue: "JumpIfTrue",
+	OpJumpIfBinaryAt: "JumpIfBinaryAt", OpJumpIfNotBinaryAt: "JumpIfNotBinaryAt",
 	OpTry: "Try", OpEndTry: "EndTry", OpThrow: "Throw",
 }
 

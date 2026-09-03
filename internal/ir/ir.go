@@ -4,8 +4,10 @@ package ir
 
 // CurrentVersion は、直列化されたIRの世代。バージョン2で Inst.C と
 // OpBinaryAt (スーパー命令) が加わった。バージョン3で Inst のフィールドを
-// int32 に縮小した (40B→20B)。
-const CurrentVersion = 3
+// int32 に縮小した (40B→20B)。バージョン4で OpBinaryAtStoreLocal が加わった。
+// バージョン5で OpJumpIfBinaryAt / OpJumpIfNotBinaryAt が加わった。
+// バージョン6で OpBinaryStoreLocal / OpBinaryStoreGlobal が加わった。
+const CurrentVersion = 6
 
 type Program struct {
 	Version int     `json:"version"`

@@ -8,12 +8,17 @@ package compiler
 // スタックの上げ下げで、それはASTには現れない。AGENTS.md §6 が言うとおり、
 // BenchmarkLoop の時間はディスパッチが約40%、push/pop が約23%を占める。
 //
-// 入れている規則は3つだけ。命令列を一度なめるだけの1パスで、まとめた結果を
+// 入れている規則は8つ。命令列を一度なめるだけの1パスで、まとめた結果を
 // もう一度まとめ直すことはしない (そうしてできる並びが今のところない)。
 //
-//	Load;Load;Binary      →  BinaryAt      両辺をスタックを経ずに読む
-//	Dup;StoreSpecial;Pop  →  StoreSpecial
-//	Load;Pop              →  (なし)
+//	Load;Load;Binary;StoreLocal → BinaryAtStoreLocal 両辺を直に読み直接代入
+//	Load;Load;Binary;JumpIfFalse/True → JumpIf(Not)BinaryAt 両辺を直に比較して分岐
+//	LoadLocal;Dup;StoreSpecial;Store → StoreSoreAndLocal/Global ループ変数を直に代入
+//	Load;Load;Binary            → BinaryAt          両辺をスタックを経ずに読む
+//	Load;Load;IndexGet 1        → IndexGetAt        配列要素を直に読み出す
+//	Binary;StoreLocal/Global    → BinaryStoreLocal/Global 計算結果を直に代入
+//	Dup;StoreSpecial;Pop        → StoreSpecial
+//	Load;Pop                    → (なし)
 //
 // 下の2つは、命令の呼び出しが必ず戻り値を『それ』に入れる (expr.go の
 // compileCall) ことから来る。文として書かれた呼び出しは結果を使わないので、
@@ -58,7 +63,8 @@ func optimize(code []ir.Inst) []ir.Inst {
 
 	for i := range out {
 		switch out[i].Op {
-		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
+		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			out[i].A = int32(moved[out[i].A])
 		}
 	}
@@ -72,7 +78,8 @@ func jumpTargets(code []ir.Inst) []bool {
 	targets := make([]bool, len(code)+1)
 	for _, inst := range code {
 		switch inst.Op {
-		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
+		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			if inst.A >= 0 && int(inst.A) <= len(code) {
 				targets[inst.A] = true
 			}
@@ -85,11 +92,26 @@ func jumpTargets(code []ir.Inst) []bool {
 // many it replaces. A width of 0 means nothing matched; an empty replacement
 // means the run goes away entirely.
 func fuseAt(code []ir.Inst, pc int, targets []bool) ([]ir.Inst, int) {
+	if inst, ok := fuseBinaryAtStoreLocal(code, pc, targets); ok {
+		return []ir.Inst{inst}, 4
+	}
+	if inst, ok := fuseJumpBinaryAt(code, pc, targets); ok {
+		return []ir.Inst{inst}, 4
+	}
+	if inst, ok := fuseStoreSoreAndVar(code, pc, targets); ok {
+		return []ir.Inst{inst}, 4
+	}
 	if inst, ok := fuseBinary(code, pc, targets); ok {
+		return []ir.Inst{inst}, 3
+	}
+	if inst, ok := fuseIndexGet(code, pc, targets); ok {
 		return []ir.Inst{inst}, 3
 	}
 	if inst, ok := fuseStoreSpecial(code, pc, targets); ok {
 		return []ir.Inst{inst}, 3
+	}
+	if inst, ok := fuseBinaryStore(code, pc, targets); ok {
+		return []ir.Inst{inst}, 2
 	}
 	if dropLoadPop(code, pc, targets) {
 		return nil, 2
@@ -108,6 +130,85 @@ func dropLoadPop(code []ir.Inst, pc int, targets []bool) bool {
 		return false
 	}
 	return code[pc+1].Op == ir.OpPop
+}
+
+// fuseBinaryAtStoreLocal matches 『Load;Load;Binary;StoreLocal』.
+//
+// It fuses evaluation of a binary expression and assignment to a local variable
+// into a single OpBinaryAtStoreLocal instruction, bypassing the operand stack entirely.
+func fuseBinaryAtStoreLocal(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+3 >= len(code) || targets[pc+1] || targets[pc+2] || targets[pc+3] {
+		return ir.Inst{}, false
+	}
+	left, ok := loadSrc(code[pc])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	right, ok := loadSrc(code[pc+1])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	op := code[pc+2]
+	if op.Op != ir.OpBinary {
+		return ir.Inst{}, false
+	}
+	store := code[pc+3]
+	if store.Op != ir.OpStoreLocal {
+		return ir.Inst{}, false
+	}
+	dst := store.A
+	if dst < 0 || dst >= 65536 {
+		return ir.Inst{}, false
+	}
+	return ir.Inst{
+		Op:  ir.OpBinaryAtStoreLocal,
+		A:   ir.EncodeBinaryAtStoreLocal(ir.BinaryOp(op.A), left, right, dst),
+		B:   code[pc].A,
+		C:   code[pc+1].A,
+		Pos: op.Pos,
+	}, true
+}
+
+// fuseJumpBinaryAt matches 『Load;Load;Binary;JumpIfFalse』 and 『Load;Load;Binary;JumpIfTrue』.
+//
+// It fuses a binary comparison and conditional branch into a single instruction,
+// bypassing the operand stack completely.
+func fuseJumpBinaryAt(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+3 >= len(code) || targets[pc+1] || targets[pc+2] || targets[pc+3] {
+		return ir.Inst{}, false
+	}
+	left, ok := loadSrc(code[pc])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	right, ok := loadSrc(code[pc+1])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	op := code[pc+2]
+	if op.Op != ir.OpBinary {
+		return ir.Inst{}, false
+	}
+	jump := code[pc+3]
+	if jump.Op != ir.OpJumpIfFalse && jump.Op != ir.OpJumpIfTrue {
+		return ir.Inst{}, false
+	}
+	rightIdx := code[pc+1].A
+	if rightIdx < 0 || rightIdx >= 65536 {
+		return ir.Inst{}, false
+	}
+	c := ir.EncodeJumpBinaryAt(ir.BinaryOp(op.A), left, right, rightIdx)
+	newOp := ir.OpJumpIfNotBinaryAt
+	if jump.Op == ir.OpJumpIfTrue {
+		newOp = ir.OpJumpIfBinaryAt
+	}
+	return ir.Inst{
+		Op:  newOp,
+		A:   jump.A,
+		B:   code[pc].A,
+		C:   c,
+		Pos: op.Pos,
+	}, true
 }
 
 // fuseBinary matches 『Load;Load;Binary』.
@@ -169,4 +270,101 @@ func fuseStoreSpecial(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
 		return ir.Inst{}, false
 	}
 	return code[pc+1], true
+}
+
+// fuseBinaryStore matches 『Binary;StoreLocal』 and 『Binary;StoreGlobal』.
+//
+// It fuses evaluating a binary expression on stack operands and assigning to a
+// variable directly, bypassing stack push and subsequent pop.
+func fuseBinaryStore(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+1 >= len(code) || targets[pc+1] {
+		return ir.Inst{}, false
+	}
+	if code[pc].Op != ir.OpBinary {
+		return ir.Inst{}, false
+	}
+	store := code[pc+1]
+	if store.Op == ir.OpStoreLocal {
+		return ir.Inst{
+			Op:  ir.OpBinaryStoreLocal,
+			A:   code[pc].A, // BinaryOp
+			B:   store.A,    // dstLocal
+			Pos: code[pc].Pos,
+		}, true
+	}
+	if store.Op == ir.OpStoreGlobal {
+		return ir.Inst{
+			Op:  ir.OpBinaryStoreGlobal,
+			A:   code[pc].A, // BinaryOp
+			B:   store.A,    // dstGlobal
+			Pos: code[pc].Pos,
+		}, true
+	}
+	return ir.Inst{}, false
+}
+
+// fuseStoreSoreAndVar matches 『LoadLocal;Dup;StoreSpecial(Sore);StoreLocal』
+// and 『LoadLocal;Dup;StoreSpecial(Sore);StoreGlobal』.
+//
+// In loop headers (such as `Iを1からNまで繰り返す`), nadesiko updates both
+// 『それ』 and loop variable `I` with the loop counter. This fuses all 4
+// instructions into a single store that reads the counter directly and sets
+// both variables without touching the operand stack.
+func fuseStoreSoreAndVar(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+3 >= len(code) || targets[pc+1] || targets[pc+2] || targets[pc+3] {
+		return ir.Inst{}, false
+	}
+	if code[pc].Op != ir.OpLoadLocal ||
+		code[pc+1].Op != ir.OpDup ||
+		code[pc+2].Op != ir.OpStoreSpecial ||
+		code[pc+2].A != int32(ir.SpecialSore) {
+		return ir.Inst{}, false
+	}
+	store := code[pc+3]
+	if store.Op == ir.OpStoreLocal {
+		return ir.Inst{
+			Op:  ir.OpStoreSoreAndLocal,
+			A:   code[pc].A, // srcLocal
+			B:   store.A,    // dstLocal
+			Pos: store.Pos,
+		}, true
+	}
+	if store.Op == ir.OpStoreGlobal {
+		return ir.Inst{
+			Op:  ir.OpStoreSoreAndGlobal,
+			A:   code[pc].A, // srcLocal
+			B:   store.A,    // dstGlobal
+			Pos: store.Pos,
+		}, true
+	}
+	return ir.Inst{}, false
+}
+
+// fuseIndexGet matches 『Load;Load;IndexGet 1』.
+//
+// It fuses loading a container and a 1-D index directly from their slots and
+// retrieving the element, bypassing 2 stack pushes and 2 pops.
+func fuseIndexGet(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+2 >= len(code) || targets[pc+1] || targets[pc+2] {
+		return ir.Inst{}, false
+	}
+	arrSrc, ok := loadSrc(code[pc])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	idxSrc, ok := loadSrc(code[pc+1])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	get := code[pc+2]
+	if get.Op != ir.OpIndexGet || get.B != 1 {
+		return ir.Inst{}, false
+	}
+	return ir.Inst{
+		Op:  ir.OpIndexGetAt,
+		A:   ir.EncodeIndexGetAt(arrSrc, idxSrc),
+		B:   code[pc].A,
+		C:   code[pc+1].A,
+		Pos: get.Pos,
+	}, true
 }

@@ -83,7 +83,8 @@ func jumpTargets(code []ir.Inst) map[int]bool {
 	targets := map[int]bool{0: true}
 	for _, inst := range code {
 		switch inst.Op {
-		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
+		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			targets[int(inst.A)] = true
 		}
 	}
@@ -521,11 +522,69 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		}
 		live = after(1)
 
+	case ir.OpStoreSoreAndLocal, ir.OpStoreSoreAndGlobal:
+		srcExpr := e.g.operandExpr(e.fi, ir.SrcLocal, int(inst.A))
+		fmt.Fprintf(out, "\t%s\n", e.specials.set(int(ir.SpecialSore), srcExpr))
+		dst := int(inst.B)
+		if inst.Op == ir.OpStoreSoreAndLocal && e.promoted[dst] {
+			if e.g.srcIsNumber(e.fi, ir.SrcLocal, int(inst.A)) {
+				fmt.Fprintf(out, "\tl%d = %s\n", dst, e.g.operandFloat(e.fi, ir.SrcLocal, int(inst.A)))
+			} else {
+				fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, srcExpr)
+			}
+		} else {
+			targetName := fmt.Sprintf("locals[%d]", dst)
+			if inst.Op == ir.OpStoreSoreAndGlobal {
+				targetName = fmt.Sprintf("globals[%d]", dst)
+			}
+			emitStore(out, targetName, srcExpr, int(inst.Pos))
+		}
+		live = append([]bool(nil), st...)
+
 	case ir.OpBinary:
 		live = e.emitBinary(after(2), top(1), ir.BinaryOp(inst.A),
 			e.slotValue(st, top(1)), e.slotValue(st, top(0)),
 			e.slotFloat(st, top(1)), e.slotFloat(st, top(0)),
 			st[top(1)] && st[top(0)], wantsFloat(top(1)))
+
+	case ir.OpBinaryStoreLocal, ir.OpBinaryStoreGlobal:
+		op := ir.BinaryOp(inst.A)
+		dst := int(inst.B)
+		bothNum := st[top(1)] && st[top(0)]
+		aExpr := e.slotValue(st, top(1))
+		bExpr := e.slotValue(st, top(0))
+		aFloat := e.slotFloat(st, top(1))
+		bFloat := e.slotFloat(st, top(0))
+
+		if inst.Op == ir.OpBinaryStoreLocal && e.promoted[dst] {
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					fmt.Fprintf(out, "\tl%d = %s\n", dst, expr)
+					live = after(2)
+					break
+				}
+			}
+			call := fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, call)
+		} else {
+			var valExpr string
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Number(%s)", expr)
+				} else if expr, ok := boolExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Bool(%s)", expr)
+				}
+			}
+			if valExpr == "" {
+				valExpr = fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			}
+			targetName := fmt.Sprintf("locals[%d]", dst)
+			if inst.Op == ir.OpBinaryStoreGlobal {
+				targetName = fmt.Sprintf("globals[%d]", dst)
+			}
+			emitStore(out, targetName, valExpr, int(inst.Pos))
+		}
+		live = after(2)
 
 	case ir.OpBinaryAt:
 		op, left, right := ir.DecodeBinaryAt(inst.A)
@@ -540,6 +599,42 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 			e.g.operandExpr(e.fi, left, int(inst.B)), e.g.operandExpr(e.fi, right, int(inst.C)),
 			e.g.operandFloat(e.fi, left, int(inst.B)), e.g.operandFloat(e.fi, right, int(inst.C)),
 			bothNum, wantsFloat(d))
+
+	case ir.OpBinaryAtStoreLocal:
+		op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+		bothConst := left == ir.SrcConst && right == ir.SrcConst
+		bothNum := !bothConst &&
+			e.g.srcIsNumber(e.fi, left, int(inst.B)) && e.g.srcIsNumber(e.fi, right, int(inst.C))
+		aExpr := e.g.operandExpr(e.fi, left, int(inst.B))
+		bExpr := e.g.operandExpr(e.fi, right, int(inst.C))
+		aFloat := e.g.operandFloat(e.fi, left, int(inst.B))
+		bFloat := e.g.operandFloat(e.fi, right, int(inst.C))
+
+		if e.promoted[int(dst)] {
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					fmt.Fprintf(out, "\tl%d = %s\n", dst, expr)
+					live = append([]bool(nil), st...)
+					break
+				}
+			}
+			call := fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, call)
+		} else {
+			var valExpr string
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Number(%s)", expr)
+				} else if expr, ok := boolExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Bool(%s)", expr)
+				}
+			}
+			if valExpr == "" {
+				valExpr = fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			}
+			emitStore(out, fmt.Sprintf("locals[%d]", dst), valExpr, int(inst.Pos))
+		}
+		live = append([]bool(nil), st...)
 
 	case ir.OpUnary:
 		if ir.UnaryOp(inst.A) == ir.UnaryNeg && wantsFloat(top(0)) {
@@ -563,6 +658,13 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		live = setValue(after(int(inst.B)+1), base,
 			fmt.Sprintf("m.IndexGet(%s, %s, %d)",
 				e.slotValue(st, base), e.argSlice(st, d, int(inst.B)), int(inst.Pos)))
+
+	case ir.OpIndexGetAt:
+		arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
+		arrExpr := e.g.operandExpr(e.fi, arrSrc, int(inst.B))
+		idxExpr := e.g.operandExpr(e.fi, idxSrc, int(inst.C))
+		live = setValue(after(0), d,
+			fmt.Sprintf("m.IndexGet(%s, []rt.Value{%s}, %d)", arrExpr, idxExpr, int(inst.Pos)))
 
 	case ir.OpIndexSet:
 		base := d - int(inst.B) - 2
@@ -618,6 +720,33 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		e.convertIndent(after(1), int(inst.A))
 		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(int(inst.A), e.codeLen))
 		live = after(1)
+
+	case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+		op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+		bothConst := left == ir.SrcConst && right == ir.SrcConst
+		bothNum := !bothConst &&
+			e.g.srcIsNumber(e.fi, left, int(inst.B)) && e.g.srcIsNumber(e.fi, right, int(rightIdx))
+		aExpr := e.g.operandExpr(e.fi, left, int(inst.B))
+		bExpr := e.g.operandExpr(e.fi, right, int(rightIdx))
+		aFloat := e.g.operandFloat(e.fi, left, int(inst.B))
+		bFloat := e.g.operandFloat(e.fi, right, int(rightIdx))
+
+		var cond string
+		if bothNum {
+			if expr, ok := boolExpr(op, aFloat, bFloat); ok {
+				cond = expr
+			}
+		}
+		if cond == "" {
+			cond = fmt.Sprintf("rt.ToBool(rt.Binary(rt.BinaryOp(%d), %s, %s))", op, aExpr, bExpr)
+		}
+		if inst.Op == ir.OpJumpIfNotBinaryAt {
+			cond = "!(" + cond + ")"
+		}
+		fmt.Fprintf(out, "\tif %s {\n", cond)
+		e.convertIndent(after(0), int(inst.A))
+		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(int(inst.A), e.codeLen))
+		live = append([]bool(nil), st...)
 
 	case ir.OpTry:
 		fmt.Fprintf(out, "\t*handlers = append(*handlers, rt.Handler{Target: %d})\n", inst.A)
