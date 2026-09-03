@@ -242,6 +242,18 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			} else if right == ir.SrcGlobal {
 				dropGlobal(pc, int(rightIdx))
 			}
+		case ir.OpIndexGetAt:
+			arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
+			if arrSrc == ir.SrcLocal {
+				dropLocal(pc, int(inst.B))
+			} else if arrSrc == ir.SrcGlobal {
+				dropGlobal(pc, int(inst.B))
+			}
+			if idxSrc == ir.SrcLocal {
+				dropLocal(pc, int(inst.C))
+			} else if idxSrc == ir.SrcGlobal {
+				dropGlobal(pc, int(inst.C))
+			}
 		}
 	}
 
@@ -273,6 +285,30 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 		case ir.OpStoreGlobal, ir.OpInitGlobal:
 			if info.numericGlobals[int(inst.A)] && !top {
 				info.numericGlobals[int(inst.A)] = false
+				changed = true
+			}
+		case ir.OpBinaryStoreLocal:
+			d := depths[pc]
+			isNum := d >= 2 && stacks[pc][d-1] && stacks[pc][d-2] && numericOp(ir.BinaryOp(inst.A))
+			if locals[int(inst.B)] && !isNum {
+				delete(locals, int(inst.B))
+				changed = true
+			}
+		case ir.OpBinaryStoreGlobal:
+			d := depths[pc]
+			isNum := d >= 2 && stacks[pc][d-1] && stacks[pc][d-2] && numericOp(ir.BinaryOp(inst.A))
+			if info.numericGlobals[int(inst.B)] && !isNum {
+				info.numericGlobals[int(inst.B)] = false
+				changed = true
+			}
+		case ir.OpStoreSoreAndLocal:
+			if locals[int(inst.B)] && !locals[int(inst.A)] {
+				delete(locals, int(inst.B))
+				changed = true
+			}
+		case ir.OpStoreSoreAndGlobal:
+			if info.numericGlobals[int(inst.B)] && !locals[int(inst.A)] {
+				info.numericGlobals[int(inst.B)] = false
 				changed = true
 			}
 		}
@@ -330,6 +366,16 @@ func writtenLocals(fn *ir.Func) []int {
 			if !seen[int(dst)] {
 				seen[int(dst)] = true
 				out = append(out, int(dst))
+			}
+		} else if inst.Op == ir.OpBinaryStoreLocal {
+			if !seen[int(inst.B)] {
+				seen[int(inst.B)] = true
+				out = append(out, int(inst.B))
+			}
+		} else if inst.Op == ir.OpStoreSoreAndLocal {
+			if !seen[int(inst.B)] {
+				seen[int(inst.B)] = true
+				out = append(out, int(inst.B))
 			}
 		}
 	}
@@ -572,8 +618,24 @@ func definiteAssigned(fn *ir.Func, depths []int, numGlobals int) (locals, global
 			if dst >= 0 && int(dst) < fn.NumVars {
 				out[int(dst)] = true
 			}
+		case ir.OpBinaryStoreLocal:
+			if inst.B >= 0 && int(inst.B) < fn.NumVars {
+				out[int(inst.B)] = true
+			}
 		case ir.OpStoreGlobal, ir.OpInitGlobal:
 			if i := fn.NumVars + int(inst.A); inst.A >= 0 && i < width {
+				out[i] = true
+			}
+		case ir.OpBinaryStoreGlobal:
+			if i := fn.NumVars + int(inst.B); inst.B >= 0 && i < width {
+				out[i] = true
+			}
+		case ir.OpStoreSoreAndLocal:
+			if inst.B >= 0 && int(inst.B) < fn.NumVars {
+				out[int(inst.B)] = true
+			}
+		case ir.OpStoreSoreAndGlobal:
+			if i := fn.NumVars + int(inst.B); inst.B >= 0 && i < width {
 				out[i] = true
 			}
 		}

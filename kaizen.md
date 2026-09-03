@@ -39,20 +39,27 @@
 6. **スーパー命令 `OpJumpIfBinaryAt` / `OpJumpIfNotBinaryAt` (PR #20)**:
    - `Load; Load; Binary; JumpIfFalse/True`（4命令）を1命令に融合。
    - ループ条件・比較分岐のスタック push/pop および真偽値オブジェクト生成を完全バイパス。
-   - `BenchmarkLoop` が 28.5ms → 25.3ms (**-11% 高速化**)。総合ベンチマーク合計 2200ms → 1864ms (**1.50倍高速**)。
+7. **スーパー命令 `OpBinaryStoreLocal` / `OpBinaryStoreGlobal` (PR #20)**:
+   - `Binary; StoreLocal/Global`（2命令）を1命令に融合。
+   - 式の計算結果をスタックを経ずに直接セルへ書き込み。
+8. **スーパー命令 `OpStoreSoreAndLocal` / `OpStoreSoreAndGlobal` (PR #20)**:
+   - `LoadLocal; Dup; StoreSpecial; StoreLocal/Global`（4命令）を1命令に融合。
+   - 回数ループや範囲ループの毎周のループ変数代入オーバーヘッドを 4命令 → 1命令に圧縮。
+9. **スーパー命令 `OpIndexGetAt` (PR #20)**:
+   - `Load; Load; IndexGet 1`（3命令）を1命令に融合。
+   - 配列要素 `A[I]` を直読みし `arr.Get(i)` から直接プッシュ。
+   - **成果**: `BenchmarkLoop` が 28.5ms → **20.0ms** (**-29.8% 高速化**)。総合ベンチマーク合計 2200ms → **1752ms** (**Node.jsの1.60倍高速**)。Sieve（エラトステネスの篩）で **Node.js 公式実装を逆転**（82.6ms vs 97.2ms）。
 
 ---
 
 ## 3. 今後の改善施策候補
 
 ### 施策A: さらなるスーパー命令（命令融合）
-* **推定効果**: `BenchmarkLoop` でさらに **5〜10%** 改善
-* **実装難易度**: **小〜中**
+* **推定効果**: 特定ベンチマークで **3〜5%** 改善
+* **実装難易度**: **小**
 * **内容**:
-  - `Binary; StoreLocal / StoreGlobal` の融合（式評価結果のスタック push → 直後の pop を省略し、直接セルに代入）。
-  - カウンタの自己インクリメント特化命令（`OpIncLocal` 等）。
-  * 現在のループ本体（9命令）からさらに `StoreLocal` のディスパッチとスタック退避・ポップを省略可能。
-  * `peephole.go` のパターンマッチングに追加し、`execute` 側でインライン展開する。
+  - `Binary; Return`（式評価結果を直接 return）の融合（再帰関数の末尾等）。
+  - 配列代入 `Load; Load; Load; IndexSet` → `OpIndexSetAt` の融合。
 
 ### 施策B: `value.Value` のメモリ表現縮小（56B → 32B〜16B）
 * **推定効果**: 全体で **15〜25%** 改善（スタック操作の半減）

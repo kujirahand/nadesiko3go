@@ -66,6 +66,22 @@ const (
 	// A packs the operator, two operand kinds, and dst local slot
 	// (→ EncodeBinaryAtStoreLocal), B is left index, C is right index.
 	OpBinaryAtStoreLocal
+	// OpBinaryStoreLocal pops two operands, applies operator A, and stores
+	// the result directly into local slot B without pushing it to stack.
+	// It fuses 『Binary; StoreLocal』.
+	OpBinaryStoreLocal
+	// OpBinaryStoreGlobal pops two operands, applies operator A, and stores
+	// the result directly into global slot B without pushing it to stack.
+	// It fuses 『Binary; StoreGlobal』.
+	OpBinaryStoreGlobal
+	// OpStoreSoreAndLocal reads value from local slot A, and stores it into both
+	// 『それ』 (SpecialSore) and local slot B, without using the operand stack.
+	// It fuses 『LoadLocal; Dup; StoreSpecial; StoreLocal』.
+	OpStoreSoreAndLocal
+	// OpStoreSoreAndGlobal reads value from local slot A, and stores it into both
+	// 『それ』 (SpecialSore) and global slot B, without using the operand stack.
+	// It fuses 『LoadLocal; Dup; StoreSpecial; StoreGlobal』.
+	OpStoreSoreAndGlobal
 
 	// --- 集合 ---
 
@@ -75,6 +91,12 @@ const (
 	OpMakeDict
 	// OpIndexGet pops B indexes and a container, and pushes the element.
 	OpIndexGet
+	// OpIndexGetAt reads container and 1-D index straight from where they live,
+	// and pushes the element onto the operand stack. It fuses 『Load;Load;IndexGet 1』.
+	//
+	// A packs container and index source kinds (→ EncodeIndexGetAt),
+	// B is container slot, C is index slot/const.
+	OpIndexGetAt
 	// OpIndexSet pops a value, B indexes and a container, and stores.
 	OpIndexSet
 	// OpIterKeys pops a container and pushes the array of keys to iterate:
@@ -236,6 +258,16 @@ func DecodeJumpBinaryAt(c int32) (op BinaryOp, left, right Src, rightIndex int32
 	return op, left, right, rightIndex
 }
 
+// EncodeIndexGetAt packs container and index sources into A.
+func EncodeIndexGetAt(arrSrc, idxSrc Src) int32 {
+	return int32(arrSrc) | (int32(idxSrc) << 4)
+}
+
+// DecodeIndexGetAt unpacks container and index sources from A.
+func DecodeIndexGetAt(a int32) (arrSrc, idxSrc Src) {
+	return Src(a & 0xF), Src((a >> 4) & 0xF)
+}
+
 // Special identifies one of the values the language keeps outside the ordinary
 // variable scopes.
 //
@@ -310,8 +342,12 @@ var opNames = map[Op]string{
 	OpPop: "Pop", OpDup: "Dup",
 	OpBinary: "Binary", OpUnary: "Unary", OpBinaryAt: "BinaryAt",
 	OpBinaryAtStoreLocal: "BinaryAtStoreLocal",
+	OpBinaryStoreLocal:   "BinaryStoreLocal",
+	OpBinaryStoreGlobal:  "BinaryStoreGlobal",
+	OpStoreSoreAndLocal:   "StoreSoreAndLocal",
+	OpStoreSoreAndGlobal:  "StoreSoreAndGlobal",
 	OpMakeArray:          "MakeArray", OpMakeDict: "MakeDict",
-	OpIndexGet: "IndexGet", OpIndexSet: "IndexSet",
+	OpIndexGet: "IndexGet", OpIndexGetAt: "IndexGetAt", OpIndexSet: "IndexSet",
 	OpIterKeys: "IterKeys", OpLen: "Len",
 	OpCallStd: "CallStd", OpCallUser: "CallUser", OpCallValue: "CallValue",
 	OpMakeFunc: "MakeFunc",

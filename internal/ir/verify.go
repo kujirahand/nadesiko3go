@@ -22,11 +22,12 @@ func (e *InvalidIRError) Error() string {
 func StackDelta(inst Inst) (needs int, delta int) {
 	switch inst.Op {
 	case OpNop, OpJump, OpTry, OpEndTry, OpBinaryAtStoreLocal,
-		OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
+		OpJumpIfBinaryAt, OpJumpIfNotBinaryAt,
+		OpStoreSoreAndLocal, OpStoreSoreAndGlobal:
 		return 0, 0
 	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
-	case OpBinaryAt:
+	case OpBinaryAt, OpIndexGetAt:
 		// 両辺をスタックを経ずに読むので、積むだけ
 		return 0, +1
 	case OpPop, OpThrow,
@@ -41,6 +42,8 @@ func StackDelta(inst Inst) (needs int, delta int) {
 		return 1, 0
 	case OpBinary:
 		return 2, -1
+	case OpBinaryStoreLocal, OpBinaryStoreGlobal:
+		return 2, -2
 	case OpMakeArray:
 		return int(inst.B), 1 - int(inst.B)
 	case OpMakeDict:
@@ -174,6 +177,14 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
 				return err
 			}
+		case OpIndexGetAt:
+			arrSrc, idxSrc := DecodeIndexGetAt(inst.A)
+			if err := p.checkSrc(fi, i, f, arrSrc, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, idxSrc, int(inst.C)); err != nil {
+				return err
+			}
 		case OpBinaryAtStoreLocal:
 			_, left, right, dst := DecodeBinaryAtStoreLocal(inst.A)
 			if dst < 0 || int(dst) >= f.NumVars {
@@ -187,6 +198,40 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			}
 			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
 				return err
+			}
+		case OpBinaryStoreLocal:
+			if inst.B < 0 || int(inst.B) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", inst.B)
+			}
+			if constVars[int(inst.B)] {
+				return bad(i, "定数スロット%dへ代入しています", inst.B)
+			}
+		case OpBinaryStoreGlobal:
+			if inst.B < 0 || int(inst.B) >= len(p.Globals) {
+				return bad(i, "代入先のグローバルスロットが範囲外です: %d", inst.B)
+			}
+			if constGlobals[int(inst.B)] {
+				return bad(i, "定数グローバル%dへ代入しています", inst.B)
+			}
+		case OpStoreSoreAndLocal:
+			if inst.A < 0 || int(inst.A) >= f.NumVars {
+				return bad(i, "読み出し元のローカルスロットが範囲外です: %d", inst.A)
+			}
+			if inst.B < 0 || int(inst.B) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", inst.B)
+			}
+			if constVars[int(inst.B)] {
+				return bad(i, "定数スロット%dへ代入しています", inst.B)
+			}
+		case OpStoreSoreAndGlobal:
+			if inst.A < 0 || int(inst.A) >= f.NumVars {
+				return bad(i, "読み出し元のローカルスロットが範囲外です: %d", inst.A)
+			}
+			if inst.B < 0 || int(inst.B) >= len(p.Globals) {
+				return bad(i, "代入先のグローバルスロットが範囲外です: %d", inst.B)
+			}
+			if constGlobals[int(inst.B)] {
+				return bad(i, "定数グローバル%dへ代入しています", inst.B)
 			}
 		case OpCallUser:
 			if inst.A < 0 || int(inst.A) >= len(p.Funcs) {

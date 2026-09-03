@@ -82,6 +82,71 @@ func TestFuseJumpBinaryAt(t *testing.T) {
 	}
 }
 
+func TestFuseBinaryStore(t *testing.T) {
+	prog, err := vm.CompileProgram("●(Aで)テストとは\n  B=0\n  B=B+(A*2)\n  Bで戻る\nここまで\nS=0\nI=1\nS=S+(I*2)\nSを表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var foundLocal, foundGlobal bool
+	for _, fn := range prog.Funcs {
+		for _, inst := range fn.Code {
+			if inst.Op == ir.OpBinaryStoreLocal {
+				foundLocal = true
+			}
+			if inst.Op == ir.OpBinaryStoreGlobal {
+				foundGlobal = true
+			}
+		}
+	}
+	if !foundLocal {
+		t.Errorf("BinaryStoreLocal にまとまっていない")
+	}
+	if !foundGlobal {
+		t.Errorf("BinaryStoreGlobal にまとまっていない")
+	}
+}
+
+func TestFuseStoreSoreAndVar(t *testing.T) {
+	prog, err := vm.CompileProgram("●テストとは\n  Iを1から5まで繰り返す\n    Iを表示\n  ここまで\nここまで\nIを1から5まで繰り返す\n  Iを表示\nここまで", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var foundLocal, foundGlobal bool
+	for _, fn := range prog.Funcs {
+		for _, inst := range fn.Code {
+			if inst.Op == ir.OpStoreSoreAndLocal {
+				foundLocal = true
+			}
+			if inst.Op == ir.OpStoreSoreAndGlobal {
+				foundGlobal = true
+			}
+		}
+	}
+	if !foundLocal {
+		t.Errorf("StoreSoreAndLocal にまとまっていない")
+	}
+	if !foundGlobal {
+		t.Errorf("StoreSoreAndGlobal にまとまっていない")
+	}
+}
+
+func TestFuseIndexGetAt(t *testing.T) {
+	prog, err := vm.CompileProgram("A=[10, 20, 30]\nI=1\nA[I]を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, inst := range prog.Funcs[prog.Main].Code {
+		if inst.Op == ir.OpIndexGetAt {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("IndexGetAt にまとまっていない: %v", prog.Funcs[prog.Main].Code)
+	}
+}
+
 // TestFuseKeepsJumpTargets checks the rewrite around code something jumps to.
 // 命令を消すと番号がずれるので、飛び先のつけ替えを間違えると、条件分岐が
 // 別の場所へ飛ぶ。値が合っていれば、飛び先も合っている。
