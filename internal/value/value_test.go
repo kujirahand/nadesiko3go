@@ -8,8 +8,15 @@ import (
 )
 
 func TestValueSize(t *testing.T) {
-	if got := unsafe.Sizeof(Value{}); got != 32 {
-		t.Fatalf("Valueのサイズ = %d bytes, want 32", got)
+	want := uintptr(32)
+	if unsafe.Sizeof(uintptr(0)) == 4 {
+		want = 20
+		if unsafe.Alignof(float64(0)) == 8 {
+			want = 24
+		}
+	}
+	if got := unsafe.Sizeof(Value{}); got != want {
+		t.Fatalf("Valueのサイズ = %d bytes, want %d", got, want)
 	}
 }
 
