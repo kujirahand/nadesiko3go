@@ -351,4 +351,3 @@ func TestLeafFrameErrorRecovery(t *testing.T) {
 		t.Errorf("got %q, want \"ゼロ除算エラー\\n10\"", got)
 	}
 }
-

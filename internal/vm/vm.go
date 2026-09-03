@@ -495,6 +495,9 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	prev := m.current
 	m.current = f
 	defer func() {
+		if isLeaf {
+			m.freeLeafFrame(f)
+		}
 		m.depth--
 		m.current = prev
 	}()
@@ -516,9 +519,6 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 		ret = native(m, f.locals, f.captures, &f.specials)
 	} else {
 		ret = m.run(f)
-	}
-	if isLeaf {
-		m.freeLeafFrame(f)
 	}
 	return ret
 }
