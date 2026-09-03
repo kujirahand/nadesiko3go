@@ -419,10 +419,17 @@ func (m *VM) allocLeafFrame(fn *ir.Func, specials [ir.SpecialCount]value.Value) 
 }
 
 func (m *VM) freeLeafFrame(f *frame) {
-	clear(f.stack)
+	// pop/borrowN shorten the slice without clearing the removed slots. Clear
+	// the whole backing array so returned values and intermediate objects do not
+	// stay reachable for as long as the frame remains in the pool.
+	clear(f.stack[:cap(f.stack)])
+	f.stack = f.stack[:0]
 	for i := range f.cells {
 		f.cells[i].Value = value.Undefined()
 	}
+	// Frame-local system values can also hold arrays, dictionaries, and
+	// functions. None of them belong to an idle pooled frame.
+	clear(f.specials[:])
 	m.leafFrames = append(m.leafFrames, f)
 }
 

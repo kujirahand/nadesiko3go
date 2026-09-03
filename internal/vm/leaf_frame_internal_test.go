@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
+	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
 func TestLeafFrameReturnedAfterMonitoredError(t *testing.T) {
@@ -38,5 +40,29 @@ func TestLeafFrameReturnedAfterMonitoredError(t *testing.T) {
 	// unwinds by panic and must be returned just like the two normal returns.
 	if got, want := len(machine.leafFrames), 3; got != want {
 		t.Fatalf("returned leaf frames = %d, want %d", got, want)
+	}
+}
+
+func TestFreeLeafFrameClearsReferences(t *testing.T) {
+	stack := []value.Value{value.String("stack reference")}
+	f := &frame{
+		// Returning a value pops it before the frame is freed, leaving its slot
+		// outside the live slice but still inside the backing array.
+		stack: stack[:0],
+		cells: []value.Cell{{Value: value.String("cell reference")}},
+	}
+	f.specials[ir.SpecialSore] = value.String("special reference")
+
+	machine := &VM{}
+	machine.freeLeafFrame(f)
+
+	if got := f.stack[:cap(f.stack)][0].Kind(); got != value.KindUndefined {
+		t.Errorf("pooled stack slot kind = %v, want undefined", got)
+	}
+	if got := f.cells[0].Value.Kind(); got != value.KindUndefined {
+		t.Errorf("pooled cell kind = %v, want undefined", got)
+	}
+	if got := f.specials[ir.SpecialSore].Kind(); got != value.KindUndefined {
+		t.Errorf("pooled special kind = %v, want undefined", got)
 	}
 }
