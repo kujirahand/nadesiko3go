@@ -193,3 +193,16 @@ func (r *Registry) FuncList() lexer.FuncList { return r.list }
 
 // Len reports how many commands the registry holds.
 func (r *Registry) Len() int { return len(r.entries) }
+
+// ConstNames lists every name the registry answers Const for — つまり
+// プラグインが「命令ではない項目」として持ち込んだ名前 (システム定数と
+// システム変数) の全部です。gogen が「この大域変数はGoの変数へ移して
+// よいか」を決めるのに使います (internal/gogen/types.go)。
+func (r *Registry) ConstNames() []string {
+	names := make([]string, 0, len(r.consts))
+	for name := range r.consts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}

@@ -361,7 +361,7 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 const defaultFrameVarCap = 8
 const defaultFrameStackCap = 8
 
-func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.SpecialCount]value.Value) *frame {
+func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials *[ir.SpecialCount]value.Value, stackNeed int) *frame {
 	var f *frame
 	n := len(m.leafFrames)
 	if n > 0 {
@@ -369,10 +369,10 @@ func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.Special
 		m.leafFrames = m.leafFrames[:n-1]
 		f.fn = fn
 		f.blockEnds = blockEnds
-		f.specials = specials
+		f.specials = *specials
 
-		if cap(f.stack) < fn.MaxStack {
-			sz := fn.MaxStack
+		if cap(f.stack) < stackNeed {
+			sz := stackNeed
 			if sz < defaultFrameStackCap {
 				sz = defaultFrameStackCap
 			}
@@ -392,9 +392,13 @@ func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.Special
 		f.cells = f.cells[:fn.NumVars]
 		f.locals = f.locals[:fn.NumVars]
 	} else {
-		stackCap := fn.MaxStack
-		if stackCap < defaultFrameStackCap {
-			stackCap = defaultFrameStackCap
+		var stack []value.Value
+		if stackNeed > 0 {
+			stackCap := stackNeed
+			if stackCap < defaultFrameStackCap {
+				stackCap = defaultFrameStackCap
+			}
+			stack = make([]value.Value, 0, stackCap)
 		}
 		varCap := fn.NumVars
 		if varCap < defaultFrameVarCap {
@@ -403,8 +407,8 @@ func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.Special
 		f = &frame{
 			fn:        fn,
 			blockEnds: blockEnds,
-			specials:  specials,
-			stack:     make([]value.Value, 0, stackCap),
+			specials:  *specials,
+			stack:     stack,
 			cells:     make([]value.Cell, varCap),
 			locals:    make([]*value.Cell, varCap),
 		}
@@ -431,7 +435,9 @@ func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.Special
 func (m *VM) freeLeafFrame(f *frame) {
 	// pop/borrowN shorten the slice without clearing the removed slots. Clear
 	// the whole backing array so returned values and intermediate objects do not
-	// stay reachable for as long as the frame remains in the pool.
+	// stay reachable for as long as the frame remains in the pool. A frame that
+	// only ever ran gogen native functions has no backing array at all
+	// (callClosure asks for no operand stack), so this costs it nothing.
 	clear(f.stack[:cap(f.stack)])
 	f.stack = f.stack[:0]
 	for i := range f.cells {
@@ -460,25 +466,38 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	}
 
 	fn := &m.prog.Funcs[index]
-	specials := m.specials
+	// A callee starts with the caller's dynamic system values, but owns a
+	// copy so changes made by the callee cannot leak back into the caller.
+	// The array is 6 values wide, so it is passed by pointer and copied
+	// exactly once, into the new frame.
+	specials := &m.specials
 	if m.current != nil {
-		// A callee starts with the caller's dynamic system values, but owns a
-		// copy so changes made by the callee cannot leak back into the caller.
-		specials = m.current.specials
+		specials = &m.current.specials
+	}
+
+	// A gogen native function holds its operands in Go variables, so its
+	// frame needs no operand stack — neither allocated nor, on the way back
+	// to the pool, cleared.
+	native, isNative := m.natives[index]
+	stackNeed := fn.MaxStack
+	if isNative {
+		stackNeed = 0
 	}
 
 	isLeaf := index < len(m.isLeaf) && m.isLeaf[index]
 	var f *frame
 	if isLeaf {
-		f = m.allocLeafFrame(fn, m.blockEnds[index], specials)
+		f = m.allocLeafFrame(fn, m.blockEnds[index], specials, stackNeed)
 	} else {
 		f = &frame{
 			fn:        fn,
 			blockEnds: m.blockEnds[index],
-			specials:  specials,
+			specials:  *specials,
 		}
 		// 深さは命令列から分かっている。伸ばしながら積み直さない。
-		f.stack = make([]value.Value, 0, fn.MaxStack)
+		if stackNeed > 0 {
+			f.stack = make([]value.Value, 0, stackNeed)
+		}
 		f.locals = make([]*value.Cell, fn.NumVars)
 		if fn.NumVars > 0 {
 			cells := make([]value.Cell, fn.NumVars)
@@ -533,7 +552,7 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	}
 
 	var ret value.Value
-	if native, ok := m.natives[index]; ok {
+	if isNative {
 		ret = native(m, f.locals, f.captures, &f.specials)
 	} else {
 		ret = m.run(f)

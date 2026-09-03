@@ -44,6 +44,9 @@ func (g *generator) operandFloat(fi int, src ir.Src, index int) string {
 	if src == ir.SrcLocal && g.types.promotedLocals(fi)[index] {
 		return fmt.Sprintf("l%d", index)
 	}
+	if src == ir.SrcGlobal && g.types.promotedGlobalsFor(fi)[index] {
+		return fmt.Sprintf("g%d", index)
+	}
 	return "rt.ToNumber(" + g.operandExpr(fi, src, index) + ")"
 }
 
@@ -138,6 +141,9 @@ func (g *generator) operandExpr(fi int, src ir.Src, index int) string {
 	case ir.SrcCapture:
 		return fmt.Sprintf("captures[%d].Get()", index)
 	default:
+		if g.types.promotedGlobalsFor(fi)[index] {
+			return fmt.Sprintf("rt.Number(g%d)", index)
+		}
 		return fmt.Sprintf("globals[%d].Get()", index)
 	}
 }
@@ -188,7 +194,9 @@ func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func) {
 		return
 	}
 	out.WriteString(stackPrelude(fn.MaxStack))
+	out.WriteString(callArgsPrelude(fn))
 	out.WriteString(g.localsPrelude(i, fn))
+	out.WriteString(g.globalsPrelude(i))
 	out.WriteString("\tgoto L0\n")
 	g.emitBody(out, i, fn, retSimple, specialsPointer(), "\treturn rt.Undefined()\n")
 	out.WriteString("}\n\n")
@@ -225,6 +233,7 @@ func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, tries
 	}()
 `)
 	out.WriteString(stackPrelude(fn.MaxStack))
+	out.WriteString(callArgsPrelude(fn))
 	out.WriteString("\tpc := pcStart\n")
 	out.WriteString("\tgoto Dispatch\n")
 	out.WriteString("Dispatch:\n\tswitch pc {\n\tcase 0:\n\t\tgoto L0\n")
@@ -265,6 +274,52 @@ func (g *generator) localsPrelude(fi int, fn *ir.Func) string {
 		fmt.Fprintf(&b, "\tvar l%d float64\n\t_ = l%d\n", slot, slot)
 	}
 	return b.String()
+}
+
+// globalsPrelude declares the globals this function keeps in ordinary Go
+// variables rather than in their *rt.Cell (→ typeInfo.promotableGlobals).
+// Zero is never observed: a global only gets here once definiteAssigned has
+// shown every read of it follows a store in this same function.
+func (g *generator) globalsPrelude(fi int) string {
+	promoted := g.types.promotedGlobalsFor(fi)
+	if len(promoted) == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	for slot := range g.prog.Globals {
+		if promoted[slot] {
+			fmt.Fprintf(&b, "\tvar g%d float64\n\t_ = g%d\n", slot, slot)
+		}
+	}
+	return b.String()
+}
+
+// callArgsPrelude declares the one buffer this function passes なでしこ
+// function arguments in, sized to its widest call.
+//
+// なぜ使い回してよいか。インタプリタは OpCallUser / OpCallValue の引数を
+// **オペランドスタックから借りて**渡します (internal/vm/vm.go の borrowN)。
+// 呼ばれた側は受け取った値をセルへ写して、その先スライスを持ちません。
+// 生成コードが同じ配列を使い回せるのはそのためです。引数は呼び出しの直前に
+// まとめて書き込むので、入れ子の呼び出しが途中で同じ配列を使っても、
+// 内側の呼び出しは既に終わっています。
+//
+// 標準命令 (OpCallStd) には使いません。そちらは popN、つまりスタックの
+// **写し**を渡す約束で、命令の実装がスライスを持ち続けても構わないからです。
+func callArgsPrelude(fn *ir.Func) string {
+	n := 0
+	for _, inst := range fn.Code {
+		switch inst.Op {
+		case ir.OpCallUser, ir.OpCallValue:
+			if int(inst.B) > n {
+				n = int(inst.B)
+			}
+		}
+	}
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\tvar callArgs [%d]rt.Value\n\t_ = callArgs\n", n)
 }
 
 // stackPrelude declares the operand stack. It is not a slice: ir.ComputeDepths
@@ -321,8 +376,10 @@ type fnEmit struct {
 	depths   []int
 	stacks   [][]bool
 	promoted map[int]bool
-	ret      retKind
-	specials specialsAccess
+	// gpromoted are the globals this function keeps in Go variables.
+	gpromoted map[int]bool
+	ret       retKind
+	specials  specialsAccess
 }
 
 // slotValue reads stack slot i as a boxed rt.Value, boxing it if the slot is
@@ -385,8 +442,9 @@ func (g *generator) emitBody(out *bytes.Buffer, fi int, fn *ir.Func, ret retKind
 	e := &fnEmit{
 		g: g, out: out, fi: fi, fn: fn, codeLen: len(fn.Code),
 		depths: g.types.depths[fi], stacks: g.types.stacks[fi],
-		promoted: g.types.promotedLocals(fi),
-		ret:      ret, specials: specials,
+		promoted:  g.types.promotedLocals(fi),
+		gpromoted: g.types.promotedGlobalsFor(fi),
+		ret:       ret, specials: specials,
 	}
 	targets := jumpTargets(fn.Code)
 	for pc, inst := range fn.Code {
@@ -496,9 +554,22 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		live = after(1)
 
 	case ir.OpLoadGlobal:
+		if e.gpromoted[int(inst.A)] {
+			if wantsFloat(d) {
+				live = setFloat(after(0), d, fmt.Sprintf("g%d", inst.A))
+			} else {
+				live = setValue(after(0), d, fmt.Sprintf("rt.Number(g%d)", inst.A))
+			}
+			break
+		}
 		live = e.emitLoad(after(0), d, fmt.Sprintf("globals[%d]", inst.A), wantsFloat(d))
 
 	case ir.OpStoreGlobal:
+		if e.gpromoted[int(inst.A)] {
+			fmt.Fprintf(out, "\tg%d = %s\n", inst.A, e.slotFloat(st, top(0)))
+			live = after(1)
+			break
+		}
 		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), int(inst.Pos))
 		live = after(1)
 
@@ -526,11 +597,19 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		srcExpr := e.g.operandExpr(e.fi, ir.SrcLocal, int(inst.A))
 		fmt.Fprintf(out, "\t%s\n", e.specials.set(int(ir.SpecialSore), srcExpr))
 		dst := int(inst.B)
-		if inst.Op == ir.OpStoreSoreAndLocal && e.promoted[dst] {
+		promotedDst := inst.Op == ir.OpStoreSoreAndLocal && e.promoted[dst]
+		if inst.Op == ir.OpStoreSoreAndGlobal && e.gpromoted[dst] {
+			promotedDst = true
+		}
+		if promotedDst {
+			name := fmt.Sprintf("l%d", dst)
+			if inst.Op == ir.OpStoreSoreAndGlobal {
+				name = fmt.Sprintf("g%d", dst)
+			}
 			if e.g.srcIsNumber(e.fi, ir.SrcLocal, int(inst.A)) {
-				fmt.Fprintf(out, "\tl%d = %s\n", dst, e.g.operandFloat(e.fi, ir.SrcLocal, int(inst.A)))
+				fmt.Fprintf(out, "\t%s = %s\n", name, e.g.operandFloat(e.fi, ir.SrcLocal, int(inst.A)))
 			} else {
-				fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, srcExpr)
+				fmt.Fprintf(out, "\t%s = rt.ToNumber(%s)\n", name, srcExpr)
 			}
 		} else {
 			targetName := fmt.Sprintf("locals[%d]", dst)
@@ -556,16 +635,21 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		aFloat := e.slotFloat(st, top(1))
 		bFloat := e.slotFloat(st, top(0))
 
-		if inst.Op == ir.OpBinaryStoreLocal && e.promoted[dst] {
+		if (inst.Op == ir.OpBinaryStoreLocal && e.promoted[dst]) ||
+			(inst.Op == ir.OpBinaryStoreGlobal && e.gpromoted[dst]) {
+			name := fmt.Sprintf("l%d", dst)
+			if inst.Op == ir.OpBinaryStoreGlobal {
+				name = fmt.Sprintf("g%d", dst)
+			}
 			if bothNum {
 				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
-					fmt.Fprintf(out, "\tl%d = %s\n", dst, expr)
+					fmt.Fprintf(out, "\t%s = %s\n", name, expr)
 					live = after(2)
 					break
 				}
 			}
 			call := fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
-			fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, call)
+			fmt.Fprintf(out, "\t%s = rt.ToNumber(%s)\n", name, call)
 		} else {
 			var valExpr string
 			if bothNum {
@@ -655,6 +739,12 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 
 	case ir.OpIndexGet:
 		base := d - int(inst.B) - 1
+		if inst.B == 1 {
+			live = setValue(after(2), base,
+				fmt.Sprintf("m.IndexGet1(%s, %s, %d)",
+					e.slotValue(st, base), e.slotValue(st, top(0)), int(inst.Pos)))
+			break
+		}
 		live = setValue(after(int(inst.B)+1), base,
 			fmt.Sprintf("m.IndexGet(%s, %s, %d)",
 				e.slotValue(st, base), e.argSlice(st, d, int(inst.B)), int(inst.Pos)))
@@ -664,10 +754,17 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		arrExpr := e.g.operandExpr(e.fi, arrSrc, int(inst.B))
 		idxExpr := e.g.operandExpr(e.fi, idxSrc, int(inst.C))
 		live = setValue(after(0), d,
-			fmt.Sprintf("m.IndexGet(%s, []rt.Value{%s}, %d)", arrExpr, idxExpr, int(inst.Pos)))
+			fmt.Sprintf("m.IndexGet1(%s, %s, %d)", arrExpr, idxExpr, int(inst.Pos)))
 
 	case ir.OpIndexSet:
 		base := d - int(inst.B) - 2
+		if inst.B == 1 {
+			live = setValue(after(3), base,
+				fmt.Sprintf("m.IndexSet1(%s, %s, %s, %d)",
+					e.slotValue(st, base), e.slotValue(st, base+1),
+					e.slotValue(st, top(0)), int(inst.Pos)))
+			break
+		}
 		live = setValue(after(int(inst.B)+2), base,
 			fmt.Sprintf("m.IndexSet(%s, %s, %s, %d)",
 				e.slotValue(st, base),
@@ -694,13 +791,14 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 
 	case ir.OpCallUser:
 		live = setValue(after(int(inst.B)), d-int(inst.B),
-			fmt.Sprintf("m.CallUser(%d, %s)", inst.A, e.argSlice(st, d, int(inst.B))))
+			fmt.Sprintf("m.CallUser(%d, %s)", inst.A, e.argBuf(st, d-int(inst.B), int(inst.B))))
 
 	case ir.OpCallValue:
 		base := d - int(inst.B) - 1
+		callee := e.slotValue(st, base)
+		args := e.argBuf(st, base+1, int(inst.B))
 		live = setValue(after(int(inst.B)+1), base,
-			fmt.Sprintf("m.CallDynamic(%s, %s, %d)",
-				e.slotValue(st, base), e.argSliceRange(st, base+1, int(inst.B)), int(inst.Pos)))
+			fmt.Sprintf("m.CallDynamic(%s, %s, %d)", callee, args, int(inst.Pos)))
 
 	case ir.OpJump:
 		e.convert(after(0), int(inst.A))
@@ -866,6 +964,20 @@ func boolExpr(op ir.BinaryOp, a, b string) (string, bool) {
 // n slots below depth d.
 func (e *fnEmit) argSlice(st []bool, d, n int) string {
 	return e.argSliceRange(st, d-n, n)
+}
+
+// argBuf fills the shared call buffer (→ callArgsPrelude) from n stack slots
+// starting at base and returns the slice expression naming it. The writes are
+// emitted here, immediately before the call, so every argument has already
+// been evaluated by the time the buffer is touched.
+func (e *fnEmit) argBuf(st []bool, base, n int) string {
+	if n <= 0 {
+		return "nil"
+	}
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(e.out, "\tcallArgs[%d] = %s\n", i, e.slotValue(st, base+i))
+	}
+	return fmt.Sprintf("callArgs[:%d]", n)
 }
 
 // argSliceRange builds a []rt.Value from n slots starting at base.
