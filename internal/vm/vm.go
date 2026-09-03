@@ -64,6 +64,11 @@ type VM struct {
 	current            *frame
 	pendingTimerTarget float64
 
+	// isLeaf flags functions that do not create closures or capture variables,
+	// allowing their frames and cells to be reused.
+	isLeaf     []bool
+	leafFrames []*frame
+
 	// depth counts the nested calls, and executed counts the instructions
 	// run, so that a broken program stops instead of hanging.
 	depth    int
@@ -165,6 +170,22 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		}
 	}
 
+	isLeaf := make([]bool, len(prog.Funcs))
+	for i := range prog.Funcs {
+		fn := &prog.Funcs[i]
+		if fn.NumCaptures > 0 {
+			continue
+		}
+		hasMakeFunc := false
+		for _, inst := range fn.Code {
+			if inst.Op == ir.OpMakeFunc {
+				hasMakeFunc = true
+				break
+			}
+		}
+		isLeaf[i] = !hasMakeFunc
+	}
+
 	m := &VM{
 		prog:         prog,
 		registry:     registry,
@@ -175,6 +196,7 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		commandState: map[string]value.Value{},
 		loop:         loop,
 		callbacks:    map[host.CallbackID]queuedCallback{},
+		isLeaf:       isLeaf,
 		options:      options,
 	}
 	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
@@ -260,6 +282,8 @@ type frame struct {
 	specials [ir.SpecialCount]value.Value
 	// handlers stacks the error-monitored regions this frame has entered.
 	handlers []handler
+	// cells holds the backing storage for local cells when reused by leaf frames.
+	cells []value.Cell
 }
 
 // handler remembers where to resume when a region raises.
@@ -326,15 +350,88 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 	return m.callClosure(index, nil, args)
 }
 
+const defaultFrameVarCap = 8
+const defaultFrameStackCap = 8
+
+func (m *VM) allocLeafFrame(fn *ir.Func, specials [ir.SpecialCount]value.Value) *frame {
+	var f *frame
+	n := len(m.leafFrames)
+	if n > 0 {
+		f = m.leafFrames[n-1]
+		m.leafFrames = m.leafFrames[:n-1]
+		f.fn = fn
+		f.specials = specials
+
+		if cap(f.stack) < fn.MaxStack {
+			sz := fn.MaxStack
+			if sz < defaultFrameStackCap {
+				sz = defaultFrameStackCap
+			}
+			f.stack = make([]value.Value, 0, sz)
+		} else {
+			f.stack = f.stack[:0]
+		}
+
+		if cap(f.cells) < fn.NumVars {
+			sz := fn.NumVars
+			if sz < defaultFrameVarCap {
+				sz = defaultFrameVarCap
+			}
+			f.cells = make([]value.Cell, sz)
+			f.locals = make([]*value.Cell, sz)
+		}
+		f.cells = f.cells[:fn.NumVars]
+		f.locals = f.locals[:fn.NumVars]
+	} else {
+		stackCap := fn.MaxStack
+		if stackCap < defaultFrameStackCap {
+			stackCap = defaultFrameStackCap
+		}
+		varCap := fn.NumVars
+		if varCap < defaultFrameVarCap {
+			varCap = defaultFrameVarCap
+		}
+		f = &frame{
+			fn:       fn,
+			specials: specials,
+			stack:    make([]value.Value, 0, stackCap),
+			cells:    make([]value.Cell, varCap),
+			locals:   make([]*value.Cell, varCap),
+		}
+		f.cells = f.cells[:fn.NumVars]
+		f.locals = f.locals[:fn.NumVars]
+	}
+
+	for i := 0; i < fn.NumVars; i++ {
+		f.cells[i].Value = value.Undefined()
+		f.cells[i].Mutable = true
+		f.cells[i].Initialized = false
+		f.locals[i] = &f.cells[i]
+	}
+	for _, slot := range fn.ConstVars {
+		if slot >= 0 && slot < fn.NumVars {
+			f.cells[slot].Mutable = false
+		}
+	}
+
+	f.handlers = f.handlers[:0]
+	return f
+}
+
+func (m *VM) freeLeafFrame(f *frame) {
+	clear(f.stack)
+	for i := range f.cells {
+		f.cells[i].Value = value.Undefined()
+	}
+	m.leafFrames = append(m.leafFrames, f)
+}
+
 // callClosure runs one function and returns its value. captured holds the
 // cells the closure shares with the frame that created it.
 //
-// ここは呼び出しのたびに通るので、確保の回数がそのまま速さになる。かつては
-// 1回の呼び出しで5個確保していた（スタックの伸長・変数ごとのセル・引数の
-// コピー・フレーム・定数判定用のマップ）。いまは3個
-// （フレーム・localsのスライス・セルのまとめ確保）で、これで
-// BenchmarkRecursion が -21%、BenchmarkCalls が -17% になっている
-// (internal/vm/bench_test.go)。増やすときは、その分だけ遅くなると思ってよい。
+// Leaf functions (NumCaptures == 0 && no OpMakeFunc) reuse their frames,
+// stacks, locals, and cells from a pool, achieving zero allocations on recursive
+// and repeated calls.
 func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) value.Value {
 	if index < 0 || index >= len(m.prog.Funcs) {
 		m.fail(fmt.Sprintf("関数の呼び出し先がありません: %d", index), ir.SourcePos{})
@@ -344,7 +441,6 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 		m.depth--
 		m.fail("関数の呼び出しが深すぎます。再帰が止まらなくなっていませんか。", ir.SourcePos{})
 	}
-	defer func() { m.depth-- }()
 
 	fn := &m.prog.Funcs[index]
 	specials := m.specials
@@ -353,10 +449,44 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 		// copy so changes made by the callee cannot leak back into the caller.
 		specials = m.current.specials
 	}
-	f := &frame{
-		fn:       fn,
-		specials: specials,
+
+	isLeaf := index < len(m.isLeaf) && m.isLeaf[index]
+	var f *frame
+	if isLeaf {
+		f = m.allocLeafFrame(fn, specials)
+	} else {
+		f = &frame{
+			fn:       fn,
+			specials: specials,
+		}
+		// 深さは命令列から分かっている。伸ばしながら積み直さない。
+		f.stack = make([]value.Value, 0, fn.MaxStack)
+		f.locals = make([]*value.Cell, fn.NumVars)
+		if fn.NumVars > 0 {
+			cells := make([]value.Cell, fn.NumVars)
+			for i := range cells {
+				cells[i].Value = value.Undefined()
+				cells[i].Mutable = true
+				f.locals[i] = &cells[i]
+			}
+			for _, slot := range fn.ConstVars {
+				if slot >= 0 && slot < len(cells) {
+					cells[slot].Mutable = false
+				}
+			}
+		}
+		if fn.NumCaptures > 0 {
+			f.captures = make([]*value.Cell, fn.NumCaptures)
+			for i := range f.captures {
+				if i < len(captured) && captured[i] != nil {
+					f.captures[i] = captured[i]
+					continue
+				}
+				f.captures[i] = value.NewCell(true)
+			}
+		}
 	}
+
 	f.specials[ir.SpecialSore] = value.String("")
 	if m.pendingTimerTarget != 0 {
 		f.specials[ir.SpecialTarget] = value.Number(m.pendingTimerTarget)
@@ -364,38 +494,11 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	}
 	prev := m.current
 	m.current = f
-	defer func() { m.current = prev }()
-	// 深さは命令列から分かっている。伸ばしながら積み直さない。
-	f.stack = make([]value.Value, 0, fn.MaxStack)
-	// セルは1つずつ確保せず、1回のまとめ確保から切り出す。呼び出し1回に
-	// つきローカル変数の数だけ確保していたのを、1回にする。
-	f.locals = make([]*value.Cell, fn.NumVars)
-	if fn.NumVars > 0 {
-		cells := make([]value.Cell, fn.NumVars)
-		for i := range cells {
-			cells[i].Value = value.Undefined()
-			cells[i].Mutable = true
-			f.locals[i] = &cells[i]
-		}
-		// 定数のスロットだけ後から落とす。定数は数が少ないので、
-		// 呼び出しのたびに map を作るより数え上げるほうが速い。
-		for _, slot := range fn.ConstVars {
-			if slot >= 0 && slot < len(cells) {
-				cells[slot].Mutable = false
-			}
-		}
-	}
-	// 捕捉したセルは、外側のフレームと同じものを指す
-	if fn.NumCaptures > 0 {
-		f.captures = make([]*value.Cell, fn.NumCaptures)
-		for i := range f.captures {
-			if i < len(captured) && captured[i] != nil {
-				f.captures[i] = captured[i]
-				continue
-			}
-			f.captures[i] = value.NewCell(true)
-		}
-	}
+	defer func() {
+		m.depth--
+		m.current = prev
+	}()
+
 	// 引数はスタックではなくスロットへ直接入れる。関数本体は空のスタックで
 	// 始まるので、検証器が入口の深さを0と決められる。
 	for i, p := range fn.Params {
@@ -407,8 +510,15 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 			f.locals[p.Slot].Initialized = true
 		}
 	}
+
+	var ret value.Value
 	if native, ok := m.natives[index]; ok {
-		return native(m, f.locals, f.captures, &f.specials)
+		ret = native(m, f.locals, f.captures, &f.specials)
+	} else {
+		ret = m.run(f)
 	}
-	return m.run(f)
+	if isLeaf {
+		m.freeLeafFrame(f)
+	}
+	return ret
 }

@@ -299,3 +299,56 @@ func TestNestedClosureReachesOuterVariable(t *testing.T) {
 		t.Errorf("log = %q, want \"11\\n12\"", r.Log)
 	}
 }
+
+func TestLeafFrameReuseRecursion(t *testing.T) {
+	code := `●(Nの)フィボとは
+もしN<=1ならばNで戻る
+(((N-1)のフィボ)+((N-2)のフィボ))で戻る
+ここまで
+(10のフィボ)を表示
+`
+	if got := run(t, code); got != "55" {
+		t.Errorf("got %q, want \"55\"", got)
+	}
+}
+
+func TestLeafFrameWithClosureInterleaving(t *testing.T) {
+	code := `●(Xと)足すとは
+(X+10)で戻る
+ここまで
+●(Nで)カウンターとは
+C=N
+(関数()
+C=C+1
+(Cと足す)で戻る
+ここまで)で戻る
+ここまで
+F=100でカウンター
+(F())を表示
+(F())を表示
+`
+	if got := run(t, code); got != "111\n112" {
+		t.Errorf("got %q, want \"111\\n112\"", got)
+	}
+}
+
+func TestLeafFrameErrorRecovery(t *testing.T) {
+	code := `●(Xで)割るとは
+もしX==0ならば「ゼロ除算エラー」のエラー発生
+(100/X)で戻る
+ここまで
+●呼ぶとは
+エラー監視
+  (0で割る)を表示
+エラーならば
+  エラーメッセージを表示
+ここまで
+(10で割る)を表示
+ここまで
+呼ぶ
+`
+	if got := run(t, code); got != "ゼロ除算エラー\n10" {
+		t.Errorf("got %q, want \"ゼロ除算エラー\\n10\"", got)
+	}
+}
+
