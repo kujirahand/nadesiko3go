@@ -68,6 +68,10 @@ type VM struct {
 	// allowing their frames and cells to be reused.
 	isLeaf     []bool
 	leafFrames []*frame
+	// blockEnds gives each function's basic-block start the exclusive end PC.
+	// The interpreter charges the whole block at once instead of checking the
+	// instruction limit after every dispatch.
+	blockEnds [][]int32
 
 	// depth counts the nested calls, and executed counts the instructions
 	// run, so that a broken program stops instead of hanging.
@@ -171,8 +175,10 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 	}
 
 	isLeaf := make([]bool, len(prog.Funcs))
+	blockEnds := make([][]int32, len(prog.Funcs))
 	for i := range prog.Funcs {
 		fn := &prog.Funcs[i]
+		blockEnds[i] = findBlockEnds(fn.Code)
 		if fn.NumCaptures > 0 {
 			continue
 		}
@@ -197,6 +203,7 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		loop:         loop,
 		callbacks:    map[host.CallbackID]queuedCallback{},
 		isLeaf:       isLeaf,
+		blockEnds:    blockEnds,
 		options:      options,
 	}
 	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
@@ -273,10 +280,11 @@ func (m *VM) Run() (err error) {
 // Both hold cells rather than plain values, because a nested function shares
 // a cell with the frame that created it.
 type frame struct {
-	fn       *ir.Func
-	locals   []*value.Cell
-	captures []*value.Cell
-	stack    []value.Value
+	fn        *ir.Func
+	blockEnds []int32
+	locals    []*value.Cell
+	captures  []*value.Cell
+	stack     []value.Value
 	// specials holds the system values that belong to this activation:
 	// 『それ』, 『対象』, 『対象キー』, 『回数』, 『エラーメッセージ』.
 	specials [ir.SpecialCount]value.Value
@@ -353,13 +361,14 @@ func (m *VM) call(index int, args []value.Value) value.Value {
 const defaultFrameVarCap = 8
 const defaultFrameStackCap = 8
 
-func (m *VM) allocLeafFrame(fn *ir.Func, specials [ir.SpecialCount]value.Value) *frame {
+func (m *VM) allocLeafFrame(fn *ir.Func, blockEnds []int32, specials [ir.SpecialCount]value.Value) *frame {
 	var f *frame
 	n := len(m.leafFrames)
 	if n > 0 {
 		f = m.leafFrames[n-1]
 		m.leafFrames = m.leafFrames[:n-1]
 		f.fn = fn
+		f.blockEnds = blockEnds
 		f.specials = specials
 
 		if cap(f.stack) < fn.MaxStack {
@@ -392,11 +401,12 @@ func (m *VM) allocLeafFrame(fn *ir.Func, specials [ir.SpecialCount]value.Value) 
 			varCap = defaultFrameVarCap
 		}
 		f = &frame{
-			fn:       fn,
-			specials: specials,
-			stack:    make([]value.Value, 0, stackCap),
-			cells:    make([]value.Cell, varCap),
-			locals:   make([]*value.Cell, varCap),
+			fn:        fn,
+			blockEnds: blockEnds,
+			specials:  specials,
+			stack:     make([]value.Value, 0, stackCap),
+			cells:     make([]value.Cell, varCap),
+			locals:    make([]*value.Cell, varCap),
 		}
 		f.cells = f.cells[:fn.NumVars]
 		f.locals = f.locals[:fn.NumVars]
@@ -460,11 +470,12 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	isLeaf := index < len(m.isLeaf) && m.isLeaf[index]
 	var f *frame
 	if isLeaf {
-		f = m.allocLeafFrame(fn, specials)
+		f = m.allocLeafFrame(fn, m.blockEnds[index], specials)
 	} else {
 		f = &frame{
-			fn:       fn,
-			specials: specials,
+			fn:        fn,
+			blockEnds: m.blockEnds[index],
+			specials:  specials,
 		}
 		// 深さは命令列から分かっている。伸ばしながら積み直さない。
 		f.stack = make([]value.Value, 0, fn.MaxStack)
