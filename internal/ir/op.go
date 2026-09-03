@@ -212,11 +212,12 @@ func (s Src) String() string {
 // The A operand of OpBinaryAt holds three small numbers side by side. Keeping
 // the layout in these two functions means nothing else has to know it.
 const (
-	binaryAtOpBits   = 8
-	binaryAtKindBits = 4
-	binaryAtOpMask   int32 = 1<<binaryAtOpBits - 1
-	binaryAtKindMask int32 = 1<<binaryAtKindBits - 1
-	binaryAtDstShift       = binaryAtOpBits + binaryAtKindBits*2 // 16
+	binaryAtOpBits           = 8
+	binaryAtKindBits         = 4
+	binaryAtOpMask    int32  = 1<<binaryAtOpBits - 1
+	binaryAtKindMask  int32  = 1<<binaryAtKindBits - 1
+	binaryAtDstShift         = binaryAtOpBits + binaryAtKindBits*2 // 16
+	binaryAtIndexMask uint32 = 1<<16 - 1
 )
 
 // EncodeBinaryAt packs an operator and its two operand kinds into the A
@@ -236,25 +237,27 @@ func DecodeBinaryAt(a int32) (op BinaryOp, left, right Src) {
 
 // EncodeBinaryAtStoreLocal packs an operator, two operand kinds, and dst local slot.
 func EncodeBinaryAtStoreLocal(op BinaryOp, left, right Src, dstLocal int32) int32 {
-	return EncodeBinaryAt(op, left, right) | (dstLocal << binaryAtDstShift)
+	return int32(uint32(EncodeBinaryAt(op, left, right)) |
+		(uint32(dstLocal)&binaryAtIndexMask)<<binaryAtDstShift)
 }
 
 // DecodeBinaryAtStoreLocal unpacks what EncodeBinaryAtStoreLocal made.
 func DecodeBinaryAtStoreLocal(a int32) (op BinaryOp, left, right Src, dstLocal int32) {
 	op, left, right = DecodeBinaryAt(a)
-	dstLocal = a >> binaryAtDstShift
+	dstLocal = int32(uint32(a) >> binaryAtDstShift & binaryAtIndexMask)
 	return op, left, right, dstLocal
 }
 
 // EncodeJumpBinaryAt packs operator, operand sources, and right index into C.
 func EncodeJumpBinaryAt(op BinaryOp, left, right Src, rightIndex int32) int32 {
-	return EncodeBinaryAt(op, left, right) | (rightIndex << binaryAtDstShift)
+	return int32(uint32(EncodeBinaryAt(op, left, right)) |
+		(uint32(rightIndex)&binaryAtIndexMask)<<binaryAtDstShift)
 }
 
 // DecodeJumpBinaryAt unpacks what EncodeJumpBinaryAt made.
 func DecodeJumpBinaryAt(c int32) (op BinaryOp, left, right Src, rightIndex int32) {
 	op, left, right = DecodeBinaryAt(c)
-	rightIndex = c >> binaryAtDstShift
+	rightIndex = int32(uint32(c) >> binaryAtDstShift & binaryAtIndexMask)
 	return op, left, right, rightIndex
 }
 
@@ -344,8 +347,8 @@ var opNames = map[Op]string{
 	OpBinaryAtStoreLocal: "BinaryAtStoreLocal",
 	OpBinaryStoreLocal:   "BinaryStoreLocal",
 	OpBinaryStoreGlobal:  "BinaryStoreGlobal",
-	OpStoreSoreAndLocal:   "StoreSoreAndLocal",
-	OpStoreSoreAndGlobal:  "StoreSoreAndGlobal",
+	OpStoreSoreAndLocal:  "StoreSoreAndLocal",
+	OpStoreSoreAndGlobal: "StoreSoreAndGlobal",
 	OpMakeArray:          "MakeArray", OpMakeDict: "MakeDict",
 	OpIndexGet: "IndexGet", OpIndexGetAt: "IndexGetAt", OpIndexSet: "IndexSet",
 	OpIterKeys: "IterKeys", OpLen: "Len",

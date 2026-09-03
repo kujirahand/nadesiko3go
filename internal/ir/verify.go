@@ -264,7 +264,9 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 		if inst.B < 0 {
 			return bad(i, "Bが負です: %d", inst.B)
 		}
-		if inst.C < 0 {
+		// JumpIfBinaryAt はCの上位16ビットを符号なしの添字として使う。
+		// 添字が32768以上ならint32全体は負になるが、正しいエンコードである。
+		if inst.C < 0 && inst.Op != OpJumpIfBinaryAt && inst.Op != OpJumpIfNotBinaryAt {
 			return bad(i, "Cが負です: %d", inst.C)
 		}
 	}

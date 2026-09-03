@@ -61,6 +61,37 @@ func TestValidateAcceptsGoodProgram(t *testing.T) {
 	}
 }
 
+func TestValidateAcceptsPackedUnsigned16BitIndex(t *testing.T) {
+	const maxUint16 = int32(65535)
+	jump := program([]ir.Inst{
+		{
+			Op: ir.OpJumpIfNotBinaryAt,
+			A:  1,
+			B:  0,
+			C:  ir.EncodeJumpBinaryAt(ir.BinEq, ir.SrcConst, ir.SrcConst, maxUint16),
+		},
+		{Op: ir.OpReturn},
+	}, 0)
+	jump.Consts = make([]ir.Const, int(maxUint16)+1)
+	if err := jump.Validate(); err != nil {
+		t.Fatalf("JumpIfNotBinaryAt Validate = %v, want nil", err)
+	}
+
+	store := program([]ir.Inst{
+		{
+			Op: ir.OpBinaryAtStoreLocal,
+			A:  ir.EncodeBinaryAtStoreLocal(ir.BinAdd, ir.SrcConst, ir.SrcConst, maxUint16),
+			B:  0,
+			C:  0,
+		},
+		{Op: ir.OpReturn},
+	}, 0)
+	store.Funcs[0].NumVars = int(maxUint16) + 1
+	if err := store.Validate(); err != nil {
+		t.Fatalf("BinaryAtStoreLocal Validate = %v, want nil", err)
+	}
+}
+
 // TestVerifyCatchesUnderflow pins the check that a broken compiler cannot ship
 // code that pops from an empty stack.
 func TestVerifyCatchesUnderflow(t *testing.T) {
