@@ -70,7 +70,14 @@ dispatch:
 		if maxInstructions > 0 && (m.executed >= maxInstructions || blockCount > maxInstructions-m.executed) {
 			// Keep the old boundary exact: run the remaining permitted
 			// instructions, then fail at the first instruction over the limit.
-			allowed := maxInstructions - m.executed
+			// m.executed can already sit past the limit: the limit error is
+			// catchable by エラー監視, and protect() resumes at the handler with
+			// the over-limit count kept. Both are uint64, so the subtraction
+			// must be clamped or it wraps and blockEnd runs past the block.
+			var allowed uint64
+			if m.executed < maxInstructions {
+				allowed = maxInstructions - m.executed
+			}
 			blockEnd = pc + int(allowed)
 			m.executed += allowed
 			limitReached = true
