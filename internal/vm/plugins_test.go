@@ -1,7 +1,6 @@
 package vm_test
 
 import (
-	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
@@ -15,6 +14,5 @@ func init() {
 		officelib.New(),
 		pdflib.New(),
 		imagelib.New(),
-		guilib.New(),
 	)
 }
