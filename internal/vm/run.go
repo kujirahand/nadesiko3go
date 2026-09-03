@@ -61,7 +61,7 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 		if maxInstructions > 0 && m.executed > maxInstructions {
 			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
 		}
-		// 命令は32バイトある。1命令ごとに丸ごと写さず、参照で読む。
+		// 命令は20バイトある。1命令ごとに丸ごと写さず、参照で読む。
 		inst := &code[pc]
 		pc++
 
