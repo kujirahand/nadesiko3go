@@ -150,14 +150,17 @@ const (
 )
 
 type Value struct {
+    data unsafe.Pointer // 文字列・配列・辞書・関数で共用。GC追跡対象
+    num  float64        // 数値・真偽値
+    aux  uintptr        // 文字列のUTF-8バイト長
     kind Kind
-    num  float64
-    str  string    // Goの文字列をそのまま持つ
-    arr  *Array
-    dict *Dict
-    fn   *Func
 }
 ```
+
+64bit環境では32バイトです。文字列は `data` に `unsafe.StringData` の返す
+バッキング配列へのポインタ、`aux` にバイト長を持たせ、`unsafe.String` で
+再構築します。`data` を `uintptr` にしてはいけません。`unsafe.Pointer` のまま
+保持することで、文字列を含む参照先がGCの追跡対象になります。
 
 決めておくこと。
 
@@ -616,7 +619,7 @@ JS生成と違い、**標準命令の実装を二重に持つ必要がありま�
 | 数値と分かったスタック段 | 同上 | 生の `float64` の変数 `f0` `f1` … |
 | ローカル変数 | `*value.Cell` の配列 | 同左。ただし数値と分かり、捕捉されないものは `l0` `l1` … |
 
-`value.Value` は56バイトあるので、包まずに済ませられるかどうかが速度を
+`value.Value` は32バイトあるので、包まずに済ませられるかどうかが速度を
 決めます。どこを包まずに済ませられるかは `internal/gogen/types.go` の型推論が
 決め、**証明できたときだけ**特殊化します（→ 次節）。スタックを変数に
 できるのは、`ir.ComputeDepths` が「どの命令もスタックの深さは1つに決まる」

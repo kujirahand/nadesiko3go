@@ -2,6 +2,8 @@
 // standard library, and host boundary.
 package value
 
+import "unsafe"
+
 type Kind uint8
 
 const (
@@ -16,12 +18,14 @@ const (
 )
 
 type Value struct {
-	kind Kind
+	// data is shared by every reference-like kind. Keeping a single GC-visible
+	// pointer instead of one field per kind reduces Value from 56 to 32 bytes.
+	// For strings it points at the first byte and aux holds the byte length;
+	// for arrays, dictionaries and functions it points at the object itself.
+	data unsafe.Pointer
 	num  float64
-	str  string
-	arr  *Array
-	dict *Dict
-	fn   *Func
+	aux  uintptr
+	kind Kind
 }
 
 // Func is an opaque runtime function reference. Executable Go callbacks do not
@@ -38,12 +42,14 @@ func Undefined() Value       { return Value{kind: KindUndefined} }
 func Null() Value            { return Value{kind: KindNull} }
 func Bool(v bool) Value      { return Value{kind: KindBool, num: boolNumber(v)} }
 func Number(v float64) Value { return Value{kind: KindNumber, num: v} }
-func String(v string) Value  { return Value{kind: KindString, str: v} }
-func ArrayValue(v *Array) Value {
-	return Value{kind: KindArray, arr: v}
+func String(v string) Value {
+	return Value{kind: KindString, data: unsafe.Pointer(unsafe.StringData(v)), aux: uintptr(len(v))}
 }
-func DictValue(v *Dict) Value { return Value{kind: KindDict, dict: v} }
-func FuncValue(v *Func) Value { return Value{kind: KindFunc, fn: v} }
+func ArrayValue(v *Array) Value {
+	return Value{kind: KindArray, data: unsafe.Pointer(v)}
+}
+func DictValue(v *Dict) Value { return Value{kind: KindDict, data: unsafe.Pointer(v)} }
+func FuncValue(v *Func) Value { return Value{kind: KindFunc, data: unsafe.Pointer(v)} }
 
 func boolNumber(v bool) float64 {
 	if v {
@@ -57,7 +63,27 @@ func (v Value) Bool() (bool, bool) {
 	return v.num != 0, v.kind == KindBool
 }
 func (v Value) Number() (float64, bool) { return v.num, v.kind == KindNumber }
-func (v Value) String() (string, bool)  { return v.str, v.kind == KindString }
-func (v Value) Array() (*Array, bool)   { return v.arr, v.kind == KindArray }
-func (v Value) Dict() (*Dict, bool)     { return v.dict, v.kind == KindDict }
-func (v Value) Func() (*Func, bool)     { return v.fn, v.kind == KindFunc }
+func (v Value) String() (string, bool) {
+	if v.kind != KindString {
+		return "", false
+	}
+	return unsafe.String((*byte)(v.data), v.aux), true
+}
+func (v Value) Array() (*Array, bool) {
+	if v.kind != KindArray {
+		return nil, false
+	}
+	return (*Array)(v.data), true
+}
+func (v Value) Dict() (*Dict, bool) {
+	if v.kind != KindDict {
+		return nil, false
+	}
+	return (*Dict)(v.data), true
+}
+func (v Value) Func() (*Func, bool) {
+	if v.kind != KindFunc {
+		return nil, false
+	}
+	return (*Func)(v.data), true
+}
