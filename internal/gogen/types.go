@@ -92,13 +92,30 @@ type typeInfo struct {
 	escapes map[int]bool
 	// promoted[fi][slot] means the local lives in a Go variable, not a cell.
 	promoted map[int]map[int]bool
+	// promotedGlobals[slot] means the global lives in a Go variable of the
+	// function globalOwner, not in its cell (→ promotableGlobals).
+	promotedGlobals map[int]bool
+	globalOwner     int
+}
+
+// analyzeEnv carries what the whole-program pass needs to know about the
+// world outside the IR: which global names something other than the generated
+// code can reach, and whether the program calls a command that looks a global
+// up by a name only known at run time.
+type analyzeEnv struct {
+	// systemNames are global names a stdlib command may read or write by
+	// name (Context.SysVar / SetSysVar, and every registry constant).
+	systemNames map[string]bool
+	// dynamicGlobals means some command can reach any global by a computed
+	// name (『JSオブジェクト取得』), so no global may leave its cell.
+	dynamicGlobals bool
 }
 
 // analyze runs the whole-program pass. Globals have to be settled together
 // with locals: any function can write a global, and a local's type can depend
 // on a global it was loaded from, so the two shrink each other until neither
 // moves.
-func analyze(prog *ir.Program) *typeInfo {
+func analyze(prog *ir.Program, env analyzeEnv) *typeInfo {
 	info := &typeInfo{
 		numericGlobals: map[int]bool{},
 		numericLocals:  map[int]map[int]bool{},
@@ -107,6 +124,7 @@ func analyze(prog *ir.Program) *typeInfo {
 		seeded:         map[int]bool{},
 		escapes:        map[int]bool{},
 		promoted:       map[int]map[int]bool{},
+		globalOwner:    -1,
 	}
 	for fi := range prog.Funcs {
 		for _, inst := range prog.Funcs[fi].Code {
@@ -148,7 +166,107 @@ func analyze(prog *ir.Program) *typeInfo {
 		info.stacks[fi] = info.dataflow(prog, fi, fn, info.numericLocals[fi])
 		info.promoted[fi] = computePromoted(info.numericLocals[fi], fn)
 	}
+	info.promotedGlobals = promotableGlobals(prog, info, env)
+	if len(info.promotedGlobals) > 0 {
+		info.globalOwner = prog.Main
+	}
 	return info
+}
+
+// promotableGlobals picks the globals the main function may keep in an
+// ordinary Go float64 variable instead of a *value.Cell.
+//
+// 局所変数と違い、大域変数のセルは**生成コードの外からも見えます**。だから
+// セルを外してよいのは、外の誰もそのセルを見ないと言い切れるときだけです。
+// 次を全部満たすものに限っています。
+//
+//   - 主処理 (prog.Main) の中でしか参照されていない。ほかの関数が読むなら、
+//     そちらからは移した変数が見えない
+//   - 主処理が推論の対象になる関数である (エラー監視・入れ子の関数・捕捉が
+//     ない)。局所変数の昇格と同じ条件
+//   - 主処理が値として取り出されず、呼ばれもしない。二度目の呼び出しがあると
+//     Goの変数はゼロから始まってしまう
+//   - 数値だと証明できていて (numericGlobals)、定数ではない
+//   - システム変数・システム定数の名前ではない。これらは stdlib の命令が
+//     名前で読み書きするので、セルを外すと更新が見えなくなる
+//   - 名前を実行時に決めて大域変数を引く命令をプログラムが使っていない
+func promotableGlobals(prog *ir.Program, info *typeInfo, env analyzeEnv) map[int]bool {
+	if env.dynamicGlobals {
+		return nil
+	}
+	main := prog.Main
+	if main < 0 || main >= len(prog.Funcs) {
+		return nil
+	}
+	if unsafeToInfer(&prog.Funcs[main]) {
+		return nil
+	}
+	if info.escapes[main] {
+		return nil // 主処理が値として取り出されている
+	}
+	constGlobals := map[int]bool{}
+	for _, slot := range prog.ConstGlobals {
+		constGlobals[slot] = true
+	}
+	elsewhere := map[int]bool{}
+	for fi := range prog.Funcs {
+		for _, inst := range prog.Funcs[fi].Code {
+			if inst.Op == ir.OpCallUser && int(inst.A) == main {
+				return nil // 主処理が呼び出されている
+			}
+			if fi == main {
+				continue
+			}
+			for _, slot := range globalRefs(inst) {
+				elsewhere[slot] = true
+			}
+		}
+	}
+	out := map[int]bool{}
+	for slot := range prog.Globals {
+		if !info.numericGlobals[slot] || constGlobals[slot] || elsewhere[slot] {
+			continue
+		}
+		if env.systemNames[prog.Globals[slot]] {
+			continue
+		}
+		out[slot] = true
+	}
+	return out
+}
+
+// globalRefs lists the global slots one instruction reads or writes, fused
+// operands included.
+func globalRefs(inst ir.Inst) []int {
+	var out []int
+	add := func(src ir.Src, index int32) {
+		if src == ir.SrcGlobal {
+			out = append(out, int(index))
+		}
+	}
+	switch inst.Op {
+	case ir.OpLoadGlobal, ir.OpStoreGlobal, ir.OpInitGlobal:
+		out = append(out, int(inst.A))
+	case ir.OpBinaryStoreGlobal, ir.OpStoreSoreAndGlobal:
+		out = append(out, int(inst.B))
+	case ir.OpBinaryAt:
+		_, left, right := ir.DecodeBinaryAt(inst.A)
+		add(left, inst.B)
+		add(right, inst.C)
+	case ir.OpBinaryAtStoreLocal:
+		_, left, right, _ := ir.DecodeBinaryAtStoreLocal(inst.A)
+		add(left, inst.B)
+		add(right, inst.C)
+	case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+		_, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+		add(left, inst.B)
+		add(right, rightIdx)
+	case ir.OpIndexGetAt:
+		arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
+		add(arrSrc, inst.B)
+		add(idxSrc, inst.C)
+	}
+	return out
 }
 
 // refineFunc drops the locals and globals this function shows are not always
@@ -556,6 +674,16 @@ func computePromoted(numeric map[int]bool, fn *ir.Func) map[int]bool {
 
 func (info *typeInfo) globalIsNumber(slot int) bool {
 	return info.numericGlobals[slot]
+}
+
+// promotedGlobalsFor returns the globals fi may keep in Go variables. Only
+// the one function promotableGlobals settled on gets them; everywhere else
+// the cells are still the only copy.
+func (info *typeInfo) promotedGlobalsFor(fi int) map[int]bool {
+	if fi != info.globalOwner {
+		return nil
+	}
+	return info.promotedGlobals
 }
 
 // definiteAssigned reports, for every instruction, which local and global

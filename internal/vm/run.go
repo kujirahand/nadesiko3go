@@ -632,22 +632,28 @@ func (m *VM) callStd(id int, args []value.Value, pos int) value.Value {
 func (m *VM) indexGet(container value.Value, indexes []value.Value, pos int) value.Value {
 	cur := container
 	for _, idx := range indexes {
-		switch cur.Kind() {
-		case value.KindArray:
-			arr, _ := cur.Array()
-			cur = arr.Get(indexToInt(idx))
-		case value.KindDict:
-			d, _ := cur.Dict()
-			v, _ := d.Get(value.ToString(idx))
-			cur = v
-		case value.KindString:
-			s, _ := cur.String()
-			cur = value.String(runeAt(s, indexToInt(idx)))
-		default:
-			return value.Undefined()
-		}
+		cur = m.indexGet1(cur, idx, pos)
 	}
 	return cur
+}
+
+// indexGet1 is one step of that chain. gogen calls it directly for 『A[I]』 so
+// that the generated code does not have to build a one-element slice — which
+// escapes into the call and costs an allocation per array read.
+func (m *VM) indexGet1(container value.Value, index value.Value, pos int) value.Value {
+	switch container.Kind() {
+	case value.KindArray:
+		arr, _ := container.Array()
+		return arr.Get(indexToInt(index))
+	case value.KindDict:
+		d, _ := container.Dict()
+		v, _ := d.Get(value.ToString(index))
+		return v
+	case value.KindString:
+		s, _ := container.String()
+		return value.String(runeAt(s, indexToInt(index)))
+	}
+	return value.Undefined()
 }
 
 // indexSet writes through a chain of indexes and returns the outermost
@@ -659,6 +665,9 @@ func (m *VM) indexSet(container value.Value, indexes []value.Value, v value.Valu
 	if len(indexes) == 0 {
 		return v
 	}
+	if len(indexes) == 1 {
+		return m.indexSet1(container, indexes[0], v)
+	}
 	cur := m.ensureContainer(container, indexes[0])
 	root := cur
 	for i := 0; i < len(indexes)-1; i++ {
@@ -668,6 +677,14 @@ func (m *VM) indexSet(container value.Value, indexes []value.Value, v value.Valu
 		cur = next
 	}
 	m.storeOne(cur, indexes[len(indexes)-1], v)
+	return root
+}
+
+// indexSet1 is indexSet with a single index — the shape 『A[I]=値』 compiles
+// to. gogen calls it directly, for the same reason as indexGet1.
+func (m *VM) indexSet1(container value.Value, index value.Value, v value.Value) value.Value {
+	root := m.ensureContainer(container, index)
+	m.storeOne(root, index, v)
 	return root
 }
 
@@ -824,6 +841,14 @@ func (m *VM) CallFunc(fn *value.Func, args []value.Value) (result value.Value, e
 
 func (m *VM) FindFunc(name string) *value.Func {
 	for i := range m.prog.Funcs {
+		if i == m.prog.Main {
+			// 主処理はユーザーが書いた関数ではない。名前が『main』なので
+			// 『「main」を実行』が拾えてしまうが、拾って呼べばプログラム
+			// 全体がもう一度頭から走るだけで、意味のある動きではない。
+			// gogen の大域変数の昇格 (internal/gogen/types.go) は「主処理は
+			// 一度しか動かない」ことを前提にしているので、ここで閉じておく。
+			continue
+		}
 		fn := &m.prog.Funcs[i]
 		if fn.Name == name || strings.HasSuffix(fn.Name, "__"+name) {
 			if len(fn.Captures) != 0 {

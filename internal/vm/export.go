@@ -38,6 +38,18 @@ func (m *VM) IndexSet(container value.Value, indexes []value.Value, v value.Valu
 	return m.indexSet(container, indexes, v, pos)
 }
 
+// IndexGet1 is OpIndexGet / OpIndexGetAt with exactly one index, which is
+// what 『A[I]』 compiles to. Passing the index on its own keeps generated code
+// from allocating a one-element slice on every array read.
+func (m *VM) IndexGet1(container, index value.Value, pos int) value.Value {
+	return m.indexGet1(container, index, pos)
+}
+
+// IndexSet1 is OpIndexSet with exactly one index — 『A[I]=値』.
+func (m *VM) IndexSet1(container, index, v value.Value, pos int) value.Value {
+	return m.indexSet1(container, index, v)
+}
+
 // IterKeys is OpIterKeys.
 func (m *VM) IterKeys(v value.Value) value.Value { return m.iterKeys(v) }
 

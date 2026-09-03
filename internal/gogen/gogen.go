@@ -26,15 +26,25 @@
 // gogen to reach for one (a caller wanting async can keep using the VM
 // backend for that program).
 //
-// # 速さについて (Apple M4 / darwin-arm64, user時間)
+// # 速さについて (Apple M4 / darwin-arm64, user時間の最小値)
 //
-//	                          VM        gogen
-//	ループ＋算術(500万回)      0.89s     0.84s
-//	再帰(フィボナッチ28)       0.47s     0.24s
+// 「前」は大域変数の昇格・添字アクセスの単一化・フレームの軽量化を入れる
+// 前 (issue #24 の着手前) の値。
+//
+//	                            VM      gogen(前)  gogen(今)
+//	ループ＋算術(5000万回)      0.67s     0.33s      0.06s
+//	再帰(フィボナッチ32)        0.44s     0.28s      0.21s
+//	エラトステネスの篩(1000万)  1.01s     1.09s      0.88s
+//	配列追加(500万回)           0.38s     0.30s      0.30s
 //
 // 関数呼び出しが多いほど有利になる。インタプリタの run/protect/execute の
-// 往復とディスパッチが丸ごと無くなるため。算術中心のループでは、演算1回の
-// 中身がVMと同じ (internal/ops) なので差は小さい。
+// 往復とディスパッチが丸ごと無くなるため。
+//
+// 算術中心のループが大きく動いたのは、**大域変数をGoの変数へ移した**から
+// (internal/gogen/types.go の promotableGlobals)。なでしこのトップレベルに
+// 書いた変数はすべて大域変数なので、『S=S+I』のような式が、それまでは
+// セルの読み書きと rt.Value への包み直しを毎周していた。逆に、時間の大半が
+// 標準命令とGCで決まる『配列追加』のようなものは変わらない。
 //
 // この数字に至るまでに踏んだ落とし穴を2つ残しておく。どちらも「薄いから
 // 速いはず」という思い込みが外れた例で、プロファイルを見るまで分からない。
@@ -45,6 +55,13 @@
 //     展開される。go build -gcflags=-m で確かめられる
 //   - 定数は m.ConstValue(i) で引かず、rt.Number(9) としてソースに直接
 //     書く。引くと、定数プールの境界検査と種別のswitchを毎回通る
+//
+// 生成コードから内側へ渡すスライスにも同じ話がある。`[]rt.Value{...}` を
+// 呼び出しの引数に書くと、そのスライスは呼び先へ逃げるので毎回ヒープに
+// 載る。1つしか添字を取らない『A[I]』を m.IndexGet1 / m.IndexSet1 へ回し、
+// なでしこ関数の引数を関数につき1つのバッファで渡しているのはそのため
+// (→ callArgsPrelude)。標準命令だけは、引数の写しを渡すという約束
+// (internal/vm/vm.go の popN) があるので使い回さない。
 //
 // 残っている一番大きなコストはオペランドスタック (push/pop) で、プロファイル
 // 上は約25%。消すには式を直接Goの式へ組み立てる必要があり、「バイトコードの
@@ -96,7 +113,11 @@ func Generate(prog *ir.Program, opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("IRを書き出せません: %w", err)
 	}
 
-	g := &generator{prog: prog, types: analyze(prog)}
+	env, err := analyzeEnvFor(prog, opts.Plugins)
+	if err != nil {
+		return nil, err
+	}
+	g := &generator{prog: prog, types: analyze(prog, env)}
 	var funcs bytes.Buffer
 	for i := range prog.Funcs {
 		g.genFunc(&funcs, i, &prog.Funcs[i])
@@ -184,6 +205,56 @@ func checkSupported(prog *ir.Program) error {
 	}
 	sort.Strings(async)
 	return fmt.Errorf("gogenは非同期関数に対応していません（VM実行にフォールバックしてください）: %v", async)
+}
+
+// dynamicGlobalCommands names the stdlib commands that can reach a global by
+// a name only known at run time. JSオブジェクト取得 does so directly through
+// Context.FindValue. ハテナ関数実行 can do so transitively through
+// Context.CallCommand when its configurable pipeline contains
+// JSオブジェクト取得. One of these in the program means no global may leave
+// its cell — the command would read the stale one.
+var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行"}
+
+// extraSystemNames are global names Go code reads or writes through
+// Context.SysVar / SetSysVar without the registry necessarily declaring them
+// (internal/nodelib, internal/sqlitelib), plus the two internal/vm's New()
+// seeds itself. Registry constants are added on top of these.
+var extraSystemNames = []string{
+	"名前空間", "母艦パス", "プラグイン名", "表示ログ", "対象",
+	"ファイルコピーデフォルト動作", "圧縮解凍ツールパス",
+	"AJAXオプション", "AJAX:ONERROR", "SQLITE3今挿入ID",
+}
+
+// analyzeEnvFor works out what the type analysis needs to know about the
+// world outside the IR, from the same plugin set the generated code's
+// registry is built with.
+func analyzeEnvFor(prog *ir.Program, plugins []string) (analyzeEnv, error) {
+	registry, err := BuildRegistry(plugins)
+	if err != nil {
+		return analyzeEnv{}, err
+	}
+	names := map[string]bool{}
+	for _, name := range extraSystemNames {
+		names[name] = true
+	}
+	for _, name := range registry.ConstNames() {
+		names[name] = true
+	}
+	env := analyzeEnv{systemNames: names}
+	dynamicGlobal := map[int]bool{}
+	for _, name := range dynamicGlobalCommands {
+		if e, ok := registry.Lookup(name); ok {
+			dynamicGlobal[e.ID] = true
+		}
+	}
+	for fi := range prog.Funcs {
+		for _, inst := range prog.Funcs[fi].Code {
+			if inst.Op == ir.OpCallStd && dynamicGlobal[int(inst.A)] {
+				env.dynamicGlobals = true
+			}
+		}
+	}
+	return env, nil
 }
 
 func sourceName(prog *ir.Program) string {

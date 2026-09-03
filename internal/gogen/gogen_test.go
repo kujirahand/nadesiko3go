@@ -242,6 +242,35 @@ F=10でカウンタ作成
 「結果:{それ}/対象:{対象}」と表示
 `)
 
+	// 大域変数をGoの変数へ移す最適化 (typeInfo.promotableGlobals) は、
+	// 移してよいかを間違えても**動くコードのまま黙って答えを変える**ので、
+	// 移せる形と移せない形の両方をここで実行して確かめる。
+	assertMatchesVM(t, "global_promotion_in_loop", `
+S=0
+Iを1から10まで繰り返す
+  S=S+(I*2)
+ここまで
+Sを表示
+Iを表示
+`)
+
+	assertMatchesVM(t, "global_shared_with_function", `
+S=0
+●足すとは
+  S=S+1
+ここまで
+Iを1から5まで繰り返す
+  足す
+ここまで
+Sを表示
+`)
+
+	assertMatchesVM(t, "global_reflected_through_question_pipeline", `
+S=5
+["JSオブジェクト取得","表示"]をハテナ関数設定
+?? "S"
+`)
+
 	assertMatchesVM(t, "frame_specials_inherit_and_isolate", `
 対象="親"
 回数=7
