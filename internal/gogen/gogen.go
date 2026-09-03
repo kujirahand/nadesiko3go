@@ -96,7 +96,7 @@ func Generate(prog *ir.Program, opts Options) ([]byte, error) {
 		return nil, fmt.Errorf("IRを書き出せません: %w", err)
 	}
 
-	g := &generator{prog: prog}
+	g := &generator{prog: prog, types: analyze(prog)}
 	var funcs bytes.Buffer
 	for i := range prog.Funcs {
 		g.genFunc(&funcs, i, &prog.Funcs[i])

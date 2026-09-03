@@ -17,6 +17,7 @@ package runtime
 import (
 	"encoding/json"
 	"io"
+	"math"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
@@ -89,6 +90,12 @@ type Special = ir.Special
 // why generated code used to be slower than the interpreter it replaces.
 // `go build -gcflags=-m` on a generated file shows which way it went.
 func Binary(op BinaryOp, a, b Value) Value { return ops.Binary(op, a, b) }
+
+// Mod is 『%』 on two numbers. Generated code uses it where the type analysis
+// proved both operands are numbers (→ internal/gogen/types.go); it is here
+// rather than as math.Mod in the generated source so that a generated file
+// never needs an import beyond this package.
+func Mod(x, y float64) float64 { return math.Mod(x, y) }
 
 func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }
 

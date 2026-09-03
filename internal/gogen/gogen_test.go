@@ -150,6 +150,64 @@ D["c"]を表示
 (5の階乗)を表示
 `)
 
+	// --- 型推論 (types.go) が意味を変えていないことを見る ---
+
+	// 代入前に読むローカルは undefined であって NaN ではない。
+	// 数値だと決めつけて ToNumber を通すとここが NaN になる。
+	assertMatchesVM(t, "typed_local_read_before_assign", `
+●テスト
+もし、1=2ならば
+A=5
+ここまで
+Aを表示
+ここまで
+テスト
+`)
+
+	// 引数の型は呼び出し側から決まる。数値でない引数が1つでもあれば、
+	// その引数を起点にした変数も数値ではなくなる。
+	assertMatchesVM(t, "typed_param_not_number", `
+●(Nの)倍とは
+M=N
+(M&M)で戻る
+ここまで
+(「あ」の倍)を表示
+(3の倍)を表示
+`)
+
+	// NaN・±Inf・-0 は生の float64 で計算しても値が変わらないこと。
+	assertMatchesVM(t, "typed_number_edges", `
+A=0
+B=0
+(A/B)を表示
+(1/B)を表示
+(-1/B)を表示
+(A*-1)を表示
+((A*-1)=0)を表示
+`)
+
+	// 数値と文字列が混ざる演算は一般経路のまま。『&』は連結、
+	// 『+』は数へ寄せる、という違いが消えていないこと。
+	assertMatchesVM(t, "typed_mixed_operands", `
+A=1
+S=「2」
+(A+S)を表示
+(A&S)を表示
+(S+S)を表示
+`)
+
+	// 数値ループ。剰余・整数割り・累乗・シフトも含める。
+	assertMatchesVM(t, "typed_numeric_loop", `
+S=0
+Iを1から20まで繰り返す
+S=S+(I*2)-(I%3)
+ここまで
+Sを表示
+((7÷÷2))を表示
+((2^10))を表示
+((1<<4))を表示
+`)
+
 	assertMatchesVM(t, "closure_counter", `
 ●(Nで)カウンタ作成とは
 M=N

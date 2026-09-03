@@ -17,7 +17,7 @@ func TestConstExprRoundTrips(t *testing.T) {
 		1.0 / 3.0, 1e15, 1e16, 1e21, -1e21, 9007199254740992, 9007199254740993,
 		math.MaxFloat64, math.SmallestNonzeroFloat64, 3.141592653589793,
 	}
-	g := &generator{prog: &ir.Program{}}
+	g := &generator{prog: &ir.Program{}, types: analyze(&ir.Program{})}
 	for _, n := range nums {
 		g.prog.Consts = []ir.Const{{Kind: ir.ConstNumber, Num: n}}
 		expr := g.constExpr(0)
@@ -39,7 +39,7 @@ func TestConstExprRoundTrips(t *testing.T) {
 // going through the constant pool: Go has no literal for them, and silently
 // writing something else would change the program.
 func TestConstExprFallsBackForNonFinite(t *testing.T) {
-	g := &generator{prog: &ir.Program{}}
+	g := &generator{prog: &ir.Program{}, types: analyze(&ir.Program{})}
 	for _, n := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
 		g.prog.Consts = []ir.Const{{Kind: ir.ConstNumber, Num: n}}
 		if got := g.constExpr(0); got != "m.ConstValue(0)" {
@@ -64,7 +64,7 @@ func TestConstExprKinds(t *testing.T) {
 		{ir.Const{Kind: ir.ConstString, Str: "バッククォート`も"}, "rt.String(\"バッククォート`も\")"},
 		{ir.Const{Kind: ir.ConstString, Str: "𩸽"}, `rt.String("𩸽")`},
 	}
-	g := &generator{prog: &ir.Program{}}
+	g := &generator{prog: &ir.Program{}, types: analyze(&ir.Program{})}
 	for _, c := range cases {
 		g.prog.Consts = []ir.Const{c.k}
 		if got := g.constExpr(0); got != c.want {

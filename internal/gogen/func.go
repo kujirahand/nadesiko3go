@@ -5,12 +5,46 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 )
 
 type generator struct {
-	prog *ir.Program
+	prog  *ir.Program
+	types *typeInfo
+}
+
+// srcIsNumber reports whether a fused operand (→ ir.Src) is known to hold a
+// number, so that OpBinaryAt can be written as plain arithmetic.
+func (g *generator) srcIsNumber(fi int, src ir.Src, index int) bool {
+	switch src {
+	case ir.SrcConst:
+		if index < 0 || index >= len(g.prog.Consts) {
+			return false
+		}
+		k := g.prog.Consts[index]
+		return k.Kind == ir.ConstNumber && !math.IsNaN(k.Num) && !math.IsInf(k.Num, 0)
+	case ir.SrcLocal:
+		return g.types.localIsNumber(fi, index)
+	case ir.SrcGlobal:
+		return g.types.globalIsNumber(index)
+	}
+	return false
+}
+
+// operandFloat writes a fused operand as a float64 expression.
+func (g *generator) operandFloat(fi int, src ir.Src, index int) string {
+	if src == ir.SrcConst && index >= 0 && index < len(g.prog.Consts) {
+		if k := g.prog.Consts[index]; k.Kind == ir.ConstNumber &&
+			!math.IsNaN(k.Num) && !math.IsInf(k.Num, 0) {
+			return goNumber(k.Num)
+		}
+	}
+	if src == ir.SrcLocal && g.types.promotedLocals(fi)[index] {
+		return fmt.Sprintf("l%d", index)
+	}
+	return "rt.ToNumber(" + g.operandExpr(fi, src, index) + ")"
 }
 
 // genFunc writes native{i} — and, for a function that uses エラー監視,
@@ -91,11 +125,14 @@ func (g *generator) constExpr(i int) string {
 // operandExpr writes one operand of a fused instruction as the Go expression
 // the Load it replaces would have pushed (→ compiler/peephole.go). A constant
 // becomes a literal here, the same as under OpLoadConst.
-func (g *generator) operandExpr(src ir.Src, index int) string {
+func (g *generator) operandExpr(fi int, src ir.Src, index int) string {
 	switch src {
 	case ir.SrcConst:
 		return g.constExpr(index)
 	case ir.SrcLocal:
+		if g.types.promotedLocals(fi)[index] {
+			return fmt.Sprintf("rt.Number(l%d)", index)
+		}
 		return fmt.Sprintf("locals[%d].Get()", index)
 	case ir.SrcCapture:
 		return fmt.Sprintf("captures[%d].Get()", index)
@@ -122,12 +159,12 @@ func goNumber(f float64) string {
 // source position. The failure messages must stay word for word what the
 // interpreter raises — AGENTS.md §9 makes those part of the compatibility
 // surface.
-func emitStore(out *bytes.Buffer, cell string, pos int) {
-	fmt.Fprintf(out, "\tif !%s.Set(pop()) {\n\t\tm.Fail(\"定数へ代入しようとしました。\", %d)\n\t}\n", cell, pos)
+func emitStore(out *bytes.Buffer, cell, val string, pos int) {
+	fmt.Fprintf(out, "\tif !%s.Set(%s) {\n\t\tm.Fail(\"定数へ代入しようとしました。\", %d)\n\t}\n", cell, val, pos)
 }
 
-func emitInit(out *bytes.Buffer, cell string, pos int) {
-	fmt.Fprintf(out, "\tif !%s.Init(pop()) {\n\t\tm.Fail(\"定数を二度初期化しようとしました。\", %d)\n\t}\n", cell, pos)
+func emitInit(out *bytes.Buffer, cell, val string, pos int) {
+	fmt.Fprintf(out, "\tif !%s.Init(%s) {\n\t\tm.Fail(\"定数を二度初期化しようとしました。\", %d)\n\t}\n", cell, val, pos)
 }
 
 // label names the goto target for code position pc, folding every pc at or
@@ -150,8 +187,9 @@ func (g *generator) genSimple(out *bytes.Buffer, i int, fn *ir.Func) {
 		return
 	}
 	out.WriteString(stackPrelude(fn.MaxStack))
+	out.WriteString(g.localsPrelude(i, fn))
 	out.WriteString("\tgoto L0\n")
-	g.emitBody(out, fn, retSimple, specialsPointer(), "\treturn rt.Undefined()\n")
+	g.emitBody(out, i, fn, retSimple, specialsPointer(), "\treturn rt.Undefined()\n")
 	out.WriteString("}\n\n")
 }
 
@@ -197,41 +235,53 @@ func (g *generator) genWithHandlers(out *bytes.Buffer, i int, fn *ir.Func, tries
 		out.WriteString("\treturn rt.Undefined(), false, 0\n}\n\n")
 		return
 	}
-	g.emitBody(out, fn, retHandled, specialsPointer(), "\treturn rt.Undefined(), false, 0\n")
+	g.emitBody(out, i, fn, retHandled, specialsPointer(), "\treturn rt.Undefined(), false, 0\n")
 	out.WriteString("}\n\n")
 }
 
-// stackPrelude declares the operand stack and the push/pop helpers every
-// instruction below is written against — the same four operations
-// internal/vm/vm.go's frame offers the interpreter (push, pop, popN, and a
-// peek for OpDup).
-func stackPrelude(maxStack int) string {
-	if maxStack < 0 {
-		maxStack = 0
+// localsPrelude declares the locals kept in ordinary Go variables rather than
+// in a *rt.Cell (→ typeInfo.promotedLocals). A parameter's value arrives in
+// its cell, so it is copied out once on entry; every other promoted slot is
+// assigned before it is read (definiteAssigned), so zero is never observed.
+func (g *generator) localsPrelude(fi int, fn *ir.Func) string {
+	promoted := g.types.promotedLocals(fi)
+	if len(promoted) == 0 {
+		return ""
 	}
-	return fmt.Sprintf(`	globals := m.Globals()
-	_ = globals
-	st := make([]rt.Value, 0, %d)
-	pop := func() rt.Value {
-		v := st[len(st)-1]
-		st = st[:len(st)-1]
-		return v
+	params := map[int]bool{}
+	for _, p := range fn.Params {
+		params[p.Slot] = true
 	}
-	popN := func(n int) []rt.Value {
-		if n <= 0 {
-			return nil
+	var b bytes.Buffer
+	for slot := 0; slot < fn.NumVars; slot++ {
+		if !promoted[slot] {
+			continue
 		}
-		out := append([]rt.Value(nil), st[len(st)-n:]...)
-		st = st[:len(st)-n]
-		return out
+		if params[slot] {
+			fmt.Fprintf(&b, "\tl%d := rt.ToNumber(locals[%d].Get())\n\t_ = l%d\n", slot, slot, slot)
+			continue
+		}
+		fmt.Fprintf(&b, "\tvar l%d float64\n\t_ = l%d\n", slot, slot)
 	}
-	push := func(v rt.Value) { st = append(st, v) }
-	top := func() rt.Value { return st[len(st)-1] }
-	_ = pop
-	_ = popN
-	_ = push
-	_ = top
-`, maxStack)
+	return b.String()
+}
+
+// stackPrelude declares the operand stack. It is not a slice: ir.ComputeDepths
+// proves that every instruction sees the stack at one fixed depth however it
+// was reached, so each depth can be a plain Go variable and push/pop become
+// ordinary assignments (→ types.go, gogen のパッケージコメント).
+//
+// Each depth gets two variables. sN holds a boxed rt.Value; fN holds a raw
+// float64 for the depths the type analysis proved are always numbers. Only one
+// of the two is live at a time, and which one is decided per instruction by
+// the analysis, so there is no tag to check at run time.
+func stackPrelude(maxStack int) string {
+	var b bytes.Buffer
+	b.WriteString("\tglobals := m.Globals()\n\t_ = globals\n")
+	for i := 0; i < maxStack; i++ {
+		fmt.Fprintf(&b, "\tvar s%d rt.Value\n\tvar f%d float64\n\t_, _ = s%d, f%d\n", i, i, i, i)
+	}
+	return b.String()
 }
 
 // retKind picks how OpReturn and the fallthrough at Lend hand a value back:
@@ -254,8 +304,70 @@ func (s specialsAccess) get(id int) string {
 	return fmt.Sprintf("(*specialsPtr)[%d]", id)
 }
 
-func (s specialsAccess) set(id int) string {
-	return fmt.Sprintf("(*specialsPtr)[%d] = pop()", id)
+func (s specialsAccess) set(id int, val string) string {
+	return fmt.Sprintf("(*specialsPtr)[%d] = %s", id, val)
+}
+
+// fnEmit carries what emitting one function needs: where each instruction sees
+// the operand stack (depth and which slots are raw float64), and how this
+// function returns.
+type fnEmit struct {
+	g        *generator
+	out      *bytes.Buffer
+	fi       int
+	fn       *ir.Func
+	codeLen  int
+	depths   []int
+	stacks   [][]bool
+	promoted map[int]bool
+	ret      retKind
+	specials specialsAccess
+}
+
+// slotValue reads stack slot i as a boxed rt.Value, boxing it if the slot is
+// currently a raw float64.
+func (e *fnEmit) slotValue(st []bool, i int) string {
+	if i < len(st) && st[i] {
+		return fmt.Sprintf("rt.Number(f%d)", i)
+	}
+	return fmt.Sprintf("s%d", i)
+}
+
+// slotFloat reads stack slot i as a float64. A slot the analysis did not prove
+// numeric still has to go through ToNumber, which is what the interpreter does.
+func (e *fnEmit) slotFloat(st []bool, i int) string {
+	if i < len(st) && st[i] {
+		return fmt.Sprintf("f%d", i)
+	}
+	return fmt.Sprintf("rt.ToNumber(s%d)", i)
+}
+
+// in returns the stack state on entry to pc.
+func (e *fnEmit) in(pc int) []bool {
+	if pc < 0 || pc >= len(e.stacks) {
+		return nil
+	}
+	return e.stacks[pc]
+}
+
+// depth returns the stack depth on entry to pc.
+func (e *fnEmit) depth(pc int) int {
+	if pc < 0 || pc >= len(e.depths) || e.depths[pc] == ir.Unvisited {
+		return 0
+	}
+	return e.depths[pc]
+}
+
+// convert writes the assignments that make the live state match what the
+// instruction at "to" expects. The analysis merges with AND, so a slot can
+// only need boxing (raw → boxed), never the other way round.
+func (e *fnEmit) convert(out []bool, to int) {
+	want := e.in(to)
+	for i := 0; i < len(out) && i < len(want); i++ {
+		if out[i] && !want[i] {
+			fmt.Fprintf(e.out, "\ts%d = rt.Number(f%d)\n", i, i)
+		}
+	}
 }
 
 // emitBody writes fn.Code as straight-line Go statements, labelling only the
@@ -264,142 +376,388 @@ func (s specialsAccess) set(id int) string {
 // stays unlabelled and is simply reached by falling out of the instruction
 // before it. tail is the function's final return, written last, labelled
 // with Lend only if some jump patches past the last instruction to reach it.
-func (g *generator) emitBody(out *bytes.Buffer, fn *ir.Func, ret retKind, specials specialsAccess, tail string) {
-	codeLen := len(fn.Code)
+//
+// Unreachable instructions are skipped: they have no stack depth, so there is
+// no slot to name, and nothing can jump to them (a jump would make them
+// reachable).
+func (g *generator) emitBody(out *bytes.Buffer, fi int, fn *ir.Func, ret retKind, specials specialsAccess, tail string) {
+	e := &fnEmit{
+		g: g, out: out, fi: fi, fn: fn, codeLen: len(fn.Code),
+		depths: g.types.depths[fi], stacks: g.types.stacks[fi],
+		promoted: g.types.promotedLocals(fi),
+		ret:      ret, specials: specials,
+	}
 	targets := jumpTargets(fn.Code)
 	for pc, inst := range fn.Code {
-		if targets[pc] {
-			fmt.Fprintf(out, "%s:\n", label(pc, codeLen))
+		if e.depths[pc] == ir.Unvisited {
+			continue
 		}
-		g.emitInst(out, inst, pc, codeLen, ret, specials)
+		if targets[pc] {
+			fmt.Fprintf(out, "%s:\n", label(pc, e.codeLen))
+		}
+		e.emitInst(inst, pc)
 	}
-	if targets[codeLen] {
+	if targets[e.codeLen] {
 		out.WriteString("Lend:\n")
 	}
 	out.WriteString(tail)
 }
 
 // emitInst is internal/vm/run.go's execute() switch, statement for statement,
-// as Go source instead of interpreted cases (see the package doc for why
-// that keeps the two backends from drifting apart).
-func (g *generator) emitInst(out *bytes.Buffer, inst ir.Inst, pc, codeLen int, ret retKind, specials specialsAccess) {
+// as Go source instead of interpreted cases (see the package doc for why that
+// keeps the two backends from drifting apart). The difference is that operands
+// are named stack slots rather than push/pop calls.
+func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
+	out := e.out
+	st := e.in(pc)
+	d := e.depth(pc)
+	// top(k) は上から k 番目 (0が先頭) のスロット番号
+	top := func(k int) int { return d - 1 - k }
+	// push は結果を積む先。積んだあとの状態は after で表す。
+	after := func(n int) []bool {
+		res := append([]bool(nil), st...)
+		if n > len(res) {
+			n = len(res)
+		}
+		return res[:len(res)-n]
+	}
+	// setValue writes a boxed value into slot i and marks it boxed.
+	setValue := func(state []bool, i int, expr string) []bool {
+		fmt.Fprintf(out, "\ts%d = %s\n", i, expr)
+		return append(state, false)
+	}
+	setFloat := func(state []bool, i int, expr string) []bool {
+		fmt.Fprintf(out, "\tf%d = %s\n", i, expr)
+		return append(state, true)
+	}
+	// wantsFloat reports whether the analysis keeps the value this instruction
+	// writes into slot i as a raw float64. The slot is not always the top of
+	// the entry stack: an instruction that pops writes lower down.
+	wantsFloat := func(i int) bool {
+		res := e.in(pc + 1)
+		return i >= 0 && i < len(res) && res[i]
+	}
+
+	var live []bool
+
 	switch inst.Op {
 	case ir.OpNop:
-		out.WriteString("\t_ = 0\n")
+		live = append([]bool(nil), st...)
 
 	case ir.OpLoadConst:
-		fmt.Fprintf(out, "\tpush(%s)\n", g.constExpr(inst.A))
+		k := e.g.prog.Consts[inst.A]
+		if wantsFloat(d) && k.Kind == ir.ConstNumber && !math.IsNaN(k.Num) && !math.IsInf(k.Num, 0) {
+			live = setFloat(after(0), d, goNumber(k.Num))
+		} else {
+			live = setValue(after(0), d, e.g.constExpr(inst.A))
+		}
 
 	case ir.OpPop:
-		out.WriteString("\tpop()\n")
+		live = after(1)
 
 	case ir.OpDup:
-		out.WriteString("\tpush(top())\n")
+		src := top(0)
+		if src < len(st) && st[src] {
+			live = setFloat(after(0), d, fmt.Sprintf("f%d", src))
+		} else {
+			live = setValue(after(0), d, fmt.Sprintf("s%d", src))
+		}
 
 	case ir.OpLoadLocal:
-		fmt.Fprintf(out, "\tpush(locals[%d].Get())\n", inst.A)
+		if e.promoted[inst.A] {
+			if wantsFloat(d) {
+				live = setFloat(after(0), d, fmt.Sprintf("l%d", inst.A))
+			} else {
+				live = setValue(after(0), d, fmt.Sprintf("rt.Number(l%d)", inst.A))
+			}
+			break
+		}
+		live = e.emitLoad(after(0), d, fmt.Sprintf("locals[%d]", inst.A), wantsFloat(d))
 
 	case ir.OpStoreLocal:
-		emitStore(out, fmt.Sprintf("locals[%d]", inst.A), inst.Pos)
+		if e.promoted[inst.A] {
+			fmt.Fprintf(out, "\tl%d = %s\n", inst.A, e.slotFloat(st, top(0)))
+			live = after(1)
+			break
+		}
+		emitStore(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpInitLocal:
-		emitInit(out, fmt.Sprintf("locals[%d]", inst.A), inst.Pos)
+		emitInit(out, fmt.Sprintf("locals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpLoadCapture:
-		fmt.Fprintf(out, "\tpush(captures[%d].Get())\n", inst.A)
+		live = e.emitLoad(after(0), d, fmt.Sprintf("captures[%d]", inst.A), false)
 
 	case ir.OpStoreCapture:
-		emitStore(out, fmt.Sprintf("captures[%d]", inst.A), inst.Pos)
+		emitStore(out, fmt.Sprintf("captures[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpLoadGlobal:
-		fmt.Fprintf(out, "\tpush(globals[%d].Get())\n", inst.A)
+		live = e.emitLoad(after(0), d, fmt.Sprintf("globals[%d]", inst.A), wantsFloat(d))
 
 	case ir.OpStoreGlobal:
-		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), inst.Pos)
+		emitStore(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpInitGlobal:
-		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), inst.Pos)
+		emitInit(out, fmt.Sprintf("globals[%d]", inst.A), e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpLoadSpecial:
-		if ir.Special(inst.A).IsFrameSpecial() {
-			fmt.Fprintf(out, "\tpush(%s)\n", specials.get(inst.A))
-		} else {
-			fmt.Fprintf(out, "\tpush(m.SpecialValue(rt.Special(%d)))\n", inst.A)
+		expr := e.specials.get(inst.A)
+		if !ir.Special(inst.A).IsFrameSpecial() {
+			expr = fmt.Sprintf("m.SpecialValue(rt.Special(%d))", inst.A)
 		}
+		live = setValue(after(0), d, expr)
 
 	case ir.OpStoreSpecial:
+		val := e.slotValue(st, top(0))
 		if ir.Special(inst.A).IsFrameSpecial() {
-			fmt.Fprintf(out, "\t%s\n", specials.set(inst.A))
+			fmt.Fprintf(out, "\t%s\n", e.specials.set(inst.A, val))
 		} else {
-			fmt.Fprintf(out, "\tm.SetSpecialValue(rt.Special(%d), pop())\n", inst.A)
+			fmt.Fprintf(out, "\tm.SetSpecialValue(rt.Special(%d), %s)\n", inst.A, val)
 		}
+		live = after(1)
 
 	case ir.OpBinary:
-		fmt.Fprintf(out, "\t{\n\t\tb := pop()\n\t\ta := pop()\n\t\tpush(rt.Binary(rt.BinaryOp(%d), a, b))\n\t}\n", inst.A)
+		live = e.emitBinary(after(2), top(1), ir.BinaryOp(inst.A),
+			e.slotValue(st, top(1)), e.slotValue(st, top(0)),
+			e.slotFloat(st, top(1)), e.slotFloat(st, top(0)),
+			st[top(1)] && st[top(0)], wantsFloat(top(1)))
 
 	case ir.OpBinaryAt:
 		op, left, right := ir.DecodeBinaryAt(inst.A)
-		fmt.Fprintf(out, "\tpush(rt.Binary(rt.BinaryOp(%d), %s, %s))\n",
-			op, g.operandExpr(left, inst.B), g.operandExpr(right, inst.C))
+		// 両辺とも定数だとGoのソースに『1 / 0』と書くことになり、Goは
+		// 定数どうしのゼロ除算をコンパイルエラーにする。定数どうしで
+		// 畳み込めるものは compiler/fold.go が既に畳み込んでいて、ここへ
+		// 残るのは NaN・±Inf になる式だけなので、一般経路へ流して困らない。
+		bothConst := left == ir.SrcConst && right == ir.SrcConst
+		bothNum := !bothConst &&
+			e.g.srcIsNumber(e.fi, left, inst.B) && e.g.srcIsNumber(e.fi, right, inst.C)
+		live = e.emitBinary(after(0), d, op,
+			e.g.operandExpr(e.fi, left, inst.B), e.g.operandExpr(e.fi, right, inst.C),
+			e.g.operandFloat(e.fi, left, inst.B), e.g.operandFloat(e.fi, right, inst.C),
+			bothNum, wantsFloat(d))
 
 	case ir.OpUnary:
-		fmt.Fprintf(out, "\tpush(rt.Unary(rt.UnaryOp(%d), pop()))\n", inst.A)
+		if ir.UnaryOp(inst.A) == ir.UnaryNeg && wantsFloat(top(0)) {
+			live = setFloat(after(1), top(0), "-"+e.slotFloat(st, top(0)))
+		} else {
+			live = setValue(after(1), top(0),
+				fmt.Sprintf("rt.Unary(rt.UnaryOp(%d), %s)", inst.A, e.slotValue(st, top(0))))
+		}
 
 	case ir.OpMakeArray:
-		fmt.Fprintf(out, "\tpush(m.MakeArray(popN(%d)))\n", inst.B)
+		live = setValue(after(inst.B), d-inst.B,
+			fmt.Sprintf("m.MakeArray(%s)", e.argSlice(st, d, inst.B)))
 
 	case ir.OpMakeDict:
-		fmt.Fprintf(out, "\tpush(m.MakeDict(popN(%d)))\n", inst.B*2)
+		n := inst.B * 2
+		live = setValue(after(n), d-n,
+			fmt.Sprintf("m.MakeDict(%s)", e.argSlice(st, d, n)))
 
 	case ir.OpIndexGet:
-		fmt.Fprintf(out, "\t{\n\t\tindexes := popN(%d)\n\t\tcontainer := pop()\n\t\tpush(m.IndexGet(container, indexes, %d))\n\t}\n", inst.B, inst.Pos)
+		base := d - inst.B - 1
+		live = setValue(after(inst.B+1), base,
+			fmt.Sprintf("m.IndexGet(%s, %s, %d)",
+				e.slotValue(st, base), e.argSlice(st, d, inst.B), inst.Pos))
 
 	case ir.OpIndexSet:
-		fmt.Fprintf(out, "\t{\n\t\tv := pop()\n\t\tindexes := popN(%d)\n\t\tcontainer := pop()\n\t\tpush(m.IndexSet(container, indexes, v, %d))\n\t}\n", inst.B, inst.Pos)
+		base := d - inst.B - 2
+		live = setValue(after(inst.B+2), base,
+			fmt.Sprintf("m.IndexSet(%s, %s, %s, %d)",
+				e.slotValue(st, base),
+				e.argSliceRange(st, base+1, inst.B),
+				e.slotValue(st, top(0)), inst.Pos))
 
 	case ir.OpIterKeys:
-		out.WriteString("\tpush(m.IterKeys(pop()))\n")
+		live = setValue(after(1), top(0), fmt.Sprintf("m.IterKeys(%s)", e.slotValue(st, top(0))))
 
 	case ir.OpLen:
-		out.WriteString("\tpush(m.LenOf(pop()))\n")
+		if wantsFloat(top(0)) {
+			live = setFloat(after(1), top(0), fmt.Sprintf("rt.ToNumber(m.LenOf(%s))", e.slotValue(st, top(0))))
+		} else {
+			live = setValue(after(1), top(0), fmt.Sprintf("m.LenOf(%s)", e.slotValue(st, top(0))))
+		}
 
 	case ir.OpMakeFunc:
-		fmt.Fprintf(out, "\tpush(rt.FuncValue(m.MakeClosure(%d, locals, captures)))\n", inst.A)
+		live = setValue(after(0), d,
+			fmt.Sprintf("rt.FuncValue(m.MakeClosure(%d, locals, captures))", inst.A))
 
 	case ir.OpCallStd:
-		fmt.Fprintf(out, "\tpush(m.CallStd(%d, popN(%d), %d))\n", inst.A, inst.B, inst.Pos)
+		live = setValue(after(inst.B), d-inst.B,
+			fmt.Sprintf("m.CallStd(%d, %s, %d)", inst.A, e.argSlice(st, d, inst.B), inst.Pos))
 
 	case ir.OpCallUser:
-		fmt.Fprintf(out, "\tpush(m.CallUser(%d, popN(%d)))\n", inst.A, inst.B)
+		live = setValue(after(inst.B), d-inst.B,
+			fmt.Sprintf("m.CallUser(%d, %s)", inst.A, e.argSlice(st, d, inst.B)))
 
 	case ir.OpCallValue:
-		fmt.Fprintf(out, "\t{\n\t\targs := popN(%d)\n\t\tcallee := pop()\n\t\tpush(m.CallDynamic(callee, args, %d))\n\t}\n", inst.B, inst.Pos)
+		base := d - inst.B - 1
+		live = setValue(after(inst.B+1), base,
+			fmt.Sprintf("m.CallDynamic(%s, %s, %d)",
+				e.slotValue(st, base), e.argSliceRange(st, base+1, inst.B), inst.Pos))
 
 	case ir.OpJump:
-		fmt.Fprintf(out, "\tgoto %s\n", label(inst.A, codeLen))
+		e.convert(after(0), inst.A)
+		fmt.Fprintf(out, "\tgoto %s\n", label(inst.A, e.codeLen))
+		return
 
-	case ir.OpJumpIfFalse:
-		fmt.Fprintf(out, "\tif !rt.ToBool(pop()) {\n\t\tgoto %s\n\t}\n", label(inst.A, codeLen))
-
-	case ir.OpJumpIfTrue:
-		fmt.Fprintf(out, "\tif rt.ToBool(pop()) {\n\t\tgoto %s\n\t}\n", label(inst.A, codeLen))
+	case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
+		cond := fmt.Sprintf("rt.ToBool(%s)", e.slotValue(st, top(0)))
+		if st[top(0)] {
+			// 数値と分かっているなら、真偽判定は 0 でも NaN でもないこと
+			cond = fmt.Sprintf("f%d != 0 && f%d == f%d", top(0), top(0), top(0))
+		}
+		if inst.Op == ir.OpJumpIfFalse {
+			cond = "!(" + cond + ")"
+		}
+		fmt.Fprintf(out, "\tif %s {\n", cond)
+		e.convertIndent(after(1), inst.A)
+		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(inst.A, e.codeLen))
+		live = after(1)
 
 	case ir.OpTry:
 		fmt.Fprintf(out, "\t*handlers = append(*handlers, rt.Handler{Target: %d})\n", inst.A)
+		live = append([]bool(nil), st...)
 
 	case ir.OpEndTry:
 		out.WriteString("\tif n := len(*handlers); n > 0 {\n\t\t*handlers = (*handlers)[:n-1]\n\t}\n")
+		live = append([]bool(nil), st...)
 
 	case ir.OpThrow:
-		fmt.Fprintf(out, "\tm.Fail(rt.ToString(pop()), %d)\n", inst.Pos)
+		fmt.Fprintf(out, "\tm.Fail(rt.ToString(%s), %d)\n", e.slotValue(st, top(0)), inst.Pos)
+		live = after(1)
 
 	case ir.OpReturn:
-		g.emitReturn(out, inst, ret)
+		value := "rt.Undefined()"
+		if inst.A != 0 {
+			value = e.slotValue(st, top(0))
+		}
+		switch e.ret {
+		case retHandled:
+			fmt.Fprintf(out, "\treturn %s, false, 0\n", value)
+		default:
+			fmt.Fprintf(out, "\treturn %s\n", value)
+		}
+		return
 
 	default:
 		// 検証器を通ったIRにここへ来る命令はない。来たら、それはgogenが
 		// 新しい命令に追随できていないという意味なので、はっきり止める。
 		fmt.Fprintf(out, "\tpanic(\"gogen: 未対応の命令です: %s\")\n", inst.Op)
+		live = append([]bool(nil), st...)
+	}
+
+	e.convert(live, pc+1)
+}
+
+// emitLoad reads a cell into stack slot i, keeping it unboxed when both the
+// cell and the slot are known to be numbers.
+func (e *fnEmit) emitLoad(state []bool, i int, cell string, asFloat bool) []bool {
+	if asFloat {
+		fmt.Fprintf(e.out, "\tf%d = rt.ToNumber(%s.Get())\n", i, cell)
+		return append(state, true)
+	}
+	fmt.Fprintf(e.out, "\ts%d = %s.Get()\n", i, cell)
+	return append(state, false)
+}
+
+// emitBinary writes one binary operation. When both operands are known to be
+// numbers it writes the arithmetic straight out, which is the same expression
+// ops.binaryNumbers evaluates — the general path stays for everything else so
+// that an unproven operand still gets なでしこ's full conversion rules.
+func (e *fnEmit) emitBinary(state []bool, i int, op ir.BinaryOp, aVal, bVal, aNum, bNum string, bothNum, wantFloat bool) []bool {
+	if bothNum {
+		if expr, ok := floatExpr(op, aNum, bNum); ok {
+			if wantFloat {
+				fmt.Fprintf(e.out, "\tf%d = %s\n", i, expr)
+				return append(state, true)
+			}
+			fmt.Fprintf(e.out, "\ts%d = rt.Number(%s)\n", i, expr)
+			return append(state, false)
+		}
+		if expr, ok := boolExpr(op, aNum, bNum); ok {
+			fmt.Fprintf(e.out, "\ts%d = rt.Bool(%s)\n", i, expr)
+			return append(state, false)
+		}
+	}
+	call := fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aVal, bVal)
+	if wantFloat {
+		fmt.Fprintf(e.out, "\tf%d = rt.ToNumber(%s)\n", i, call)
+		return append(state, true)
+	}
+	fmt.Fprintf(e.out, "\ts%d = %s\n", i, call)
+	return append(state, false)
+}
+
+// floatExpr writes the arithmetic ops.binaryNumbers shortcuts, as a Go
+// expression on two float64s. The ones it leaves out (『&』の連結、シフト、
+// 整数割り、累乗) keep going through rt.Binary so that there is exactly one
+// implementation of them.
+func floatExpr(op ir.BinaryOp, a, b string) (string, bool) {
+	switch op {
+	case ir.BinAdd:
+		return a + " + " + b, true
+	case ir.BinSub:
+		return a + " - " + b, true
+	case ir.BinMul:
+		return a + " * " + b, true
+	case ir.BinDiv:
+		return a + " / " + b, true
+	case ir.BinMod:
+		return "rt.Mod(" + a + ", " + b + ")", true
+	}
+	return "", false
+}
+
+// boolExpr writes the comparisons ops.binaryNumbers shortcuts. NaN が絡む
+// 比較はGoもJavaScriptも false になるので、順序判定を分ける必要はない。
+func boolExpr(op ir.BinaryOp, a, b string) (string, bool) {
+	switch op {
+	case ir.BinLt:
+		return a + " < " + b, true
+	case ir.BinLtEq:
+		return a + " <= " + b, true
+	case ir.BinGt:
+		return a + " > " + b, true
+	case ir.BinGtEq:
+		return a + " >= " + b, true
+	case ir.BinEq, ir.BinStrictEq:
+		return a + " == " + b, true
+	case ir.BinNotEq, ir.BinStrictNotEq:
+		return a + " != " + b, true
+	}
+	return "", false
+}
+
+// argSlice builds the []rt.Value a call or collection literal takes, from the
+// n slots below depth d.
+func (e *fnEmit) argSlice(st []bool, d, n int) string {
+	return e.argSliceRange(st, d-n, n)
+}
+
+// argSliceRange builds a []rt.Value from n slots starting at base.
+func (e *fnEmit) argSliceRange(st []bool, base, n int) string {
+	if n <= 0 {
+		return "nil"
+	}
+	parts := make([]string, n)
+	for i := 0; i < n; i++ {
+		parts[i] = e.slotValue(st, base+i)
+	}
+	return "[]rt.Value{" + strings.Join(parts, ", ") + "}"
+}
+
+// convertIndent is convert() one tab deeper, for the inside of an if.
+func (e *fnEmit) convertIndent(out []bool, to int) {
+	want := e.in(to)
+	for i := 0; i < len(out) && i < len(want); i++ {
+		if out[i] && !want[i] {
+			fmt.Fprintf(e.out, "\t\ts%d = rt.Number(f%d)\n", i, i)
+		}
 	}
 }
 
