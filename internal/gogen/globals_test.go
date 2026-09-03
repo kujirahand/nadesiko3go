@@ -44,6 +44,13 @@ func TestPromotableGlobals(t *testing.T) {
 			want: nil,
 		},
 		{
+			// ?? のパイプラインは命令名を実行時に解決するので、そこから
+			// JSオブジェクト取得を呼べる場合もセルを残す必要がある
+			name: "dynamic_lookup_through_question_pipeline",
+			code: "S=5\n[\"JSオブジェクト取得\",\"表示\"]をハテナ関数設定\n?? \"S\"\n",
+			want: nil,
+		},
+		{
 			// 数値以外が入る変数は、そもそも float64 にならない
 			name: "not_a_number",
 			code: "S=\"あ\"\nSを表示\n",

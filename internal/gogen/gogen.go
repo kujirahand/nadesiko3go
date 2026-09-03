@@ -207,10 +207,13 @@ func checkSupported(prog *ir.Program) error {
 	return fmt.Errorf("gogenは非同期関数に対応していません（VM実行にフォールバックしてください）: %v", async)
 }
 
-// reflectiveCommands names the stdlib commands that reach a global by a name
-// only known at run time (Context.FindValue). One of these in the program
-// means no global may leave its cell — the command would read the stale one.
-var reflectiveCommands = []string{"JSオブジェクト取得"}
+// dynamicGlobalCommands names the stdlib commands that can reach a global by
+// a name only known at run time. JSオブジェクト取得 does so directly through
+// Context.FindValue. ハテナ関数実行 can do so transitively through
+// Context.CallCommand when its configurable pipeline contains
+// JSオブジェクト取得. One of these in the program means no global may leave
+// its cell — the command would read the stale one.
+var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行"}
 
 // extraSystemNames are global names Go code reads or writes through
 // Context.SysVar / SetSysVar without the registry necessarily declaring them
@@ -238,15 +241,15 @@ func analyzeEnvFor(prog *ir.Program, plugins []string) (analyzeEnv, error) {
 		names[name] = true
 	}
 	env := analyzeEnv{systemNames: names}
-	reflective := map[int]bool{}
-	for _, name := range reflectiveCommands {
+	dynamicGlobal := map[int]bool{}
+	for _, name := range dynamicGlobalCommands {
 		if e, ok := registry.Lookup(name); ok {
-			reflective[e.ID] = true
+			dynamicGlobal[e.ID] = true
 		}
 	}
 	for fi := range prog.Funcs {
 		for _, inst := range prog.Funcs[fi].Code {
-			if inst.Op == ir.OpCallStd && reflective[int(inst.A)] {
+			if inst.Op == ir.OpCallStd && dynamicGlobal[int(inst.A)] {
 				env.dynamicGlobals = true
 			}
 		}

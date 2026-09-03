@@ -265,6 +265,12 @@ Iを1から5まで繰り返す
 Sを表示
 `)
 
+	assertMatchesVM(t, "global_reflected_through_question_pipeline", `
+S=5
+["JSオブジェクト取得","表示"]をハテナ関数設定
+?? "S"
+`)
+
 	assertMatchesVM(t, "frame_specials_inherit_and_isolate", `
 対象="親"
 回数=7
