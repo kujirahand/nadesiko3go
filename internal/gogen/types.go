@@ -230,6 +230,18 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			} else if right == ir.SrcGlobal {
 				dropGlobal(pc, int(inst.C))
 			}
+		case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+			_, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+			if left == ir.SrcLocal {
+				dropLocal(pc, int(inst.B))
+			} else if left == ir.SrcGlobal {
+				dropGlobal(pc, int(inst.B))
+			}
+			if right == ir.SrcLocal {
+				dropLocal(pc, int(rightIdx))
+			} else if right == ir.SrcGlobal {
+				dropGlobal(pc, int(rightIdx))
+			}
 		}
 	}
 
@@ -390,7 +402,7 @@ func (info *typeInfo) dataflow(prog *ir.Program, fi int, fn *ir.Func, locals map
 				work = append(work, int(inst.A))
 			}
 			continue
-		case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
+		case ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			if merge(int(inst.A), out) {
 				work = append(work, int(inst.A))
 			}
@@ -574,7 +586,7 @@ func definiteAssigned(fn *ir.Func, depths []int, numGlobals int) (locals, global
 				work = append(work, int(inst.A))
 			}
 			continue
-		case ir.OpJumpIfFalse, ir.OpJumpIfTrue:
+		case ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			if merge(int(inst.A), out) {
 				work = append(work, int(inst.A))
 			}

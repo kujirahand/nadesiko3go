@@ -104,6 +104,20 @@ const (
 	OpJumpIfFalse
 	// OpJumpIfTrue pops a value and continues at Code[A] when it is truthy.
 	OpJumpIfTrue
+	// OpJumpIfBinaryAt evaluates a binary condition on two operands and jumps to
+	// Code[A] if the result is truthy, without touching the operand stack.
+	// It fuses 『BinaryAt; JumpIfTrue』 into one instruction.
+	//
+	// A is target PC, B is left index, C packs op, left/right Src, and right index
+	// (→ EncodeJumpBinaryAt).
+	OpJumpIfBinaryAt
+	// OpJumpIfNotBinaryAt evaluates a binary condition on two operands and jumps to
+	// Code[A] if the result is falsy, without touching the operand stack.
+	// It fuses 『BinaryAt; JumpIfFalse』 into one instruction.
+	//
+	// A is target PC, B is left index, C packs op, left/right Src, and right index
+	// (→ EncodeJumpBinaryAt).
+	OpJumpIfNotBinaryAt
 
 	// --- 例外 ---
 
@@ -210,6 +224,18 @@ func DecodeBinaryAtStoreLocal(a int32) (op BinaryOp, left, right Src, dstLocal i
 	return op, left, right, dstLocal
 }
 
+// EncodeJumpBinaryAt packs operator, operand sources, and right index into C.
+func EncodeJumpBinaryAt(op BinaryOp, left, right Src, rightIndex int32) int32 {
+	return EncodeBinaryAt(op, left, right) | (rightIndex << binaryAtDstShift)
+}
+
+// DecodeJumpBinaryAt unpacks what EncodeJumpBinaryAt made.
+func DecodeJumpBinaryAt(c int32) (op BinaryOp, left, right Src, rightIndex int32) {
+	op, left, right = DecodeBinaryAt(c)
+	rightIndex = c >> binaryAtDstShift
+	return op, left, right, rightIndex
+}
+
 // Special identifies one of the values the language keeps outside the ordinary
 // variable scopes.
 //
@@ -291,6 +317,7 @@ var opNames = map[Op]string{
 	OpMakeFunc: "MakeFunc",
 	OpReturn:   "Return",
 	OpJump:     "Jump", OpJumpIfFalse: "JumpIfFalse", OpJumpIfTrue: "JumpIfTrue",
+	OpJumpIfBinaryAt: "JumpIfBinaryAt", OpJumpIfNotBinaryAt: "JumpIfNotBinaryAt",
 	OpTry: "Try", OpEndTry: "EndTry", OpThrow: "Throw",
 }
 

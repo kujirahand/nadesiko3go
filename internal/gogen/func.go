@@ -83,7 +83,8 @@ func jumpTargets(code []ir.Inst) map[int]bool {
 	targets := map[int]bool{0: true}
 	for _, inst := range code {
 		switch inst.Op {
-		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry:
+		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
 			targets[int(inst.A)] = true
 		}
 	}
@@ -654,6 +655,33 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		e.convertIndent(after(1), int(inst.A))
 		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(int(inst.A), e.codeLen))
 		live = after(1)
+
+	case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+		op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+		bothConst := left == ir.SrcConst && right == ir.SrcConst
+		bothNum := !bothConst &&
+			e.g.srcIsNumber(e.fi, left, int(inst.B)) && e.g.srcIsNumber(e.fi, right, int(rightIdx))
+		aExpr := e.g.operandExpr(e.fi, left, int(inst.B))
+		bExpr := e.g.operandExpr(e.fi, right, int(rightIdx))
+		aFloat := e.g.operandFloat(e.fi, left, int(inst.B))
+		bFloat := e.g.operandFloat(e.fi, right, int(rightIdx))
+
+		var cond string
+		if bothNum {
+			if expr, ok := boolExpr(op, aFloat, bFloat); ok {
+				cond = expr
+			}
+		}
+		if cond == "" {
+			cond = fmt.Sprintf("rt.ToBool(rt.Binary(rt.BinaryOp(%d), %s, %s))", op, aExpr, bExpr)
+		}
+		if inst.Op == ir.OpJumpIfNotBinaryAt {
+			cond = "!(" + cond + ")"
+		}
+		fmt.Fprintf(out, "\tif %s {\n", cond)
+		e.convertIndent(after(0), int(inst.A))
+		fmt.Fprintf(out, "\t\tgoto %s\n\t}\n", label(int(inst.A), e.codeLen))
+		live = append([]bool(nil), st...)
 
 	case ir.OpTry:
 		fmt.Fprintf(out, "\t*handlers = append(*handlers, rt.Handler{Target: %d})\n", inst.A)

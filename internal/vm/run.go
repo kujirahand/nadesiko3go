@@ -237,6 +237,72 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 				pc = int(inst.A)
 			}
 
+		case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+			op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+			var a, b value.Value
+			switch left {
+			case ir.SrcLocal:
+				a = f.locals[inst.B].Get()
+			case ir.SrcConst:
+				a = m.constValue(int(inst.B))
+			case ir.SrcGlobal:
+				a = m.globals[inst.B].Get()
+			default:
+				a = f.captures[inst.B].Get()
+			}
+			switch right {
+			case ir.SrcLocal:
+				b = f.locals[rightIdx].Get()
+			case ir.SrcConst:
+				b = m.constValue(int(rightIdx))
+			case ir.SrcGlobal:
+				b = m.globals[rightIdx].Get()
+			default:
+				b = f.captures[rightIdx].Get()
+			}
+
+			var cond bool
+			if x, ok := a.Number(); ok {
+				if y, ok := b.Number(); ok {
+					switch op {
+					case ir.BinLt:
+						cond = x < y
+					case ir.BinLtEq:
+						cond = x <= y
+					case ir.BinGt:
+						cond = x > y
+					case ir.BinGtEq:
+						cond = x >= y
+					case ir.BinEq, ir.BinStrictEq:
+						cond = x == y
+					case ir.BinNotEq, ir.BinStrictNotEq:
+						cond = x != y
+					default:
+						cond = value.ToBool(ops.Binary(op, a, b))
+					}
+					if inst.Op == ir.OpJumpIfBinaryAt {
+						if cond {
+							pc = int(inst.A)
+						}
+					} else {
+						if !cond {
+							pc = int(inst.A)
+						}
+					}
+					continue
+				}
+			}
+			cond = value.ToBool(ops.Binary(op, a, b))
+			if inst.Op == ir.OpJumpIfBinaryAt {
+				if cond {
+					pc = int(inst.A)
+				}
+			} else {
+				if !cond {
+					pc = int(inst.A)
+				}
+			}
+
 		case ir.OpTry:
 			f.handlers = append(f.handlers, handler{target: int(inst.A), stackDepth: len(f.stack)})
 

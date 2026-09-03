@@ -21,7 +21,8 @@ func (e *InvalidIRError) Error() string {
 // gives the verifier something to check the generated code against.
 func StackDelta(inst Inst) (needs int, delta int) {
 	switch inst.Op {
-	case OpNop, OpJump, OpTry, OpEndTry, OpBinaryAtStoreLocal:
+	case OpNop, OpJump, OpTry, OpEndTry, OpBinaryAtStoreLocal,
+		OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
 		return 0, 0
 	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
@@ -203,6 +204,17 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			if inst.A < 0 || int(inst.A) > len(f.Code) {
 				return bad(i, "飛び先が命令範囲外です: %d", inst.A)
 			}
+		case OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
+			if inst.A < 0 || int(inst.A) > len(f.Code) {
+				return bad(i, "飛び先が命令範囲外です: %d", inst.A)
+			}
+			_, left, right, rightIdx := DecodeJumpBinaryAt(inst.C)
+			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, right, int(rightIdx)); err != nil {
+				return err
+			}
 		}
 		if inst.B < 0 {
 			return bad(i, "Bが負です: %d", inst.B)
@@ -338,7 +350,7 @@ func ComputeDepths(fi int, f Func) (int, []int, error) {
 		case OpJump:
 			work = append(work, todo{int(inst.A), next})
 			continue
-		case OpJumpIfFalse, OpJumpIfTrue:
+		case OpJumpIfFalse, OpJumpIfTrue, OpJumpIfBinaryAt, OpJumpIfNotBinaryAt:
 			work = append(work, todo{int(inst.A), next})
 		case OpTry:
 			// 例外で飛び込むときは、Tryを積んだ時点の深さに戻る

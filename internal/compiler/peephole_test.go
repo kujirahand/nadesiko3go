@@ -65,6 +65,23 @@ func TestFuseBinaryAtStoreLocal(t *testing.T) {
 	}
 }
 
+func TestFuseJumpBinaryAt(t *testing.T) {
+	prog, err := vm.CompileProgram("A=1\nもしA=1ならば\n\t「はい」を表示\n違えば\n\t「いいえ」を表示\nここまで", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, inst := range prog.Funcs[prog.Main].Code {
+		if inst.Op == ir.OpJumpIfNotBinaryAt || inst.Op == ir.OpJumpIfBinaryAt {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("JumpIf(Not)BinaryAt にまとまっていない: %v", prog.Funcs[prog.Main].Code)
+	}
+}
+
 // TestFuseKeepsJumpTargets checks the rewrite around code something jumps to.
 // 命令を消すと番号がずれるので、飛び先のつけ替えを間違えると、条件分岐が
 // 別の場所へ飛ぶ。値が合っていれば、飛び先も合っている。
