@@ -141,6 +141,31 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 			}
 			f.push(ops.Binary(op, a, b))
 
+		case ir.OpBinaryAtStoreLocal:
+			op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+			var a, b value.Value
+			switch left {
+			case ir.SrcLocal:
+				a = f.locals[inst.B].Get()
+			case ir.SrcConst:
+				a = m.constValue(int(inst.B))
+			case ir.SrcGlobal:
+				a = m.globals[inst.B].Get()
+			default:
+				a = f.captures[inst.B].Get()
+			}
+			switch right {
+			case ir.SrcLocal:
+				b = f.locals[inst.C].Get()
+			case ir.SrcConst:
+				b = m.constValue(int(inst.C))
+			case ir.SrcGlobal:
+				b = m.globals[inst.C].Get()
+			default:
+				b = f.captures[inst.C].Get()
+			}
+			m.setCell(f.locals[dst], ops.Binary(op, a, b), int(inst.Pos))
+
 		case ir.OpUnary:
 			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 

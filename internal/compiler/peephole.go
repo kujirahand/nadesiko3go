@@ -8,12 +8,13 @@ package compiler
 // スタックの上げ下げで、それはASTには現れない。AGENTS.md §6 が言うとおり、
 // BenchmarkLoop の時間はディスパッチが約40%、push/pop が約23%を占める。
 //
-// 入れている規則は3つだけ。命令列を一度なめるだけの1パスで、まとめた結果を
+// 入れている規則は4つ。命令列を一度なめるだけの1パスで、まとめた結果を
 // もう一度まとめ直すことはしない (そうしてできる並びが今のところない)。
 //
-//	Load;Load;Binary      →  BinaryAt      両辺をスタックを経ずに読む
-//	Dup;StoreSpecial;Pop  →  StoreSpecial
-//	Load;Pop              →  (なし)
+//	Load;Load;Binary;StoreLocal → BinaryAtStoreLocal 両辺を直に読み直接代入
+//	Load;Load;Binary            → BinaryAt          両辺をスタックを経ずに読む
+//	Dup;StoreSpecial;Pop        → StoreSpecial
+//	Load;Pop                    → (なし)
 //
 // 下の2つは、命令の呼び出しが必ず戻り値を『それ』に入れる (expr.go の
 // compileCall) ことから来る。文として書かれた呼び出しは結果を使わないので、
@@ -85,6 +86,9 @@ func jumpTargets(code []ir.Inst) []bool {
 // many it replaces. A width of 0 means nothing matched; an empty replacement
 // means the run goes away entirely.
 func fuseAt(code []ir.Inst, pc int, targets []bool) ([]ir.Inst, int) {
+	if inst, ok := fuseBinaryAtStoreLocal(code, pc, targets); ok {
+		return []ir.Inst{inst}, 4
+	}
 	if inst, ok := fuseBinary(code, pc, targets); ok {
 		return []ir.Inst{inst}, 3
 	}
@@ -108,6 +112,43 @@ func dropLoadPop(code []ir.Inst, pc int, targets []bool) bool {
 		return false
 	}
 	return code[pc+1].Op == ir.OpPop
+}
+
+// fuseBinaryAtStoreLocal matches 『Load;Load;Binary;StoreLocal』.
+//
+// It fuses evaluation of a binary expression and assignment to a local variable
+// into a single OpBinaryAtStoreLocal instruction, bypassing the operand stack entirely.
+func fuseBinaryAtStoreLocal(code []ir.Inst, pc int, targets []bool) (ir.Inst, bool) {
+	if pc+3 >= len(code) || targets[pc+1] || targets[pc+2] || targets[pc+3] {
+		return ir.Inst{}, false
+	}
+	left, ok := loadSrc(code[pc])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	right, ok := loadSrc(code[pc+1])
+	if !ok {
+		return ir.Inst{}, false
+	}
+	op := code[pc+2]
+	if op.Op != ir.OpBinary {
+		return ir.Inst{}, false
+	}
+	store := code[pc+3]
+	if store.Op != ir.OpStoreLocal {
+		return ir.Inst{}, false
+	}
+	dst := store.A
+	if dst < 0 || dst >= 65536 {
+		return ir.Inst{}, false
+	}
+	return ir.Inst{
+		Op:  ir.OpBinaryAtStoreLocal,
+		A:   ir.EncodeBinaryAtStoreLocal(ir.BinaryOp(op.A), left, right, dst),
+		B:   code[pc].A,
+		C:   code[pc+1].A,
+		Pos: op.Pos,
+	}, true
 }
 
 // fuseBinary matches 『Load;Load;Binary』.

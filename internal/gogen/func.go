@@ -541,6 +541,42 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 			e.g.operandFloat(e.fi, left, int(inst.B)), e.g.operandFloat(e.fi, right, int(inst.C)),
 			bothNum, wantsFloat(d))
 
+	case ir.OpBinaryAtStoreLocal:
+		op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+		bothConst := left == ir.SrcConst && right == ir.SrcConst
+		bothNum := !bothConst &&
+			e.g.srcIsNumber(e.fi, left, int(inst.B)) && e.g.srcIsNumber(e.fi, right, int(inst.C))
+		aExpr := e.g.operandExpr(e.fi, left, int(inst.B))
+		bExpr := e.g.operandExpr(e.fi, right, int(inst.C))
+		aFloat := e.g.operandFloat(e.fi, left, int(inst.B))
+		bFloat := e.g.operandFloat(e.fi, right, int(inst.C))
+
+		if e.promoted[int(dst)] {
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					fmt.Fprintf(out, "\tl%d = %s\n", dst, expr)
+					live = append([]bool(nil), st...)
+					break
+				}
+			}
+			call := fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			fmt.Fprintf(out, "\tl%d = rt.ToNumber(%s)\n", dst, call)
+		} else {
+			var valExpr string
+			if bothNum {
+				if expr, ok := floatExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Number(%s)", expr)
+				} else if expr, ok := boolExpr(op, aFloat, bFloat); ok {
+					valExpr = fmt.Sprintf("rt.Bool(%s)", expr)
+				}
+			}
+			if valExpr == "" {
+				valExpr = fmt.Sprintf("rt.Binary(rt.BinaryOp(%d), %s, %s)", op, aExpr, bExpr)
+			}
+			emitStore(out, fmt.Sprintf("locals[%d]", dst), valExpr, int(inst.Pos))
+		}
+		live = append([]bool(nil), st...)
+
 	case ir.OpUnary:
 		if ir.UnaryOp(inst.A) == ir.UnaryNeg && wantsFloat(top(0)) {
 			live = setFloat(after(1), top(0), "-"+e.slotFloat(st, top(0)))

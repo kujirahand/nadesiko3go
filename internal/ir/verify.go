@@ -21,7 +21,7 @@ func (e *InvalidIRError) Error() string {
 // gives the verifier something to check the generated code against.
 func StackDelta(inst Inst) (needs int, delta int) {
 	switch inst.Op {
-	case OpNop, OpJump, OpTry, OpEndTry:
+	case OpNop, OpJump, OpTry, OpEndTry, OpBinaryAtStoreLocal:
 		return 0, 0
 	case OpLoadConst, OpLoadLocal, OpLoadCapture, OpLoadGlobal, OpLoadSpecial, OpMakeFunc:
 		return 0, +1
@@ -167,6 +167,20 @@ func (p Program) validateFunc(fi int, constGlobals map[int]bool) error {
 			}
 		case OpBinaryAt:
 			_, left, right := DecodeBinaryAt(inst.A)
+			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
+				return err
+			}
+			if err := p.checkSrc(fi, i, f, right, int(inst.C)); err != nil {
+				return err
+			}
+		case OpBinaryAtStoreLocal:
+			_, left, right, dst := DecodeBinaryAtStoreLocal(inst.A)
+			if dst < 0 || int(dst) >= f.NumVars {
+				return bad(i, "代入先のローカルスロットが範囲外です: %d", dst)
+			}
+			if constVars[int(dst)] {
+				return bad(i, "定数スロット%dへ代入しています", dst)
+			}
 			if err := p.checkSrc(fi, i, f, left, int(inst.B)); err != nil {
 				return err
 			}

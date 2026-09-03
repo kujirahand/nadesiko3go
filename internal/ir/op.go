@@ -58,6 +58,14 @@ const (
 	// A packs the operator and the two operand kinds (→ EncodeBinaryAt),
 	// B is the index of the left operand and C of the right.
 	OpBinaryAt
+	// OpBinaryAtStoreLocal applies a binary operator to two operands read
+	// straight from where they live, and stores the result directly into
+	// local cell dst without touching the operand stack. It fuses
+	// 『Load;Load;Binary;StoreLocal』 into a single instruction.
+	//
+	// A packs the operator, two operand kinds, and dst local slot
+	// (→ EncodeBinaryAtStoreLocal), B is left index, C is right index.
+	OpBinaryAtStoreLocal
 
 	// --- 集合 ---
 
@@ -172,6 +180,7 @@ const (
 	binaryAtKindBits = 4
 	binaryAtOpMask   int32 = 1<<binaryAtOpBits - 1
 	binaryAtKindMask int32 = 1<<binaryAtKindBits - 1
+	binaryAtDstShift       = binaryAtOpBits + binaryAtKindBits*2 // 16
 )
 
 // EncodeBinaryAt packs an operator and its two operand kinds into the A
@@ -187,6 +196,18 @@ func DecodeBinaryAt(a int32) (op BinaryOp, left, right Src) {
 	return BinaryOp(a & binaryAtOpMask),
 		Src(a >> binaryAtOpBits & binaryAtKindMask),
 		Src(a >> (binaryAtOpBits + binaryAtKindBits) & binaryAtKindMask)
+}
+
+// EncodeBinaryAtStoreLocal packs an operator, two operand kinds, and dst local slot.
+func EncodeBinaryAtStoreLocal(op BinaryOp, left, right Src, dstLocal int32) int32 {
+	return EncodeBinaryAt(op, left, right) | (dstLocal << binaryAtDstShift)
+}
+
+// DecodeBinaryAtStoreLocal unpacks what EncodeBinaryAtStoreLocal made.
+func DecodeBinaryAtStoreLocal(a int32) (op BinaryOp, left, right Src, dstLocal int32) {
+	op, left, right = DecodeBinaryAt(a)
+	dstLocal = a >> binaryAtDstShift
+	return op, left, right, dstLocal
 }
 
 // Special identifies one of the values the language keeps outside the ordinary
@@ -262,7 +283,8 @@ var opNames = map[Op]string{
 	OpLoadSpecial: "LoadSpecial", OpStoreSpecial: "StoreSpecial",
 	OpPop: "Pop", OpDup: "Dup",
 	OpBinary: "Binary", OpUnary: "Unary", OpBinaryAt: "BinaryAt",
-	OpMakeArray: "MakeArray", OpMakeDict: "MakeDict",
+	OpBinaryAtStoreLocal: "BinaryAtStoreLocal",
+	OpMakeArray:          "MakeArray", OpMakeDict: "MakeDict",
 	OpIndexGet: "IndexGet", OpIndexSet: "IndexSet",
 	OpIterKeys: "IterKeys", OpLen: "Len",
 	OpCallStd: "CallStd", OpCallUser: "CallUser", OpCallValue: "CallValue",

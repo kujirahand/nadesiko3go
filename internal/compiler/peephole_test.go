@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 func TestFuseBinary(t *testing.T) {
@@ -32,6 +33,35 @@ func TestFuseBinary(t *testing.T) {
 	}
 	if ops[ir.OpBinary] != 0 {
 		t.Errorf("Binary が残っている: %v", ops)
+	}
+}
+
+func TestFuseBinaryAtStoreLocal(t *testing.T) {
+	tests := []struct{ code, want string }{
+		{"●テストとは\n\tA=1\n\tA=A+2\n\tAで戻る\nここまで\nテストを表示", "3"},
+		{"●(Nの)ステップとは\n\tN=N*2\n\tNで戻る\nここまで\n(5のステップ)を表示", "10"},
+		{"S=0\nIを1から5まで繰り返す\n\tS=S+I\nここまで\nSを表示", "15"},
+	}
+	for _, tt := range tests {
+		if got := run(t, tt.code); got != tt.want {
+			t.Errorf("%q = %q, want %q", tt.code, got, tt.want)
+		}
+	}
+
+	prog, err := vm.CompileProgram("●テストとは\n\tA=1\n\tA=A+2\n\tAで戻る\nここまで", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found bool
+	for _, fn := range prog.Funcs {
+		for _, inst := range fn.Code {
+			if inst.Op == ir.OpBinaryAtStoreLocal {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Errorf("BinaryAtStoreLocal にまとまっていない")
 	}
 }
 

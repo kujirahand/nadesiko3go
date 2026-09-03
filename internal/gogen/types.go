@@ -218,6 +218,18 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			} else if right == ir.SrcGlobal {
 				dropGlobal(pc, int(inst.C))
 			}
+		case ir.OpBinaryAtStoreLocal:
+			_, left, right, _ := ir.DecodeBinaryAtStoreLocal(inst.A)
+			if left == ir.SrcLocal {
+				dropLocal(pc, int(inst.B))
+			} else if left == ir.SrcGlobal {
+				dropGlobal(pc, int(inst.B))
+			}
+			if right == ir.SrcLocal {
+				dropLocal(pc, int(inst.C))
+			} else if right == ir.SrcGlobal {
+				dropGlobal(pc, int(inst.C))
+			}
 		}
 	}
 
@@ -225,7 +237,18 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 	info.stacks[fi] = stacks
 
 	for pc, inst := range fn.Code {
-		if depths[pc] == ir.Unvisited || depths[pc] == 0 {
+		if depths[pc] == ir.Unvisited {
+			continue
+		}
+		if inst.Op == ir.OpBinaryAtStoreLocal {
+			op, _, _, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+			if locals[int(dst)] && !numericOp(op) {
+				delete(locals, int(dst))
+				changed = true
+			}
+			continue
+		}
+		if depths[pc] == 0 {
 			continue
 		}
 		top := stacks[pc][depths[pc]-1]
@@ -289,6 +312,12 @@ func writtenLocals(fn *ir.Func) []int {
 			if !seen[int(inst.A)] {
 				seen[int(inst.A)] = true
 				out = append(out, int(inst.A))
+			}
+		} else if inst.Op == ir.OpBinaryAtStoreLocal {
+			_, _, _, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+			if !seen[int(dst)] {
+				seen[int(dst)] = true
+				out = append(out, int(dst))
 			}
 		}
 	}
@@ -525,6 +554,11 @@ func definiteAssigned(fn *ir.Func, depths []int, numGlobals int) (locals, global
 		case ir.OpStoreLocal, ir.OpInitLocal:
 			if inst.A >= 0 && int(inst.A) < fn.NumVars {
 				out[int(inst.A)] = true
+			}
+		case ir.OpBinaryAtStoreLocal:
+			_, _, _, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+			if dst >= 0 && int(dst) < fn.NumVars {
+				out[int(dst)] = true
 			}
 		case ir.OpStoreGlobal, ir.OpInitGlobal:
 			if i := fn.NumVars + int(inst.A); inst.A >= 0 && i < width {
