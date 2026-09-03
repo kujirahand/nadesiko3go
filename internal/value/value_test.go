@@ -1,6 +1,68 @@
 package value
 
-import "testing"
+import (
+	"runtime"
+	"strings"
+	"testing"
+	"unsafe"
+)
+
+func TestValueSize(t *testing.T) {
+	if got := unsafe.Sizeof(Value{}); got != 32 {
+		t.Fatalf("Valueのサイズ = %d bytes, want 32", got)
+	}
+}
+
+func TestValueReferenceKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		got  Value
+		kind Kind
+		text string
+	}{
+		{"空文字列", String(""), KindString, ""},
+		{"日本語と補助平面文字", String("なでしこ𩸽"), KindString, "なでしこ𩸽"},
+		{"配列", ArrayValue(NewArray(Number(1))), KindArray, ""},
+		{"辞書", DictValue(NewDict()), KindDict, ""},
+		{"関数", FuncValue(&Func{ID: 3}), KindFunc, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got.Kind() != tt.kind {
+				t.Fatalf("Kind() = %v, want %v", tt.got.Kind(), tt.kind)
+			}
+			switch tt.kind {
+			case KindString:
+				got, ok := tt.got.String()
+				if !ok || got != tt.text {
+					t.Fatalf("String() = %q, %v, want %q, true", got, ok, tt.text)
+				}
+			case KindArray:
+				if got, ok := tt.got.Array(); !ok || got == nil || got.Len() != 1 {
+					t.Fatalf("Array() = %v, %v", got, ok)
+				}
+			case KindDict:
+				if got, ok := tt.got.Dict(); !ok || got == nil {
+					t.Fatalf("Dict() = %v, %v", got, ok)
+				}
+			case KindFunc:
+				if got, ok := tt.got.Func(); !ok || got == nil || got.ID != 3 {
+					t.Fatalf("Func() = %v, %v", got, ok)
+				}
+			}
+		})
+	}
+}
+
+func TestStringValueKeepsBackingBytesAlive(t *testing.T) {
+	want := strings.Repeat("なでしこ𩸽", 100)
+	v := String(strings.Clone(want))
+	runtime.GC()
+	got, ok := v.String()
+	if !ok || got != want {
+		t.Fatalf("String() after GC = %q, %v", got, ok)
+	}
+}
 
 func TestArrayExtensionUsesUndefined(t *testing.T) {
 	a := NewArray(Number(1))
