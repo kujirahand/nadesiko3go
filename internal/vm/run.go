@@ -56,330 +56,404 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 	// 命令列と上限はループの間ずっと同じ。毎回たどり直さない。
 	code := f.fn.Code
 	maxInstructions := m.options.MaxInstructions
+dispatch:
 	for pc < len(code) {
-		m.executed++
-		if maxInstructions > 0 && m.executed > maxInstructions {
-			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
+		// Jump targets and the instruction after a control transfer are basic
+		// block starts. Charge a straight-line block once here instead of doing
+		// an increment and comparison for every dispatch in the hot loop.
+		blockEnd := pc + 1
+		if pc < len(f.blockEnds) && f.blockEnds[pc] > int32(pc) {
+			blockEnd = int(f.blockEnds[pc])
 		}
-		// 命令は20バイトある。1命令ごとに丸ごと写さず、参照で読む。
-		inst := &code[pc]
-		pc++
-
-		switch inst.Op {
-		case ir.OpNop:
-
-		case ir.OpLoadConst:
-			f.push(m.constValue(int(inst.A)))
-
-		case ir.OpPop:
-			f.pop()
-
-		case ir.OpDup:
-			v := f.pop()
-			f.push(v)
-			f.push(v)
-
-		case ir.OpLoadLocal:
-			f.push(f.locals[inst.A].Get())
-
-		case ir.OpStoreLocal:
-			m.setCell(f.locals[inst.A], f.pop(), int(inst.Pos))
-
-		case ir.OpInitLocal:
-			m.initCell(f.locals[inst.A], f.pop(), int(inst.Pos))
-
-		case ir.OpLoadCapture:
-			f.push(f.captures[inst.A].Get())
-
-		case ir.OpStoreCapture:
-			m.setCell(f.captures[inst.A], f.pop(), int(inst.Pos))
-
-		case ir.OpLoadGlobal:
-			f.push(m.globals[inst.A].Get())
-
-		case ir.OpStoreGlobal:
-			m.setCell(m.globals[inst.A], f.pop(), int(inst.Pos))
-
-		case ir.OpInitGlobal:
-			m.initCell(m.globals[inst.A], f.pop(), int(inst.Pos))
-
-		case ir.OpLoadSpecial:
-			f.push(m.loadSpecial(f, ir.Special(inst.A)))
-
-		case ir.OpStoreSpecial:
-			m.storeSpecial(f, ir.Special(inst.A), f.pop())
-
-		case ir.OpStoreSoreAndLocal:
-			v := f.locals[inst.A].Get()
-			f.specials[ir.SpecialSore] = v
-			m.setCell(f.locals[inst.B], v, int(inst.Pos))
-
-		case ir.OpStoreSoreAndGlobal:
-			v := f.locals[inst.A].Get()
-			f.specials[ir.SpecialSore] = v
-			m.setCell(m.globals[inst.B], v, int(inst.Pos))
-
-		case ir.OpBinary:
-			b := f.pop()
-			a := f.pop()
-			f.push(ops.Binary(ir.BinaryOp(inst.A), a, b))
-
-		case ir.OpBinaryStoreLocal:
-			b := f.pop()
-			a := f.pop()
-			m.setCell(f.locals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
-
-		case ir.OpBinaryStoreGlobal:
-			b := f.pop()
-			a := f.pop()
-			m.setCell(m.globals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
-
-		case ir.OpBinaryAt:
-			// 取得を関数に切り出すと、その1段だけで測れるほど遅くなる
-			// (AGENTS.md §6)。ここは展開したまま置く。
-			op, left, right := ir.DecodeBinaryAt(inst.A)
-			var a, b value.Value
-			switch left {
-			case ir.SrcLocal:
-				a = f.locals[inst.B].Get()
-			case ir.SrcConst:
-				a = m.constValue(int(inst.B))
-			case ir.SrcGlobal:
-				a = m.globals[inst.B].Get()
-			default:
-				a = f.captures[inst.B].Get()
+		limitReached := false
+		blockCount := uint64(blockEnd - pc)
+		if maxInstructions > 0 && (m.executed >= maxInstructions || blockCount > maxInstructions-m.executed) {
+			// Keep the old boundary exact: run the remaining permitted
+			// instructions, then fail at the first instruction over the limit.
+			// m.executed can already sit past the limit: the limit error is
+			// catchable by エラー監視, and protect() resumes at the handler with
+			// the over-limit count kept. Both are uint64, so the subtraction
+			// must be clamped or it wraps and blockEnd runs past the block.
+			var allowed uint64
+			if m.executed < maxInstructions {
+				allowed = maxInstructions - m.executed
 			}
-			switch right {
-			case ir.SrcLocal:
-				b = f.locals[inst.C].Get()
-			case ir.SrcConst:
-				b = m.constValue(int(inst.C))
-			case ir.SrcGlobal:
-				b = m.globals[inst.C].Get()
-			default:
-				b = f.captures[inst.C].Get()
-			}
-			f.push(ops.Binary(op, a, b))
+			blockEnd = pc + int(allowed)
+			m.executed += allowed
+			limitReached = true
+		} else {
+			m.executed += blockCount
+		}
 
-		case ir.OpBinaryAtStoreLocal:
-			op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
-			var a, b value.Value
-			switch left {
-			case ir.SrcLocal:
-				a = f.locals[inst.B].Get()
-			case ir.SrcConst:
-				a = m.constValue(int(inst.B))
-			case ir.SrcGlobal:
-				a = m.globals[inst.B].Get()
-			default:
-				a = f.captures[inst.B].Get()
-			}
-			switch right {
-			case ir.SrcLocal:
-				b = f.locals[inst.C].Get()
-			case ir.SrcConst:
-				b = m.constValue(int(inst.C))
-			case ir.SrcGlobal:
-				b = m.globals[inst.C].Get()
-			default:
-				b = f.captures[inst.C].Get()
-			}
-			m.setCell(f.locals[dst], ops.Binary(op, a, b), int(inst.Pos))
+		for pc < blockEnd {
+			// 命令は20バイトある。1命令ごとに丸ごと写さず、参照で読む。
+			inst := &code[pc]
+			pc++
 
-		case ir.OpUnary:
-			f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
+			switch inst.Op {
+			case ir.OpNop:
 
-		case ir.OpMakeArray:
-			f.push(value.ArrayValue(value.NewArray(f.popN(int(inst.B))...)))
+			case ir.OpLoadConst:
+				f.push(m.constValue(int(inst.A)))
 
-		case ir.OpMakeDict:
-			items := f.popN(int(inst.B) * 2)
-			d := value.NewDict()
-			for i := 0; i+1 < len(items); i += 2 {
-				d.Set(value.ToString(items[i]), items[i+1])
-			}
-			f.push(value.DictValue(d))
+			case ir.OpPop:
+				f.pop()
 
-		case ir.OpIndexGet:
-			indexes := f.popN(int(inst.B))
-			container := f.pop()
-			f.push(m.indexGet(container, indexes, int(inst.Pos)))
+			case ir.OpDup:
+				v := f.pop()
+				f.push(v)
+				f.push(v)
 
-		case ir.OpIndexGetAt:
-			arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
-			var container, idxVal value.Value
-			switch arrSrc {
-			case ir.SrcLocal:
-				container = f.locals[inst.B].Get()
-			case ir.SrcGlobal:
-				container = m.globals[inst.B].Get()
-			case ir.SrcCapture:
-				container = f.captures[inst.B].Get()
-			default:
-				container = m.constValue(int(inst.B))
-			}
-			switch idxSrc {
-			case ir.SrcLocal:
-				idxVal = f.locals[inst.C].Get()
-			case ir.SrcConst:
-				idxVal = m.constValue(int(inst.C))
-			case ir.SrcGlobal:
-				idxVal = m.globals[inst.C].Get()
-			default:
-				idxVal = f.captures[inst.C].Get()
-			}
+			case ir.OpLoadLocal:
+				f.push(f.locals[inst.A].Get())
 
-			if arr, ok := container.Array(); ok {
-				if num, ok := idxVal.Number(); ok {
-					i := int(num)
-					if float64(i) == num && i >= 0 && i < arr.Len() {
-						f.push(arr.Get(i))
-						continue
-					}
+			case ir.OpStoreLocal:
+				m.setCell(f.locals[inst.A], f.pop(), int(inst.Pos))
+
+			case ir.OpInitLocal:
+				m.initCell(f.locals[inst.A], f.pop(), int(inst.Pos))
+
+			case ir.OpLoadCapture:
+				f.push(f.captures[inst.A].Get())
+
+			case ir.OpStoreCapture:
+				m.setCell(f.captures[inst.A], f.pop(), int(inst.Pos))
+
+			case ir.OpLoadGlobal:
+				f.push(m.globals[inst.A].Get())
+
+			case ir.OpStoreGlobal:
+				m.setCell(m.globals[inst.A], f.pop(), int(inst.Pos))
+
+			case ir.OpInitGlobal:
+				m.initCell(m.globals[inst.A], f.pop(), int(inst.Pos))
+
+			case ir.OpLoadSpecial:
+				f.push(m.loadSpecial(f, ir.Special(inst.A)))
+
+			case ir.OpStoreSpecial:
+				m.storeSpecial(f, ir.Special(inst.A), f.pop())
+
+			case ir.OpStoreSoreAndLocal:
+				v := f.locals[inst.A].Get()
+				f.specials[ir.SpecialSore] = v
+				m.setCell(f.locals[inst.B], v, int(inst.Pos))
+
+			case ir.OpStoreSoreAndGlobal:
+				v := f.locals[inst.A].Get()
+				f.specials[ir.SpecialSore] = v
+				m.setCell(m.globals[inst.B], v, int(inst.Pos))
+
+			case ir.OpBinary:
+				b := f.pop()
+				a := f.pop()
+				f.push(ops.Binary(ir.BinaryOp(inst.A), a, b))
+
+			case ir.OpBinaryStoreLocal:
+				b := f.pop()
+				a := f.pop()
+				m.setCell(f.locals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
+
+			case ir.OpBinaryStoreGlobal:
+				b := f.pop()
+				a := f.pop()
+				m.setCell(m.globals[inst.B], ops.Binary(ir.BinaryOp(inst.A), a, b), int(inst.Pos))
+
+			case ir.OpBinaryAt:
+				// 取得を関数に切り出すと、その1段だけで測れるほど遅くなる
+				// (AGENTS.md §6)。ここは展開したまま置く。
+				op, left, right := ir.DecodeBinaryAt(inst.A)
+				var a, b value.Value
+				switch left {
+				case ir.SrcLocal:
+					a = f.locals[inst.B].Get()
+				case ir.SrcConst:
+					a = m.constValue(int(inst.B))
+				case ir.SrcGlobal:
+					a = m.globals[inst.B].Get()
+				default:
+					a = f.captures[inst.B].Get()
 				}
-			}
-			f.push(m.indexGet(container, []value.Value{idxVal}, int(inst.Pos)))
+				switch right {
+				case ir.SrcLocal:
+					b = f.locals[inst.C].Get()
+				case ir.SrcConst:
+					b = m.constValue(int(inst.C))
+				case ir.SrcGlobal:
+					b = m.globals[inst.C].Get()
+				default:
+					b = f.captures[inst.C].Get()
+				}
+				f.push(ops.Binary(op, a, b))
 
-		case ir.OpIndexSet:
-			v := f.pop()
-			indexes := f.popN(int(inst.B))
-			container := f.pop()
-			f.push(m.indexSet(container, indexes, v, int(inst.Pos)))
+			case ir.OpBinaryAtStoreLocal:
+				op, left, right, dst := ir.DecodeBinaryAtStoreLocal(inst.A)
+				var a, b value.Value
+				switch left {
+				case ir.SrcLocal:
+					a = f.locals[inst.B].Get()
+				case ir.SrcConst:
+					a = m.constValue(int(inst.B))
+				case ir.SrcGlobal:
+					a = m.globals[inst.B].Get()
+				default:
+					a = f.captures[inst.B].Get()
+				}
+				switch right {
+				case ir.SrcLocal:
+					b = f.locals[inst.C].Get()
+				case ir.SrcConst:
+					b = m.constValue(int(inst.C))
+				case ir.SrcGlobal:
+					b = m.globals[inst.C].Get()
+				default:
+					b = f.captures[inst.C].Get()
+				}
+				m.setCell(f.locals[dst], ops.Binary(op, a, b), int(inst.Pos))
 
-		case ir.OpIterKeys:
-			f.push(m.iterKeys(f.pop()))
+			case ir.OpUnary:
+				f.push(ops.Unary(ir.UnaryOp(inst.A), f.pop()))
 
-		case ir.OpLen:
-			arr, ok := f.pop().Array()
-			if !ok {
-				f.push(value.Number(0))
-				break
-			}
-			f.push(value.Number(float64(arr.Len())))
+			case ir.OpMakeArray:
+				f.push(value.ArrayValue(value.NewArray(f.popN(int(inst.B))...)))
 
-		case ir.OpMakeFunc:
-			f.push(value.FuncValue(m.makeClosure(int(inst.A), f)))
+			case ir.OpMakeDict:
+				items := f.popN(int(inst.B) * 2)
+				d := value.NewDict()
+				for i := 0; i+1 < len(items); i += 2 {
+					d.Set(value.ToString(items[i]), items[i+1])
+				}
+				f.push(value.DictValue(d))
 
-		case ir.OpCallStd:
-			args := f.popN(int(inst.B))
-			f.push(m.callStd(int(inst.A), args, int(inst.Pos)))
+			case ir.OpIndexGet:
+				indexes := f.popN(int(inst.B))
+				container := f.pop()
+				f.push(m.indexGet(container, indexes, int(inst.Pos)))
 
-		case ir.OpCallUser:
-			// 引数はコピーせずスタックの一部を貸す。呼び出し先は
-			// 受け取った値をセルへ写して、それきり持たない。
-			args := f.borrowN(int(inst.B))
-			f.push(m.call(int(inst.A), args))
+			case ir.OpIndexGetAt:
+				arrSrc, idxSrc := ir.DecodeIndexGetAt(inst.A)
+				var container, idxVal value.Value
+				switch arrSrc {
+				case ir.SrcLocal:
+					container = f.locals[inst.B].Get()
+				case ir.SrcGlobal:
+					container = m.globals[inst.B].Get()
+				case ir.SrcCapture:
+					container = f.captures[inst.B].Get()
+				default:
+					container = m.constValue(int(inst.B))
+				}
+				switch idxSrc {
+				case ir.SrcLocal:
+					idxVal = f.locals[inst.C].Get()
+				case ir.SrcConst:
+					idxVal = m.constValue(int(inst.C))
+				case ir.SrcGlobal:
+					idxVal = m.globals[inst.C].Get()
+				default:
+					idxVal = f.captures[inst.C].Get()
+				}
 
-		case ir.OpCallValue:
-			args := f.borrowN(int(inst.B))
-			callee := f.pop()
-			fnRef, ok := callee.Func()
-			if !ok {
-				m.failAt("関数ではない値を呼び出そうとしました。", int(inst.Pos))
-			}
-			f.push(m.callClosure(fnRef.ID, fnRef.Captured, args))
-
-		case ir.OpJump:
-			pc = int(inst.A)
-
-		case ir.OpJumpIfFalse:
-			if !value.ToBool(f.pop()) {
-				pc = int(inst.A)
-			}
-
-		case ir.OpJumpIfTrue:
-			if value.ToBool(f.pop()) {
-				pc = int(inst.A)
-			}
-
-		case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
-			op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
-			var a, b value.Value
-			switch left {
-			case ir.SrcLocal:
-				a = f.locals[inst.B].Get()
-			case ir.SrcConst:
-				a = m.constValue(int(inst.B))
-			case ir.SrcGlobal:
-				a = m.globals[inst.B].Get()
-			default:
-				a = f.captures[inst.B].Get()
-			}
-			switch right {
-			case ir.SrcLocal:
-				b = f.locals[rightIdx].Get()
-			case ir.SrcConst:
-				b = m.constValue(int(rightIdx))
-			case ir.SrcGlobal:
-				b = m.globals[rightIdx].Get()
-			default:
-				b = f.captures[rightIdx].Get()
-			}
-
-			var cond bool
-			if x, ok := a.Number(); ok {
-				if y, ok := b.Number(); ok {
-					switch op {
-					case ir.BinLt:
-						cond = x < y
-					case ir.BinLtEq:
-						cond = x <= y
-					case ir.BinGt:
-						cond = x > y
-					case ir.BinGtEq:
-						cond = x >= y
-					case ir.BinEq, ir.BinStrictEq:
-						cond = x == y
-					case ir.BinNotEq, ir.BinStrictNotEq:
-						cond = x != y
-					default:
-						cond = value.ToBool(ops.Binary(op, a, b))
-					}
-					if inst.Op == ir.OpJumpIfBinaryAt {
-						if cond {
-							pc = int(inst.A)
-						}
-					} else {
-						if !cond {
-							pc = int(inst.A)
+				if arr, ok := container.Array(); ok {
+					if num, ok := idxVal.Number(); ok {
+						i := int(num)
+						if float64(i) == num && i >= 0 && i < arr.Len() {
+							f.push(arr.Get(i))
+							continue
 						}
 					}
-					continue
 				}
-			}
-			cond = value.ToBool(ops.Binary(op, a, b))
-			if inst.Op == ir.OpJumpIfBinaryAt {
-				if cond {
+				f.push(m.indexGet(container, []value.Value{idxVal}, int(inst.Pos)))
+
+			case ir.OpIndexSet:
+				v := f.pop()
+				indexes := f.popN(int(inst.B))
+				container := f.pop()
+				f.push(m.indexSet(container, indexes, v, int(inst.Pos)))
+
+			case ir.OpIterKeys:
+				f.push(m.iterKeys(f.pop()))
+
+			case ir.OpLen:
+				arr, ok := f.pop().Array()
+				if !ok {
+					f.push(value.Number(0))
+					break
+				}
+				f.push(value.Number(float64(arr.Len())))
+
+			case ir.OpMakeFunc:
+				f.push(value.FuncValue(m.makeClosure(int(inst.A), f)))
+
+			case ir.OpCallStd:
+				args := f.popN(int(inst.B))
+				f.push(m.callStd(int(inst.A), args, int(inst.Pos)))
+
+			case ir.OpCallUser:
+				// 引数はコピーせずスタックの一部を貸す。呼び出し先は
+				// 受け取った値をセルへ写して、それきり持たない。
+				args := f.borrowN(int(inst.B))
+				f.push(m.call(int(inst.A), args))
+
+			case ir.OpCallValue:
+				args := f.borrowN(int(inst.B))
+				callee := f.pop()
+				fnRef, ok := callee.Func()
+				if !ok {
+					m.failAt("関数ではない値を呼び出そうとしました。", int(inst.Pos))
+				}
+				f.push(m.callClosure(fnRef.ID, fnRef.Captured, args))
+
+			case ir.OpJump:
+				pc = int(inst.A)
+				continue dispatch
+
+			case ir.OpJumpIfFalse:
+				if !value.ToBool(f.pop()) {
 					pc = int(inst.A)
+					continue dispatch
 				}
-			} else {
-				if !cond {
+
+			case ir.OpJumpIfTrue:
+				if value.ToBool(f.pop()) {
 					pc = int(inst.A)
+					continue dispatch
 				}
+
+			case ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+				op, left, right, rightIdx := ir.DecodeJumpBinaryAt(inst.C)
+				var a, b value.Value
+				switch left {
+				case ir.SrcLocal:
+					a = f.locals[inst.B].Get()
+				case ir.SrcConst:
+					a = m.constValue(int(inst.B))
+				case ir.SrcGlobal:
+					a = m.globals[inst.B].Get()
+				default:
+					a = f.captures[inst.B].Get()
+				}
+				switch right {
+				case ir.SrcLocal:
+					b = f.locals[rightIdx].Get()
+				case ir.SrcConst:
+					b = m.constValue(int(rightIdx))
+				case ir.SrcGlobal:
+					b = m.globals[rightIdx].Get()
+				default:
+					b = f.captures[rightIdx].Get()
+				}
+
+				var cond bool
+				if x, ok := a.Number(); ok {
+					if y, ok := b.Number(); ok {
+						switch op {
+						case ir.BinLt:
+							cond = x < y
+						case ir.BinLtEq:
+							cond = x <= y
+						case ir.BinGt:
+							cond = x > y
+						case ir.BinGtEq:
+							cond = x >= y
+						case ir.BinEq, ir.BinStrictEq:
+							cond = x == y
+						case ir.BinNotEq, ir.BinStrictNotEq:
+							cond = x != y
+						default:
+							cond = value.ToBool(ops.Binary(op, a, b))
+						}
+						if inst.Op == ir.OpJumpIfBinaryAt {
+							if cond {
+								pc = int(inst.A)
+							}
+						} else {
+							if !cond {
+								pc = int(inst.A)
+							}
+						}
+						continue dispatch
+					}
+				}
+				cond = value.ToBool(ops.Binary(op, a, b))
+				if inst.Op == ir.OpJumpIfBinaryAt {
+					if cond {
+						pc = int(inst.A)
+					}
+				} else {
+					if !cond {
+						pc = int(inst.A)
+					}
+				}
+				continue dispatch
+
+			case ir.OpTry:
+				f.handlers = append(f.handlers, handler{target: int(inst.A), stackDepth: len(f.stack)})
+
+			case ir.OpEndTry:
+				if n := len(f.handlers); n > 0 {
+					f.handlers = f.handlers[:n-1]
+				}
+
+			case ir.OpThrow:
+				m.failAt(value.ToString(f.pop()), int(inst.Pos))
+
+			case ir.OpReturn:
+				if inst.A == 0 {
+					return value.Undefined()
+				}
+				return f.pop()
+
+			default:
+				m.failAt(fmt.Sprintf("未知の命令です: %s", inst.Op), int(inst.Pos))
 			}
-
-		case ir.OpTry:
-			f.handlers = append(f.handlers, handler{target: int(inst.A), stackDepth: len(f.stack)})
-
-		case ir.OpEndTry:
-			if n := len(f.handlers); n > 0 {
-				f.handlers = f.handlers[:n-1]
-			}
-
-		case ir.OpThrow:
-			m.failAt(value.ToString(f.pop()), int(inst.Pos))
-
-		case ir.OpReturn:
-			if inst.A == 0 {
-				return value.Undefined()
-			}
-			return f.pop()
-
-		default:
-			m.failAt(fmt.Sprintf("未知の命令です: %s", inst.Op), int(inst.Pos))
+		}
+		if limitReached {
+			m.executed++
+			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
 		}
 	}
 	return value.Undefined()
+}
+
+// findBlockEnds records the exclusive end PC only at basic-block starts.
+// Calls end a block so the caller is charged before the callee, and exception
+// region changes end one so a limit error observes the same active handlers.
+func findBlockEnds(code []ir.Inst) []int32 {
+	ends := make([]int32, len(code))
+	if len(code) == 0 {
+		return ends
+	}
+	starts := make([]bool, len(code)+1)
+	starts[0] = true
+	starts[len(code)] = true
+	for pc := range code {
+		inst := &code[pc]
+		switch inst.Op {
+		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt, ir.OpTry:
+			target := int(inst.A)
+			if target >= 0 && target < len(code) {
+				starts[target] = true
+			}
+		}
+		switch inst.Op {
+		case ir.OpCallStd, ir.OpCallUser, ir.OpCallValue,
+			ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue,
+			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt,
+			ir.OpTry, ir.OpEndTry, ir.OpThrow, ir.OpReturn:
+			starts[pc+1] = true
+		}
+	}
+	start := 0
+	for end := 1; end <= len(code); end++ {
+		if !starts[end] {
+			continue
+		}
+		ends[start] = int32(end)
+		start = end
+	}
+	return ends
 }
 
 // constValue turns a constant pool entry into a runtime value.
