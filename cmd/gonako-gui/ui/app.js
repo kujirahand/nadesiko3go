@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const output = document.getElementById('output');
   const windowPreview = document.getElementById('window-preview');
   const btnRun = document.getElementById('btn-run');
+  const btnNew = document.getElementById('btn-new');
+  const btnOpen = document.getElementById('btn-open');
   const btnSave = document.getElementById('btn-save');
+  const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
   const btnClearLog = document.getElementById('btn-clear-log');
   const btnCopyLog = document.getElementById('btn-copy-log');
   const selectAppType = document.getElementById('select-app-type');
@@ -22,9 +25,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const versionInfo = document.getElementById('version-info');
   const activeFileName = document.getElementById('active-file-name');
 
+  // サイドバー & スプリッター要素
+  const sidebar = document.getElementById('sidebar');
+  const splitterV = document.getElementById('splitter-v');
+
   // ハンバーガーメニュー & モーダル要素
   const btnHamburger = document.getElementById('btn-hamburger');
   const hamburgerMenu = document.getElementById('hamburger-menu');
+  const menuItemNew = document.getElementById('menu-item-new');
+  const menuItemOpen = document.getElementById('menu-item-open');
+  const menuItemSave = document.getElementById('menu-item-save');
+  const menuItemSaveAs = document.getElementById('menu-item-save-as');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
   const menuItemBuildApp = document.getElementById('menu-item-build-app');
@@ -92,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFilePath = '';
   let currentFileDisplayName = '新規プログラム.nako3';
   let currentTemplateBaseName = '';
-  let savedContent = `// なでしこ3の基本\n「こんにちは、なでしこ！」と表示。`;
+  let savedContent = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
   let isBinaryFile = false; // PNGなど文字コード範囲外のファイルを開いている間はtrue
   let currentOS = ''; // getAppInfo() から受け取る 'darwin' / 'windows' / 'linux'
   const defaultEditorPlaceholder = editor.getAttribute('placeholder') || '';
@@ -102,6 +113,25 @@ document.addEventListener('DOMContentLoaded', () => {
   updateFileTitleDisplay();
   updateLineNumbers();
   updateCharCount();
+
+  // --- サイドバーの表示/非表示トグル ---
+  function toggleSidebar(force) {
+    const isCollapsed = force !== undefined ? force : !sidebar.classList.contains('collapsed');
+    sidebar.classList.toggle('collapsed', isCollapsed);
+    if (splitterV) splitterV.classList.toggle('collapsed', isCollapsed);
+    if (btnToggleSidebar) btnToggleSidebar.classList.toggle('active', !isCollapsed);
+    try {
+      localStorage.setItem('gonako-sidebar-collapsed', isCollapsed ? '1' : '0');
+    } catch (e) {}
+  }
+
+  if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener('click', () => toggleSidebar());
+    // 保存されている状態があれば復元
+    if (localStorage.getItem('gonako-sidebar-collapsed') === '1') {
+      toggleSidebar(true);
+    }
+  }
 
   // --- タブ切り替え処理 ---
   function activateTab(activeBtn, activeContent) {
@@ -301,6 +331,22 @@ document.addEventListener('DOMContentLoaded', () => {
         </thead>
         <tbody>
           <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Cmd</kbd> + <kbd>N</kbd></td>
+            <td>新規作成</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>Cmd</kbd> + <kbd>O</kbd></td>
+            <td>ファイルを開く</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd></td>
+            <td>ファイルを保存</td>
+          </tr>
+          <tr>
+            <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td>
+            <td>名前を付けて保存</td>
+          </tr>
+          <tr>
             <td><kbd>F5</kbd></td>
             <td>プログラムを実行</td>
           </tr>
@@ -313,8 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>プログラムを実行</td>
           </tr>
           <tr>
-            <td><kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd></td>
-            <td>ファイルを上書き保存</td>
+            <td><kbd>Ctrl</kbd> + <kbd>B</kbd> / <kbd>Cmd</kbd> + <kbd>B</kbd></td>
+            <td>ツールパネルの表示/非表示</td>
           </tr>
           <tr>
             <td><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>Cmd</kbd> + <kbd>C</kbd></td>
@@ -574,16 +620,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (allTemplates && allTemplates.length > 0) {
       renderTemplates(allTemplates);
-      if (editor.value.includes('なでしこ3の基本') && allTemplates[0].code) {
-        clearBinaryState();
-        editor.value = allTemplates[0].code;
-        savedContent = allTemplates[0].code;
-        currentFileDisplayName = allTemplates[0].title;
-        currentTemplateBaseName = (allTemplates[0].id || allTemplates[0].title).replace(/\.nako3$/i, '');
-        updateFileTitleDisplay();
-        updateLineNumbers();
-        updateCharCount();
-      }
     }
   }
 
@@ -1011,6 +1047,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  async function newFile() {
+    closeHamburger();
+    if (!(await confirmSaveIfDirty())) return;
+    clearBinaryState();
+    editor.value = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
+    savedContent = editor.value;
+    currentFilePath = '';
+    currentFileDisplayName = '新規プログラム.nako3';
+    currentTemplateBaseName = '';
+    activeFileName.title = '';
+    updateFileTitleDisplay();
+    updateLineNumbers();
+    updateCharCount();
+    updateCursorPos();
+    editor.focus();
+    setStatus('新規ファイルを作成しました');
+  }
+
+  async function openFileDialogAction() {
+    closeHamburger();
+    if (!(await confirmSaveIfDirty())) return;
+    if (typeof window.showOpenFileDialog === 'function') {
+      try {
+        const baseDir = currentFilePath ? pathDirName(currentFilePath) : (desktopDirPath || homeDirPath);
+        const res = await window.showOpenFileDialog(baseDir);
+        const data = typeof res === 'string' ? JSON.parse(res) : res;
+        if (data.ok) {
+          if (data.canceled || !data.path) {
+            return;
+          }
+          await openFile(data.path, pathBaseName(data.path));
+          return;
+        } else if (data.error) {
+          console.error('OSダイアログエラー:', data.error);
+          setStatus(`ダイアログエラー: ${data.error}`);
+        }
+      } catch (err) {
+        console.error('OSダイアログ呼び出しエラー:', err);
+      }
+    }
+    // フォールバック: ファイルタブに切り替え
+    activateTab(tabBtnFile, tabContentFile);
+    toggleSidebar(false);
+  }
+
   async function openFile(filePath, fileName) {
     if (typeof window.readFile !== 'function') return;
     try {
@@ -1043,39 +1124,72 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function saveFile() {
+  async function saveFileAs() {
     if (isBinaryFile) return false;
-    let targetPath = currentFilePath;
-    if (!targetPath) {
-      let defaultName = 'program.nako3';
-      if (currentTemplateBaseName) {
-        defaultName = `${currentTemplateBaseName}-1.nako3`;
-      } else if (currentFileDisplayName.startsWith('新規')) {
-        defaultName = currentFileDisplayName;
-      }
+    closeHamburger();
 
-      const name = await showPromptDialog('ファイルを保存', '保存するファイル名を入力してください:', defaultName);
-      if (!name) return false;
-
-      const baseDir = currentDirPath || desktopDirPath || homeDirPath;
-      targetPath = baseDir + '/' + name;
-      currentFilePath = targetPath;
-      currentFileDisplayName = name;
-      currentTemplateBaseName = '';
-      activeFileName.title = currentFilePath;
+    const baseDir = currentFilePath ? pathDirName(currentFilePath) : (desktopDirPath || homeDirPath);
+    let defaultName = currentFileDisplayName || '新規プログラム.nako3';
+    if (defaultName.startsWith('(変更あり) ')) {
+      defaultName = defaultName.replace('(変更あり) ', '');
+    } else if (defaultName.startsWith('(編集不可) ')) {
+      defaultName = defaultName.replace('(編集不可) ', '');
     }
 
+    let targetPath = '';
+    if (typeof window.showSaveFileDialog === 'function') {
+      try {
+        const res = await window.showSaveFileDialog(baseDir, defaultName);
+        const data = typeof res === 'string' ? JSON.parse(res) : res;
+        if (data.ok) {
+          if (data.canceled || !data.path) {
+            return false;
+          }
+          targetPath = data.path;
+        } else if (data.error) {
+          console.error('OSダイアログ保存エラー:', data.error);
+        }
+      } catch (err) {
+        console.error('OSダイアログ呼び出しエラー:', err);
+      }
+    }
+
+    if (!targetPath) {
+      // フォールバック: Webプロンプトダイアログ
+      const name = await showPromptDialog('名前を付けて保存', '保存するファイル名を入力してください:', defaultName);
+      if (!name) return false;
+      targetPath = baseDir + '/' + name;
+    }
+
+    return await doSaveToPath(targetPath);
+  }
+
+  async function saveFile() {
+    if (isBinaryFile) return false;
+    closeHamburger();
+    if (!currentFilePath) {
+      return await saveFileAs();
+    }
+    return await doSaveToPath(currentFilePath);
+  }
+
+  async function doSaveToPath(targetPath) {
     if (typeof window.saveFile !== 'function') return false;
     try {
-      setStatus(`保存中: ${currentFileDisplayName}...`);
+      const fileName = pathBaseName(targetPath);
+      setStatus(`保存中: ${fileName}...`);
       const res = await window.saveFile(targetPath, editor.value);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
         savedContent = editor.value;
+        currentFilePath = targetPath;
+        currentFileDisplayName = fileName;
+        currentTemplateBaseName = '';
+        activeFileName.title = currentFilePath;
         updateFileTitleDisplay();
-        setStatus(`保存完了: ${currentFileDisplayName}`);
-        if (tabContentFile.classList.contains('active')) {
-          loadDirectory(currentDirPath);
+        setStatus(`保存完了: ${fileName}`);
+        if (tabContentFile && tabContentFile.classList.contains('active')) {
+          loadDirectory(currentDirPath || pathDirName(targetPath));
         }
         return true;
       } else {
@@ -1090,7 +1204,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  btnSave.addEventListener('click', saveFile);
+  if (btnNew) btnNew.addEventListener('click', newFile);
+  if (btnOpen) btnOpen.addEventListener('click', openFileDialogAction);
+  if (btnSave) btnSave.addEventListener('click', saveFile);
+  if (menuItemNew) menuItemNew.addEventListener('click', newFile);
+  if (menuItemOpen) menuItemOpen.addEventListener('click', openFileDialogAction);
+  if (menuItemSave) menuItemSave.addEventListener('click', saveFile);
+  if (menuItemSaveAs) menuItemSaveAs.addEventListener('click', saveFileAs);
 
   // --- エディタ操作 ---
   // エディタの表示（行番号と色分け）を更新する。
@@ -1148,6 +1268,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeEl = document.activeElement;
     const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
+    // Ctrl+N / Cmd+N で新規作成
+    if (isCmdOrCtrl && !e.shiftKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      newFile();
+      return;
+    }
+    // Ctrl+O / Cmd+O でファイルを開く
+    if (isCmdOrCtrl && !e.shiftKey && (e.key === 'o' || e.key === 'O')) {
+      e.preventDefault();
+      openFileDialogAction();
+      return;
+    }
+    // Ctrl+S / Cmd+S で保存 (Shift付きなら名前を付けて保存)
+    if (isCmdOrCtrl && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        saveFileAs();
+      } else {
+        saveFile();
+      }
+      return;
+    }
+    // Ctrl+B / Cmd+B でサイドバー切り替え
+    if (isCmdOrCtrl && !e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+      e.preventDefault();
+      toggleSidebar();
+      return;
+    }
     // F5 で実行
     if (e.key === 'F5') {
       e.preventDefault();
@@ -1164,12 +1312,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isCmdOrCtrl && e.key === 'Enter') {
       e.preventDefault();
       runCode();
-      return;
-    }
-    // Ctrl+S / Cmd+S で保存
-    if (isCmdOrCtrl && (e.key === 's' || e.key === 'S')) {
-      e.preventDefault();
-      saveFile();
       return;
     }
     // Ctrl+L でログ消去
@@ -1478,6 +1620,9 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             labelRevealFinder.textContent = 'ファイルマネージャーで表示';
           }
+        }
+        if (info.initialFile) {
+          openFile(info.initialFile, pathBaseName(info.initialFile));
         }
       } catch {
         versionInfo.textContent = `gonako-gui`;

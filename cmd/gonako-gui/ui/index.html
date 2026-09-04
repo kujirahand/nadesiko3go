@@ -15,13 +15,23 @@
         <span class="title">なでしこ3 GUI</span>
       </div>
       <div class="toolbar-actions">
-        <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (F5 / Ctrl+R / Cmd+R)">
-          <span class="icon">▶</span> 実行 (F5)
+        <!-- ファイル操作 -->
+        <button id="btn-new" class="btn btn-secondary" title="新規作成 (Ctrl+N / Cmd+N)">
+          <span class="icon">📄</span> 新規
         </button>
-        <button id="btn-save" class="btn btn-secondary" title="現在のファイルを上書き保存 (Ctrl+S / Cmd+S)">
+        <button id="btn-open" class="btn btn-secondary" title="ファイルを開く (Ctrl+O / Cmd+O)">
+          <span class="icon">📂</span> 開く
+        </button>
+        <button id="btn-save" class="btn btn-secondary" title="ファイルを保存 (Ctrl+S / Cmd+S)">
           <span class="icon">💾</span> 保存
         </button>
         <div class="separator"></div>
+        <!-- 実行 -->
+        <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (F5 / Ctrl+R / Cmd+R)">
+          <span class="icon">▶</span> 実行 (F5)
+        </button>
+        <div class="separator"></div>
+        <!-- アプリ種類 -->
         <div class="app-type-group">
           <label for="select-app-type" class="label-app-type">種類:</label>
           <select id="select-app-type" class="select-app-type" title="実行するアプリの種類を選択">
@@ -30,16 +40,34 @@
           </select>
         </div>
         <div class="separator"></div>
+        <!-- サイドバー開閉 -->
+        <button id="btn-toggle-sidebar" class="btn btn-secondary btn-icon-only active" title="ツールパネルの表示/非表示 (Ctrl+B / Cmd+B)">
+          <span class="icon">📖</span>
+        </button>
         <!-- ハンバーガーメニュー -->
         <div class="menu-dropdown-wrapper">
           <button id="btn-hamburger" class="btn-hamburger" title="メニュー">☰</button>
           <div id="hamburger-menu" class="hamburger-menu" style="display: none;">
+            <button id="menu-item-new" class="menu-item">
+              <span class="menu-icon">📄</span> 新規作成
+            </button>
+            <button id="menu-item-open" class="menu-item">
+              <span class="menu-icon">📂</span> ファイルを開く...
+            </button>
+            <button id="menu-item-save" class="menu-item">
+              <span class="menu-icon">💾</span> 保存
+            </button>
+            <button id="menu-item-save-as" class="menu-item">
+              <span class="menu-icon">📑</span> 名前を付けて保存...
+            </button>
+            <div class="menu-separator"></div>
             <button id="menu-item-build-app" class="menu-item" title="開いているファイルをメインにして、そのフォルダ以下を1つの実行ファイルに梱包します">
               <span class="menu-icon">📦</span> このフォルダを実行ファイルに変換
             </button>
             <button id="menu-item-go-build" class="menu-item" title="開いているなでしこプログラムをGo言語のソースに変換し、go buildでネイティブ実行ファイルにします">
               <span class="menu-icon">🔧</span> Go言語でビルド
             </button>
+            <div class="menu-separator"></div>
             <button id="menu-item-shortcuts" class="menu-item">
               <span class="menu-icon">⌨️</span> ショートカットキー一覧
             </button>
@@ -183,6 +211,22 @@
             </thead>
             <tbody>
               <tr>
+                <td><kbd>Ctrl</kbd> + <kbd>N</kbd> / <kbd>Cmd</kbd> + <kbd>N</kbd></td>
+                <td>新規作成</td>
+              </tr>
+              <tr>
+                <td><kbd>Ctrl</kbd> + <kbd>O</kbd> / <kbd>Cmd</kbd> + <kbd>O</kbd></td>
+                <td>ファイルを開く</td>
+              </tr>
+              <tr>
+                <td><kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd></td>
+                <td>ファイルを保存</td>
+              </tr>
+              <tr>
+                <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td>
+                <td>名前を付けて保存</td>
+              </tr>
+              <tr>
                 <td><kbd>F5</kbd></td>
                 <td>プログラムを実行</td>
               </tr>
@@ -195,8 +239,8 @@
                 <td>プログラムを実行</td>
               </tr>
               <tr>
-                <td><kbd>Ctrl</kbd> + <kbd>S</kbd> / <kbd>Cmd</kbd> + <kbd>S</kbd></td>
-                <td>ファイルを上書き保存</td>
+                <td><kbd>Ctrl</kbd> + <kbd>B</kbd> / <kbd>Cmd</kbd> + <kbd>B</kbd></td>
+                <td>ツールパネルの表示/非表示</td>
               </tr>
               <tr>
                 <td><kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>Cmd</kbd> + <kbd>C</kbd></td>
