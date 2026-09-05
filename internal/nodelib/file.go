@@ -18,11 +18,11 @@ func constants() map[string]any {
 	return map[string]any{
 		"改行コード":          "\n",
 		"パス区切":           string(filepath.Separator),
-		"ナデシコランタイム":       "gonako",
-		"ナデシコランタイムパス":     exe,
+		"ナデシコランタイム":      "gonako",
+		"ナデシコランタイムパス":    exe,
 		"母艦パス":           "",
 		"ファイルコピーデフォルト動作": "上書禁止",
-		"AJAXオプション":       "",
+		"AJAXオプション":      "",
 		"圧縮解凍ツールパス":      "zip",
 	}
 }

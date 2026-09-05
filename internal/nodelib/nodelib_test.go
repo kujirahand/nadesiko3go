@@ -659,4 +659,3 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
-
