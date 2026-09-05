@@ -65,8 +65,11 @@
     let frame = 0;
 
     function syncScroll() {
-      layer.scrollTop = textarea.scrollTop;
-      layer.scrollLeft = textarea.scrollLeft;
+      // scrollTop/scrollLeftをそのまま代入すると、textareaにスクロールバーが
+      // 出たときに両レイヤーの最大スクロール量が異なり、最下部で値が丸められる。
+      // 描画レイヤー自体を移動すれば、textareaと同じ量を常に反映できる。
+      layer.style.transform =
+        'translate(' + (-textarea.scrollLeft) + 'px, ' + (-textarea.scrollTop) + 'px)';
     }
 
     function paint() {
