@@ -56,25 +56,33 @@ func urlImpls(m map[string]Impl) {
 	}
 	m["終端パス追加"] = func(_ Context, a []value.Value) (value.Value, error) {
 		s := str(a, 0)
-		if s == "" || strings.HasSuffix(s, "/") {
+		if s == "" || strings.HasSuffix(s, "/") || strings.HasSuffix(s, `\`) {
 			return value.String(s), nil
 		}
-		return value.String(s + "/"), nil
+		sep := "/"
+		if strings.Contains(s, `\`) {
+			sep = `\`
+		}
+		return value.String(s + sep), nil
 	}
 	m["終端パス除去"] = func(_ Context, a []value.Value) (value.Value, error) {
-		return value.String(strings.TrimSuffix(str(a, 0), "/")), nil
+		s := str(a, 0)
+		if strings.HasSuffix(s, "/") || strings.HasSuffix(s, `\`) {
+			return value.String(s[:len(s)-1]), nil
+		}
+		return value.String(s), nil
 	}
 	m["終端パス削除"] = m["終端パス除去"]
 	m["パス抽出"] = func(_ Context, a []value.Value) (value.Value, error) {
 		s := str(a, 0)
-		if i := strings.LastIndex(s, "/"); i >= 0 {
+		if i := lastPathSep(s); i >= 0 {
 			return value.String(s[:i]), nil
 		}
 		return value.String(""), nil
 	}
 	m["ファイル名抽出"] = func(_ Context, a []value.Value) (value.Value, error) {
 		s := str(a, 0)
-		if i := strings.LastIndex(s, "/"); i >= 0 {
+		if i := lastPathSep(s); i >= 0 {
 			return value.String(s[i+1:]), nil
 		}
 		return value.String(s), nil
@@ -84,12 +92,12 @@ func urlImpls(m map[string]Impl) {
 		if ext != "" && !strings.HasPrefix(ext, ".") {
 			ext = "." + ext
 		}
-		old := path.Ext(name)
+		old := path.Ext(strings.ReplaceAll(name, `\`, "/"))
 		return value.String(strings.TrimSuffix(name, old) + ext), nil
 	}
 	m["拡張子抽出"] = func(_ Context, a []value.Value) (value.Value, error) {
 		s := str(a, 0)
-		if i := strings.LastIndex(s, "/"); i >= 0 {
+		if i := lastPathSep(s); i >= 0 {
 			s = s[i+1:]
 		}
 		if i := strings.LastIndex(s, "."); i >= 0 {
@@ -97,4 +105,13 @@ func urlImpls(m map[string]Impl) {
 		}
 		return value.String(""), nil
 	}
+}
+
+func lastPathSep(s string) int {
+	i1 := strings.LastIndex(s, "/")
+	i2 := strings.LastIndex(s, `\`)
+	if i1 > i2 {
+		return i1
+	}
+	return i2
 }

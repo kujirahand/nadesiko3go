@@ -378,6 +378,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	initialWorkingDir, _ := os.Getwd()
 	targetDir := *dirFlag
 	targetURL := *urlFlag
 	startPage := "index.html"
@@ -465,11 +466,27 @@ func main() {
 	guiRegistry := stdlib.NewRegistry(guiPlugins()...)
 
 	// Go ↔ JavaScript バインディング: なでしこコードの実行
-	_ = w.Bind("runNakoCode", func(code string) string {
+	_ = w.Bind("runNakoCode", func(code string, filePath string) string {
+		origDir, _ := os.Getwd()
+		defer func() {
+			_ = os.Chdir(origDir)
+		}()
+
+		runFile := filePath
+		if runFile != "" {
+			scriptDir := filepath.Dir(runFile)
+			if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
+				_ = os.Chdir(scriptDir)
+			}
+		} else {
+			_ = os.Chdir(initialWorkingDir)
+			runFile = "gui.nako3"
+		}
+
 		var outBuf strings.Builder
 		host := vm.NewCUIHost(&outBuf, strings.NewReader(""), nil)
 
-		runErr := vm.RunWithHostAndRegistry(code, "gui.nako3", guiRegistry, host)
+		runErr := vm.RunWithHostAndRegistry(code, runFile, guiRegistry, host)
 		result := RunResult{
 			OK:     runErr == nil,
 			Output: outBuf.String(),

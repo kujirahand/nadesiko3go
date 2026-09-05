@@ -117,12 +117,20 @@ var reservedWords = map[string]TokenType{
 	"厳チェック":        "厳チェック", // (#1698)
 }
 
+// reservedWordsList lists every reserved word in insertion order matching nako_reserved_words.mjs.
+var reservedWordsList = []string{
+	"もし", "回", "回繰返", "間", "間繰返", "繰返", "増繰返", "減繰返",
+	"後判定", "反復", "抜", "続", "戻", "先", "次", "代入",
+	"実行速度優先", "パフォーマンスモニタ適用", "定", "逐次実行",
+	"条件分岐", "増", "減", "変数", "定数", "エラー監視", "エラー",
+	"それ", "そう", "関数", "インデント構文", "非同期モード", "DNCLモード",
+	"DNCL2モード", "モード設定", "取込", "モジュール公開既定値", "厳チェック",
+}
+
 // ReservedWords lists every reserved word, for plugin_system::予約語一覧取得.
 func ReservedWords() []string {
-	out := make([]string, 0, len(reservedWords))
-	for k := range reservedWords {
-		out = append(out, k)
-	}
+	out := make([]string, len(reservedWordsList))
+	copy(out, reservedWordsList)
 	return out
 }
 

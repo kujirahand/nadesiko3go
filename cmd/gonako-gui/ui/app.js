@@ -1463,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let result;
       if (typeof window.runNakoCode === 'function') {
-        result = await window.runNakoCode(code);
+        result = await window.runNakoCode(code, currentFilePath || '');
       } else {
         result = JSON.stringify({
           ok: true,
@@ -1525,8 +1525,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- スプリッター処理 ---
-  const splitterV = document.getElementById('splitter-v');
-  const sidebar = document.getElementById('sidebar');
   let isDraggingV = false;
 
   splitterV.addEventListener('mousedown', () => {

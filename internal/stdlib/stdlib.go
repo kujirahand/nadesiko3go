@@ -58,6 +58,8 @@ type Context interface {
 	// Now is owned by the VM event loop so tests and timer callbacks observe
 	// one deterministic clock.
 	Now() time.Time
+	// CurrentSourcePos returns the source filename and 1-based line number of the running command.
+	CurrentSourcePos() (file string, line int)
 }
 
 // Impl is a command implementation. Returning an error raises a nadesiko

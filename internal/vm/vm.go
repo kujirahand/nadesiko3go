@@ -63,6 +63,8 @@ type VM struct {
 
 	current            *frame
 	pendingTimerTarget float64
+	bokanPath          string
+	currentPos         int
 
 	// isLeaf flags functions that do not create closures or capture variables,
 	// allowing their frames and cells to be reused.
@@ -147,6 +149,7 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 	}
 	globals := make([]*value.Cell, len(prog.Globals))
 	index := make(map[string]int, len(prog.Globals))
+	bokan := computeBokanPath(prog.Sources)
 	for i, name := range prog.Globals {
 		index[name] = i
 		globals[i] = value.NewCell(!constGlobals[i])
@@ -157,20 +160,8 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		if name == "名前空間" && len(prog.Sources) > 0 {
 			globals[i].Value = value.String(filepath.Base(prog.Sources[0].Name))
 		}
-		if name == "母艦パス" && len(prog.Sources) > 0 && prog.Sources[0].Name != "" {
-			src := prog.Sources[0].Name
-			if src != "main.nako3" && src != "-" {
-				dir := filepath.Dir(src)
-				if abs, err := filepath.Abs(dir); err == nil {
-					globals[i].Value = value.String(abs)
-				} else {
-					globals[i].Value = value.String(dir)
-				}
-			} else {
-				if cwd, err := os.Getwd(); err == nil {
-					globals[i].Value = value.String(cwd)
-				}
-			}
+		if name == "母艦パス" {
+			globals[i].Value = value.String(bokan)
 		}
 	}
 
@@ -205,6 +196,8 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 		isLeaf:       isLeaf,
 		blockEnds:    blockEnds,
 		options:      options,
+		bokanPath:    bokan,
+		currentPos:   -1,
 	}
 	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
 	for id := ir.Special(0); id < ir.SpecialCount; id++ {
@@ -558,4 +551,18 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 		ret = m.run(f)
 	}
 	return ret
+}
+
+func computeBokanPath(sources []ir.SourceFile) string {
+	if len(sources) > 0 && sources[0].Name != "" && sources[0].Name != "main.nako3" && sources[0].Name != "gui.nako3" && sources[0].Name != "-" {
+		dir := filepath.Dir(sources[0].Name)
+		if abs, err := filepath.Abs(dir); err == nil {
+			return abs
+		}
+		return dir
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		return cwd
+	}
+	return ""
 }

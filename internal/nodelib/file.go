@@ -15,13 +15,12 @@ import (
 // constants are the values nodelib defines, such as the path separator.
 func constants() map[string]any {
 	exe, _ := os.Executable()
-	bokan := filepath.Dir(exe)
 	return map[string]any{
 		"改行コード":          "\n",
 		"パス区切":           string(filepath.Separator),
 		"ナデシコランタイム":       "gonako",
 		"ナデシコランタイムパス":     exe,
-		"母艦パス":           bokan,
+		"母艦パス":           "",
 		"ファイルコピーデフォルト動作": "上書禁止",
 		"AJAXオプション":       "",
 		"圧縮解凍ツールパス":      "zip",
@@ -213,7 +212,8 @@ func commands() map[string]command {
 
 	m["カレントディレクトリ変更"] = command{josi: [][]string{{"に", "へ"}}, returnNone: true,
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
-			return value.Undefined(), os.Chdir(str(a, 0))
+			dir := str(a, 0)
+			return value.Undefined(), os.Chdir(filepath.Clean(dir))
 		}}
 	m["作業フォルダ変更"] = m["カレントディレクトリ変更"]
 
@@ -246,11 +246,10 @@ func commands() map[string]command {
 		if v := ctx.SysVar("母艦パス"); v.Kind() == value.KindString && value.ToString(v) != "" {
 			return v, nil
 		}
-		exe, err := os.Executable()
-		if err != nil {
-			return value.String(""), nil
+		if cwd, err := os.Getwd(); err == nil {
+			return value.String(cwd), nil
 		}
-		return value.String(filepath.Dir(exe)), nil
+		return value.String(""), nil
 	}}
 
 	osCommands(m)
