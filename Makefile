@@ -32,6 +32,9 @@ release-cli:
 release-gui:
 	$(GO) run ./scripts/build-release.go -version $(VERSION) -platforms "$(PLATFORMS)" -skip-cli
 
+# 実行
+run-gui:
+	$(GO) run ./cmd/gonako-gui
 
 clean:
 	rm -rf bin out benchmark/build
