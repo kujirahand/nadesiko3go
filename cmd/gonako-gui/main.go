@@ -60,11 +60,12 @@ type RunResult struct {
 
 // AppInfo contains metadata about the running gonako-gui application.
 type AppInfo struct {
-	Version    string `json:"version"`
-	OS         string `json:"os"`
-	Arch       string `json:"arch"`
-	HomeDir    string `json:"homeDir"`
-	DesktopDir string `json:"desktopDir"`
+	Version     string `json:"version"`
+	OS          string `json:"os"`
+	Arch        string `json:"arch"`
+	HomeDir     string `json:"homeDir"`
+	DesktopDir  string `json:"desktopDir"`
+	InitialFile string `json:"initialFile,omitempty"`
 }
 
 // CommandItem describes a nadesiko command for the command palette/list.
@@ -377,9 +378,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	initialWorkingDir, _ := os.Getwd()
 	targetDir := *dirFlag
 	targetURL := *urlFlag
 	startPage := "index.html"
+	var initialFile string
 
 	// 位置引数の処理
 	if flags.NArg() > 0 && targetDir == "" && targetURL == "" {
@@ -395,8 +398,19 @@ func main() {
 			if info.IsDir() {
 				targetDir = arg
 			} else {
-				targetDir = filepath.Dir(arg)
-				startPage = filepath.Base(arg)
+				ext := strings.ToLower(filepath.Ext(arg))
+				if ext == ".html" || ext == ".htm" {
+					targetDir = filepath.Dir(arg)
+					startPage = filepath.Base(arg)
+				} else {
+					// .nako3 やテキストファイルは内蔵エディタで開く
+					absPath, err := filepath.Abs(arg)
+					if err == nil {
+						initialFile = absPath
+					} else {
+						initialFile = arg
+					}
+				}
 			}
 		}
 	}
@@ -452,11 +466,27 @@ func main() {
 	guiRegistry := stdlib.NewRegistry(guiPlugins()...)
 
 	// Go ↔ JavaScript バインディング: なでしこコードの実行
-	_ = w.Bind("runNakoCode", func(code string) string {
+	_ = w.Bind("runNakoCode", func(code string, filePath string) string {
+		origDir, _ := os.Getwd()
+		defer func() {
+			_ = os.Chdir(origDir)
+		}()
+
+		runFile := filePath
+		if runFile != "" {
+			scriptDir := filepath.Dir(runFile)
+			if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
+				_ = os.Chdir(scriptDir)
+			}
+		} else {
+			_ = os.Chdir(initialWorkingDir)
+			runFile = "gui.nako3"
+		}
+
 		var outBuf strings.Builder
 		host := vm.NewCUIHost(&outBuf, strings.NewReader(""), nil)
 
-		runErr := vm.RunWithHostAndRegistry(code, "gui.nako3", guiRegistry, host)
+		runErr := vm.RunWithHostAndRegistry(code, runFile, guiRegistry, host)
 		result := RunResult{
 			OK:     runErr == nil,
 			Output: outBuf.String(),
@@ -472,11 +502,12 @@ func main() {
 	_ = w.Bind("getAppInfo", func() string {
 		home, _ := os.UserHomeDir()
 		info := AppInfo{
-			Version:    appVersion,
-			OS:         runtime.GOOS,
-			Arch:       runtime.GOARCH,
-			HomeDir:    home,
-			DesktopDir: getDesktopDir(),
+			Version:     appVersion,
+			OS:          runtime.GOOS,
+			Arch:        runtime.GOARCH,
+			HomeDir:     home,
+			DesktopDir:  getDesktopDir(),
+			InitialFile: initialFile,
 		}
 		b, _ := json.Marshal(info)
 		return string(b)
@@ -546,6 +577,52 @@ func main() {
 			res.Error = err.Error()
 		} else {
 			res.OK = true
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: OSファイル選択ダイアログ
+	_ = w.Bind("showOpenFileDialog", func(defaultDir string) string {
+		path, err := showOpenFileDialog(defaultDir)
+		res := struct {
+			OK       bool   `json:"ok"`
+			Path     string `json:"path,omitempty"`
+			Canceled bool   `json:"canceled,omitempty"`
+			Error    string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else if path == "" {
+			res.OK = true
+			res.Canceled = true
+		} else {
+			res.OK = true
+			res.Path = path
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: OSファイル保存ダイアログ
+	_ = w.Bind("showSaveFileDialog", func(defaultDir, defaultName string) string {
+		path, err := showSaveFileDialog(defaultDir, defaultName)
+		res := struct {
+			OK       bool   `json:"ok"`
+			Path     string `json:"path,omitempty"`
+			Canceled bool   `json:"canceled,omitempty"`
+			Error    string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else if path == "" {
+			res.OK = true
+			res.Canceled = true
+		} else {
+			res.OK = true
+			res.Path = path
 		}
 		b, _ := json.Marshal(res)
 		return string(b)

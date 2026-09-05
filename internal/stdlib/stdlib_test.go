@@ -51,6 +51,7 @@ func (c *fakeContext) ReadResource(string) ([]byte, bool)                   { re
 func (c *fakeContext) Now() time.Time {
 	return time.Date(2026, 9, 1, 12, 34, 56, 0, time.Local)
 }
+func (c *fakeContext) CurrentSourcePos() (string, int) { return "", 0 }
 
 // TestEveryImplementationIsDeclared guards against an implementation whose name
 // does not appear in the signature table, which would never be reachable.

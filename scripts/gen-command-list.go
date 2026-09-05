@@ -36,7 +36,7 @@ var (
 	// // @カテゴリー名
 	catRe = regexp.MustCompile(`^\s*//\s*@([^@\n\r/]+)$`)
 	// josi: [...]
-	josiRe = regexp.MustCompile(`josi\s*:\s*(\[[^;{}]+\])`)
+	josiRe = regexp.MustCompile(`josi\s*:\s*(\[[^;{}]*\])`)
 )
 
 func parseJosi(raw string) [][]string {
@@ -105,6 +105,12 @@ func parseTSPlugins() map[string]CommandDoc {
 
 				var josi [][]string
 				for j := i; j < i+12 && j < len(lines); j++ {
+					if j > i {
+						trimmed := strings.TrimSpace(lines[j])
+						if cmdHeaderRe.MatchString(lines[j]) || trimmed == "}," || trimmed == "}" {
+							break
+						}
+					}
 					if jm := josiRe.FindStringSubmatch(lines[j]); len(jm) > 1 {
 						josi = parseJosi(jm[1])
 						break
@@ -159,6 +165,30 @@ func makeTemplate(name string, josi [][]string) string {
 
 func goSpecificDocs() map[string]CommandDoc {
 	return map[string]CommandDoc{
+		"ファイル選択": {
+			Name:     "ファイル選択",
+			Type:     "func",
+			Josi:     [][]string{{"の"}},
+			Category: "GUI",
+			Desc:     "指定した拡張子のファイルをOS標準ダイアログで選択してパスを返す",
+			Template: "【拡張子】のファイル選択",
+		},
+		"保存ファイル選択": {
+			Name:     "保存ファイル選択",
+			Type:     "func",
+			Josi:     [][]string{{"の"}},
+			Category: "GUI",
+			Desc:     "指定した拡張子の保存先をOS標準ダイアログで選択してパスを返す",
+			Template: "【拡張子】の保存ファイル選択",
+		},
+		"フォルダ選択": {
+			Name:     "フォルダ選択",
+			Type:     "func",
+			Josi:     [][]string{{"で", "から", "の"}},
+			Category: "GUI",
+			Desc:     "指定したフォルダを開始位置としてOS標準ダイアログでフォルダを選択しパスを返す",
+			Template: "【開始フォルダ】でフォルダ選択",
+		},
 		"ウィンドウ作成": {
 			Name:     "ウィンドウ作成",
 			Type:     "func",
@@ -335,6 +365,9 @@ func main() {
 		if len(item.Josi) > 0 {
 			doc.Josi = item.Josi
 			doc.Template = makeTemplate(name, item.Josi)
+		} else if len(doc.Josi) == 0 {
+			doc.Josi = nil
+			doc.Template = name
 		} else if doc.Template == "" {
 			doc.Template = makeTemplate(name, doc.Josi)
 		}

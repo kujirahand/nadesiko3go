@@ -2,7 +2,7 @@
 
 # なでしこ3
 nadesiko3/
-manual/
+manual
 homebrew-nadesiko3/
 
 *.exe
@@ -27,3 +27,6 @@ benchmark/build/
 # Dependency directories (remove the comment below to include it)
 # vendor/
 .gopath/
+
+# ai agents
+setting.json

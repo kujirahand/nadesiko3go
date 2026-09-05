@@ -13,12 +13,14 @@ import (
 	"github.com/webview/webview_go"
 )
 
-// Plugin is the GUI command set for WebView window operations.
-type Plugin struct{}
+// Plugin is the GUI command set for WebView and native dialog operations.
+type Plugin struct {
+	dialogs fileDialogs
+}
 
 // New creates a new guilib plugin instance.
 func New() *Plugin {
-	return &Plugin{}
+	return &Plugin{dialogs: nativeFileDialogs()}
 }
 
 type command struct {
@@ -53,12 +55,52 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
+		"ファイル選択": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdSelectFile,
+		},
+		"保存ファイル選択": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdSelectSaveFile,
+		},
+		"フォルダ選択": {
+			josi: [][]string{{"で", "から", "の"}},
+			fn:   p.cmdSelectFolder,
+		},
 		"ウィンドウ作成": {
 			josi:       [][]string{{"で", "による"}, {"の", "を", "から"}},
 			returnNone: true,
 			fn:         p.cmdCreateWindow,
 		},
 	}
+}
+
+func (p *Plugin) cmdSelectFile(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	path, err := p.dialogs.open(
+		normalizeDefaultDir(contextBaseDir(ctx)),
+		normalizeExtension(value.ToString(arg(args, 0))),
+	)
+	if err != nil {
+		return value.String(""), err
+	}
+	return value.String(path), nil
+}
+
+func (p *Plugin) cmdSelectSaveFile(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	extension := normalizeExtension(value.ToString(arg(args, 0)))
+	path, err := p.dialogs.save(normalizeDefaultDir(contextBaseDir(ctx)), defaultFileName(extension), extension)
+	if err != nil {
+		return value.String(""), err
+	}
+	return value.String(addDefaultExtension(path, extension)), nil
+}
+
+func (p *Plugin) cmdSelectFolder(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	path, err := p.dialogs.folder(normalizeDefaultDir(value.ToString(arg(args, 0))))
+	if err != nil {
+		return value.String(""), err
+	}
+	return value.String(path), nil
 }
 
 func arg(args []value.Value, i int) value.Value {

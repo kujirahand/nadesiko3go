@@ -44,7 +44,7 @@ body {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 8px 16px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
@@ -52,38 +52,24 @@ body {
   z-index: 10;
 }
 
-.toolbar-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.toolbar-brand .logo {
-  font-size: 20px;
-}
-
-.toolbar-brand .title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--accent-pink);
-  letter-spacing: 0.5px;
-}
-
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   position: relative;
+  flex: 1;
+  min-width: 0;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.15s ease;
@@ -147,6 +133,8 @@ body {
 /* ハンバーガーメニュー */
 .menu-dropdown-wrapper {
   position: relative;
+  /* ツールバーの右端に寄せる */
+  margin-left: auto;
 }
 
 .btn-hamburger {
@@ -200,6 +188,21 @@ body {
   color: var(--accent-pink);
 }
 
+.btn-icon-only {
+  padding: 6px 10px;
+}
+
+.btn-icon-only.active {
+  background-color: var(--border-color);
+  color: var(--accent-pink);
+}
+
+.menu-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
 .menu-icon {
   font-size: 14px;
 }
@@ -245,6 +248,15 @@ body {
   flex-direction: column;
   border-right: 1px solid var(--border-color);
   overflow: hidden;
+  transition: width 0.1s ease;
+}
+
+.sidebar.collapsed {
+  display: none !important;
+}
+
+.splitter-v.collapsed {
+  display: none !important;
 }
 
 .sidebar-tabs {
@@ -1090,5 +1102,4 @@ kbd {
 .btn-danger:hover {
   background: rgba(235, 111, 146, 0.3);
 }
-
 

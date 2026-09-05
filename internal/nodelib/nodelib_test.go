@@ -222,6 +222,68 @@ func TestBokanPathWhenRunningFile(t *testing.T) {
 	}
 }
 
+func TestBokanPathFunctionOnly(t *testing.T) {
+	dir := t.TempDir()
+	subdir := filepath.Join(dir, "only_func")
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(subdir, "test.nako3")
+	// Notice: variable `母艦パス` is never mentioned here, only `母艦パス取得`
+	code := `(母艦パス取得)を表示`
+	if err := os.WriteFile(path, []byte(code), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	if err := vm.RunFile(path, host); err != nil {
+		t.Fatal(err)
+	}
+	absSubdir, _ := filepath.Abs(subdir)
+	if got := strings.TrimRight(out.String(), "\n"); got != absSubdir {
+		t.Errorf("出力 = %q, want %q", got, absSubdir)
+	}
+}
+
+func TestPathCommandsWithBackslash(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `
+「名前: {『C:\Users\foo\bar.txt』のファイル名抽出}」と表示
+「パス: {『C:\Users\foo\bar.txt』のパス抽出}」と表示
+「拡張子: {『C:\Users\foo\bar.txt』の拡張子抽出}」と表示
+「終端除去: {『C:\Users\foo\bar\』の終端パス除去}」と表示
+「終端追加: {『C:\Users\foo\bar』の終端パス追加}」と表示
+`)
+	want := strings.Join([]string{
+		"名前: bar.txt",
+		`パス: C:\Users\foo`,
+		"拡張子: .txt",
+		`終端除去: C:\Users\foo\bar`,
+		`終端追加: C:\Users\foo\bar\`,
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestChdirCleanPath(t *testing.T) {
+	orig, _ := os.Getwd()
+	defer func() { _ = os.Chdir(orig) }()
+
+	dir := t.TempDir()
+	subdir := filepath.Join(dir, "target")
+	_ = os.MkdirAll(subdir, 0o755)
+
+	// Test changing directory with trailing slash / backslash
+	trailing := subdir + string(filepath.Separator)
+	got := runIn(t, dir, fmt.Sprintf("「%s」に作業フォルダ変更\n(作業フォルダ取得)を表示", strings.ReplaceAll(trailing, `\`, `\\`)))
+	realSub, _ := filepath.EvalSymlinks(subdir)
+	realGot, _ := filepath.EvalSymlinks(got)
+	if realGot != realSub {
+		t.Errorf("作業フォルダ取得 = %q, want %q", got, subdir)
+	}
+}
+
 func TestCryptoCommands(t *testing.T) {
 	dir := t.TempDir()
 	got := runIn(t, dir, `
@@ -597,4 +659,3 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
 }
-

@@ -536,6 +536,9 @@ func (m *VM) loadGlobalByName(name string) value.Value {
 	if i, ok := m.globalIndex[name]; ok {
 		return m.globals[i].Get()
 	}
+	if name == "母艦パス" && m.bokanPath != "" {
+		return value.String(m.bokanPath)
+	}
 	if v, ok := m.registry.Const(name); ok {
 		return v
 	}
@@ -609,6 +612,7 @@ func (m *VM) makeClosureFrom(index int, locals, captures []*value.Cell) *value.F
 
 // callStd runs a standard library command.
 func (m *VM) callStd(id int, args []value.Value, pos int) value.Value {
+	m.currentPos = pos
 	e := m.registry.Entry(id)
 	if e == nil {
 		m.failAt(fmt.Sprintf("命令が見つかりません: %d", id), pos)
@@ -898,3 +902,11 @@ func (m *VM) CallCommand(name string, args []value.Value) (value.Value, error) {
 func (m *VM) CommandState(name string) value.Value { return m.commandState[name] }
 
 func (m *VM) SetCommandState(name string, v value.Value) { m.commandState[name] = v }
+
+func (m *VM) CurrentSourcePos() (file string, line int) {
+	if m.currentPos >= 0 && m.currentPos < len(m.prog.Positions) {
+		p := m.prog.Positions[m.currentPos]
+		return m.fileName(p.Source), p.Line + 1
+	}
+	return "", 0
+}

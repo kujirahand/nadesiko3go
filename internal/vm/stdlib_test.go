@@ -374,3 +374,48 @@ func TestAliasesAndPoliteCommands(t *testing.T) {
 		})
 	}
 }
+
+func TestDebugPrint(t *testing.T) {
+	// Line 1: string
+	// Line 2: array -> JSON
+	// Line 3: dict -> JSON
+	code := `「テスト」をデバッグ表示
+[1, 2, 3]をデバッグ表示
+D={}
+D["a"]=10
+Dをデバッグ表示`
+	got := run(t, code)
+	want := "main.nako3(1): テスト\nmain.nako3(2): [1,2,3]\nmain.nako3(5): {\"a\":10}"
+	if got != want {
+		t.Errorf("デバッグ表示 output =\n%q\nwant:\n%q", got, want)
+	}
+}
+
+func TestReservedWordsAndJosiList(t *testing.T) {
+	code := `
+R=予約語一覧取得
+J=助詞一覧取得
+I1 = (Rから「もし」を配列検索 >= 0)
+I2 = (Rから「厳チェック」を配列検索 >= 0)
+I3 = (Jから「について」を配列検索 >= 0)
+I4 = (Jから「から」を配列検索 >= 0)
+「予約語数: {Rの要素数 > 30}」を表示
+「予約語もし: {I1}」を表示
+「予約語厳チェック: {I2}」を表示
+「助詞数: {Jの要素数 > 30}」を表示
+「助詞について: {I3}」を表示
+「助詞から: {I4}」を表示
+`
+	got := run(t, code)
+	want := strings.Join([]string{
+		"予約語数: true",
+		"予約語もし: true",
+		"予約語厳チェック: true",
+		"助詞数: true",
+		"助詞について: true",
+		"助詞から: true",
+	}, "\n")
+	if got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"sort"
@@ -9,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kujirahand/nadesiko3go/internal/lexer"
+	"github.com/kujirahand/nadesiko3go/internal/lexer/josi"
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
@@ -212,7 +215,25 @@ func implementations() map[string]Impl {
 		return value.Number(float64(time.Since(start).Nanoseconds()) / 1e6), nil
 	}
 	m["デバッグ表示"] = func(ctx Context, args []value.Value) (value.Value, error) {
-		ctx.Print(value.ToString(arg(args, 0)))
+		v := arg(args, 0)
+		var s string
+		if v.Kind() == value.KindArray || v.Kind() == value.KindDict {
+			if jsonStr, err := encodeJSON(v); err == nil {
+				s = jsonStr
+			} else {
+				s = value.ToString(v)
+			}
+		} else {
+			s = value.ToString(v)
+		}
+		fname, line := ctx.CurrentSourcePos()
+		var prefix string
+		if fname != "" && line > 0 {
+			prefix = fmt.Sprintf("%s(%d): ", fname, line)
+		} else if line > 0 {
+			prefix = fmt.Sprintf("(%d): ", line)
+		}
+		ctx.Print(prefix + s)
 		return value.Undefined(), nil
 	}
 	m["ハテナ関数設定"] = func(ctx Context, args []value.Value) (value.Value, error) {
@@ -290,10 +311,10 @@ func implementations() map[string]Impl {
 	}
 	m["モジュール一覧取得"] = m["プラグイン一覧取得"]
 	m["予約語一覧取得"] = func(_ Context, _ []value.Value) (value.Value, error) {
-		return stringsToArray([]string{"もし", "違えば", "ここまで", "反復", "繰返", "回"}), nil
+		return stringsToArray(lexer.ReservedWords()), nil
 	}
 	m["助詞一覧取得"] = func(_ Context, _ []value.Value) (value.Value, error) {
-		return stringsToArray([]string{"から", "まで", "を", "に", "へ", "で", "と", "の", "が"}), nil
+		return stringsToArray(josi.List), nil
 	}
 
 	mathImpls(m)
