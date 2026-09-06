@@ -758,7 +758,10 @@ body {
   line-height: 1.6;
   tab-size: 4;
   white-space: pre;
-  overflow: hidden;
+  /* host側で切り抜き、スクロールはtransformで正確に同期する */
+  overflow: visible;
+  transform-origin: top left;
+  will-change: transform;
   color: var(--text-main);
   pointer-events: none;
 }

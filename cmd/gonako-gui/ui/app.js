@@ -1263,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
   editor.addEventListener('click', updateCursorPos);
 
   // グローバルおよびエディタのキーボードショートカット対応
-  window.addEventListener('keydown', async (e) => {
+  window.addEventListener('keydown', (e) => {
     const isCmdOrCtrl = e.ctrlKey || e.metaKey;
     const activeEl = document.activeElement;
     const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
@@ -1341,75 +1341,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // [Cmd]+[C] / [Ctrl]+[C] --- コピー
-    if (isCmdOrCtrl && (e.key === 'c' || e.key === 'C')) {
-      const target = isInput ? activeEl : editor;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-      if (start !== undefined && end !== undefined && start !== end) {
-        const selectedText = target.value.substring(start, end);
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(selectedText);
-            setStatus('選択範囲をコピーしました');
-          }
-        } catch (err) {}
-      }
-      return;
-    }
-
-    // [Cmd]+[X] / [Ctrl]+[X] --- 切り取り
-    if (isCmdOrCtrl && (e.key === 'x' || e.key === 'X')) {
-      const target = isInput ? activeEl : editor;
-      const start = target.selectionStart;
-      const end = target.selectionEnd;
-      if (start !== undefined && end !== undefined && start !== end) {
-        const selectedText = target.value.substring(start, end);
-        try {
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(selectedText);
-          }
-          e.preventDefault();
-          target.value = target.value.substring(0, start) + target.value.substring(end);
-          target.selectionStart = target.selectionEnd = start;
-          if (target === editor) {
-            updateFileTitleDisplay();
-            updateLineNumbers();
-            updateCharCount();
-            updateCursorPos();
-          }
-          target.dispatchEvent(new Event('input', { bubbles: true }));
-          setStatus('選択範囲を切り取りました');
-        } catch (err) {}
-      }
-      return;
-    }
-
-    // [Cmd]+[V] / [Ctrl]+[V] --- 貼り付け
-    if (isCmdOrCtrl && (e.key === 'v' || e.key === 'V')) {
-      const target = isInput ? activeEl : editor;
-      try {
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          const text = await navigator.clipboard.readText();
-          if (text) {
-            e.preventDefault();
-            const start = target.selectionStart !== undefined ? target.selectionStart : target.value.length;
-            const end = target.selectionEnd !== undefined ? target.selectionEnd : start;
-            target.value = target.value.substring(0, start) + text + target.value.substring(end);
-            target.selectionStart = target.selectionEnd = start + text.length;
-            if (target === editor) {
-              updateFileTitleDisplay();
-              updateLineNumbers();
-              updateCharCount();
-              updateCursorPos();
-            }
-            target.dispatchEvent(new Event('input', { bubbles: true }));
-            setStatus('クリップボードから貼り付けました');
-          }
-        }
-      } catch (err) {}
-      return;
-    }
+    // コピー・切り取り・貼り付けはWebViewの標準編集動作に任せる。
+    // navigator.clipboardでも同じ操作を行うと、標準貼り付けと重複する。
   });
 
   editor.addEventListener('keydown', (e) => {
