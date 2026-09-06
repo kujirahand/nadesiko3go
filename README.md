@@ -111,6 +111,13 @@ make build
 make release VERSION=3.8.1
 ```
 
+Windowsで`make`が無い場合は、`bat\`以下の同等バッチファイルを使えます。
+
+```bat
+bat\build.bat
+bat\release.bat 3.8.1
+```
+
 ----------------------------
 
 ## 「gnako-gui」「gonako」で実現できること
@@ -185,6 +192,9 @@ make sync-compat    # 本家の差分fixtureをGo側へ同期
 make compat-run     # 全ケースを実行して out/ へ出力
 make compat-check   # 本家のoracleと照合して通過率を出す
 ```
+
+Windowsで`make`が無い場合は`bat\`以下に同名のバッチファイルがあります
+（例: `bat\test.bat`, `bat\doctest.bat`, `bat\compat-run.bat`）。
 
 将来、GoとSQLiteを新しい確定版へ更新する場合は、バージョンを明示して実行します。
 
