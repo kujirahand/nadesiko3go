@@ -16,12 +16,12 @@
 
 **macOS / Linux (ターミナル):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.sh | bash
+curl -fsSL https://nadesi.com/install/gonako | bash
 ```
 
 **Windows (PowerShell):**
 ```powershell
-irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.ps1 | iex
+irm https://nadesi.com/install/gonako | iex
 ```
 
 ----------------------------

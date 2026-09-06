@@ -1,0 +1,12 @@
+# Apache mod_rewrite 設定
+# /install/gonako へのアクセスを /install/gonako.php へルーティングします。
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # /install/ ディレクトリ配下でのリライト
+    RewriteRule ^gonako/?$ gonako.php [L,QSA]
+
+    # 注意: 外部リダイレクト (HTTP 302) にしたい場合は下記を使用してください:
+    # RewriteRule ^gonako/?$ gonako.php [R=302,L,QSA]
+</IfModule>
