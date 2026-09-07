@@ -16,6 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
   const btnClearLog = document.getElementById('btn-clear-log');
   const btnCopyLog = document.getElementById('btn-copy-log');
+  const btnCloseOutput = document.getElementById('btn-close-output');
+  const paneOutput = document.getElementById('pane-output');
+  const splitterH = document.getElementById('splitter-h');
+  const paneEditor = document.querySelector('.pane-editor');
+  const mainPane = document.querySelector('.main-pane');
   const selectAppType = document.getElementById('select-app-type');
   const modeBadge = document.getElementById('mode-badge');
   const charCount = document.getElementById('char-count');
@@ -24,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusMsg = document.getElementById('status-msg');
   const versionInfo = document.getElementById('version-info');
   const activeFileName = document.getElementById('active-file-name');
+  let activeGUIRunID = 0;
+  let outputPanelOpen = true;
+  let editorLayoutBeforeOutputClose = null;
 
   // サイドバー & スプリッター要素
   const sidebar = document.getElementById('sidebar');
@@ -72,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const cmdList = document.getElementById('cmd-list');
   const cmdSortGroupBtn = document.getElementById('cmd-sort-group');
   const cmdSortNameBtn = document.getElementById('cmd-sort-name');
-  const collapsedCmdGroups = new Set();
+  // 通常はグループのルートだけを表示し、利用者が開いたものだけを記録する。
+  const expandedCmdGroups = new Set();
   let cmdSortMode = localStorage.getItem('gonako-cmd-sort-mode') || 'group';
 
   // ひな形タブ要素
@@ -81,13 +90,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const templateListElem = document.getElementById('template-list');
 
   // ファイルタブ要素
+  const btnFileRefresh = document.getElementById('btn-file-refresh');
   const btnFileUp = document.getElementById('btn-file-up');
-  const btnFileHome = document.getElementById('btn-file-home');
   const currentDirDisplay = document.getElementById('current-dir-display');
   const fileList = document.getElementById('file-list');
-  const btnNewFile = document.getElementById('btn-new-file');
+  const btnOpenFolder = document.getElementById('btn-open-folder');
+  const btnNewFolder = document.getElementById('btn-new-folder');
 
-  // ファイル右端「…」用コンテキストメニュー
+  // ファイル項目の右クリック用コンテキストメニュー
   const fileContextMenu = document.getElementById('file-context-menu');
   const menuOpenEditor = document.getElementById('menu-open-editor');
   const menuRevealFinder = document.getElementById('menu-reveal-finder');
@@ -100,13 +110,30 @@ document.addEventListener('DOMContentLoaded', () => {
   let parentDirPath = '';
   let homeDirPath = '';
   let desktopDirPath = '';
+  let hasLoadedFileList = false;
+  let isLoadingFileList = false;
   let currentFilePath = '';
   let currentFileDisplayName = '新規プログラム.nako3';
+  let currentFileEncoding = 'UTF-8';
   let currentTemplateBaseName = '';
   let savedContent = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
   let isBinaryFile = false; // PNGなど文字コード範囲外のファイルを開いている間はtrue
   let currentOS = ''; // getAppInfo() から受け取る 'darwin' / 'windows' / 'linux'
+  let dialogInputIMEComposing = false;
   const defaultEditorPlaceholder = editor.getAttribute('placeholder') || '';
+
+  dialogInput.addEventListener('compositionstart', () => {
+    dialogInputIMEComposing = true;
+  });
+  dialogInput.addEventListener('compositionend', () => {
+    dialogInputIMEComposing = false;
+  });
+
+  function isDialogIMEKeyEvent(event) {
+    // WKWebViewでは変換中でもisComposingが取れない場合があるため、
+    // compositionイベントの状態とIME入力を示すkeyCode=229も併用する。
+    return event.isComposing || dialogInputIMEComposing || event.keyCode === 229;
+  }
 
   // 初期プレースホルダー
   editor.value = savedContent;
@@ -160,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   tabBtnFile.addEventListener('click', () => {
     activateTab(tabBtnFile, tabContentFile);
-    if (!currentDirPath) {
+    if (!hasLoadedFileList && !isLoadingFileList) {
       loadDirectory(desktopDirPath || homeDirPath || '$DESKTOP');
     }
   });
@@ -219,7 +246,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function showPromptDialog(title, message, defaultValue = '') {
+  function showBinaryOpenConfirmDialog(filename) {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = 'テキストとして読み込みますか？';
+      dialogMessage.textContent =
+        `「${filename}」はUTF-8以外の文字コード、またはバイナリ形式です。\n` +
+        'テキストとして読み込む場合、Shift_JISからUTF-8へ変換して表示します。保存時はShift_JIS形式を維持します。';
+      dialogInputWrapper.style.display = 'none';
+      dialogBtnCancel.style.display = 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = '読み込む';
+      dialogOverlay.style.display = 'flex';
+      dialogBtnCancel.focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOpen);
+      }
+      function onCancel() {
+        cleanup();
+        resolve(false);
+      }
+      function onOpen() {
+        cleanup();
+        resolve(true);
+      }
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOpen);
+    });
+  }
+
+  function showPromptDialog(title, message, defaultValue = '', okLabel = '保存') {
     return new Promise((resolve) => {
       dialogTitle.textContent = title;
       dialogMessage.textContent = message;
@@ -230,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dialogBtnCancel.textContent = 'キャンセル';
       dialogBtnDiscard.style.display = 'none';
       dialogBtnOk.style.display = 'inline-flex';
-      dialogBtnOk.textContent = '保存';
+      dialogBtnOk.textContent = okLabel;
 
       dialogOverlay.style.display = 'flex';
       dialogInput.focus();
@@ -253,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resolve(val || null);
       }
       function onKeyDown(e) {
+        if (isDialogIMEKeyEvent(e)) return;
         if (e.key === 'Enter') {
           e.preventDefault();
           onOk();
@@ -292,6 +353,72 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       dialogBtnOk.addEventListener('click', onOk);
     });
+  }
+
+  function showNakoDialog(request) {
+    return new Promise((resolve) => {
+      const isPrompt = request.kind === 'prompt';
+      const isConfirm = request.kind === 'confirm';
+      dialogTitle.textContent = isPrompt ? '入力' : (isConfirm ? '確認' : 'メッセージ');
+      dialogMessage.textContent = request.message || '';
+      dialogInputWrapper.style.display = isPrompt ? 'block' : 'none';
+      dialogInput.value = '';
+
+      dialogBtnCancel.style.display = (isPrompt || isConfirm) ? 'inline-flex' : 'none';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = 'OK';
+      dialogOverlay.style.display = 'flex';
+      (isPrompt ? dialogInput : dialogBtnOk).focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOk);
+        dialogInput.removeEventListener('keydown', onKeyDown);
+      }
+      function onCancel() {
+        cleanup();
+        resolve({ text: '', accepted: false });
+      }
+      function onOk() {
+        const text = isPrompt ? dialogInput.value : '';
+        cleanup();
+        resolve({ text, accepted: true });
+      }
+      function onKeyDown(e) {
+        if (isDialogIMEKeyEvent(e)) return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          onOk();
+        } else if (e.key === 'Escape' && (isPrompt || isConfirm)) {
+          e.preventDefault();
+          onCancel();
+        }
+      }
+
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOk);
+      dialogInput.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  function parseBoundJSON(raw) {
+    return typeof raw === 'string' ? JSON.parse(raw) : raw;
+  }
+
+  async function waitForNakoRun(runId) {
+    for (;;) {
+      const status = parseBoundJSON(await window.pollNakoRun(runId));
+      if (status.dialog) {
+        const answer = await showNakoDialog(status.dialog);
+        await window.resolveNakoDialog(runId, status.dialog.id, answer.text, answer.accepted);
+        continue;
+      }
+      if (status.done) return status.result || { ok: false, error: '実行結果がありません。' };
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
   }
 
   // --- ハンバーガーメニュー・モーダル処理 ---
@@ -566,8 +693,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // バイナリファイル表示から抜けるとき（ひな形・新規ファイルの読み込み時）に呼ぶ
   function clearBinaryState() {
-    if (!isBinaryFile) return;
     isBinaryFile = false;
+    currentFileEncoding = 'UTF-8';
     editor.readOnly = false;
     editor.placeholder = defaultEditorPlaceholder;
   }
@@ -792,9 +919,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const groupNames = [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ja'));
 
+    const isSearching = cmdSearch.value.trim() !== '';
     groupNames.forEach(groupName => {
       const items = groups.get(groupName).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-      const collapsed = collapsedCmdGroups.has(groupName);
+      const collapsed = !isSearching && !expandedCmdGroups.has(groupName);
 
       const groupEl = document.createElement('div');
       groupEl.className = 'cmd-group' + (collapsed ? ' collapsed' : '');
@@ -807,10 +935,12 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="cmd-group-count">${items.length}件</span>
       `;
       header.addEventListener('click', () => {
-        if (collapsedCmdGroups.has(groupName)) {
-          collapsedCmdGroups.delete(groupName);
+        // 検索結果は常に見える状態を保つ。
+        if (isSearching) return;
+        if (groupEl.classList.contains('collapsed')) {
+          expandedCmdGroups.add(groupName);
         } else {
-          collapsedCmdGroups.add(groupName);
+          expandedCmdGroups.delete(groupName);
         }
         groupEl.classList.toggle('collapsed');
       });
@@ -837,6 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setCmdSortMode(mode) {
+    if (mode === 'group') expandedCmdGroups.clear();
     cmdSortMode = mode;
     localStorage.setItem('gonako-cmd-sort-mode', mode);
     cmdSortGroupBtn.classList.toggle('active', mode === 'group');
@@ -945,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fileList.innerHTML = '<div class="list-item"><span class="item-name">（ファイル一覧取得不可）</span></div>';
       return;
     }
+    isLoadingFileList = true;
     try {
       fileList.innerHTML = '<div class="list-item"><span class="item-name">読み込み中...</span></div>';
       const res = await window.listFiles(dirPath);
@@ -959,6 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
       parentDirPath = data.parentDir;
       currentDirDisplay.textContent = currentDirPath;
       currentDirDisplay.title = currentDirPath;
+      hasLoadedFileList = true;
 
       fileList.innerHTML = '';
       if (!data.items || data.items.length === 0) {
@@ -978,25 +1111,16 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="item-right">
             <span class="file-item-ext">${file.isDir ? 'フォルダ' : formatBytes(file.size)}</span>
-            <button class="item-more-btn" title="メニュー">…</button>
           </div>
         `;
 
-        item.addEventListener('click', async (e) => {
-          if (e.target.classList.contains('item-more-btn')) return;
+        item.addEventListener('click', async () => {
           if (file.isDir) {
             loadDirectory(file.path);
           } else {
             if (!(await confirmSaveIfDirty())) return;
             openFile(file.path, file.name);
           }
-        });
-
-        const moreBtn = item.querySelector('.item-more-btn');
-        moreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const rect = moreBtn.getBoundingClientRect();
-          openContextMenu(rect.left, rect.bottom + 4, file);
         });
 
         item.addEventListener('contextmenu', (e) => {
@@ -1009,6 +1133,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } catch (err) {
       console.error('ファイル一覧エラー:', err);
+    } finally {
+      isLoadingFileList = false;
     }
   }
 
@@ -1018,32 +1144,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  btnFileHome.addEventListener('click', () => {
-    loadDirectory(desktopDirPath || homeDirPath || '$DESKTOP');
+  btnFileRefresh.addEventListener('click', () => {
+    loadDirectory(currentDirPath || desktopDirPath || homeDirPath || '$DESKTOP');
   });
 
-  // 「＋ 新規ファイル」ボタンのクリック処理 (YYYY-MM-DD-新規-1.nako3 を自動生成)
-  btnNewFile.addEventListener('click', async () => {
-    if (typeof window.createNewFile !== 'function') {
-      await showAlertDialog('エラー', '新規ファイル作成機能が利用できません');
+  btnOpenFolder.addEventListener('click', async () => {
+    if (typeof window.revealInFinder !== 'function') {
+      await showAlertDialog('エラー', 'フォルダを開く機能が利用できません');
       return;
     }
-    if (!(await confirmSaveIfDirty())) return;
-
+    const folderPath = currentDirPath || desktopDirPath || homeDirPath;
+    if (!folderPath) return;
     try {
-      setStatus('新規ファイルを作成中...');
-      const res = await window.createNewFile(currentDirPath || desktopDirPath || homeDirPath);
+      const res = await window.revealInFinder(folderPath);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        await loadDirectory(currentDirPath);
-        await openFile(data.path, data.name);
-        setStatus(`新規ファイル「${data.name}」を作成して開きました`);
-      } else {
-        await showAlertDialog('作成エラー', `新規ファイルを作成できませんでした: ${data.error}`);
-        setStatus(`作成エラー: ${data.error}`);
+        setStatus(`フォルダを開きました: ${folderPath}`);
+      } else if (data.error) {
+        await showAlertDialog('フォルダを開けません', data.error);
       }
     } catch (err) {
-      console.error('新規ファイル作成エラー:', err);
+      console.error('フォルダを開く際のエラー:', err);
+    }
+  });
+
+  btnNewFolder.addEventListener('click', async () => {
+    if (typeof window.createNewFolder !== 'function') {
+      await showAlertDialog('エラー', '新規フォルダ作成機能が利用できません');
+      return;
+    }
+    const name = await showPromptDialog(
+      '新規フォルダ', '作成するフォルダ名を入力してください:', '新規フォルダ', '作成'
+    );
+    if (!name) return;
+    try {
+      const res = await window.createNewFolder(
+        currentDirPath || desktopDirPath || homeDirPath, name
+      );
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok) {
+        await loadDirectory(currentDirPath || pathDirName(data.path));
+        setStatus(`新規フォルダ「${name}」を作成しました`);
+      } else {
+        await showAlertDialog('作成エラー', `新規フォルダを作成できませんでした: ${data.error}`);
+      }
+    } catch (err) {
+      console.error('新規フォルダ作成エラー:', err);
     }
   });
 
@@ -1078,6 +1224,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
           await openFile(data.path, pathBaseName(data.path));
+          await loadDirectory(pathDirName(data.path));
           return;
         } else if (data.error) {
           console.error('OSダイアログエラー:', data.error);
@@ -1096,25 +1243,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.readFile !== 'function') return;
     try {
       setStatus(`ファイル読み込み中: ${fileName}...`);
-      const res = await window.readFile(filePath);
-      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      let res = await window.readFile(filePath, false);
+      let data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok && data.isBinary) {
+        if (!(await showBinaryOpenConfirmDialog(fileName))) {
+          setStatus(`読み込みをキャンセルしました: ${fileName}`);
+          return;
+        }
+        setStatus(`テキストとして読み込み中: ${fileName}...`);
+        res = await window.readFile(filePath, true);
+        data = typeof res === 'string' ? JSON.parse(res) : res;
+      }
       if (data.ok) {
-        isBinaryFile = !!data.isBinary;
-        editor.value = isBinaryFile ? '' : data.content;
-        editor.readOnly = isBinaryFile;
-        editor.placeholder = isBinaryFile
-          ? 'このファイルはバイナリ形式のため、エディタでは表示・編集できません。'
-          : defaultEditorPlaceholder;
+        isBinaryFile = false;
+        editor.value = data.content || '';
+        editor.readOnly = false;
+        editor.placeholder = defaultEditorPlaceholder;
         savedContent = editor.value;
         currentFilePath = filePath;
         currentFileDisplayName = fileName;
+        currentFileEncoding = data.encoding === 'Shift_JIS' ? 'Shift_JIS' : 'UTF-8';
         currentTemplateBaseName = '';
         activeFileName.title = filePath;
         updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
-        setStatus(isBinaryFile ? `編集不可(バイナリ): ${fileName}` : `開きました: ${fileName}`);
+        const conversion = data.converted ? ` (${data.encoding || 'UTF-8'}から変換)` : '';
+        setStatus(`開きました: ${fileName}${conversion}`);
       } else {
         await showAlertDialog('エラー', `ファイルを開けませんでした: ${data.error}`);
         setStatus(`エラー: ${data.error}`);
@@ -1178,7 +1334,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const fileName = pathBaseName(targetPath);
       setStatus(`保存中: ${fileName}...`);
-      const res = await window.saveFile(targetPath, editor.value);
+      const res = await window.saveFile(targetPath, editor.value, currentFileEncoding);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
         savedContent = editor.value;
@@ -1187,7 +1343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentTemplateBaseName = '';
         activeFileName.title = currentFilePath;
         updateFileTitleDisplay();
-        setStatus(`保存完了: ${fileName}`);
+        setStatus(`保存完了: ${fileName} (${currentFileEncoding})`);
         if (tabContentFile && tabContentFile.classList.contains('active')) {
           loadDirectory(currentDirPath || pathDirName(targetPath));
         }
@@ -1341,8 +1497,43 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // コピー・切り取り・貼り付けはWebViewの標準編集動作に任せる。
-    // navigator.clipboardでも同じ操作を行うと、標準貼り付けと重複する。
+    // メインエディタのコピー・切り取り・貼り付け。
+    // WKWebViewの標準編集ショートカットが届かない起動形態があるため、
+    // Go側のOSクリップボード橋渡しがある場合だけ標準動作を置き換える。
+    if (isCmdOrCtrl && activeEl === editor && !e.shiftKey && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if ((key === 'c' || key === 'x') && typeof window.writeClipboardText === 'function') {
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        if (start !== end) {
+          e.preventDefault();
+          const selectedText = editor.value.substring(start, end);
+          void window.writeClipboardText(selectedText).then(() => {
+            if (key === 'x') {
+              editor.setRangeText('', start, end, 'end');
+              editor.dispatchEvent(new Event('input', { bubbles: true }));
+              updateCursorPos();
+              setStatus('選択範囲を切り取りました');
+            } else {
+              setStatus('選択範囲をコピーしました');
+            }
+          }).catch(err => setStatus(`クリップボードエラー: ${err.message || err}`));
+        }
+        return;
+      }
+      if (key === 'v' && typeof window.readClipboardText === 'function') {
+        e.preventDefault();
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        void window.readClipboardText().then(text => {
+          editor.setRangeText(String(text ?? ''), start, end, 'end');
+          editor.dispatchEvent(new Event('input', { bubbles: true }));
+          updateCursorPos();
+          setStatus('クリップボードから貼り付けました');
+        }).catch(err => setStatus(`クリップボードエラー: ${err.message || err}`));
+        return;
+      }
+    }
   });
 
   editor.addEventListener('keydown', (e) => {
@@ -1377,7 +1568,124 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- なでしこプログラム実行処理 ---
+  function collectGUIValues() {
+    const values = {};
+    windowPreview.querySelectorAll('[data-gonako-handle]').forEach(el => {
+      if (el.matches('input, textarea, select')) {
+        values[el.dataset.gonakoHandle] = el.value;
+      }
+    });
+    return values;
+  }
+
+  function appendGUIOutput(text) {
+    if (!text) return;
+    if (output.textContent === '（出力なし）') output.textContent = '';
+    output.textContent += text;
+    output.className = 'output has-content';
+  }
+
+  async function sendGUIEvent(handle, eventName) {
+    if (!activeGUIRunID || typeof window.dispatchNakoEvent !== 'function') return;
+    try {
+      const raw = await window.dispatchNakoEvent(
+        activeGUIRunID, Number(handle), eventName, collectGUIValues()
+      );
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      appendGUIOutput(data.output || '');
+      applyGUIOperations(data.operations || []);
+      if (data.error) {
+        appendGUIOutput(`\n${data.error}\n`);
+        execStatus.textContent = 'イベントエラー';
+        execStatus.className = 'status-indicator error';
+        setStatus(`イベントエラー: ${data.error}`);
+      }
+    } catch (err) {
+      appendGUIOutput(`\n[イベントエラー] ${err.message || err}\n`);
+    }
+  }
+
+  function applyGUIOperations(operations) {
+    operations.forEach(op => {
+      const selector = `[data-gonako-handle="${op.handle}"]`;
+      if (op.type === 'create') {
+        const parent = op.parent
+          ? windowPreview.querySelector(`[data-gonako-handle="${op.parent}"]`)
+          : windowPreview;
+        if (!parent) return;
+        let el;
+        if (op.tag === 'submit') {
+          el = document.createElement('button');
+          el.type = 'submit';
+        } else {
+          el = document.createElement(op.tag || 'div');
+          if (op.tag === 'input') el.type = 'text';
+        }
+        el.dataset.gonakoHandle = String(op.handle);
+        el.classList.add('gonako-part');
+        if (op.name) el.name = op.name;
+        if (op.html) {
+          el.innerHTML = op.html;
+        } else if (el.matches('input, textarea, select')) {
+          el.value = op.text || '';
+        } else {
+          el.textContent = op.text || '';
+        }
+        parent.appendChild(el);
+        return;
+      }
+
+      const el = windowPreview.querySelector(selector);
+      if (!el) return;
+      if (op.type === 'text') {
+        if (el.matches('input, textarea, select')) el.value = op.text || '';
+        else el.textContent = op.text || '';
+      } else if (op.type === 'html') {
+        el.innerHTML = op.html || '';
+      } else if (op.type === 'styles') {
+        Object.entries(op.styles || {}).forEach(([key, value]) => { el.style[key] = value; });
+      } else if (op.type === 'attributes') {
+        Object.entries(op.attributes || {}).forEach(([key, value]) => el.setAttribute(key, value));
+      } else if (op.type === 'listen') {
+        const marker = `gonakoEvent${op.event}`;
+        if (el.dataset[marker]) return;
+        el.dataset[marker] = '1';
+        el.addEventListener(op.event, event => {
+          if (op.event === 'submit') event.preventDefault();
+          sendGUIEvent(op.handle, op.event);
+        });
+      } else if (op.type === 'focus') {
+        el.focus();
+      }
+    });
+  }
+
+  function setOutputPanelOpen(open) {
+    if (open === outputPanelOpen) return;
+    outputPanelOpen = open;
+    paneOutput.classList.toggle('is-closed', !open);
+    splitterH.classList.toggle('is-closed', !open);
+
+    if (open) {
+      if (editorLayoutBeforeOutputClose) {
+        paneEditor.style.flex = editorLayoutBeforeOutputClose.flex;
+        paneEditor.style.height = editorLayoutBeforeOutputClose.height;
+      }
+      editorLayoutBeforeOutputClose = null;
+    } else {
+      editorLayoutBeforeOutputClose = {
+        flex: paneEditor.style.flex,
+        height: paneEditor.style.height
+      };
+      paneEditor.style.flex = '1';
+      paneEditor.style.height = 'auto';
+    }
+  }
+
+  btnCloseOutput.addEventListener('click', () => setOutputPanelOpen(false));
+
   async function runCode() {
+    setOutputPanelOpen(true);
     const code = editor.value;
     if (!code.trim()) {
       output.textContent = '（プログラムが空です）';
@@ -1395,8 +1703,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       let result;
-      if (typeof window.runNakoCode === 'function') {
-        result = await window.runNakoCode(code, currentFilePath || '');
+      if (typeof window.startNakoFile === 'function' && typeof window.pollNakoRun === 'function') {
+        const runId = await window.startNakoFile(code, currentFilePath || '', isWindowMode);
+        result = await waitForNakoRun(runId);
+      } else if (typeof window.runNakoFile === 'function') {
+        result = await window.runNakoFile(code, currentFilePath || '', isWindowMode);
       } else {
         result = JSON.stringify({
           ok: true,
@@ -1427,17 +1738,13 @@ document.addEventListener('DOMContentLoaded', () => {
         execStatus.className = 'status-indicator success';
         setStatus(`実行完了 (${elapsed}秒)`);
 
-        if (isWindowMode && data.output && /<[a-z][\s\S]*>/i.test(data.output)) {
+        if (isWindowMode && data.operations && data.operations.length > 0) {
           windowPreview.style.display = 'block';
-          windowPreview.innerHTML = data.output;
-          const scripts = windowPreview.querySelectorAll('script');
-          scripts.forEach(oldScript => {
-            const newScript = document.createElement('script');
-            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
-            oldScript.parentNode.replaceChild(newScript, oldScript);
-          });
+          windowPreview.innerHTML = '';
+          activeGUIRunID = data.runId || 0;
+          applyGUIOperations(data.operations);
         } else {
+          activeGUIRunID = 0;
           windowPreview.style.display = 'none';
         }
       }
@@ -1466,9 +1773,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.style.cursor = 'col-resize';
   });
 
-  const splitterH = document.getElementById('splitter-h');
-  const paneEditor = document.querySelector('.pane-editor');
-  const mainPane = document.querySelector('.main-pane');
   let isDraggingH = false;
 
   splitterH.addEventListener('mousedown', () => {

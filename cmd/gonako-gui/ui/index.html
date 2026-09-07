@@ -117,15 +117,16 @@
         <!-- ファイルタブコンテンツ -->
         <div id="tab-content-file" class="tab-content">
           <div class="file-nav-bar">
-            <button id="btn-file-up" class="btn-icon" title="上のフォルダへ">⬆</button>
-            <button id="btn-file-home" class="btn-icon" title="ホームフォルダへ">🏠</button>
+            <button id="btn-file-refresh" class="btn-icon" title="ファイル一覧を更新">⟳</button>
+            <button id="btn-file-up" class="btn-icon" title="上のフォルダへ">↑</button>
             <span id="current-dir-display" class="current-dir-text" title="現在のフォルダ">~/</span>
           </div>
           <div id="file-list" class="list-container file-list">
             <!-- JavaScriptで動的生成 -->
           </div>
           <div class="file-footer-bar">
-            <button id="btn-new-file" class="btn-new-file">＋ 新規ファイル</button>
+            <button id="btn-open-folder" class="btn-file-footer" title="現在のフォルダをFinderまたはExplorerで開く">📂 フォルダ開く</button>
+            <button id="btn-new-folder" class="btn-file-footer">新規フォルダ</button>
           </div>
         </div>
       </aside>
@@ -166,6 +167,7 @@
               <span id="exec-status" class="status-indicator">待機中</span>
               <button id="btn-clear-log" class="btn-sm" title="実行結果を消去">🗑 ログ消去</button>
               <button id="btn-copy-log" class="btn-sm" title="実行結果をコピー">📋 コピー</button>
+              <button id="btn-close-output" class="btn-close-pane" title="実行結果を閉じる" aria-label="実行結果を閉じる">×</button>
             </div>
           </div>
           <div class="output-wrapper">
@@ -289,7 +291,7 @@
     </div>
   </div>
 
-  <!-- ファイル右端「…」用コンテキストメニュー (ポップアップ) -->
+  <!-- ファイル項目の右クリック用コンテキストメニュー -->
   <div id="file-context-menu" class="context-menu" style="display: none;">
     <div class="context-menu-item" id="menu-open-editor">📝 エディタで開く</div>
     <div class="context-menu-item" id="menu-reveal-finder">📂 <span id="label-reveal-finder">Finderで表示</span></div>

@@ -1,10 +1,6 @@
 package main
 
-import (
-	"path/filepath"
-
-	"github.com/kujirahand/nadesiko3go/internal/guilib"
-)
+import "github.com/kujirahand/nadesiko3go/internal/guilib"
 
 // showOpenFileDialog opens the OS native open file dialog used by the editor.
 func showOpenFileDialog(defaultDir string) (string, error) {
@@ -22,5 +18,7 @@ func showSaveFileDialog(defaultDir, defaultName string) (string, error) {
 	if defaultName == "" {
 		defaultName = "新規プログラム.nako3"
 	}
-	return guilib.SaveFileDialog(defaultDir, defaultName, filepath.Ext(defaultName))
+	// 拡張子フィルターは表示しない。空欄ならSaveFileDialogが.nako3を補い、
+	// 利用者が.phpなどを明示した場合はその拡張子をそのまま使う。
+	return guilib.SaveFileDialog(defaultDir, defaultName, "")
 }

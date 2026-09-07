@@ -163,8 +163,54 @@ func makeTemplate(name string, josi [][]string) string {
 	return strings.Join(parts, "") + name
 }
 
+var insertionTemplateOverrides = map[string]string{
+	"ファイル選択":   "『S』のファイル選択",
+	"保存ファイル選択": "『S』の保存ファイル選択",
+	"フォルダ選択":   "『S』のフォルダ選択",
+}
+
 func goSpecificDocs() map[string]CommandDoc {
 	return map[string]CommandDoc{
+		"HTML表示": {
+			Name:     "HTML表示",
+			Type:     "func",
+			Josi:     [][]string{{"を", "と"}},
+			Category: "GUI",
+			Desc:     "HTML文字列をウィンドウ画面に追加する",
+			Template: "【HTML】をHTML表示",
+		},
+		"DOM属性一括設定": {
+			Name:     "DOM属性一括設定",
+			Type:     "func",
+			Josi:     [][]string{{"に", "へ"}, {"を"}},
+			Category: "GUI",
+			Desc:     "画面部品に辞書で指定した属性を一括設定する",
+			Template: "【画面部品】に【属性辞書】をDOM属性一括設定",
+		},
+		"DOMテキスト変更": {
+			Name:     "DOMテキスト変更",
+			Type:     "func",
+			Josi:     [][]string{{"に", "の", "へ"}, {"を"}},
+			Category: "DOM操作",
+			Desc:     "画面部品のテキストを変更する",
+			Template: "【画面部品】に【テキスト】をDOMテキスト変更",
+		},
+		"HTML変更": {
+			Name:     "HTML変更",
+			Type:     "func",
+			Josi:     [][]string{{"に", "の", "へ"}, {"を"}},
+			Category: "DOM操作",
+			Desc:     "画面部品のHTMLを変更する",
+			Template: "【画面部品】に【HTML】をHTML変更",
+		},
+		"DOM注目": {
+			Name:     "DOM注目",
+			Type:     "func",
+			Josi:     [][]string{{"を", "へ", "に"}},
+			Category: "DOM操作",
+			Desc:     "画面部品にフォーカスしてカーソルを移動する",
+			Template: "【画面部品】をDOM注目",
+		},
 		"ファイル選択": {
 			Name:     "ファイル選択",
 			Type:     "func",
@@ -370,6 +416,9 @@ func main() {
 			doc.Template = name
 		} else if doc.Template == "" {
 			doc.Template = makeTemplate(name, doc.Josi)
+		}
+		if template, ok := insertionTemplateOverrides[name]; ok {
+			doc.Template = template
 		}
 
 		allDocs = append(allDocs, doc)

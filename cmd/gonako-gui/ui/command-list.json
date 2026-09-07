@@ -331,6 +331,164 @@
     "yomi": "DISCORDそうしん"
   },
   {
+    "name": "DOMスタイル一括設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMに(オブジェクト型で)スタイル情報を一括設定",
+    "template": "【A】に【B】をDOMスタイル一括設定",
+    "yomi": "DOMすたいるいっかつせってい"
+  },
+  {
+    "name": "DOMテキスト取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMのテキストを取得",
+    "template": "【S】のDOMテキスト取得",
+    "yomi": "DOMてきすとしゅとく"
+  },
+  {
+    "name": "DOMテキスト変更",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "画面部品のテキストを変更する",
+    "template": "【A】に【B】をDOMテキスト変更"
+  },
+  {
+    "name": "DOMテキスト設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMにテキストを設定",
+    "template": "【A】に【B】をDOMテキスト設定",
+    "yomi": "DOMてきすとせってい"
+  },
+  {
+    "name": "DOM属性一括設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "GUI",
+    "desc": "画面部品に辞書で指定した属性を一括設定する",
+    "template": "【A】に【B】をDOM属性一括設定"
+  },
+  {
+    "name": "DOM属性設定",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMの属性Sに値Vを設定(属性Sには『DOM和属性』も適用される)",
+    "template": "【A】の【B】に【C】をDOM属性設定",
+    "yomi": "DOMぞくせいせってい"
+  },
+  {
+    "name": "DOM注目",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "画面部品にフォーカスしてカーソルを移動する",
+    "template": "【S】をDOM注目"
+  },
+  {
+    "name": "DOM要素ID取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMの要素をIDを指定して取得",
+    "template": "【S】のDOM要素ID取得",
+    "yomi": "DOMようそIDしゅとく"
+  },
+  {
+    "name": "DOM要素全取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMの要素をクエリqで全部取得して返す",
+    "template": "【S】のDOM要素全取得",
+    "yomi": "DOMようそぜんしゅとく"
+  },
+  {
+    "name": "DOM要素取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMの要素をクエリqで取得して返す",
+    "template": "【S】のDOM要素取得",
+    "yomi": "DOMようそしゅとく"
+  },
+  {
     "name": "EUCファイル保存",
     "type": "func",
     "josi": [
@@ -425,6 +583,68 @@
     "desc": "値Vを16進数に変換",
     "template": "【S】のHEX",
     "yomi": "HEX"
+  },
+  {
+    "name": "HTML取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMのテキストを取得",
+    "template": "【S】のHTML取得",
+    "yomi": "HTMLしゅとく"
+  },
+  {
+    "name": "HTML変更",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "画面部品のHTMLを変更する",
+    "template": "【A】に【B】をHTML変更"
+  },
+  {
+    "name": "HTML表示",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "と"
+      ]
+    ],
+    "category": "GUI",
+    "desc": "HTML文字列をウィンドウ画面に追加する",
+    "template": "【S】をHTML表示"
+  },
+  {
+    "name": "HTML設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMのHTMLにVを設定",
+    "template": "【A】に【B】をHTML設定",
+    "yomi": "HTMLせってい"
   },
   {
     "name": "HTTP保障取得",
@@ -1771,6 +1991,19 @@
     "template": "【S】をエクセル開"
   },
   {
+    "name": "エディタ作成",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "DOM部品操作",
+    "desc": "textの値を持つテキストボックス(input[type='text'])の要素を追加しDOMオブジェクトを返す",
+    "template": "【S】のエディタ作成",
+    "yomi": "えでぃたさくせい"
+  },
+  {
     "name": "エラー発生",
     "type": "func",
     "josi": [
@@ -1897,6 +2130,23 @@
     "desc": "カレントディレクトリをDIRに変更する",
     "template": "【S】にカレントディレクトリ変更",
     "yomi": "かれんとでぃれくとりへんこう"
+  },
+  {
+    "name": "クリック時",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "DOM操作とイベント",
+    "desc": "無名関数FでDOMをクリックした時に実行するイベントを設定",
+    "template": "【A】で【B】をクリック時",
+    "yomi": "くりっくしたとき"
   },
   {
     "name": "グローバル関数一覧取得",
@@ -2034,6 +2284,38 @@
     "desc": "『秒毎』『秒後』や『秒タイマー開始』で開始したタイマーを停止する",
     "template": "【S】のタイマー停止",
     "yomi": "たいまーていし"
+  },
+  {
+    "name": "テキスト取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMのテキストを取得",
+    "template": "【S】のテキスト取得",
+    "yomi": "てきすとしゅとく"
+  },
+  {
+    "name": "テキスト設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "DOMのテキストにVを設定",
+    "template": "【A】に【B】をテキスト設定",
+    "yomi": "てきすとせってい"
   },
   {
     "name": "テンポラリフォルダ",
@@ -2482,7 +2764,7 @@
     ],
     "category": "GUI",
     "desc": "指定した拡張子のファイルをOS標準ダイアログで選択してパスを返す",
-    "template": "【S】のファイル選択"
+    "template": "『S』のファイル選択"
   },
   {
     "name": "フォルダ作成",
@@ -2525,7 +2807,41 @@
     ],
     "category": "GUI",
     "desc": "指定したフォルダを開始位置としてOS標準ダイアログでフォルダを選択しパスを返す",
-    "template": "【S】でフォルダ選択"
+    "template": "『S』のフォルダ選択"
+  },
+  {
+    "name": "フォーム作成",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "category": "DOM部品操作",
+    "desc": "属性OBJ{method:\"GET\",action:\"...\"}で項目一覧S「項目1=初期値1{改行}項目2=初期値2{改行}…」を送信フォームを作成しDOMオブジェクトを返す。「=?」でオプションの指定が可能",
+    "template": "【A】で【B】をフォーム作成",
+    "yomi": "ふぉーむさくせい"
+  },
+  {
+    "name": "フォーム送信時",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "DOM操作とイベント",
+    "desc": "無名関数Fでフォームを送信した時に実行するイベントを設定",
+    "template": "【A】で【B】をフォーム送信時",
+    "yomi": "ふぉーむそうしんしたとき"
   },
   {
     "name": "ブラウザ起動",
@@ -2589,6 +2905,19 @@
     "yomi": "ほーむでぃれくとりしゅとく"
   },
   {
+    "name": "ボタン作成",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "DOM部品操作",
+    "desc": "ラベルlabelを持つbutton要素を追加しDOMオブジェクトを返す",
+    "template": "【S】のボタン作成",
+    "yomi": "ぼたんさくせい"
+  },
+  {
     "name": "マイドキュメント",
     "type": "func",
     "josi": null,
@@ -2605,6 +2934,19 @@
     "desc": "取り込んだモジュール一覧を得る",
     "template": "モジュール一覧取得",
     "yomi": "もじゅーるいちらんしゅとく"
+  },
+  {
+    "name": "ラベル作成",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "DOM部品操作",
+    "desc": "textの値を持つラベル(span要素)を追加しDOMオブジェクトを返す",
+    "template": "【S】のラベル作成",
+    "yomi": "らべるさくせい"
   },
   {
     "name": "ランダムUUID生成",
@@ -2732,6 +3074,22 @@
     "desc": "Aを二乗する",
     "template": "【S】の二乗",
     "yomi": "にじょう"
+  },
+  {
+    "name": "二択",
+    "type": "func",
+    "josi": [
+      [
+        "で",
+        "の",
+        "と",
+        "を"
+      ]
+    ],
+    "category": "ダイアログ",
+    "desc": "メッセージSと[OK][キャンセル]のダイアログを出して尋ねる。戻り値はtrueかfalseのどちらかになる。",
+    "template": "【S】で二択",
+    "yomi": "にたく"
   },
   {
     "name": "二進",
@@ -2897,7 +3255,7 @@
     ],
     "category": "GUI",
     "desc": "指定した拡張子の保存先をOS標準ダイアログで選択してパスを返す",
-    "template": "【S】の保存ファイル選択"
+    "template": "『S』の保存ファイル選択"
   },
   {
     "name": "倍",
@@ -3294,6 +3652,23 @@
     "desc": "変数Vの型を返す",
     "template": "【S】の変数型確認",
     "yomi": "へんすうかたかくにん"
+  },
+  {
+    "name": "変更時",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "category": "DOM操作とイベント",
+    "desc": "無名関数FでDOMを変更した時に実行するイベントを設定",
+    "template": "【A】で【B】を変更時",
+    "yomi": "へんこうしたとき"
   },
   {
     "name": "大文字変換",
@@ -4257,6 +4632,21 @@
     "desc": "スクリプトのあるディレクトリを返す",
     "template": "母艦パス取得",
     "yomi": "ぼかんぱすしゅとく"
+  },
+  {
+    "name": "注目",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "へ",
+        "に"
+      ]
+    ],
+    "category": "DOM操作",
+    "desc": "要素DOMにフォーカスする(カーソルを移動する)",
+    "template": "【S】を注目",
+    "yomi": "ちゅうもく"
   },
   {
     "name": "環境変数一覧取得",
@@ -5539,6 +5929,19 @@
     "category": "命令",
     "desc": "命令『追記』を実行します",
     "template": "【A】を【B】に追記"
+  },
+  {
+    "name": "送信ボタン作成",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "category": "DOM部品操作",
+    "desc": "ラベルSの送信ボタン(input[type='submit'])を作成しDOMオブジェクトを返す",
+    "template": "【S】の送信ボタン作成",
+    "yomi": "そうしんぼたんさくせい"
   },
   {
     "name": "通貨形式",

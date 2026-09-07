@@ -662,6 +662,24 @@ body {
   background: var(--border-color);
 }
 
+.btn-close-pane {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close-pane:hover {
+  background: var(--border-color);
+  color: var(--text-main);
+}
+
 /* エディタ領域 */
 .pane-editor {
   flex: 2;
@@ -798,6 +816,11 @@ body {
   background-color: var(--bg-output);
 }
 
+.pane-output.is-closed,
+.splitter-h.is-closed {
+  display: none;
+}
+
 .output-wrapper {
   flex: 1;
   overflow: auto;
@@ -815,6 +838,37 @@ body {
   min-height: 150px;
   border: 1px solid var(--border-color);
   user-select: text;
+}
+
+.window-preview-area .gonako-part {
+  box-sizing: border-box;
+  margin: 4px;
+}
+
+.window-preview-area input.gonako-part {
+  padding: 7px 9px;
+  border: 1px solid #a6adc8;
+  border-radius: 4px;
+}
+
+.window-preview-area button.gonako-part {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 5px;
+  background: #3b82f6;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+.window-preview-area form.gonako-part {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.window-preview-area form.gonako-part > button {
+  grid-column: 2;
 }
 
 .output {
@@ -953,21 +1007,22 @@ kbd {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* ファイルタブ フッター (＋ 新規ファイル ボタン) */
+/* ファイルタブ フッター */
 .file-footer-bar {
   padding: 8px 10px;
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   display: flex;
+  gap: 6px;
 }
 
-.btn-new-file {
-  width: 100%;
+.btn-file-footer {
+  flex: 1;
   padding: 7px 12px;
-  background: rgba(243, 139, 168, 0.12);
-  border: 1px solid rgba(243, 139, 168, 0.35);
+  background: rgba(137, 180, 250, 0.12);
+  border: 1px solid rgba(137, 180, 250, 0.35);
   border-radius: 6px;
-  color: var(--accent-pink);
+  color: var(--accent-blue);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -978,34 +1033,16 @@ kbd {
   transition: all 0.15s;
 }
 
-.btn-new-file:hover {
-  background: var(--accent-pink);
+.btn-file-footer:hover {
+  background: var(--accent-blue);
   color: #11111b;
 }
 
-/* リストアイテム右側の操作ボタン (「…」メニュー) */
+/* リストアイテム右側の補足情報 */
 .item-right {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.item-more-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  line-height: 1;
-  transition: all 0.15s;
-}
-
-.item-more-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-main);
 }
 
 /* ポップアップ コンテキストメニュー */
@@ -1105,4 +1142,3 @@ kbd {
 .btn-danger:hover {
   background: rgba(235, 111, 146, 0.3);
 }
-
