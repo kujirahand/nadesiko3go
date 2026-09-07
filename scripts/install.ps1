@@ -1,5 +1,7 @@
 # nadesiko3go (gonako & gonako-gui) インストーラー (Windows / PowerShell 用)
 # 使い方:
+#   irm https://nadesi.com/install/gonako | iex
+# または:
 #   irm https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
