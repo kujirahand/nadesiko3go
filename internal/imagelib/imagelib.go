@@ -63,22 +63,54 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
-		"画像新規作成":  {josi: [][]string{{"の", "で"}}, fn: p.create},
-		"画像開":     {josi: [][]string{{"を", "の", "から"}}, fn: p.open},
-		"画像切替":    {josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.selectImage},
-		"画像保存":    {josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save},
-		"画像背景色設定": {josi: [][]string{{"に", "へ", "で"}}, returnNone: true, fn: p.fill},
-		"画像点設定":   {josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setPixel},
-		"画像点取得":   {josi: [][]string{{"の", "から"}}, fn: p.getPixel},
-		"画像線描画":   {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.line},
-		"画像矩形描画":  {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.rect},
-		"画像円描画":   {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.circle},
-		"画像文字描画":  {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.text},
-		"画像リサイズ":  {josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.resize},
-		"画像幅取得":   {fn: p.width},
-		"画像高取得":   {fn: p.height},
-		"画像高さ取得":  {fn: p.height},
-		"画像閉":     {returnNone: true, fn: p.close},
+		"画像新規作成": { // @指定サイズ [幅, 高さ] の新しいRGBA画像キャンバスを作成する // @がぞうしんきさくせい
+			josi: [][]string{{"の", "で"}}, fn: p.create,
+		},
+		"画像開": { // @画像ファイル (PNG/JPEG/GIF) を読み込んでキャンバスを作成する // @がぞうひらく
+			josi: [][]string{{"を", "の", "から"}}, fn: p.open,
+		},
+		"画像切替": { // @操作対象の画像をハンドルで切り替える // @がぞうきりかえ
+			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.selectImage,
+		},
+		"画像保存": { // @現在の画像をPNG/JPEGファイルへ保存する // @がぞうほぞん
+			josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save,
+		},
+		"画像背景色設定": { // @現在の画像全体を指定色で塗りつぶす // @がぞうはいけいしょくせってい
+			josi: [][]string{{"に", "へ", "で"}}, returnNone: true, fn: p.fill,
+		},
+		"画像点設定": { // @画像上の指定座標 [X, Y] に指定色でドットを打つ // @がぞうてんせってい
+			josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setPixel,
+		},
+		"画像点取得": { // @画像上の指定座標 [X, Y] の色を取得して返す // @がぞうてんしゅとく
+			josi: [][]string{{"の", "から"}}, fn: p.getPixel,
+		},
+		"画像線描画": { // @画像上に開始座標から終了座標まで直線を指定色で描画する // @がぞうせんびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.line,
+		},
+		"画像矩形描画": { // @画像上の指定矩形 [X, Y, 幅, 高さ] を指定色で塗りつぶす // @がぞうくけいびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.rect,
+		},
+		"画像円描画": { // @画像上の指定中心座標と半径で円を指定色で描画する // @がぞうえんびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.circle,
+		},
+		"画像文字描画": { // @画像上の指定位置にテキストを描画する // @がぞうもじびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.text,
+		},
+		"画像リサイズ": { // @現在の画像を指定サイズ [幅, 高さ] に拡大縮小する // @がぞうりさいず
+			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.resize,
+		},
+		"画像幅取得": { // @現在の画像の幅をピクセル単位で返す // @がぞうはばしゅとく
+			fn: p.width,
+		},
+		"画像高取得": { // @現在の画像の高さをピクセル単位で返す // @がぞうたかしゅとく
+			fn: p.height,
+		},
+		"画像高さ取得": { // @現在の画像の高さをピクセル単位で返す(『画像高取得』の別名) // @がぞうたかさしゅとく
+			fn: p.height,
+		},
+		"画像閉": { // @現在の画像のハンドルを閉じる // @がぞうとじる
+			returnNone: true, fn: p.close,
+		},
 	}
 }
 

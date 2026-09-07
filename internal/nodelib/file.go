@@ -37,7 +37,7 @@ func commands() map[string]command {
 	m["読"] = m["開"]
 	m["バイナリ読"] = command{josi: [][]string{{"を", "から"}}, fn: readBinaryFile}
 	m["保存"] = command{josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: writeFile}
-	m["追記"] = command{josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: appendFile}
+	m["追記"] = command{josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: appendFile} // @文字列Aをファイルパスの末尾に追記する // @ついき
 
 	m["存在"] = command{josi: [][]string{{"が", "の"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 		// 同梱したリソースも「存在する」ものとして数える
@@ -190,7 +190,7 @@ func commands() map[string]command {
 			}
 			return value.String(abs), nil
 		}}
-	m["パス結合"] = command{josi: [][]string{{"と", "を"}}, variadic: true,
+	m["パス結合"] = command{josi: [][]string{{"と", "を"}}, variadic: true, // @複数のパス断片をOS標準の区切り文字で結合して返す // @ぱすけつごう
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			parts := make([]string, 0, len(a))
 			for i := range a {

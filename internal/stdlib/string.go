@@ -77,7 +77,7 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.String(string(sliceRunes(runes, start-1, start+count-1))), nil
 	}
-	m["文字抜き出"] = m["文字抜出"]
+	m["文字抜き出"] = m["文字抜出"] // @文字列SのA文字目からCNT文字を抽出する(Aが0未満の時は後ろからA文字目からCNT文字を抽出)(『文字抜出』の別名) // @もじぬきだし
 	m["MID"] = m["文字抜出"]
 	m["文字左部分"] = func(_ Context, a []value.Value) (value.Value, error) {
 		runes := []rune(str(a, 0))

@@ -114,7 +114,7 @@ func osCommands(m map[string]command) {
 	}}
 	m["終"] = m["終了"]
 
-	m["強制終了"] = command{josi: [][]string{{"で", "の"}}, returnNone: true,
+	m["強制終了"] = command{josi: [][]string{{"で", "の"}}, returnNone: true, // @指定した終了コードで即座にプロセスを終了する // @きょうせいしゅうりょう
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			ctx.Exit(int(value.ToNumber(argAt(a, 0))))
 			return value.Undefined(), nil
@@ -139,7 +139,7 @@ func osCommands(m map[string]command) {
 			return value.Undefined(), nil
 		}}
 
-	m["コマンドライン"] = command{fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+	m["コマンドライン"] = command{fn: func(ctx stdlib.Context, _ []value.Value) (value.Value, error) { // @コマンドライン引数を配列で返す // @こまんどらいん
 		args := ctx.Args()
 		items := make([]value.Value, len(args))
 		for i, s := range args {
