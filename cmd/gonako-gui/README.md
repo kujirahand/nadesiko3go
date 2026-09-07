@@ -8,7 +8,7 @@ OS標準のWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を
 
 ```bash
 # GUIバイナリをビルド (bin/gonako-gui)
-make gui
+just gui
 ```
 
 ## 起動方法

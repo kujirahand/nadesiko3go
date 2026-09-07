@@ -124,7 +124,7 @@
 
 ```bash
 # gonako本体をビルド
-make cmd
+just cmd
 
 # ベンチマークの自動実行
 go run ./benchmark/runner.go

@@ -357,7 +357,7 @@ replace github.com/kujirahand/nadesiko3go => %s
 	md.WriteString("以下のコマンドで、すべてのテストのビルド、測定、および本ドキュメントの再生成が自動で行われます。\n\n")
 	md.WriteString("```bash\n")
 	md.WriteString("# gonako本体をビルド\n")
-	md.WriteString("make cmd\n\n")
+	md.WriteString("just cmd\n\n")
 	md.WriteString("# ベンチマークの自動実行\n")
 	md.WriteString("go run ./benchmark/runner.go\n")
 	md.WriteString("```\n\n")
