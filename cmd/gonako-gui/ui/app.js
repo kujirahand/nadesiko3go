@@ -30,6 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const versionInfo = document.getElementById('version-info');
   const activeFileName = document.getElementById('active-file-name');
   let activeGUIRunID = 0;
+  // 実行中かどうか。F5/Ctrl+R/Ctrl+Enterは実行ボタンのdisabledを見ないので、
+  // これが無いと前の実行のポーリングが生きたまま次の実行が始まり、
+  // 出力欄に両方の出力が混ざる。
+  let runInFlight = false;
   let outputPanelOpen = true;
   let editorLayoutBeforeOutputClose = null;
 
@@ -1697,12 +1701,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function runCode() {
     setOutputPanelOpen(true);
+    if (runInFlight) return; // 実行中の再実行は、実行ボタンと同じく受け付けない
     const code = editor.value;
     if (!code.trim()) {
       output.textContent = '（プログラムが空です）';
       output.className = 'output';
       return;
     }
+    runInFlight = true;
 
     const isWindowMode = selectAppType.value === 'window';
     execStatus.textContent = '実行中...';
@@ -1743,12 +1749,11 @@ document.addEventListener('DOMContentLoaded', () => {
         data = { ok: true, output: String(result), error: "" };
       }
 
-      // usesAsyncRun のときは data.output/data.operations は既に
-      // waitForNakoRun のポーリングで出し終えているので、ここでは
-      // 上書きせず残り（あれば）を追記するだけにする。
+      // 非同期実行では出力も画面操作も waitForNakoRun のポーリングで
+      // 反映済みで、data には残っていない。同期フォールバック
+      // (runNakoFile) のときだけ data から取り出す。
       if (data.error) {
         if (usesAsyncRun) {
-          appendGUIOutput(data.output || '');
           output.textContent += (output.textContent ? '\n' : '') + data.error;
         } else {
           output.textContent = (data.output ? data.output + '\n' : '') + data.error;
@@ -1759,30 +1764,21 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus(`実行エラー (${elapsed}秒)`);
         windowPreview.style.display = 'none';
       } else {
-        if (usesAsyncRun) {
-          appendGUIOutput(data.output || '');
-          if (!output.textContent) output.textContent = '（出力なし）';
-        } else {
-          output.textContent = data.output || '（出力なし）';
-        }
+        if (!usesAsyncRun) output.textContent = data.output || '';
+        if (!output.textContent) output.textContent = '（出力なし）';
         output.className = 'output has-content';
         execStatus.textContent = `完了 (${elapsed}s)`;
         execStatus.className = 'status-indicator success';
         setStatus(`実行完了 (${elapsed}秒)`);
 
-        // ウィンドウ実行中にストリーミングで既に画面部品が出ている場合は
-        // windowPreview がもう 'block' になっているので、ここでは終わりに
-        // 残っていた操作（あれば）を追記するだけでよい。
-        if (isWindowMode) {
-          if (data.operations && data.operations.length > 0) {
-            windowPreview.style.display = 'block';
-            activeGUIRunID = data.runId || activeGUIRunID || 0;
-            applyGUIOperations(data.operations);
-          }
-          if (windowPreview.style.display !== 'block') {
-            activeGUIRunID = 0;
-          }
-        } else {
+        if (isWindowMode && data.operations && data.operations.length > 0) {
+          windowPreview.style.display = 'block';
+          activeGUIRunID = data.runId || activeGUIRunID || 0;
+          applyGUIOperations(data.operations);
+        }
+        // ストリーミングで画面部品が出ていれば既に 'block' になっている。
+        // 最後まで何も描かれなければGUIではないので隠したままにする。
+        if (windowPreview.style.display !== 'block') {
           activeGUIRunID = 0;
           windowPreview.style.display = 'none';
         }
@@ -1795,6 +1791,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setStatus(`システムエラー: ${err}`);
       windowPreview.style.display = 'none';
     } finally {
+      runInFlight = false;
       btnRun.disabled = false;
     }
   }

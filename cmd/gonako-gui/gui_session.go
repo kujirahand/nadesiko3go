@@ -113,6 +113,13 @@ type DialogRequest struct {
 	Message string `json:"message"`
 }
 
+// AsyncRunStatus is one poll of a running program.
+//
+// Output と Operations は「前回のポーリング以降に出た分」で、読み取った時点で
+// 消える。非同期実行では出力も画面操作もすべてこの2つで届き、Result 側には
+// 入らない（→ runCompiledStreaming）。したがってポーリングする画面は、
+// done を見る前に必ず Output と Operations を処理しなければならない。
+// 途中経過を捨てると、その分は二度と取り出せない。
 type AsyncRunStatus struct {
 	Done       bool               `json:"done"`
 	Dialog     *DialogRequest     `json:"dialog,omitempty"`
@@ -354,6 +361,11 @@ func streamPendingOutput(state *guiAsyncRun, host *guiHost, screen *guilib.Scree
 // runCompiledStreaming runs runCompiledNow while a background goroutine
 // streams intermediate output to state, so an async run (start/startCompiled)
 // reports 『表示』 output as it happens rather than all at once at the end.
+//
+// 出力と画面操作は最後に必ず全部ストリーム側へ寄せ、RunResult には残さない。
+// 途中で drain された分だけがストリームに乗り、残りが Result に入る、という
+// 中途半端な分かれ方をすると、ストリームを読まない画面が出力を取りこぼす。
+// 実際それでバンドル版が画面を描けなくなっていた。
 func (s *guiSession) runCompiledStreaming(state *guiAsyncRun, prog *ir.Program, registry *stdlib.Registry, host *guiHost, screen *guilib.Screen, result RunResult) RunResult {
 	done := make(chan struct{})
 	var wg sync.WaitGroup
@@ -365,6 +377,14 @@ func (s *guiSession) runCompiledStreaming(state *guiAsyncRun, prog *ir.Program, 
 	result = s.runCompiledNow(prog, registry, host, screen, result)
 	close(done)
 	wg.Wait()
+
+	// runCompiledNow が最後に drain した分をストリームの末尾へ回す。
+	// 先に流れた分より必ず新しいので、順序は保たれる。呼び出し元が
+	// state.finish() するのはこの後なので、done がポーリングから見えた
+	// 時点で全部が pending に載っていることも保証される。
+	state.appendPending(result.Output, result.Operations)
+	result.Output = ""
+	result.Operations = nil
 	return result
 }
 
@@ -385,8 +405,34 @@ func (s *guiSession) resolveDialog(runID, dialogID uint64, text string, accepted
 	return state != nil && state.resolve(dialogID, text, accepted)
 }
 
+// dispatchLockGrace is how long an event may wait for a run to let go of
+// execMu. Short enough that the window never visibly freezes.
+const dispatchLockGrace = 50 * time.Millisecond
+
+// lockExecWithin takes execMu, giving up if it cannot within timeout.
+func (s *guiSession) lockExecWithin(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for {
+		if s.execMu.TryLock() {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
+
 func (s *guiSession) dispatch(runID uint64, handle int, event string, values map[string]string) RunResult {
-	s.execMu.Lock()
+	// 実行中のイベントは、少しだけ待って取れなければ断る。無制限に待つと、
+	// WebViewのバインド呼び出しはUIスレッド上で処理されるため、長く走る
+	// プログラムの間ウィンドウごと固まってしまう。画面部品は実行中にも
+	// 描かれるので、この経路は普通に踏まれる。
+	// 猶予を置くのは、実行終了(finish)からexecMu解放までの僅かな隙間で
+	// 押されたクリックを、実行中だと誤って断らないため。
+	if !s.lockExecWithin(dispatchLockGrace) {
+		return RunResult{OK: false, RunID: runID, Error: "プログラムの実行中はイベントを処理できません。"}
+	}
 	defer s.execMu.Unlock()
 	s.mu.Lock()
 	exec := s.active

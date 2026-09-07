@@ -86,6 +86,78 @@ func TestAsyncRunStreamsOutputWhileRunning(t *testing.T) {
 	}
 }
 
+// 実行中に作られた画面部品が、ポーリングで取り出す限り1つも失われないこと。
+// ストリーム分を捨てると『ボタン作成』が消え、バンドル版は何も描けないまま
+// closeBundledWindow() でウィンドウを閉じてしまう。
+func TestAsyncRunDeliversEveryOperationThroughStream(t *testing.T) {
+	session := &guiSession{}
+	runID := session.start(`ボタン=「送信」のボタン作成
+0.1秒待つ
+「done」と表示`, "gui.nako3", true, nil, nil)
+
+	collector := newAsyncCollector(session, runID)
+	status := waitForAsyncDone(t, collector)
+	if status.Result == nil || !status.Result.OK {
+		t.Fatalf("result = %#v", status.Result)
+	}
+
+	var tags []string
+	for _, op := range collector.ops {
+		if op.Type == "create" {
+			tags = append(tags, op.Tag)
+		}
+	}
+	if len(tags) != 2 || tags[0] != "button" || tags[1] != "div" {
+		t.Fatalf("created tags = %v, want [button div]（実行中の操作が失われている）", tags)
+	}
+	if got := collector.output.String(); got != "done\n" {
+		t.Fatalf("streamed output = %q, want %q", got, "done\n")
+	}
+}
+
+// 実行中のクリックが実行終了まで待たされないこと。WebViewのバインド呼び出しは
+// UIスレッド上で処理されるので、ここで待つとウィンドウごと固まる。
+func TestDispatchDuringRunDoesNotBlock(t *testing.T) {
+	session := &guiSession{}
+	runID := session.start(`ボタン=「送信」のボタン作成
+2秒待つ`, "gui.nako3", true, nil, nil)
+
+	// 画面部品が届く＝実行中である、と分かってからクリックする。
+	collector := newAsyncCollector(session, runID)
+	deadline := time.Now().Add(2 * time.Second)
+	for len(collector.ops) == 0 && time.Now().Before(deadline) {
+		collector.poll()
+		time.Sleep(time.Millisecond)
+	}
+	if len(collector.ops) == 0 {
+		t.Fatal("実行中に画面部品が届かなかった")
+	}
+
+	start := time.Now()
+	got := session.dispatch(runID, 1, "click", nil)
+	elapsed := time.Since(start)
+	if elapsed > time.Second {
+		t.Fatalf("実行終了まで待たされた: %v", elapsed)
+	}
+	if got.OK || !strings.Contains(got.Error, "実行中") {
+		t.Fatalf("dispatch during run = %#v", got)
+	}
+}
+
+// バンドル版のページは done を待たずに毎回のポーリングで出力・画面操作を
+// 取り込まなければならない。取りこぼすと二度と取り出せない。
+func TestBundledAsyncPageConsumesStreamedOperations(t *testing.T) {
+	page := bundledAsyncProgramPage(1)
+	for _, want := range []string{"if(s.output)out+=s.output", "if(s.operations&&s.operations.length)", "apply(s.operations)"} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("バンドル版ページが途中経過を取り込んでいない: %q が無い", want)
+		}
+	}
+	if strings.Contains(page, "apply(r.operations") {
+		t.Fatal("完了時のResultから画面操作を読んではいけない（非同期実行では常に空）")
+	}
+}
+
 func TestBundledProgramPageEscapesEmbeddedHTML(t *testing.T) {
 	result := RunResult{OK: true, RunID: 1}
 	result.Operations = append(result.Operations, guilib.Operation{Type: "create", Handle: 1, Tag: "div", HTML: `</script><b>ok</b>`})
@@ -174,8 +246,9 @@ B=「続ける？」で二択
 		{kind: "prompt", text: "１２.５", accepted: true},
 		{kind: "confirm", accepted: false},
 	}
+	collector := newAsyncCollector(session, runID)
 	for _, expected := range want {
-		status := waitForDialog(t, session, runID)
+		status := waitForDialog(t, collector)
 		if status.Dialog.Kind != expected.kind {
 			t.Fatalf("dialog kind = %q, want %q", status.Dialog.Kind, expected.kind)
 		}
@@ -184,20 +257,44 @@ B=「続ける？」で二択
 		}
 	}
 
-	status := waitForAsyncDone(t, session, runID)
+	status := waitForAsyncDone(t, collector)
 	if status.Result == nil || !status.Result.OK {
 		t.Fatalf("result = %#v", status.Result)
 	}
-	if got := status.Result.Output; got != "12.5:false\n" {
-		t.Fatalf("output = %q, want %q", got, "12.5:false\n")
+	// 出力はストリーム側にだけ届く。Result には残らない。
+	if got := collector.output.String(); got != "12.5:false\n" {
+		t.Fatalf("streamed output = %q, want %q", got, "12.5:false\n")
+	}
+	if status.Result.Output != "" || len(status.Result.Operations) != 0 {
+		t.Fatalf("非同期実行のResultには出力・画面操作を残さない: %#v", status.Result)
 	}
 }
 
-func waitForDialog(t *testing.T, session *guiSession, runID uint64) AsyncRunStatus {
+// asyncCollector polls the way a frontend has to: Output と Operations は
+// 読んだ時点で消えるので、毎回のポーリングで必ず拾って貯める。
+type asyncCollector struct {
+	session *guiSession
+	runID   uint64
+	output  strings.Builder
+	ops     []guilib.Operation
+}
+
+func newAsyncCollector(session *guiSession, runID uint64) *asyncCollector {
+	return &asyncCollector{session: session, runID: runID}
+}
+
+func (c *asyncCollector) poll() AsyncRunStatus {
+	status := c.session.poll(c.runID)
+	c.output.WriteString(status.Output)
+	c.ops = append(c.ops, status.Operations...)
+	return status
+}
+
+func waitForDialog(t *testing.T, c *asyncCollector) AsyncRunStatus {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		status := session.poll(runID)
+		status := c.poll()
 		if status.Dialog != nil {
 			return status
 		}
@@ -210,11 +307,11 @@ func waitForDialog(t *testing.T, session *guiSession, runID uint64) AsyncRunStat
 	return AsyncRunStatus{}
 }
 
-func waitForAsyncDone(t *testing.T, session *guiSession, runID uint64) AsyncRunStatus {
+func waitForAsyncDone(t *testing.T, c *asyncCollector) AsyncRunStatus {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
-		status := session.poll(runID)
+		status := c.poll()
 		if status.Done {
 			return status
 		}
