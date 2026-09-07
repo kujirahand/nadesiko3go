@@ -24,6 +24,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/version"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
@@ -32,7 +33,7 @@ func init() {
 }
 
 // Version is the current release version of gonako.
-var Version = "3.6.0"
+var Version = version.Version
 
 const usage = `gonako - なでしこ3 Go言語版
 

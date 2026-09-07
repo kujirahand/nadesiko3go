@@ -123,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let savedContent = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
   let isBinaryFile = false; // PNGなど文字コード範囲外のファイルを開いている間はtrue
   let currentOS = ''; // getAppInfo() から受け取る 'darwin' / 'windows' / 'linux'
+  let currentAppVersion = ''; // getAppInfo() から受け取るバージョン番号
   let dialogInputIMEComposing = false;
   const defaultEditorPlaceholder = editor.getAttribute('placeholder') || '';
 
@@ -547,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div style="text-align:center;padding:12px 0;">
         <div style="font-size:36px;margin-bottom:8px;">🌸</div>
         <h4 style="font-size:16px;color:var(--accent-pink);margin-bottom:6px;">なでしこ3 GUI (gonako-gui)</h4>
-        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">バージョン: v3.6.0 (Go言語版)</p>
+        <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">バージョン: v${currentAppVersion} (Go言語版)</p>
         <p style="font-size:12px;line-height:1.6;color:var(--text-main);">
           日本語プログラミング言語「なでしこ3」のGoネイティブデスクトップGUI環境です。
         </p>
@@ -1880,7 +1881,8 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const info = JSON.parse(infoStr);
         currentOS = info.os || '';
-        versionInfo.textContent = `gonako-gui v${info.version || '3.6.0'} (${info.os}/${info.arch})`;
+        currentAppVersion = info.version || '';
+        versionInfo.textContent = `gonako-gui v${currentAppVersion} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
         desktopDirPath = info.desktopDir || homeDirPath;
         if (!currentDirPath) {

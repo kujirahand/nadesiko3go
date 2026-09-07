@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
+	"github.com/kujirahand/nadesiko3go/internal/version"
 )
 
 // ParserFuncList returns the plugin_system metadata needed by the lexer and
@@ -62,8 +63,8 @@ func ParserFuncList() lexer.FuncList {
 	addConst("波カッコ", "{")
 	addConst("波カッコ閉", "}")
 	addConst("ナデシコエンジン", "nadesi.com/v3")
-	addConst("ナデシコバージョン", "3.8.1")
-	addConst("ナデシコ言語バージョン", "3.8.1")
+	addConst("ナデシコバージョン", version.Nadesiko)
+	addConst("ナデシコ言語バージョン", version.Nadesiko)
 	addConst("ナデシコ種類", "?")
 	addConst("プラグイン名", "メイン")
 	addConst("名前空間", "")

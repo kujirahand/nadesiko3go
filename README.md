@@ -113,7 +113,7 @@ git clone https://github.com/kujirahand/nadesiko3go.git
 cd nadesiko3go
 just build
 # もし各種OSのリリースファイルを生成するなら
-VERSION=3.8.1 just release
+VERSION=3.8.2 just release
 ```
 
 `make build` / `make install` だけは互換のため`Makefile`にも残してあります。
