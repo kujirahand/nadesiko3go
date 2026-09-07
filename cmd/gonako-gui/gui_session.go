@@ -114,9 +114,11 @@ type DialogRequest struct {
 }
 
 type AsyncRunStatus struct {
-	Done   bool           `json:"done"`
-	Dialog *DialogRequest `json:"dialog,omitempty"`
-	Result *RunResult     `json:"result,omitempty"`
+	Done       bool               `json:"done"`
+	Dialog     *DialogRequest     `json:"dialog,omitempty"`
+	Output     string             `json:"output,omitempty"`
+	Operations []guilib.Operation `json:"operations,omitempty"`
+	Result     *RunResult         `json:"result,omitempty"`
 }
 
 type dialogAnswer struct {
@@ -131,6 +133,25 @@ type guiAsyncRun struct {
 	answer       chan dialogAnswer
 	done         bool
 	result       RunResult
+
+	// pendingOutput/pendingOps hold 『表示』の出力とGUI操作のうち、実行中に
+	// 発生したがまだポーリングで取り出されていない分。実行が終わるまで
+	// まとめて返してしまうと、ループの途中経過が画面に出ないまま終了時に
+	// 一気に表示される（#48）。status() を呼ぶたびに drain して返す。
+	pendingOutput string
+	pendingOps    []guilib.Operation
+}
+
+// appendPending queues output/operations produced while the VM is still
+// running, so the next status() poll can hand them to the frontend.
+func (r *guiAsyncRun) appendPending(output string, ops []guilib.Operation) {
+	if output == "" && len(ops) == 0 {
+		return
+	}
+	r.mu.Lock()
+	r.pendingOutput += output
+	r.pendingOps = append(r.pendingOps, ops...)
+	r.mu.Unlock()
 }
 
 func (r *guiAsyncRun) showDialog(kind, message string) (string, bool, error) {
@@ -178,6 +199,12 @@ func (r *guiAsyncRun) status() AsyncRunStatus {
 	if r.dialog != nil {
 		request := *r.dialog
 		status.Dialog = &request
+	}
+	if r.pendingOutput != "" || len(r.pendingOps) > 0 {
+		status.Output = r.pendingOutput
+		status.Operations = r.pendingOps
+		r.pendingOutput = ""
+		r.pendingOps = nil
 	}
 	if r.done {
 		result := r.result
@@ -279,7 +306,7 @@ func (s *guiSession) start(code, filename string, windowMode bool, args []string
 			state.finish(result)
 			return
 		}
-		state.finish(s.runCompiledNow(prog, registry, host, screen, result))
+		state.finish(s.runCompiledStreaming(state, prog, registry, host, screen, result))
 	}()
 	return id
 }
@@ -295,9 +322,50 @@ func (s *guiSession) startCompiled(prog *ir.Program, args []string, packed *bund
 		host := newGUIHost(screen, true, args, packed)
 		host.dialog = state.showDialog
 		result := RunResult{OK: false, RunID: id}
-		state.finish(s.runCompiledNow(prog, registry, host, screen, result))
+		state.finish(s.runCompiledStreaming(state, prog, registry, host, screen, result))
 	}()
 	return id
+}
+
+// streamPendingOutputInterval is how often streamPendingOutput drains output
+// while the VM runs. Short enough that 『表示』 feels immediate, long enough
+// not to matter for CPU usage.
+const streamPendingOutputInterval = 20 * time.Millisecond
+
+// streamPendingOutput drains host/screen periodically while the VM is still
+// running and queues what it finds on state, so a poll() call in progress
+// sees output as it happens instead of only once the whole program ends
+// (#48). It stops once done is closed, after one last drain to catch
+// anything produced between the last tick and the program's end.
+func streamPendingOutput(state *guiAsyncRun, host *guiHost, screen *guilib.Screen, done <-chan struct{}) {
+	ticker := time.NewTicker(streamPendingOutputInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			state.appendPending(host.drainOutput(), screen.DrainOperations())
+		case <-done:
+			state.appendPending(host.drainOutput(), screen.DrainOperations())
+			return
+		}
+	}
+}
+
+// runCompiledStreaming runs runCompiledNow while a background goroutine
+// streams intermediate output to state, so an async run (start/startCompiled)
+// reports 『表示』 output as it happens rather than all at once at the end.
+func (s *guiSession) runCompiledStreaming(state *guiAsyncRun, prog *ir.Program, registry *stdlib.Registry, host *guiHost, screen *guilib.Screen, result RunResult) RunResult {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		streamPendingOutput(state, host, screen, done)
+	}()
+	result = s.runCompiledNow(prog, registry, host, screen, result)
+	close(done)
+	wg.Wait()
+	return result
 }
 
 func (s *guiSession) poll(runID uint64) AsyncRunStatus {

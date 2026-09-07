@@ -408,9 +408,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return typeof raw === 'string' ? JSON.parse(raw) : raw;
   }
 
-  async function waitForNakoRun(runId) {
+  async function waitForNakoRun(runId, isWindowMode) {
     for (;;) {
       const status = parseBoundJSON(await window.pollNakoRun(runId));
+      // 実行が終わるのを待たず、ポーリングのたびに途中経過の出力・GUI操作を
+      // 反映する。ここで捨てると『表示』がプログラム終了までまとめて
+      // 出なくなってしまう（#48）。
+      appendGUIOutput(status.output || '');
+      if (status.operations && status.operations.length > 0) {
+        if (isWindowMode) {
+          windowPreview.style.display = 'block';
+          activeGUIRunID = runId;
+        }
+        applyGUIOperations(status.operations);
+      }
       if (status.dialog) {
         const answer = await showNakoDialog(status.dialog);
         await window.resolveNakoDialog(runId, status.dialog.id, answer.text, answer.accepted);
@@ -1699,13 +1710,21 @@ document.addEventListener('DOMContentLoaded', () => {
     btnRun.disabled = true;
     setStatus(`実行中 (${isWindowMode ? 'ウィンドウ' : 'コマンドライン'})...`);
 
+    // 前回の実行結果を消し、途中経過をこの実行の分だけ積み上げていく。
+    output.textContent = '';
+    output.className = 'output';
+    windowPreview.innerHTML = '';
+    windowPreview.style.display = 'none';
+    activeGUIRunID = 0;
+
     const startTime = performance.now();
 
     try {
       let result;
-      if (typeof window.startNakoFile === 'function' && typeof window.pollNakoRun === 'function') {
+      const usesAsyncRun = typeof window.startNakoFile === 'function' && typeof window.pollNakoRun === 'function';
+      if (usesAsyncRun) {
         const runId = await window.startNakoFile(code, currentFilePath || '', isWindowMode);
-        result = await waitForNakoRun(runId);
+        result = await waitForNakoRun(runId, isWindowMode);
       } else if (typeof window.runNakoFile === 'function') {
         result = await window.runNakoFile(code, currentFilePath || '', isWindowMode);
       } else {
@@ -1724,25 +1743,45 @@ document.addEventListener('DOMContentLoaded', () => {
         data = { ok: true, output: String(result), error: "" };
       }
 
+      // usesAsyncRun のときは data.output/data.operations は既に
+      // waitForNakoRun のポーリングで出し終えているので、ここでは
+      // 上書きせず残り（あれば）を追記するだけにする。
       if (data.error) {
-        output.textContent = (data.output ? data.output + '\n' : '') + data.error;
+        if (usesAsyncRun) {
+          appendGUIOutput(data.output || '');
+          output.textContent += (output.textContent ? '\n' : '') + data.error;
+        } else {
+          output.textContent = (data.output ? data.output + '\n' : '') + data.error;
+        }
         output.className = 'output has-error';
         execStatus.textContent = `エラー (${elapsed}s)`;
         execStatus.className = 'status-indicator error';
         setStatus(`実行エラー (${elapsed}秒)`);
         windowPreview.style.display = 'none';
       } else {
-        output.textContent = data.output || '（出力なし）';
+        if (usesAsyncRun) {
+          appendGUIOutput(data.output || '');
+          if (!output.textContent) output.textContent = '（出力なし）';
+        } else {
+          output.textContent = data.output || '（出力なし）';
+        }
         output.className = 'output has-content';
         execStatus.textContent = `完了 (${elapsed}s)`;
         execStatus.className = 'status-indicator success';
         setStatus(`実行完了 (${elapsed}秒)`);
 
-        if (isWindowMode && data.operations && data.operations.length > 0) {
-          windowPreview.style.display = 'block';
-          windowPreview.innerHTML = '';
-          activeGUIRunID = data.runId || 0;
-          applyGUIOperations(data.operations);
+        // ウィンドウ実行中にストリーミングで既に画面部品が出ている場合は
+        // windowPreview がもう 'block' になっているので、ここでは終わりに
+        // 残っていた操作（あれば）を追記するだけでよい。
+        if (isWindowMode) {
+          if (data.operations && data.operations.length > 0) {
+            windowPreview.style.display = 'block';
+            activeGUIRunID = data.runId || activeGUIRunID || 0;
+            applyGUIOperations(data.operations);
+          }
+          if (windowPreview.style.display !== 'block') {
+            activeGUIRunID = 0;
+          }
         } else {
           activeGUIRunID = 0;
           windowPreview.style.display = 'none';

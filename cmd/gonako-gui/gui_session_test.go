@@ -57,6 +57,35 @@ func TestSynchronousGUIRunKeepsSayFallback(t *testing.T) {
 	}
 }
 
+// 『表示』が実行完了を待たずポーリングの途中で出てくることを確かめる。
+// #48: これが無いと出力はすべてプログラム終了後にまとめて出てしまう。
+func TestAsyncRunStreamsOutputWhileRunning(t *testing.T) {
+	session := &guiSession{}
+	runID := session.start(`3回
+	「あ」と表示
+	0.05秒待つ
+ここまで`, "loop.nako3", false, nil, nil)
+
+	deadline := time.Now().Add(3 * time.Second)
+	sawOutputBeforeDone := false
+	for time.Now().Before(deadline) {
+		status := session.poll(runID)
+		if status.Output != "" && !status.Done {
+			sawOutputBeforeDone = true
+		}
+		if status.Done {
+			if !status.Result.OK {
+				t.Fatalf("run failed: %#v", status.Result)
+			}
+			break
+		}
+		time.Sleep(2 * time.Millisecond)
+	}
+	if !sawOutputBeforeDone {
+		t.Fatal("『表示』の出力が実行完了前にポーリングへ現れなかった（#48が再発）")
+	}
+}
+
 func TestBundledProgramPageEscapesEmbeddedHTML(t *testing.T) {
 	result := RunResult{OK: true, RunID: 1}
 	result.Operations = append(result.Operations, guilib.Operation{Type: "create", Handle: 1, Tag: "div", HTML: `</script><b>ok</b>`})
