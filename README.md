@@ -55,7 +55,9 @@ brew install --cask gonako-gui
 ----------------------------
 
 
-## gonakoを使ってみよう
+## gonako　(CLI)を使ってみよう
+
+`gonako`は、コマンドラインから使うCLIツールです。なでしこのプログラムを作ったり、配布ファイルを作ったりできます。
 
 ```bash
 gonako hello.nako3        # ファイルを実行する
