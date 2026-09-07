@@ -58,31 +58,31 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
-		"SQLITE3開": {
+		"SQLITE3開": { // @指定したファイルパスのSQLite3データベースを開いてハンドルを返す // @SQLITE3ひらく
 			josi: [][]string{{"を", "の"}}, fn: p.open,
 		},
-		"SQLITE3閉": {
+		"SQLITE3閉": { // @現在のデータベースを閉じる // @SQLITE3とじる
 			returnNone: true, fn: p.close,
 		},
-		"SQLITE3切替": {
+		"SQLITE3切替": { // @操作対象のデータベースをハンドルで切り替える // @SQLITE3きりかえ
 			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.switchDB,
 		},
-		"SQLITE3実行": {
+		"SQLITE3実行": { // @SQL文Aをパラメータ配列Bとともに実行する(INSERT/UPDATE/DELETEなど) // @SQLITE3じっこう
 			josi: [][]string{{"を"}, {"で"}}, async: true, returnNone: true, fn: p.exec,
 		},
-		"SQLITE3取得": {
+		"SQLITE3取得": { // @SQL文Aをパラメータ配列Bとともに実行し先頭の1件を辞書で返す // @SQLITE3しゅとく
 			josi: [][]string{{"を"}, {"で"}}, async: true, fn: p.get,
 		},
-		"SQLITE3全取得": {
+		"SQLITE3全取得": { // @SQL文Aをパラメータ配列Bとともに実行し全件を辞書の配列で返す // @SQLITE3ぜんしゅとく
 			josi: [][]string{{"を"}, {"で"}}, async: true, fn: p.all,
 		},
-		"SQLITE3実行時": {
+		"SQLITE3実行時": { // @SQL文Bをパラメータ配列Cとともに実行し完了後に関数Aを呼び出す // @SQLITE3じっこうじ
 			josi: [][]string{{"に"}, {"を"}, {"で"}}, returnNone: true, fn: p.execCallback,
 		},
-		"SQLITE3実行後": {
+		"SQLITE3実行後": { // @SQL文Bをパラメータ配列Cとともに実行し完了後に関数Aを呼び出す(『SQLITE3実行時』の別名) // @SQLITE3じっこうご
 			josi: [][]string{{"に"}, {"を"}, {"で"}}, returnNone: true, fn: p.execCallback,
 		},
-		"SQLITE3取得時": {
+		"SQLITE3取得時": { // @SQL文Bをパラメータ配列Cとともに実行し全件を辞書の配列で関数Aに渡す // @SQLITE3しゅとくじ
 			josi: [][]string{{"に"}, {"を"}, {"で"}}, returnNone: true, fn: p.allCallback,
 		},
 	}

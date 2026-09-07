@@ -65,26 +65,66 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
-		"エクセル新規ブック": {fn: p.newBook},
-		"エクセル開":     {josi: [][]string{{"を", "の", "から"}}, fn: p.open},
-		"エクセル保存":    {josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save},
-		"エクセルCSV保存": {josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.saveCSV},
-		"エクセル閉":     {returnNone: true, fn: p.close},
-		"エクセルブック切替": {josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.switchBook},
-		"エクセル新規シート": {josi: [][]string{{"の", "で"}}, fn: p.newSheet},
-		"エクセルシート取得": {josi: [][]string{{"の"}}, fn: p.getSheet},
-		"エクセルシート注目": {josi: [][]string{{"の", "に", "を"}}, fn: p.selectSheet},
-		"エクセルセル設定":  {josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setCell},
-		"エクセル設定":    {josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setCell},
-		"エクセル一括設定":  {josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setRange},
-		"エクセルセル取得":  {josi: [][]string{{"から", "を", "の"}}, fn: p.getCell},
-		"エクセル取得":    {josi: [][]string{{"から", "を", "の"}}, fn: p.getCell},
-		"エクセル一括取得":  {josi: [][]string{{"から"}, {"までの", "まで", "の"}}, fn: p.getRange},
-		"エクセルシート列挙": {fn: p.listSheets},
-		"エクセルシート削除": {josi: [][]string{{"の", "を"}}, returnNone: true, fn: p.deleteSheet},
-		"エクセルセル幅設定": {josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setColWidth},
-		"エクセル背景色設定": {josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setBackground},
-		"エクセル文字色設定": {josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setFontColor},
+		"エクセル新規ブック": { // @新規Excelブックオブジェクトを作成してハンドルを返す // @えくせるしんきぶっく
+			fn: p.newBook,
+		},
+		"エクセル開": { // @指定パスのExcelブックを開いてハンドルを返す // @えくせるひらく
+			josi: [][]string{{"を", "の", "から"}}, fn: p.open,
+		},
+		"エクセル保存": { // @現在のアクティブExcelブックを指定パスへ保存する // @えくせるほぞん
+			josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save,
+		},
+		"エクセルCSV保存": { // @現在のアクティブシートをCSV形式で指定パスへ保存する // @えくせるCSVほぞん
+			josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.saveCSV,
+		},
+		"エクセル閉": { // @現在のアクティブExcelブックのハンドルを閉じる // @えくせるとじる
+			returnNone: true, fn: p.close,
+		},
+		"エクセルブック切替": { // @操作対象のExcelブックをハンドルで切り替える // @えくせるぶっくきりかえ
+			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.switchBook,
+		},
+		"エクセル新規シート": { // @現在のExcelブックに新しいシートを追加する // @えくせるしんきしーと
+			josi: [][]string{{"の", "で"}}, fn: p.newSheet,
+		},
+		"エクセルシート取得": { // @現在のExcelブックの指定名シートを操作対象として取得する // @えくせるしーとしゅとく
+			josi: [][]string{{"の"}}, fn: p.getSheet,
+		},
+		"エクセルシート注目": { // @現在のExcelブックの指定名シートをアクティブシートに切り替える // @えくせるしーとちゅうもく
+			josi: [][]string{{"の", "に", "を"}}, fn: p.selectSheet,
+		},
+		"エクセルセル設定": { // @指定シートのセル位置（例: 'A1'）に値を書き込む // @えくせるせるせってい
+			josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setCell,
+		},
+		"エクセル設定": { // @指定シートのセル位置（例: 'A1'）に値を書き込む(『エクセルセル設定』の別名) // @えくせるせってい
+			josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setCell,
+		},
+		"エクセル一括設定": { // @指定範囲（例: 'A1' から 'C10'）に2次元配列の値を一括設定する // @えくせるいっかつせってい
+			josi: [][]string{{"へ", "に"}, {"を"}}, returnNone: true, fn: p.setRange,
+		},
+		"エクセルセル取得": { // @指定セル位置（例: 'A1'）の値を取得して返す // @えくせるせるしゅとく
+			josi: [][]string{{"から", "を", "の"}}, fn: p.getCell,
+		},
+		"エクセル取得": { // @指定セル位置（例: 'A1'）の値を取得して返す(『エクセルセル取得』の別名) // @えくせるしゅとく
+			josi: [][]string{{"から", "を", "の"}}, fn: p.getCell,
+		},
+		"エクセル一括取得": { // @指定範囲（例: 'A1' から 'C10'）の値を2次元配列として一括取得する // @えくせるいっかつしゅとく
+			josi: [][]string{{"から"}, {"までの", "まで", "の"}}, fn: p.getRange,
+		},
+		"エクセルシート列挙": { // @Excelブック内のシート名一覧を配列で返す // @えくせるしーとれっきょ
+			fn: p.listSheets,
+		},
+		"エクセルシート削除": { // @現在のExcelブックから指定名シートを削除する // @えくせるしーとさくじょ
+			josi: [][]string{{"の", "を"}}, returnNone: true, fn: p.deleteSheet,
+		},
+		"エクセルセル幅設定": { // @指定列の幅を設定する // @えくせるせるはばせってい
+			josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setColWidth,
+		},
+		"エクセル背景色設定": { // @指定セル位置の背景色を16進カラーコードで設定する // @えくせるはいけいしょくせってい
+			josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setBackground,
+		},
+		"エクセル文字色設定": { // @指定セル位置の文字色を16進カラーコードで設定する // @えくせるもじしょくせってい
+			josi: [][]string{{"を"}, {"に", "へ"}}, returnNone: true, fn: p.setFontColor,
+		},
 	}
 }
 

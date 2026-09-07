@@ -66,7 +66,7 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
-		"HTML表示": {
+		"HTML表示": { // @HTML文字列をウィンドウ画面に追加する // @HTMLひょうじ
 			josi:       [][]string{{"を", "と"}},
 			returnNone: true,
 			fn:         p.cmdDisplayHTML,
@@ -114,7 +114,7 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdSetAttribute,
 		},
-		"DOM属性一括設定": {
+		"DOM属性一括設定": { // @画面部品に辞書で指定した属性を一括設定する // @DOMぞくせいいっかつせってい
 			josi:       [][]string{{"に", "へ"}, {"を"}},
 			returnNone: true,
 			fn:         p.cmdSetAttributes,
@@ -139,7 +139,7 @@ func (p *Plugin) commands() map[string]command {
 			pure: true,
 			fn:   p.cmdGetText,
 		},
-		"DOMテキスト変更": {
+		"DOMテキスト変更": { // @画面部品のテキストを変更する // @DOMてきすとへんこう
 			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
 			returnNone: true,
 			fn:         p.cmdSetText,
@@ -154,7 +154,7 @@ func (p *Plugin) commands() map[string]command {
 			pure: true,
 			fn:   p.cmdGetHTML,
 		},
-		"HTML変更": {
+		"HTML変更": { // @画面部品のHTMLを変更する // @HTMLへんこう
 			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
 			returnNone: true,
 			fn:         p.cmdSetHTML,
@@ -164,7 +164,7 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdSetHTML,
 		},
-		"DOM注目": {
+		"DOM注目": { // @画面部品にフォーカスしてカーソルを移動する // @DOMちゅうもく
 			josi:       [][]string{{"を", "へ", "に"}},
 			returnNone: true,
 			fn:         p.cmdFocus,
@@ -189,19 +189,19 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdOnSubmit,
 		},
-		"ファイル選択": {
+		"ファイル選択": { // @指定した拡張子のファイルをOS標準ダイアログで選択してパスを返す // @ふぁいるせんたく
 			josi: [][]string{{"の"}},
 			fn:   p.cmdSelectFile,
 		},
-		"保存ファイル選択": {
+		"保存ファイル選択": { // @指定した拡張子の保存先をOS標準ダイアログで選択してパスを返す // @ほぞんふぁいるせんたく
 			josi: [][]string{{"の"}},
 			fn:   p.cmdSelectSaveFile,
 		},
-		"フォルダ選択": {
+		"フォルダ選択": { // @指定したフォルダを開始位置としてOS標準ダイアログでフォルダを選択しパスを返す // @ふぉるだせんたく
 			josi: [][]string{{"で", "から", "の"}},
 			fn:   p.cmdSelectFolder,
 		},
-		"ウィンドウ作成": {
+		"ウィンドウ作成": { // @オプション設定（タイトル・サイズ等）とURLまたはHTMLコードからWebViewウィンドウを作成して表示する // @うぃんどうさくせい
 			josi:       [][]string{{"で", "による"}, {"の", "を", "から"}},
 			returnNone: true,
 			fn:         p.cmdCreateWindow,

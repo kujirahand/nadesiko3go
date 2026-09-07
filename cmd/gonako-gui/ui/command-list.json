@@ -9,10 +9,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "新AJAX",
     "desc": "AJAXでURLにアクセスしJSONの結果を得て、送信時AJAXオプションの値を参照。",
     "template": "【S】からAJAX_JSON取得",
-    "yomi": "AJAX_JSONしゅとく"
+    "yomi": "AJAX_JSONしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 91,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L91"
   },
   {
     "name": "AJAXオプション設定",
@@ -24,10 +28,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "Ajax命令でオプションを設定",
     "template": "【S】にAJAXオプション設定",
-    "yomi": "AJAXおぷしょんせってい"
+    "yomi": "AJAXおぷしょんせってい",
+    "file": "internal/nodelib/net.go",
+    "line": 189,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L189"
   },
   {
     "name": "AJAXテキスト取得",
@@ -39,10 +47,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "新AJAX",
     "desc": "AJAXでURLにアクセスしテキスト形式で結果を得る。送信時AJAXオプションの値を参照。",
     "template": "【S】からAJAXテキスト取得",
-    "yomi": "AJAXてきすとしゅとく"
+    "yomi": "AJAXてきすとしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L72"
   },
   {
     "name": "AJAXバイナリ取得",
@@ -54,10 +66,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "新AJAX",
     "desc": "AJAXでURLにアクセスしバイナリ(arrayBuffer)形式で結果を得る。送信時AJAXオプションの値を参照。",
     "template": "【S】からAJAXバイナリ取得",
-    "yomi": "AJAXばいなりしゅとく"
+    "yomi": "AJAXばいなりしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 108,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L108"
   },
   {
     "name": "AJAX保障送信",
@@ -72,10 +88,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
     "template": "【S】までAJAX保障送信",
-    "yomi": "AJAXほしょうそうしん"
+    "yomi": "AJAXほしょうそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 320,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L320"
   },
   {
     "name": "AJAX内容取得",
@@ -87,10 +107,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)の応答から内容を指定した形式で取り出すための非同期処理オブジェクト(Promise)を返す。",
     "template": "【S】からAJAX内容取得",
-    "yomi": "AJAXないようしゅとく"
+    "yomi": "AJAXないようしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 88,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L88"
   },
   {
     "name": "AJAX受信",
@@ -102,10 +126,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "「!非同期モード」で非同期通信(Ajax)でURLからデータを受信する。『AJAXオプション』を指定できる。結果は変数『対象』に入る",
     "template": "【S】からAJAX受信",
-    "yomi": "AJAXじゅしん"
+    "yomi": "AJAXじゅしん",
+    "file": "internal/nodelib/net.go",
+    "line": 89,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L89"
   },
   {
     "name": "AJAX受信時",
@@ -123,10 +151,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
     "template": "【A】で【B】からAJAX受信時",
-    "yomi": "AJAXそうしんしたとき"
+    "yomi": "AJAXそうしんしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 233,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L233"
   },
   {
     "name": "AJAX失敗時",
@@ -136,10 +168,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "Ajax命令でエラーが起きたとき",
     "template": "【S】のAJAX失敗時",
-    "yomi": "AJAXえらーしっぱいしたとき"
+    "yomi": "AJAXえらーしっぱいしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 198,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L198"
   },
   {
     "name": "AJAX送信時",
@@ -155,10 +191,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
     "template": "【A】の【B】までAJAX送信時",
-    "yomi": "AJAXそうしんしたとき"
+    "yomi": "AJAXそうしんしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 232,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L232"
   },
   {
     "name": "AND",
@@ -171,10 +211,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "(ビット演算で)AとBの論理積を返す。日本語の「AかつB」に相当する",
     "template": "【A】と【B】のAND",
-    "yomi": "AND"
+    "yomi": "AND",
+    "file": "internal/stdlib/system.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L75"
   },
   {
     "name": "ASC",
@@ -184,10 +228,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列V(あるいは文字列配列)の最初の文字の文字コードを返す",
     "template": "【S】のASC",
-    "yomi": "ASC"
+    "yomi": "ASC",
+    "file": "internal/stdlib/string.go",
+    "line": 289,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L289"
   },
   {
     "name": "ASSERT等",
@@ -200,19 +248,27 @@
         "が"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "テスト",
     "desc": "mochaによるテストで、ASSERTでAとBが正しいことを報告する",
     "template": "【A】と【B】がASSERT等",
-    "yomi": "ASSERTひとしい"
+    "yomi": "ASSERTひとしい",
+    "file": "internal/nodelib/os.go",
+    "line": 196,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L196"
   },
   {
     "name": "ASYNC",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "特殊命令",
     "desc": "なでしこのユーザー関数定義でASYNC(非同期関数である)ことを宣言する",
     "template": "ASYNC",
-    "yomi": "ASYNC"
+    "yomi": "ASYNC",
+    "file": "internal/stdlib/system.go",
+    "line": 185,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L185"
   },
   {
     "name": "AWAIT実行",
@@ -225,9 +281,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "特殊命令",
-    "desc": "JavaScriptの非同期関数(Promise",
-    "template": "【A】を【B】でAWAIT実行"
+    "desc": "JavaScriptの非同期関数(Promise/async関数)のFを引数ARGSでawait実行する",
+    "template": "【A】を【B】でAWAIT実行",
+    "yomi": "AWAITじっこう",
+    "file": "internal/stdlib/system.go",
+    "line": 188,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L188"
   },
   {
     "name": "BASE64エンコード",
@@ -238,10 +299,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "BASE64",
     "desc": "BASE64エンコードして返す",
     "template": "【S】をBASE64エンコード",
-    "yomi": "BASE64えんこーど"
+    "yomi": "BASE64えんこーど",
+    "file": "internal/stdlib/url.go",
+    "line": 47,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L47"
   },
   {
     "name": "BASE64デコード",
@@ -253,10 +318,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "BASE64",
     "desc": "BASE64デコードして返す",
     "template": "【S】をBASE64デコード",
-    "yomi": "BASE64でこーど"
+    "yomi": "BASE64でこーど",
+    "file": "internal/stdlib/url.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L50"
   },
   {
     "name": "CHR",
@@ -266,10 +335,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字コードV(あるいは文字列配列)から文字を返す",
     "template": "【S】のCHR",
-    "yomi": "CHR"
+    "yomi": "CHR",
+    "file": "internal/stdlib/string.go",
+    "line": 309,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L309"
   },
   {
     "name": "CLAMP",
@@ -287,10 +360,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "数値を下限から上限の範囲内に収めた値を返す。",
     "template": "【A】の【B】から【C】までのCLAMP",
-    "yomi": "CLAMP"
+    "yomi": "CLAMP",
+    "file": "internal/stdlib/math.go",
+    "line": 67,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L67"
   },
   {
     "name": "DISCORDファイル送信",
@@ -307,10 +384,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "新AJAX",
     "desc": "DISCORDのウェブフックURLにファイルF(パスを指定)とメッセージSを送信する。",
     "template": "【A】へ【B】と【C】をDISCORDファイル送信",
-    "yomi": "DISCORDふぁいるそうしん"
+    "yomi": "DISCORDふぁいるそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 399,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L399"
   },
   {
     "name": "DISCORD送信",
@@ -325,10 +406,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "新AJAX",
     "desc": "DISCORDのウェブフックURLにSのメッセージを送信する。宛先のウェブフックを取得しておく必要がある。",
     "template": "【A】へ【B】をDISCORD送信",
-    "yomi": "DISCORDそうしん"
+    "yomi": "DISCORDそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 377,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L377"
   },
   {
     "name": "DOMスタイル一括設定",
@@ -342,10 +427,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMに(オブジェクト型で)スタイル情報を一括設定",
     "template": "【A】に【B】をDOMスタイル一括設定",
-    "yomi": "DOMすたいるいっかつせってい"
+    "yomi": "DOMすたいるいっかつせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 107,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L107"
   },
   {
     "name": "DOMテキスト取得",
@@ -356,10 +445,14 @@
         "から"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMのテキストを取得",
     "template": "【S】のDOMテキスト取得",
-    "yomi": "DOMてきすとしゅとく"
+    "yomi": "DOMてきすとしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 137,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L137"
   },
   {
     "name": "DOMテキスト変更",
@@ -374,9 +467,14 @@
         "を"
       ]
     ],
-    "category": "DOM操作",
+    "plugin": "gonako",
+    "category": "GUI",
     "desc": "画面部品のテキストを変更する",
-    "template": "【A】に【B】をDOMテキスト変更"
+    "template": "【A】に【B】をDOMテキスト変更",
+    "yomi": "DOMてきすとへんこう",
+    "file": "internal/guilib/guilib.go",
+    "line": 142,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L142"
   },
   {
     "name": "DOMテキスト設定",
@@ -391,10 +489,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMにテキストを設定",
     "template": "【A】に【B】をDOMテキスト設定",
-    "yomi": "DOMてきすとせってい"
+    "yomi": "DOMてきすとせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 147,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L147"
   },
   {
     "name": "DOM属性一括設定",
@@ -408,9 +510,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "画面部品に辞書で指定した属性を一括設定する",
-    "template": "【A】に【B】をDOM属性一括設定"
+    "template": "【A】に【B】をDOM属性一括設定",
+    "yomi": "DOMぞくせいいっかつせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 117,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L117"
   },
   {
     "name": "DOM属性設定",
@@ -427,10 +534,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMの属性Sに値Vを設定(属性Sには『DOM和属性』も適用される)",
     "template": "【A】の【B】に【C】をDOM属性設定",
-    "yomi": "DOMぞくせいせってい"
+    "yomi": "DOMぞくせいせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 112,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L112"
   },
   {
     "name": "DOM注目",
@@ -442,9 +553,14 @@
         "に"
       ]
     ],
-    "category": "DOM操作",
+    "plugin": "gonako",
+    "category": "GUI",
     "desc": "画面部品にフォーカスしてカーソルを移動する",
-    "template": "【S】をDOM注目"
+    "template": "【S】をDOM注目",
+    "yomi": "DOMちゅうもく",
+    "file": "internal/guilib/guilib.go",
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L167"
   },
   {
     "name": "DOM要素ID取得",
@@ -455,10 +571,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMの要素をIDを指定して取得",
     "template": "【S】のDOM要素ID取得",
-    "yomi": "DOMようそIDしゅとく"
+    "yomi": "DOMようそIDしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 122,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L122"
   },
   {
     "name": "DOM要素全取得",
@@ -469,10 +589,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMの要素をクエリqで全部取得して返す",
     "template": "【S】のDOM要素全取得",
-    "yomi": "DOMようそぜんしゅとく"
+    "yomi": "DOMようそぜんしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 132,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L132"
   },
   {
     "name": "DOM要素取得",
@@ -483,10 +607,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMの要素をクエリqで取得して返す",
     "template": "【S】のDOM要素取得",
-    "yomi": "DOMようそしゅとく"
+    "yomi": "DOMようそしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 127,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L127"
   },
   {
     "name": "EUCファイル保存",
@@ -500,10 +628,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "Sをeuc-jp形式でファイルFへ書き込む",
     "template": "【A】を【B】へEUCファイル保存",
-    "yomi": "EUCふぁいるほぞん"
+    "yomi": "EUCふぁいるほぞん",
+    "file": "internal/nodelib/encoding.go",
+    "line": 111,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L111"
   },
   {
     "name": "EUCファイル読",
@@ -514,10 +646,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "euc-jp形式のファイルSを読み込む",
     "template": "【S】をEUCファイル読",
-    "yomi": "EUCふぁいるよむ"
+    "yomi": "EUCふぁいるよむ",
+    "file": "internal/nodelib/encoding.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L90"
   },
   {
     "name": "FLOAT",
@@ -527,10 +663,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを実数に変換",
     "template": "【S】のFLOAT",
-    "yomi": "FLOAT"
+    "yomi": "FLOAT",
+    "file": "internal/stdlib/registry.go",
+    "line": 305,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L305"
   },
   {
     "name": "GET保障送信",
@@ -545,10 +685,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
     "template": "【S】までGET保障送信",
-    "yomi": "GETほしょうそうしん"
+    "yomi": "GETほしょうそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 340,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L340"
   },
   {
     "name": "GET送信時",
@@ -566,10 +710,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータを送信し、成功するとcallbackが実行される。その際『対象』にデータが代入される。",
     "template": "【A】の【B】までGET送信時",
-    "yomi": "GETそうしんしたとき"
+    "yomi": "GETそうしんしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 234,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L234"
   },
   {
     "name": "HEX",
@@ -579,10 +727,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを16進数に変換",
     "template": "【S】のHEX",
-    "yomi": "HEX"
+    "yomi": "HEX",
+    "file": "internal/stdlib/system.go",
+    "line": 122,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L122"
   },
   {
     "name": "HTML取得",
@@ -593,10 +745,14 @@
         "から"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMのテキストを取得",
     "template": "【S】のHTML取得",
-    "yomi": "HTMLしゅとく"
+    "yomi": "HTMLしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 152,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L152"
   },
   {
     "name": "HTML変更",
@@ -611,9 +767,14 @@
         "を"
       ]
     ],
-    "category": "DOM操作",
+    "plugin": "gonako",
+    "category": "GUI",
     "desc": "画面部品のHTMLを変更する",
-    "template": "【A】に【B】をHTML変更"
+    "template": "【A】に【B】をHTML変更",
+    "yomi": "HTMLへんこう",
+    "file": "internal/guilib/guilib.go",
+    "line": 157,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L157"
   },
   {
     "name": "HTML表示",
@@ -624,9 +785,14 @@
         "と"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "HTML文字列をウィンドウ画面に追加する",
-    "template": "【S】をHTML表示"
+    "template": "【S】をHTML表示",
+    "yomi": "HTMLひょうじ",
+    "file": "internal/guilib/guilib.go",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L69"
   },
   {
     "name": "HTML設定",
@@ -641,10 +807,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMのHTMLにVを設定",
     "template": "【A】に【B】をHTML設定",
-    "yomi": "HTMLせってい"
+    "yomi": "HTMLせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 162,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L162"
   },
   {
     "name": "HTTP保障取得",
@@ -659,10 +829,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
     "template": "【S】のHTTP保障取得",
-    "yomi": "HTTPほしょうしゅとく"
+    "yomi": "HTTPほしょうしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 336,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L336"
   },
   {
     "name": "INT",
@@ -672,10 +846,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを整数に変換",
     "template": "【S】のINT",
-    "yomi": "INT"
+    "yomi": "INT",
+    "file": "internal/stdlib/registry.go",
+    "line": 304,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L304"
   },
   {
     "name": "JSONエンコード",
@@ -686,10 +864,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "JSON",
     "desc": "オブジェクトVをJSON形式に変換して返す(『JSON変換』と同じ)",
     "template": "【S】をJSONエンコード",
-    "yomi": "JSONえんこーど"
+    "yomi": "JSONえんこーど",
+    "file": "internal/stdlib/dict.go",
+    "line": 61,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L61"
   },
   {
     "name": "JSONエンコード整形",
@@ -700,10 +882,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "JSON",
     "desc": "オブジェクトVをJSON形式の文字列(整形済み)に変換して整形して返す",
     "template": "【S】をJSONエンコード整形",
-    "yomi": "JSONえんこーどせいけい"
+    "yomi": "JSONえんこーどせいけい",
+    "file": "internal/stdlib/dict.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L74"
   },
   {
     "name": "JSONデコード",
@@ -715,10 +901,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "JSON",
     "desc": "JSON文字列Sをオブジェクトにして返す(『JSON取得』と同じ)",
     "template": "【S】をJSONデコード",
-    "yomi": "JSONでこーど"
+    "yomi": "JSONでこーど",
+    "file": "internal/stdlib/dict.go",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L69"
   },
   {
     "name": "JSON取得",
@@ -730,10 +920,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "JSON",
     "desc": "JSON文字列をパースして、なでしこのオブジェクトとして返す",
     "template": "【S】をJSON取得",
-    "yomi": "JSONしゅとく"
+    "yomi": "JSONしゅとく",
+    "file": "internal/stdlib/dict.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L73"
   },
   {
     "name": "JSON変換",
@@ -745,10 +939,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "JSON",
     "desc": "オブジェクトVをJSON形式の文字列に変換して返す",
     "template": "【S】をJSON変換",
-    "yomi": "JSONへんかん"
+    "yomi": "JSONへんかん",
+    "file": "internal/stdlib/dict.go",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L72"
   },
   {
     "name": "JSオブジェクト取得",
@@ -758,10 +956,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "特殊命令",
     "desc": "なでしこで定義した関数や変数nameのJavaScriptオブジェクトを取得する",
     "template": "【S】のJSオブジェクト取得",
-    "yomi": "JSおぶじぇくとしゅとく"
+    "yomi": "JSおぶじぇくとしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 204,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L204"
   },
   {
     "name": "LEFT",
@@ -776,10 +978,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sの左端からCNT文字を抽出する",
     "template": "【A】の【B】だけLEFT",
-    "yomi": "LEFT"
+    "yomi": "LEFT",
+    "file": "internal/stdlib/string.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L86"
   },
   {
     "name": "LEN",
@@ -789,9 +995,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
-    "desc": "Aの要素数を返す。Aには配列",
-    "template": "【S】のLEN"
+    "desc": "Aの要素数を返す。Aには配列/辞書型/文字列を指定する。",
+    "template": "【S】のLEN",
+    "yomi": "LEN",
+    "file": "internal/stdlib/array.go",
+    "line": 21,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L21"
   },
   {
     "name": "MAX",
@@ -804,10 +1015,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "2個以上の数値のうち最大値を返す。",
     "template": "【A】の【B】とMAX",
-    "yomi": "MAX"
+    "yomi": "MAX",
+    "file": "internal/stdlib/math.go",
+    "line": 63,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L63"
   },
   {
     "name": "MID",
@@ -825,10 +1040,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SのA文字目からCNT文字を抽出する(『文字抜出』と同じ)",
     "template": "【A】で【B】から【C】をMID",
-    "yomi": "MID"
+    "yomi": "MID",
+    "file": "internal/stdlib/string.go",
+    "line": 81,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L81"
   },
   {
     "name": "MIN",
@@ -841,10 +1060,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "2個以上の数値のうち最小値を返す。",
     "template": "【A】の【B】とMIN",
-    "yomi": "MIN"
+    "yomi": "MIN",
+    "file": "internal/stdlib/math.go",
+    "line": 65,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L65"
   },
   {
     "name": "NAN判定",
@@ -854,10 +1077,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値VがNaNかどうかを判定(命令『非数判定』を使う事を推奨)",
     "template": "【S】をNAN判定",
-    "yomi": "NANはんてい"
+    "yomi": "NANはんてい",
+    "file": "internal/stdlib/system.go",
+    "line": 121,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L121"
   },
   {
     "name": "NOT",
@@ -867,10 +1094,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "(ビット演算で)Vの各ビットを反転して返す。",
     "template": "【S】のNOT",
-    "yomi": "NOT"
+    "yomi": "NOT",
+    "file": "internal/stdlib/math.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L86"
   },
   {
     "name": "OR",
@@ -883,27 +1114,40 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "(ビット演算で)AとBの論理和を返す。",
     "template": "【A】と【B】のOR",
-    "yomi": "OR"
+    "yomi": "OR",
+    "file": "internal/stdlib/system.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L76"
   },
   {
     "name": "OSアーキテクチャ取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "OSアーキテクチャを返す",
     "template": "OSアーキテクチャ取得",
-    "yomi": "OSあーきてくちゃしゅとく"
+    "yomi": "OSあーきてくちゃしゅとく",
+    "file": "internal/nodelib/os.go",
+    "line": 168,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L168"
   },
   {
     "name": "OS取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
-    "desc": "OSプラットフォームを返す(darwin",
-    "template": "OS取得"
+    "desc": "OSプラットフォームを返す(darwin/win32/linux)",
+    "template": "OS取得",
+    "yomi": "OSしゅとく",
+    "file": "internal/nodelib/os.go",
+    "line": 165,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L165"
   },
   {
     "name": "PDFタイトル設定",
@@ -915,9 +1159,14 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDFタイトル設定』を実行します",
-    "template": "【S】にPDFタイトル設定"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントのタイトル(文書プロパティ)を設定する",
+    "template": "【S】にPDFタイトル設定",
+    "yomi": "PDFたいとるせってい",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 85,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L85"
   },
   {
     "name": "PDFフォント設定",
@@ -931,17 +1180,27 @@
         "に"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDFフォント設定』を実行します",
-    "template": "【A】を【B】でPDFフォント設定"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントで使うフォント名とサイズを設定する",
+    "template": "【A】を【B】でPDFフォント設定",
+    "yomi": "PDFふぉんとせってい",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 67,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L67"
   },
   {
     "name": "PDFページ追加",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『PDFページ追加』を実行します",
-    "template": "PDFページ追加"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "現在のPDFドキュメントに新しいページを追加する",
+    "template": "PDFページ追加",
+    "yomi": "PDFぺーじついか",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L64"
   },
   {
     "name": "PDF保存",
@@ -952,9 +1211,14 @@
         "に"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "PDF",
     "desc": "PDFドキュメントを指定ファイルパスへ出力保存する",
-    "template": "【S】へPDF保存"
+    "template": "【S】へPDF保存",
+    "yomi": "PDFほぞん",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 88,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L88"
   },
   {
     "name": "PDF切替",
@@ -965,9 +1229,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF切替』を実行します",
-    "template": "【S】にPDF切替"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "操作対象のPDFドキュメントをハンドルで切り替える",
+    "template": "【S】にPDF切替",
+    "yomi": "PDFきりかえ",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 61,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L61"
   },
   {
     "name": "PDF文字描画",
@@ -981,17 +1250,27 @@
         "に"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF文字描画』を実行します",
-    "template": "【A】を【B】へPDF文字描画"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントの現在位置に文字列を描画する",
+    "template": "【A】を【B】へPDF文字描画",
+    "yomi": "PDFもじびょうが",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L70"
   },
   {
     "name": "PDF新規作成",
     "type": "func",
     "josi": null,
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "PDF",
     "desc": "新規PDFドキュメントを作成してハンドルを返す",
-    "template": "PDF新規作成"
+    "template": "PDF新規作成",
+    "yomi": "PDFしんきさくせい",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 58,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L58"
   },
   {
     "name": "PDF画像描画",
@@ -1006,9 +1285,14 @@
         "に"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF画像描画』を実行します",
-    "template": "【A】を【B】へPDF画像描画"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントの指定位置に画像ファイルを描画する",
+    "template": "【A】を【B】へPDF画像描画",
+    "yomi": "PDFがぞうびょうが",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 82,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L82"
   },
   {
     "name": "PDF矩形描画",
@@ -1021,9 +1305,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF矩形描画』を実行します",
-    "template": "【A】を【B】でPDF矩形描画"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントの指定矩形[X, Y, 幅, 高さ]を描画する",
+    "template": "【A】を【B】でPDF矩形描画",
+    "yomi": "PDFくけいびょうが",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 79,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L79"
   },
   {
     "name": "PDF線描画",
@@ -1036,9 +1325,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF線描画』を実行します",
-    "template": "【A】を【B】でPDF線描画"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントの現在位置から指定位置まで直線を描画する",
+    "template": "【A】を【B】でPDF線描画",
+    "yomi": "PDFせんびょうが",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L76"
   },
   {
     "name": "PDF複数行文字描画",
@@ -1052,17 +1346,27 @@
         "に"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『PDF複数行文字描画』を実行します",
-    "template": "【A】を【B】へPDF複数行文字描画"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "PDFドキュメントの現在位置に複数行の文字列を折り返して描画する",
+    "template": "【A】を【B】へPDF複数行文字描画",
+    "yomi": "PDFふくすうぎょうもじびょうが",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L73"
   },
   {
     "name": "PDF閉",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『PDF閉』を実行します",
-    "template": "PDF閉"
+    "plugin": "gonako",
+    "category": "PDF",
+    "desc": "現在のPDFドキュメントのハンドルを閉じる",
+    "template": "PDF閉",
+    "yomi": "PDFとじる",
+    "file": "internal/pdflib/pdflib.go",
+    "line": 91,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L91"
   },
   {
     "name": "POSTデータ生成",
@@ -1073,10 +1377,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "辞書形式のデータPARAMSをkey=value\u0026key=value...の形式に変換する",
     "template": "【S】のPOSTデータ生成",
-    "yomi": "POSTでーたせいせい"
+    "yomi": "POSTでーたせいせい",
+    "file": "internal/nodelib/net.go",
+    "line": 55,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L55"
   },
   {
     "name": "POSTフォーム保障送信",
@@ -1096,10 +1404,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにPARAMSをフォームとしてPOST送信を開始する非同期処理オブジェクト(Promise)を作成する。",
     "template": "【A】まで【B】をPOSTフォーム保障送信",
-    "yomi": "POSTふぉーむほしょうそうしん"
+    "yomi": "POSTふぉーむほしょうそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 349,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L349"
   },
   {
     "name": "POSTフォーム送信",
@@ -1115,10 +1427,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(AJAX)でURLにPARAMS(辞書型)をフォームとしてPOSTメソッドにてURLへ送信し応答を返す。",
     "template": "【A】まで【B】をPOSTフォーム送信",
-    "yomi": "POSTふぉーむそうしん"
+    "yomi": "POSTふぉーむそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 159,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L159"
   },
   {
     "name": "POSTフォーム送信時",
@@ -1139,10 +1455,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "AjaxでURLにPARAMSをフォームとしてPOST送信し『対象』にデータを設定",
     "template": "【A】の【B】まで【C】をPOSTフォーム送信時",
-    "yomi": "POSTふぉーむそうしんしたとき"
+    "yomi": "POSTふぉーむそうしんしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 279,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L279"
   },
   {
     "name": "POST保障送信",
@@ -1162,10 +1482,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(Ajax)でURLにPARAMSをPOST送信を開始する非同期処理オブジェクト(Promise)を作成する。",
     "template": "【A】まで【B】をPOST保障送信",
-    "yomi": "POSTほしょうそうしん"
+    "yomi": "POSTほしょうそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 342,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L342"
   },
   {
     "name": "POST送信",
@@ -1181,10 +1505,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "非同期通信(AJAX)でPOSTメソッドにてURLへPARAMS(辞書型)を送信して応答を戻す。",
     "template": "【A】まで【B】をPOST送信",
-    "yomi": "POSTそうしん"
+    "yomi": "POSTそうしん",
+    "file": "internal/nodelib/net.go",
+    "line": 129,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L129"
   },
   {
     "name": "POST送信時",
@@ -1205,10 +1533,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Ajax",
     "desc": "AjaxでURLにPARAMSをPOST送信し『対象』にデータを設定",
     "template": "【A】の【B】まで【C】をPOST送信時",
-    "yomi": "POSTそうしんしたとき"
+    "yomi": "POSTそうしんしたとき",
+    "file": "internal/nodelib/net.go",
+    "line": 236,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L236"
   },
   {
     "name": "RGB",
@@ -1224,10 +1556,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "色定数",
     "desc": "赤緑青を256段階でそれぞれ指定して、#RRGGBB形式の値を返す",
     "template": "【A】と【B】の【C】でRGB",
-    "yomi": "RGB"
+    "yomi": "RGB",
+    "file": "internal/stdlib/system.go",
+    "line": 140,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L140"
   },
   {
     "name": "RIGHT",
@@ -1242,10 +1578,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sの右端からCNT文字を抽出する(『文字右部分』と同じ)",
     "template": "【A】の【B】だけRIGHT",
-    "yomi": "RIGHT"
+    "yomi": "RIGHT",
+    "file": "internal/stdlib/string.go",
+    "line": 95,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L95"
   },
   {
     "name": "SHIFT_L",
@@ -1258,10 +1598,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "VをAビット左へシフトして返す",
     "template": "【A】を【B】でSHIFT_L",
-    "yomi": "SHIFT_L"
+    "yomi": "SHIFT_L",
+    "file": "internal/stdlib/math.go",
+    "line": 89,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L89"
   },
   {
     "name": "SHIFT_R",
@@ -1274,10 +1618,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "VをAビット右へシフトして返す(符号を維持する)",
     "template": "【A】を【B】でSHIFT_R",
-    "yomi": "SHIFT_R"
+    "yomi": "SHIFT_R",
+    "file": "internal/stdlib/math.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L90"
   },
   {
     "name": "SHIFT_UR",
@@ -1290,10 +1638,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "VをAビット右へシフトして返す(符号を維持しない、0で埋める)",
     "template": "【A】を【B】でSHIFT_UR",
-    "yomi": "SHIFT_UR"
+    "yomi": "SHIFT_UR",
+    "file": "internal/stdlib/math.go",
+    "line": 91,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L91"
   },
   {
     "name": "SJISファイル保存",
@@ -1307,10 +1659,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "SをSJIS形式でファイルFへ書き込む",
     "template": "【A】を【B】へSJISファイル保存",
-    "yomi": "SJISふぁいるほぞん"
+    "yomi": "SJISふぁいるほぞん",
+    "file": "internal/nodelib/encoding.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L73"
   },
   {
     "name": "SJISファイル読",
@@ -1321,10 +1677,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "SJIS形式のファイルSを読み込む",
     "template": "【S】をSJISファイル読",
-    "yomi": "SJISふぁいるよむ"
+    "yomi": "SJISふぁいるよむ",
+    "file": "internal/nodelib/encoding.go",
+    "line": 52,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L52"
   },
   {
     "name": "SJIS取得",
@@ -1336,10 +1696,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "文字コード",
     "desc": "Shift_JISのバイナリバッファを文字列に変換",
     "template": "【S】からSJIS取得",
-    "yomi": "SJISしゅとく"
+    "yomi": "SJISしゅとく",
+    "file": "internal/nodelib/encoding.go",
+    "line": 40,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L40"
   },
   {
     "name": "SJIS変換",
@@ -1351,10 +1715,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "文字コード",
     "desc": "(v1非互換)文字列をShift_JISのバイナリバッファに変換",
     "template": "【S】にSJIS変換",
-    "yomi": "SJISへんかん"
+    "yomi": "SJISへんかん",
+    "file": "internal/nodelib/encoding.go",
+    "line": 28,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L28"
   },
   {
     "name": "SQLITE3全取得",
@@ -1367,9 +1735,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3全取得』を実行します",
-    "template": "【A】を【B】でSQLITE3全取得"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Aをパラメータ配列Bとともに実行し全件を辞書の配列で返す",
+    "template": "【A】を【B】でSQLITE3全取得",
+    "yomi": "SQLITE3ぜんしゅとく",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L76"
   },
   {
     "name": "SQLITE3切替",
@@ -1380,9 +1753,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3切替』を実行します",
-    "template": "【S】にSQLITE3切替"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "操作対象のデータベースをハンドルで切り替える",
+    "template": "【S】にSQLITE3切替",
+    "yomi": "SQLITE3きりかえ",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 67,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L67"
   },
   {
     "name": "SQLITE3取得",
@@ -1395,9 +1773,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3取得』を実行します",
-    "template": "【A】を【B】でSQLITE3取得"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Aをパラメータ配列Bとともに実行し先頭の1件を辞書で返す",
+    "template": "【A】を【B】でSQLITE3取得",
+    "yomi": "SQLITE3しゅとく",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L73"
   },
   {
     "name": "SQLITE3取得時",
@@ -1413,9 +1796,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3取得時』を実行します",
-    "template": "【A】に【B】を【C】でSQLITE3取得時"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Bをパラメータ配列Cとともに実行し全件を辞書の配列で関数Aに渡す",
+    "template": "【A】に【B】を【C】でSQLITE3取得時",
+    "yomi": "SQLITE3しゅとくじ",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 85,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L85"
   },
   {
     "name": "SQLITE3実行",
@@ -1428,9 +1816,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3実行』を実行します",
-    "template": "【A】を【B】でSQLITE3実行"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Aをパラメータ配列Bとともに実行する(INSERT/UPDATE/DELETEなど)",
+    "template": "【A】を【B】でSQLITE3実行",
+    "yomi": "SQLITE3じっこう",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L70"
   },
   {
     "name": "SQLITE3実行後",
@@ -1446,9 +1839,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3実行後』を実行します",
-    "template": "【A】に【B】を【C】でSQLITE3実行後"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Bをパラメータ配列Cとともに実行し完了後に関数Aを呼び出す(『SQLITE3実行時』の別名)",
+    "template": "【A】に【B】を【C】でSQLITE3実行後",
+    "yomi": "SQLITE3じっこうご",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 82,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L82"
   },
   {
     "name": "SQLITE3実行時",
@@ -1464,17 +1862,27 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3実行時』を実行します",
-    "template": "【A】に【B】を【C】でSQLITE3実行時"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQL文Bをパラメータ配列Cとともに実行し完了後に関数Aを呼び出す",
+    "template": "【A】に【B】を【C】でSQLITE3実行時",
+    "yomi": "SQLITE3じっこうじ",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 79,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L79"
   },
   {
     "name": "SQLITE3閉",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『SQLITE3閉』を実行します",
-    "template": "SQLITE3閉"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "現在のデータベースを閉じる",
+    "template": "SQLITE3閉",
+    "yomi": "SQLITE3とじる",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L64"
   },
   {
     "name": "SQLITE3開",
@@ -1485,9 +1893,14 @@
         "の"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『SQLITE3開』を実行します",
-    "template": "【S】をSQLITE3開"
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "指定したファイルパスのSQLite3データベースを開いてハンドルを返す",
+    "template": "【S】をSQLITE3開",
+    "yomi": "SQLITE3ひらく",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 61,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L61"
   },
   {
     "name": "TOFLOAT",
@@ -1497,10 +1910,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを実数に変換",
     "template": "【S】をTOFLOAT",
-    "yomi": "TOFLOAT"
+    "yomi": "TOFLOAT",
+    "file": "internal/stdlib/registry.go",
+    "line": 303,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L303"
   },
   {
     "name": "TOINT",
@@ -1510,10 +1927,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを整数に変換",
     "template": "【S】をTOINT",
-    "yomi": "TOINT"
+    "yomi": "TOINT",
+    "file": "internal/stdlib/registry.go",
+    "line": 302,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L302"
   },
   {
     "name": "TOSTR",
@@ -1523,10 +1944,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを文字列に変換",
     "template": "【S】をTOSTR",
-    "yomi": "TOSTR"
+    "yomi": "TOSTR",
+    "file": "internal/stdlib/registry.go",
+    "line": 301,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L301"
   },
   {
     "name": "TYPEOF",
@@ -1536,10 +1961,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "変数Vの型を返す",
     "template": "【S】のTYPEOF",
-    "yomi": "TYPEOF"
+    "yomi": "TYPEOF",
+    "file": "internal/stdlib/registry.go",
+    "line": 306,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L306"
   },
   {
     "name": "UNIXTIME変換",
@@ -1551,9 +1980,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "日時SをUNIX時間 (UTC(1970",
-    "template": "【S】のUNIXTIME変換"
+    "desc": "日時SをUNIX時間 (UTC(1970/1/1)からの経過秒数) に変換して返す(v1非互換)",
+    "template": "【S】のUNIXTIME変換",
+    "yomi": "UNIXTIMEへんかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 57,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L57"
   },
   {
     "name": "UNIX時間変換",
@@ -1565,9 +1999,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "日時SをUNIX時間 (UTC(1970",
-    "template": "【S】のUNIX時間変換"
+    "desc": "日時SをUNIX時間 (UTC(1970/1/1)からの経過秒数) に変換して返す(v1非互換)",
+    "template": "【S】のUNIX時間変換",
+    "yomi": "UNIXじかんへんかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 58,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L58"
   },
   {
     "name": "URLエンコード",
@@ -1578,10 +2017,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "基本",
     "desc": "URLエンコードして返す",
     "template": "【S】をURLエンコード",
-    "yomi": "URLえんこーど"
+    "yomi": "URLえんこーど",
+    "file": "internal/stdlib/url.go",
+    "line": 13,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L13"
   },
   {
     "name": "URLデコード",
@@ -1593,10 +2036,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "基本",
     "desc": "URLデコードして返す",
     "template": "【S】をURLデコード",
-    "yomi": "URLでこーど"
+    "yomi": "URLでこーど",
+    "file": "internal/stdlib/url.go",
+    "line": 17,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L17"
   },
   {
     "name": "URLパラメータ解析",
@@ -1608,10 +2055,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "基本",
     "desc": "URLパラメータを解析してハッシュで返す",
     "template": "【S】をURLパラメータ解析",
-    "yomi": "URLぱらめーたかいせき"
+    "yomi": "URLぱらめーたかいせき",
+    "file": "internal/stdlib/url.go",
+    "line": 24,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L24"
   },
   {
     "name": "XOR",
@@ -1624,19 +2075,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ビット演算",
     "desc": "(ビット演算で)AとBの排他的論理和を返す。",
     "template": "【A】と【B】のXOR",
-    "yomi": "XOR"
+    "yomi": "XOR",
+    "file": "internal/stdlib/system.go",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L77"
   },
   {
     "name": "お願",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "ソースコードを読む人を気持ちよくする",
     "template": "お願",
-    "yomi": "おねがいします"
+    "yomi": "おねがいします",
+    "file": "internal/stdlib/registry.go",
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L167"
   },
   {
     "name": "かなか判定",
@@ -1648,28 +2107,40 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字種類",
     "desc": "文字列Sの1文字目がひらがなか判定",
     "template": "【S】をかなか判定",
-    "yomi": "かなかはんてい"
+    "yomi": "かなかはんてい",
+    "file": "internal/stdlib/string.go",
+    "line": 208,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L208"
   },
   {
     "name": "ください",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "敬語対応のため",
     "template": "ください",
-    "yomi": "ください"
+    "yomi": "ください",
+    "file": "internal/stdlib/registry.go",
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L167"
   },
   {
     "name": "です",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "ソースコードを読む人を気持ちよくする",
     "template": "です",
-    "yomi": "です"
+    "yomi": "です",
+    "file": "internal/stdlib/registry.go",
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L167"
   },
   {
     "name": "べき乗",
@@ -1682,10 +2153,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AのB乗を求める",
     "template": "【A】の【B】のべき乗",
-    "yomi": "べきじょう"
+    "yomi": "べきじょう",
+    "file": "internal/stdlib/math.go",
+    "line": 45,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L45"
   },
   {
     "name": "ウィンドウ作成",
@@ -1701,9 +2176,14 @@
         "から"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "オプション設定（タイトル・サイズ等）とURLまたはHTMLコードからWebViewウィンドウを作成して表示する",
-    "template": "【A】で【B】のウィンドウ作成"
+    "template": "【A】で【B】のウィンドウ作成",
+    "yomi": "うぃんどうさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 204,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L204"
   },
   {
     "name": "エクスプローラー起動",
@@ -1715,10 +2195,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "Windowsでエクスプローラー、macOSでFinderを使って、fnameを起動する",
     "template": "【S】をエクスプローラー起動",
-    "yomi": "えくすぷろーらーきどう"
+    "yomi": "えくすぷろーらーきどう",
+    "file": "internal/nodelib/os.go",
+    "line": 192,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L192"
   },
   {
     "name": "エクセルCSV保存",
@@ -1729,17 +2213,27 @@
         "に"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルCSV保存』を実行します",
-    "template": "【S】へエクセルCSV保存"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のアクティブシートをCSV形式で指定パスへ保存する",
+    "template": "【S】へエクセルCSV保存",
+    "yomi": "えくせるCSVほぞん",
+    "file": "internal/officelib/officelib.go",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L77"
   },
   {
     "name": "エクセルシート列挙",
     "type": "func",
     "josi": null,
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "Excelブック内のシート名一覧を配列で返す",
-    "template": "エクセルシート列挙"
+    "template": "エクセルシート列挙",
+    "yomi": "えくせるしーとれっきょ",
+    "file": "internal/officelib/officelib.go",
+    "line": 113,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L113"
   },
   {
     "name": "エクセルシート削除",
@@ -1750,9 +2244,14 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルシート削除』を実行します",
-    "template": "【S】のエクセルシート削除"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のExcelブックから指定名シートを削除する",
+    "template": "【S】のエクセルシート削除",
+    "yomi": "えくせるしーとさくじょ",
+    "file": "internal/officelib/officelib.go",
+    "line": 116,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L116"
   },
   {
     "name": "エクセルシート取得",
@@ -1762,9 +2261,14 @@
         "の"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルシート取得』を実行します",
-    "template": "【S】のエクセルシート取得"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のExcelブックの指定名シートを操作対象として取得する",
+    "template": "【S】のエクセルシート取得",
+    "yomi": "えくせるしーとしゅとく",
+    "file": "internal/officelib/officelib.go",
+    "line": 89,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L89"
   },
   {
     "name": "エクセルシート注目",
@@ -1776,9 +2280,14 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルシート注目』を実行します",
-    "template": "【S】のエクセルシート注目"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のExcelブックの指定名シートをアクティブシートに切り替える",
+    "template": "【S】のエクセルシート注目",
+    "yomi": "えくせるしーとちゅうもく",
+    "file": "internal/officelib/officelib.go",
+    "line": 92,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L92"
   },
   {
     "name": "エクセルセル取得",
@@ -1790,9 +2299,14 @@
         "の"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "指定セル位置（例: 'A1'）の値を取得して返す",
-    "template": "【S】からエクセルセル取得"
+    "template": "【S】からエクセルセル取得",
+    "yomi": "えくせるせるしゅとく",
+    "file": "internal/officelib/officelib.go",
+    "line": 104,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L104"
   },
   {
     "name": "エクセルセル幅設定",
@@ -1806,9 +2320,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルセル幅設定』を実行します",
-    "template": "【A】を【B】にエクセルセル幅設定"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定列の幅を設定する",
+    "template": "【A】を【B】にエクセルセル幅設定",
+    "yomi": "えくせるせるはばせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 119,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L119"
   },
   {
     "name": "エクセルセル設定",
@@ -1822,9 +2341,14 @@
         "を"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "指定シートのセル位置（例: 'A1'）に値を書き込む",
-    "template": "【A】へ【B】をエクセルセル設定"
+    "template": "【A】へ【B】をエクセルセル設定",
+    "yomi": "えくせるせるせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 95,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L95"
   },
   {
     "name": "エクセルブック切替",
@@ -1835,9 +2359,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセルブック切替』を実行します",
-    "template": "【S】にエクセルブック切替"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "操作対象のExcelブックをハンドルで切り替える",
+    "template": "【S】にエクセルブック切替",
+    "yomi": "えくせるぶっくきりかえ",
+    "file": "internal/officelib/officelib.go",
+    "line": 83,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L83"
   },
   {
     "name": "エクセル一括取得",
@@ -1852,9 +2381,14 @@
         "の"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "指定範囲（例: 'A1' から 'C10'）の値を2次元配列として一括取得する",
-    "template": "【A】から【B】までのエクセル一括取得"
+    "template": "【A】から【B】までのエクセル一括取得",
+    "yomi": "えくせるいっかつしゅとく",
+    "file": "internal/officelib/officelib.go",
+    "line": 110,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L110"
   },
   {
     "name": "エクセル一括設定",
@@ -1868,9 +2402,14 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル一括設定』を実行します",
-    "template": "【A】へ【B】をエクセル一括設定"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定範囲（例: 'A1' から 'C10'）に2次元配列の値を一括設定する",
+    "template": "【A】へ【B】をエクセル一括設定",
+    "yomi": "えくせるいっかつせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 101,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L101"
   },
   {
     "name": "エクセル保存",
@@ -1881,9 +2420,14 @@
         "に"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "現在のアクティブExcelブックを指定パスへ保存する",
-    "template": "【S】へエクセル保存"
+    "template": "【S】へエクセル保存",
+    "yomi": "えくせるほぞん",
+    "file": "internal/officelib/officelib.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L74"
   },
   {
     "name": "エクセル取得",
@@ -1895,9 +2439,14 @@
         "の"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル取得』を実行します",
-    "template": "【S】からエクセル取得"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定セル位置（例: 'A1'）の値を取得して返す(『エクセルセル取得』の別名)",
+    "template": "【S】からエクセル取得",
+    "yomi": "えくせるしゅとく",
+    "file": "internal/officelib/officelib.go",
+    "line": 107,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L107"
   },
   {
     "name": "エクセル文字色設定",
@@ -1911,9 +2460,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル文字色設定』を実行します",
-    "template": "【A】を【B】にエクセル文字色設定"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定セル位置の文字色を16進カラーコードで設定する",
+    "template": "【A】を【B】にエクセル文字色設定",
+    "yomi": "えくせるもじしょくせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 125,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L125"
   },
   {
     "name": "エクセル新規シート",
@@ -1924,17 +2478,27 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル新規シート』を実行します",
-    "template": "【S】のエクセル新規シート"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のExcelブックに新しいシートを追加する",
+    "template": "【S】のエクセル新規シート",
+    "yomi": "えくせるしんきしーと",
+    "file": "internal/officelib/officelib.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L86"
   },
   {
     "name": "エクセル新規ブック",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『エクセル新規ブック』を実行します",
-    "template": "エクセル新規ブック"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "新規Excelブックオブジェクトを作成してハンドルを返す",
+    "template": "エクセル新規ブック",
+    "yomi": "えくせるしんきぶっく",
+    "file": "internal/officelib/officelib.go",
+    "line": 68,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L68"
   },
   {
     "name": "エクセル背景色設定",
@@ -1948,9 +2512,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル背景色設定』を実行します",
-    "template": "【A】を【B】にエクセル背景色設定"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定セル位置の背景色を16進カラーコードで設定する",
+    "template": "【A】を【B】にエクセル背景色設定",
+    "yomi": "えくせるはいけいしょくせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 122,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L122"
   },
   {
     "name": "エクセル設定",
@@ -1964,17 +2533,27 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『エクセル設定』を実行します",
-    "template": "【A】へ【B】をエクセル設定"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "指定シートのセル位置（例: 'A1'）に値を書き込む(『エクセルセル設定』の別名)",
+    "template": "【A】へ【B】をエクセル設定",
+    "yomi": "えくせるせってい",
+    "file": "internal/officelib/officelib.go",
+    "line": 98,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L98"
   },
   {
     "name": "エクセル閉",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『エクセル閉』を実行します",
-    "template": "エクセル閉"
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "現在のアクティブExcelブックのハンドルを閉じる",
+    "template": "エクセル閉",
+    "yomi": "えくせるとじる",
+    "file": "internal/officelib/officelib.go",
+    "line": 80,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L80"
   },
   {
     "name": "エクセル開",
@@ -1986,9 +2565,14 @@
         "から"
       ]
     ],
-    "category": "オフィス",
+    "plugin": "gonako",
+    "category": "Excel",
     "desc": "指定パスのExcelブックを開いてハンドルを返す",
-    "template": "【S】をエクセル開"
+    "template": "【S】をエクセル開",
+    "yomi": "えくせるひらく",
+    "file": "internal/officelib/officelib.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L71"
   },
   {
     "name": "エディタ作成",
@@ -1998,10 +2582,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM部品操作",
     "desc": "textの値を持つテキストボックス(input[type='text'])の要素を追加しDOMオブジェクトを返す",
     "template": "【S】のエディタ作成",
-    "yomi": "えでぃたさくせい"
+    "yomi": "えでぃたさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 82,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L82"
   },
   {
     "name": "エラー発生",
@@ -2012,10 +2600,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "故意にエラーSを発生させる",
     "template": "【S】のエラー発生",
-    "yomi": "えらーはっせい"
+    "yomi": "えらーはっせい",
+    "file": "internal/stdlib/system.go",
+    "line": 156,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L156"
   },
   {
     "name": "エンコーディング取得",
@@ -2029,10 +2621,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "文字コード",
     "desc": "バイナリバッファBUFをCODEから変換して返す",
     "template": "【A】を【B】からエンコーディング取得",
-    "yomi": "えんこーでぃんぐしゅとく"
+    "yomi": "えんこーでぃんぐしゅとく",
+    "file": "internal/nodelib/encoding.go",
+    "line": 145,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L145"
   },
   {
     "name": "エンコーディング変換",
@@ -2046,10 +2642,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "文字コード",
     "desc": "文字列SをCODEへ変換してバイナリバッファを返す",
     "template": "【A】を【B】へエンコーディング変換",
-    "yomi": "えんこーでぃんぐへんかん"
+    "yomi": "えんこーでぃんぐへんかん",
+    "file": "internal/nodelib/encoding.go",
+    "line": 128,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L128"
   },
   {
     "name": "カタカナ全角変換",
@@ -2060,10 +2660,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの半角カタカナを全角に変換",
     "template": "【S】のカタカナ全角変換",
-    "yomi": "かたかなぜんかくへんかん"
+    "yomi": "かたかなぜんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 267,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L267"
   },
   {
     "name": "カタカナ判定",
@@ -2075,10 +2679,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字種類",
     "desc": "文字列Sの1文字目がカタカナか判定",
     "template": "【S】をカタカナ判定",
-    "yomi": "かたかなかはんてい"
+    "yomi": "かたかなかはんてい",
+    "file": "internal/stdlib/string.go",
+    "line": 209,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L209"
   },
   {
     "name": "カタカナ半角変換",
@@ -2089,10 +2697,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの全角カタカナを半角に変換",
     "template": "【S】のカタカナ半角変換",
-    "yomi": "かたかなはんかくへんかん"
+    "yomi": "かたかなはんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 270,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L270"
   },
   {
     "name": "カタカナ変換",
@@ -2103,19 +2715,27 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sのひらがなをカタカナに変換",
     "template": "【S】のカタカナ変換",
-    "yomi": "かたかなへんかん"
+    "yomi": "かたかなへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 236,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L236"
   },
   {
     "name": "カレントディレクトリ取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "カレントディレクトリを返す",
     "template": "カレントディレクトリ取得",
-    "yomi": "かれんとでぃれくとりしゅとく"
+    "yomi": "かれんとでぃれくとりしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 204,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L204"
   },
   {
     "name": "カレントディレクトリ変更",
@@ -2126,10 +2746,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "カレントディレクトリをDIRに変更する",
     "template": "【S】にカレントディレクトリ変更",
-    "yomi": "かれんとでぃれくとりへんこう"
+    "yomi": "かれんとでぃれくとりへんこう",
+    "file": "internal/nodelib/file.go",
+    "line": 213,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L213"
   },
   {
     "name": "クリック時",
@@ -2143,27 +2767,40 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作とイベント",
     "desc": "無名関数FでDOMをクリックした時に実行するイベントを設定",
     "template": "【A】で【B】をクリック時",
-    "yomi": "くりっくしたとき"
+    "yomi": "くりっくしたとき",
+    "file": "internal/guilib/guilib.go",
+    "line": 177,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L177"
   },
   {
     "name": "グローバル関数一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "グローバル変数にある関数一覧を取得",
     "template": "グローバル関数一覧取得",
-    "yomi": "ぐろーばるかんすういちらんしゅとく"
+    "yomi": "ぐろーばるかんすういちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 274,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L274"
   },
   {
     "name": "コマンドライン",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『コマンドライン』を実行します",
-    "template": "コマンドライン"
+    "plugin": "plugin_node",
+    "category": "Nodeプロセス",
+    "desc": "コマンドライン引数を配列で返す",
+    "template": "コマンドライン",
+    "yomi": "こまんどらいん",
+    "file": "internal/nodelib/os.go",
+    "line": 142,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L142"
   },
   {
     "name": "コマンド実行",
@@ -2174,10 +2811,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "シェルコマンドSを新しいコンソールで実行する(利用できない場合は通常の起動)",
     "template": "【S】をコマンド実行",
-    "yomi": "こまんどじっこう"
+    "yomi": "こまんどじっこう",
+    "file": "internal/nodelib/os.go",
+    "line": 178,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L178"
   },
   {
     "name": "コマンド実行待機",
@@ -2188,19 +2829,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "シェルコマンドSを新しいコンソールで実行し終了を待機する(戻り値は終了コード、利用できない場合は通常の待機)",
     "template": "【S】をコマンド実行待機",
-    "yomi": "こまんどじっこうたいき"
+    "yomi": "こまんどじっこうたいき",
+    "file": "internal/nodelib/os.go",
+    "line": 174,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L174"
   },
   {
     "name": "コンソールクリア",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "コンソール画面をクリアする",
     "template": "コンソールクリア",
-    "yomi": "こんそーるくりあ"
+    "yomi": "こんそーるくりあ",
+    "file": "internal/nodelib/os.go",
+    "line": 104,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L104"
   },
   {
     "name": "コンソール表示",
@@ -2211,35 +2860,53 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "Sをコンソール表示する(console.log)",
     "template": "【S】をコンソール表示",
-    "yomi": "こんそーるひょうじ"
+    "yomi": "こんそーるひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L64"
   },
   {
     "name": "システム時間",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "現在のUNIX時間 (UTC(1970",
-    "template": "システム時間"
+    "desc": "現在のUNIX時間 (UTC(1970/1/1)からの経過秒数) を返す",
+    "template": "システム時間",
+    "yomi": "しすてむじかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 35,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L35"
   },
   {
     "name": "システム時間ミリ秒",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "現在のUNIX時間 (UTC(1970",
-    "template": "システム時間ミリ秒"
+    "desc": "現在のUNIX時間 (UTC(1970/1/1)からの経過秒数) をミリ秒で返す",
+    "template": "システム時間ミリ秒",
+    "yomi": "しすてむじかんみりびょう",
+    "file": "internal/stdlib/datetime.go",
+    "line": 38,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L38"
   },
   {
     "name": "システム関数一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "システム関数の一覧を取得",
     "template": "システム関数一覧取得",
-    "yomi": "しすてむかんすういちらんしゅとく"
+    "yomi": "しすてむかんすういちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 159,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L159"
   },
   {
     "name": "システム関数存在",
@@ -2250,10 +2917,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "文字列で関数名を指定してシステム関数が存在するかを調べる",
     "template": "【S】がシステム関数存在",
-    "yomi": "しすてむかんすうそんざい"
+    "yomi": "しすてむかんすうそんざい",
+    "file": "internal/stdlib/system.go",
+    "line": 169,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L169"
   },
   {
     "name": "ゼロ埋",
@@ -2266,10 +2937,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "指定形式",
     "desc": "数値VをA桁の0で埋める",
     "template": "【A】を【B】でゼロ埋",
-    "yomi": "ぜろうめ"
+    "yomi": "ぜろうめ",
+    "file": "internal/stdlib/string.go",
+    "line": 284,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L284"
   },
   {
     "name": "タイマー停止",
@@ -2280,10 +2955,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "『秒毎』『秒後』や『秒タイマー開始』で開始したタイマーを停止する",
     "template": "【S】のタイマー停止",
-    "yomi": "たいまーていし"
+    "yomi": "たいまーていし",
+    "file": "internal/stdlib/timer.go",
+    "line": 23,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L23"
   },
   {
     "name": "テキスト取得",
@@ -2294,10 +2973,14 @@
         "から"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMのテキストを取得",
     "template": "【S】のテキスト取得",
-    "yomi": "てきすとしゅとく"
+    "yomi": "てきすとしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 103,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L103"
   },
   {
     "name": "テキスト設定",
@@ -2312,28 +2995,40 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "DOMのテキストにVを設定",
     "template": "【A】に【B】をテキスト設定",
-    "yomi": "てきすとせってい"
+    "yomi": "てきすとせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 98,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L98"
   },
   {
     "name": "テンポラリフォルダ",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "テンポラリフォルダのパスを取得して返す",
     "template": "テンポラリフォルダ",
-    "yomi": "てんぽらりふぉるだ"
+    "yomi": "てんぽらりふぉるだ",
+    "file": "internal/nodelib/file.go",
+    "line": 220,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L220"
   },
   {
     "name": "デスクトップ",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "デスクトップパスを取得して返す",
     "template": "デスクトップ",
-    "yomi": "ですくとっぷ"
+    "yomi": "ですくとっぷ",
+    "file": "internal/nodelib/file.go",
+    "line": 237,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L237"
   },
   {
     "name": "デバッグ表示",
@@ -2345,10 +3040,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "デバッグ用にSを表示する",
     "template": "【S】とデバッグ表示",
-    "yomi": "でばっぐひょうじ"
+    "yomi": "でばっぐひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 230,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L230"
   },
   {
     "name": "トリム",
@@ -2359,10 +3058,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sの前後にある空白を削除する",
     "template": "【S】のトリム",
-    "yomi": "とりむ"
+    "yomi": "とりむ",
+    "file": "internal/stdlib/string.go",
+    "line": 197,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L197"
   },
   {
     "name": "ハッシュキー列挙",
@@ -2372,10 +3075,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ハッシュ",
     "desc": "ハッシュAのキー一覧を配列で返す。",
     "template": "【S】のハッシュキー列挙",
-    "yomi": "はっしゅきーれっきょ"
+    "yomi": "はっしゅきーれっきょ",
+    "file": "internal/stdlib/dict.go",
+    "line": 27,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L27"
   },
   {
     "name": "ハッシュキー削除",
@@ -2389,10 +3096,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ハッシュ",
     "desc": "ハッシュAからキーKEYを削除して返す。",
     "template": "【A】から【B】をハッシュキー削除",
-    "yomi": "はっしゅきーさくじょ"
+    "yomi": "はっしゅきーさくじょ",
+    "file": "internal/stdlib/dict.go",
+    "line": 59,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L59"
   },
   {
     "name": "ハッシュキー存在",
@@ -2406,10 +3117,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ハッシュ",
     "desc": "ハッシュAのキーKEYが存在するか確認",
     "template": "【A】の【B】がハッシュキー存在",
-    "yomi": "はっしゅきーそんざい"
+    "yomi": "はっしゅきーそんざい",
+    "file": "internal/stdlib/dict.go",
+    "line": 49,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L49"
   },
   {
     "name": "ハッシュ値計算",
@@ -2424,9 +3139,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ハッシュ関数",
-    "desc": "データSをアルゴリズムALG(sha256",
-    "template": "【A】を【B】でハッシュ値計算"
+    "desc": "データSをアルゴリズムALG(sha256/sha512/md5)のエンコーディングENC(hex/base64)でハッシュ値を計算して返す",
+    "template": "【A】を【B】でハッシュ値計算",
+    "yomi": "はっしゅちけいさん",
+    "file": "internal/nodelib/crypto.go",
+    "line": 29,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/crypto.go#L29"
   },
   {
     "name": "ハッシュ内容列挙",
@@ -2436,19 +3156,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ハッシュ",
     "desc": "ハッシュAの内容一覧を配列で返す。",
     "template": "【S】のハッシュ内容列挙",
-    "yomi": "はっしゅないようれっきょ"
+    "yomi": "はっしゅないようれっきょ",
+    "file": "internal/stdlib/dict.go",
+    "line": 28,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L28"
   },
   {
     "name": "ハッシュ関数一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ハッシュ関数",
     "desc": "利用可能なハッシュ関数の一覧を返す",
     "template": "ハッシュ関数一覧取得",
-    "yomi": "はっしゅかんすういちらんしゅとく"
+    "yomi": "はっしゅかんすういちらんしゅとく",
+    "file": "internal/nodelib/crypto.go",
+    "line": 20,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/crypto.go#L20"
   },
   {
     "name": "ハテナ関数実行",
@@ -2460,10 +3188,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "『ハテナ関数設定』で設定した関数を実行する",
     "template": "【S】のハテナ関数実行",
-    "yomi": "はてなかんすうじっこう"
+    "yomi": "はてなかんすうじっこう",
+    "file": "internal/stdlib/system.go",
+    "line": 49,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L49"
   },
   {
     "name": "ハテナ関数設定",
@@ -2474,10 +3206,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "ハテナ関数「?? (計算式)」の動作をカスタマイズする。文字列の配列を指定可能で、システム関数名か「js:code」を指定可能。",
     "template": "【S】をハテナ関数設定",
-    "yomi": "はてなかんすうせってい"
+    "yomi": "はてなかんすうせってい",
+    "file": "internal/stdlib/system.go",
+    "line": 252,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L252"
   },
   {
     "name": "バイナリ読",
@@ -2488,10 +3224,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ファイルSをバイナリ(Buffer)として開く",
     "template": "【S】をバイナリ読",
-    "yomi": "ばいなりよむ"
+    "yomi": "ばいなりよむ",
+    "file": "internal/nodelib/file.go",
+    "line": 38,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L38"
   },
   {
     "name": "パス抽出",
@@ -2502,10 +3242,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "パス操作",
     "desc": "ファイル名Sからパス部分を抽出して返す",
     "template": "【S】のパス抽出",
-    "yomi": "ぱすちゅうしゅつ"
+    "yomi": "ぱすちゅうしゅつ",
+    "file": "internal/nodelib/file.go",
+    "line": 173,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L173"
   },
   {
     "name": "パス結合",
@@ -2516,9 +3260,14 @@
         "を"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『パス結合』を実行します",
-    "template": "【S】とパス結合"
+    "plugin": "plugin_node",
+    "category": "ファイル入出力",
+    "desc": "複数のパス断片をOS標準の区切り文字で結合して返す",
+    "template": "【S】とパス結合",
+    "yomi": "ぱすけつごう",
+    "file": "internal/nodelib/file.go",
+    "line": 193,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L193"
   },
   {
     "name": "ファイルコピー",
@@ -2533,10 +3282,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへファイルコピーする(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書きコピー、それ以外はコピー先が存在するなら失敗)",
     "template": "【A】を【B】にファイルコピー",
-    "yomi": "ふぁいるこぴー"
+    "yomi": "ふぁいるこぴー",
+    "file": "internal/nodelib/file.go",
+    "line": 111,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L111"
   },
   {
     "name": "ファイルコピー時",
@@ -2556,10 +3309,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへファイルコピーしてcallbackを実行",
     "template": "【A】で【B】から【C】にファイルコピー時",
-    "yomi": "ふぁいるこぴーしたとき"
+    "yomi": "ふぁいるこぴーしたとき",
+    "file": "internal/nodelib/file.go",
+    "line": 119,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L119"
   },
   {
     "name": "ファイルサイズ取得",
@@ -2571,10 +3328,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスPATHのファイルサイズを調べて返す",
     "template": "【S】のファイルサイズ取得",
-    "yomi": "ふぁいるさいずしゅとく"
+    "yomi": "ふぁいるさいずしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 141,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L141"
   },
   {
     "name": "ファイル上書コピー",
@@ -2589,10 +3350,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへファイルコピーする(コピー先に内容をマージしてコピー)",
     "template": "【A】を【B】にファイル上書コピー",
-    "yomi": "ふぁいるうわがきこぴー"
+    "yomi": "ふぁいるうわがきこぴー",
+    "file": "internal/nodelib/file.go",
+    "line": 115,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L115"
   },
   {
     "name": "ファイル上書移動",
@@ -2607,19 +3372,27 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへ移動する(移動先に内容をマージしてコピー後、元を削除)",
     "template": "【A】を【B】にファイル上書移動",
-    "yomi": "ふぁいるうわがきいどう"
+    "yomi": "ふぁいるうわがきいどう",
+    "file": "internal/nodelib/file.go",
+    "line": 84,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L84"
   },
   {
     "name": "ファイル処理強制停止",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "『ファイルコピー』『ファイル移動』などの処理を強制停止する",
     "template": "ファイル処理強制停止",
-    "yomi": "ふぁいるしょりきょうせいていし"
+    "yomi": "ふぁいるしょりきょうせいていし",
+    "file": "internal/nodelib/file.go",
+    "line": 135,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L135"
   },
   {
     "name": "ファイル処理時",
@@ -2631,10 +3404,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ファイルコピー・移動の処理状況をコールバックFで報告する(変数『対象』に{\"件数\":N,\"現在\":M}をセット)",
     "template": "【S】をファイル処理時",
-    "yomi": "ふぁいるしょりじ"
+    "yomi": "ふぁいるしょりじ",
+    "file": "internal/nodelib/file.go",
+    "line": 129,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L129"
   },
   {
     "name": "ファイル列挙",
@@ -2646,10 +3423,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスSのファイル名（フォルダ名）一覧を取得する。ワイルドカード可能。「*.jpg;*.png」など複数の拡張子を指定可能。",
     "template": "【S】のファイル列挙",
-    "yomi": "ふぁいるれっきょ"
+    "yomi": "ふぁいるれっきょ",
+    "file": "internal/nodelib/file.go",
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L167"
   },
   {
     "name": "ファイル削除",
@@ -2660,10 +3441,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスPATHを削除する",
     "template": "【S】のファイル削除",
-    "yomi": "ふぁいるさくじょ"
+    "yomi": "ふぁいるさくじょ",
+    "file": "internal/nodelib/file.go",
+    "line": 58,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L58"
   },
   {
     "name": "ファイル削除時",
@@ -2679,10 +3464,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスPATHを削除してcallbackを実行",
     "template": "【A】で【B】のファイル削除時",
-    "yomi": "ふぁいるさくじょしたとき"
+    "yomi": "ふぁいるさくじょしたとき",
+    "file": "internal/nodelib/file.go",
+    "line": 62,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L62"
   },
   {
     "name": "ファイル名抽出",
@@ -2693,10 +3482,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "パス操作",
     "desc": "フルパスのファイル名Sからファイル名部分を抽出して返す",
     "template": "【S】のファイル名抽出",
-    "yomi": "ふぁいるめいちゅうしゅつ"
+    "yomi": "ふぁいるめいちゅうしゅつ",
+    "file": "internal/nodelib/file.go",
+    "line": 172,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L172"
   },
   {
     "name": "ファイル情報取得",
@@ -2708,10 +3501,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスPATHの情報を調べてオブジェクトで返す",
     "template": "【S】のファイル情報取得",
-    "yomi": "ふぁいるじょうほうしゅとく"
+    "yomi": "ふぁいるじょうほうしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 150,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L150"
   },
   {
     "name": "ファイル移動",
@@ -2726,10 +3523,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへ移動する(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書き移動、それ以外は移動先が存在するなら失敗)",
     "template": "【A】を【B】にファイル移動",
-    "yomi": "ふぁいるいどう"
+    "yomi": "ふぁいるいどう",
+    "file": "internal/nodelib/file.go",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L72"
   },
   {
     "name": "ファイル移動時",
@@ -2749,10 +3550,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスAをパスBへ移動してcallbackを実行",
     "template": "【A】で【B】から【C】にファイル移動時",
-    "yomi": "ふぁいるいどうしたとき"
+    "yomi": "ふぁいるいどうしたとき",
+    "file": "internal/nodelib/file.go",
+    "line": 96,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L96"
   },
   {
     "name": "ファイル選択",
@@ -2762,9 +3567,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "指定した拡張子のファイルをOS標準ダイアログで選択してパスを返す",
-    "template": "『S』のファイル選択"
+    "template": "『S』のファイル選択",
+    "yomi": "ふぁいるせんたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 192,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L192"
   },
   {
     "name": "フォルダ作成",
@@ -2776,10 +3586,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ディレクトリPATHを作成して返す(再帰的に作成)",
     "template": "【S】にフォルダ作成",
-    "yomi": "ふぉるださくせい"
+    "yomi": "ふぉるださくせい",
+    "file": "internal/nodelib/file.go",
+    "line": 54,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L54"
   },
   {
     "name": "フォルダ存在",
@@ -2790,10 +3604,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ディレクトリPATHが存在するか確認して返す",
     "template": "【S】がフォルダ存在",
-    "yomi": "ふぉるだそんざい"
+    "yomi": "ふぉるだそんざい",
+    "file": "internal/nodelib/file.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L50"
   },
   {
     "name": "フォルダ選択",
@@ -2805,9 +3623,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "指定したフォルダを開始位置としてOS標準ダイアログでフォルダを選択しパスを返す",
-    "template": "『S』のフォルダ選択"
+    "template": "『S』のフォルダ選択",
+    "yomi": "ふぉるだせんたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 200,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L200"
   },
   {
     "name": "フォーム作成",
@@ -2821,10 +3644,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM部品操作",
     "desc": "属性OBJ{method:\"GET\",action:\"...\"}で項目一覧S「項目1=初期値1{改行}項目2=初期値2{改行}…」を送信フォームを作成しDOMオブジェクトを返す。「=?」でオプションの指定が可能",
     "template": "【A】で【B】をフォーム作成",
-    "yomi": "ふぉーむさくせい"
+    "yomi": "ふぉーむさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 94,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L94"
   },
   {
     "name": "フォーム送信時",
@@ -2838,10 +3665,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作とイベント",
     "desc": "無名関数Fでフォームを送信した時に実行するイベントを設定",
     "template": "【A】で【B】をフォーム送信時",
-    "yomi": "ふぉーむそうしんしたとき"
+    "yomi": "ふぉーむそうしんしたとき",
+    "file": "internal/guilib/guilib.go",
+    "line": 187,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L187"
   },
   {
     "name": "ブラウザ起動",
@@ -2853,19 +3684,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ブラウザでURLを起動",
     "template": "【S】をブラウザ起動",
-    "yomi": "ぶらうざきどう"
+    "yomi": "ぶらうざきどう",
+    "file": "internal/nodelib/os.go",
+    "line": 191,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L191"
   },
   {
     "name": "プラグイン一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "利用中のプラグイン一覧を得る",
     "template": "プラグイン一覧取得",
-    "yomi": "ぷらぐいんいちらんしゅとく"
+    "yomi": "ぷらぐいんいちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 322,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L322"
   },
   {
     "name": "プラグイン名設定",
@@ -2876,10 +3715,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "プラグイン管理",
     "desc": "プラグイン名をSに変更する(システムにより自動的に「メイン」あるいはプラグインのファイル名が呼ばれる)",
     "template": "【S】にプラグイン名設定",
-    "yomi": "ぷらぐいんめいせってい"
+    "yomi": "ぷらぐいんめいせってい",
+    "file": "internal/stdlib/system.go",
+    "line": 277,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L277"
   },
   {
     "name": "プロセス終",
@@ -2890,19 +3733,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "Nodeで終了コードを付けてプログラム実行を強制終了する",
     "template": "【S】でプロセス終",
-    "yomi": "ぷろせすおわる"
+    "yomi": "ぷろせすおわる",
+    "file": "internal/nodelib/os.go",
+    "line": 122,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L122"
   },
   {
     "name": "ホームディレクトリ取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "ホームディレクトリを取得して返す",
     "template": "ホームディレクトリ取得",
-    "yomi": "ほーむでぃれくとりしゅとく"
+    "yomi": "ほーむでぃれくとりしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 230,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L230"
   },
   {
     "name": "ボタン作成",
@@ -2912,28 +3763,40 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM部品操作",
     "desc": "ラベルlabelを持つbutton要素を追加しDOMオブジェクトを返す",
     "template": "【S】のボタン作成",
-    "yomi": "ぼたんさくせい"
+    "yomi": "ぼたんさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L86"
   },
   {
     "name": "マイドキュメント",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "マイドキュメントのパスを取得して返す",
     "template": "マイドキュメント",
-    "yomi": "まいどきゅめんと"
+    "yomi": "まいどきゅめんと",
+    "file": "internal/nodelib/file.go",
+    "line": 241,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L241"
   },
   {
     "name": "モジュール一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "取り込んだモジュール一覧を得る",
     "template": "モジュール一覧取得",
-    "yomi": "もじゅーるいちらんしゅとく"
+    "yomi": "もじゅーるいちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 325,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L325"
   },
   {
     "name": "ラベル作成",
@@ -2943,19 +3806,27 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM部品操作",
     "desc": "textの値を持つラベル(span要素)を追加しDOMオブジェクトを返す",
     "template": "【S】のラベル作成",
-    "yomi": "らべるさくせい"
+    "yomi": "らべるさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L78"
   },
   {
     "name": "ランダムUUID生成",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ハッシュ関数",
     "desc": "ランダムに生成された36文字のv4 UUID(文字列)を返す",
     "template": "ランダムUUID生成",
-    "yomi": "らんだむUUIDせいせい"
+    "yomi": "らんだむUUIDせいせい",
+    "file": "internal/nodelib/crypto.go",
+    "line": 58,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/crypto.go#L58"
   },
   {
     "name": "ランダム配列生成",
@@ -2966,10 +3837,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ハッシュ関数",
     "desc": "暗号強度の強い乱数のバイト配列(Uint8Array)を指定個数返す",
     "template": "【S】のランダム配列生成",
-    "yomi": "らんだむはいれつせいせい"
+    "yomi": "らんだむはいれつせいせい",
+    "file": "internal/nodelib/crypto.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/crypto.go#L71"
   },
   {
     "name": "リフレイン",
@@ -2983,10 +3858,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列VをCNT回繰り返す(v1非互換)",
     "template": "【A】を【B】でリフレイン",
-    "yomi": "りふれいん"
+    "yomi": "りふれいん",
+    "file": "internal/stdlib/string.go",
+    "line": 187,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L187"
   },
   {
     "name": "一時フォルダ作成",
@@ -2997,10 +3876,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "指定のフォルダに作業用の一時フォルダを作成して取得して返す",
     "template": "【S】に一時フォルダ作成",
-    "yomi": "いちじふぉるださくせい"
+    "yomi": "いちじふぉるださくせい",
+    "file": "internal/nodelib/file.go",
+    "line": 223,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L223"
   },
   {
     "name": "一致",
@@ -3013,10 +3896,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがBと一致するか(配列や辞書も比較可能)",
     "template": "【A】が【B】と一致",
-    "yomi": "いっち"
+    "yomi": "いっち",
+    "file": "internal/stdlib/math.go",
+    "line": 53,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L53"
   },
   {
     "name": "一行追加",
@@ -3031,10 +3918,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列または配列SにAと改行を追加して返す(v1非互換)",
     "template": "【A】で【B】を一行追加",
-    "yomi": "いちぎょうついか"
+    "yomi": "いちぎょうついか",
+    "file": "internal/stdlib/string.go",
+    "line": 42,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L42"
   },
   {
     "name": "不一致",
@@ -3047,19 +3938,27 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがBと不一致か(配列や辞書も比較可能)",
     "template": "【A】が【B】と不一致",
-    "yomi": "ふいっち"
+    "yomi": "ふいっち",
+    "file": "internal/stdlib/math.go",
+    "line": 55,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L55"
   },
   {
     "name": "予約語一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "文法として定義されている予約語の一覧を取得する",
     "template": "予約語一覧取得",
-    "yomi": "よやくごいちらんしゅとく"
+    "yomi": "よやくごいちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 326,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L326"
   },
   {
     "name": "二乗",
@@ -3070,10 +3969,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "Aを二乗する",
     "template": "【S】の二乗",
-    "yomi": "にじょう"
+    "yomi": "にじょう",
+    "file": "internal/stdlib/math.go",
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L41"
   },
   {
     "name": "二択",
@@ -3086,10 +3989,14 @@
         "を"
       ]
     ],
+    "plugin": "gonako",
     "category": "ダイアログ",
     "desc": "メッセージSと[OK][キャンセル]のダイアログを出して尋ねる。戻り値はtrueかfalseのどちらかになる。",
     "template": "【S】で二択",
-    "yomi": "にたく"
+    "yomi": "にたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L74"
   },
   {
     "name": "二進",
@@ -3101,10 +4008,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを2進数に変換",
     "template": "【S】を二進",
-    "yomi": "にしん"
+    "yomi": "にしん",
+    "file": "internal/stdlib/system.go",
+    "line": 132,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L132"
   },
   {
     "name": "二進表示",
@@ -3116,45 +4027,66 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを2進数に変換して表示",
     "template": "【S】を二進表示",
-    "yomi": "にしんひょうじ"
+    "yomi": "にしんひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 135,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L135"
   },
   {
     "name": "今",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "現在時刻を「HH:mm:ss」の形式で返す",
     "template": "今",
-    "yomi": "いま"
+    "yomi": "いま",
+    "file": "internal/stdlib/datetime.go",
+    "line": 23,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L23"
   },
   {
     "name": "今年",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "今年が何年かを西暦で返す",
     "template": "今年",
-    "yomi": "ことし"
+    "yomi": "ことし",
+    "file": "internal/stdlib/datetime.go",
+    "line": 29,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L29"
   },
   {
     "name": "今日",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "今日の日付を「YYYY",
-    "template": "今日"
+    "desc": "今日の日付を「YYYY/MM/DD」の形式で返す",
+    "template": "今日",
+    "yomi": "きょう",
+    "file": "internal/stdlib/datetime.go",
+    "line": 26,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L26"
   },
   {
     "name": "今月",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "今月が何月かを返す",
     "template": "今月",
-    "yomi": "こんげつ"
+    "yomi": "こんげつ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 32,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L32"
   },
   {
     "name": "以上",
@@ -3167,10 +4099,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがB以上か",
     "template": "【A】が【B】以上",
-    "yomi": "いじょう"
+    "yomi": "いじょう",
+    "file": "internal/stdlib/math.go",
+    "line": 48,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L48"
   },
   {
     "name": "以下",
@@ -3183,10 +4119,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがB以下か",
     "template": "【A】が【B】以下",
-    "yomi": "いか"
+    "yomi": "いか",
+    "file": "internal/stdlib/math.go",
+    "line": 49,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L49"
   },
   {
     "name": "何文字目",
@@ -3200,19 +4140,27 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SでAが何文字目にあるか調べて返す。見つからなければ0を返す。",
     "template": "【A】で【B】が何文字目",
-    "yomi": "なんもじめ"
+    "yomi": "なんもじめ",
+    "file": "internal/stdlib/string.go",
+    "line": 51,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L51"
   },
   {
     "name": "作業フォルダ取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "カレントディレクトリを返す",
     "template": "作業フォルダ取得",
-    "yomi": "さぎょうふぉるだしゅとく"
+    "yomi": "さぎょうふぉるだしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 211,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L211"
   },
   {
     "name": "作業フォルダ変更",
@@ -3223,10 +4171,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "カレントディレクトリをDIRに変更する",
     "template": "【S】に作業フォルダ変更",
-    "yomi": "さぎょうふぉるだへんこう"
+    "yomi": "さぎょうふぉるだへんこう",
+    "file": "internal/nodelib/file.go",
+    "line": 218,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L218"
   },
   {
     "name": "保存",
@@ -3240,10 +4192,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "データSをファイルFヘ書き込む(文字コードはUTF-8)",
     "template": "【A】を【B】に保存",
-    "yomi": "ほぞん"
+    "yomi": "ほぞん",
+    "file": "internal/nodelib/file.go",
+    "line": 39,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L39"
   },
   {
     "name": "保存ファイル選択",
@@ -3253,9 +4209,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "GUI",
     "desc": "指定した拡張子の保存先をOS標準ダイアログで選択してパスを返す",
-    "template": "『S』の保存ファイル選択"
+    "template": "『S』の保存ファイル選択",
+    "yomi": "ほぞんふぁいるせんたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 196,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L196"
   },
   {
     "name": "倍",
@@ -3269,10 +4230,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AのB倍を求める",
     "template": "【A】の【B】倍",
-    "yomi": "ばい"
+    "yomi": "ばい",
+    "file": "internal/stdlib/math.go",
+    "line": 16,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L16"
   },
   {
     "name": "偶数",
@@ -3282,28 +4247,40 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "Aが偶数なら真を返す",
     "template": "【S】が偶数",
-    "yomi": "ぐうすう"
+    "yomi": "ぐうすう",
+    "file": "internal/stdlib/math.go",
+    "line": 35,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L35"
   },
   {
     "name": "先月",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "先月が何月かを返す(1月の場合は12を返す)",
     "template": "先月",
-    "yomi": "せんげつ"
+    "yomi": "せんげつ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 34,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L34"
   },
   {
     "name": "全タイマー停止",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "『秒毎』『秒後』や『秒タイマー開始』で開始したタイマーを全部停止する",
     "template": "全タイマー停止",
-    "yomi": "ぜんたいまーていし"
+    "yomi": "ぜんたいまーていし",
+    "file": "internal/stdlib/timer.go",
+    "line": 26,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L26"
   },
   {
     "name": "全ファイル列挙",
@@ -3315,10 +4292,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "パスS以下の全ファイル名を取得する。ワイルドカード可能。「*.jpg;*.png」のように複数の拡張子を指定可能。",
     "template": "【S】の全ファイル列挙",
-    "yomi": "ぜんふぁいるれっきょ"
+    "yomi": "ぜんふぁいるれっきょ",
+    "file": "internal/nodelib/file.go",
+    "line": 168,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L168"
   },
   {
     "name": "全角変換",
@@ -3329,10 +4310,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの半角文字を全角に変換",
     "template": "【S】の全角変換",
-    "yomi": "ぜんかくへんかん"
+    "yomi": "ぜんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 273,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L273"
   },
   {
     "name": "出現",
@@ -3346,10 +4331,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列(配列)SにAが出現する場合に真を返す",
     "template": "【A】に【B】が出現",
-    "yomi": "しゅつげん"
+    "yomi": "しゅつげん",
+    "file": "internal/stdlib/string.go",
+    "line": 175,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L175"
   },
   {
     "name": "出現回数",
@@ -3362,10 +4351,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SにAが何回出現するか数える",
     "template": "【A】で【B】の出現回数",
-    "yomi": "しゅつげんかいすう"
+    "yomi": "しゅつげんかいすう",
+    "file": "internal/stdlib/string.go",
+    "line": 122,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L122"
   },
   {
     "name": "分差",
@@ -3380,10 +4373,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "時間AとBの分数の差を求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
     "template": "【A】と【B】の分差",
-    "yomi": "ふんさ"
+    "yomi": "ふんさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L69"
   },
   {
     "name": "切取",
@@ -3398,10 +4395,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sから文字列Aまでの部分を抽出する。切り取った残りは特殊変数『対象』に代入される。(v1非互換)",
     "template": "【A】から【B】まで切取",
-    "yomi": "きりとる"
+    "yomi": "きりとる",
+    "file": "internal/stdlib/string.go",
+    "line": 150,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L150"
   },
   {
     "name": "割",
@@ -3414,10 +4415,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AをBで割る",
     "template": "【A】を【B】で割",
-    "yomi": "わる"
+    "yomi": "わる",
+    "file": "internal/stdlib/math.go",
+    "line": 14,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L14"
   },
   {
     "name": "割余",
@@ -3430,19 +4435,27 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AをBで割った余りを求める",
     "template": "【A】を【B】で割余",
-    "yomi": "わったあまり"
+    "yomi": "わったあまり",
+    "file": "internal/stdlib/math.go",
+    "line": 15,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L15"
   },
   {
     "name": "助詞一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "デバッグ支援",
     "desc": "文法として定義されている助詞の一覧を取得する",
     "template": "助詞一覧取得",
-    "yomi": "じょしいちらんしゅとく"
+    "yomi": "じょしいちらんしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 329,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L329"
   },
   {
     "name": "区切",
@@ -3456,10 +4469,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sを区切り文字Aで区切って配列で返す",
     "template": "【A】の【B】で区切",
-    "yomi": "くぎる"
+    "yomi": "くぎる",
+    "file": "internal/stdlib/string.go",
+    "line": 133,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L133"
   },
   {
     "name": "半角変換",
@@ -3470,10 +4487,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの全角文字を半角に変換",
     "template": "【S】の半角変換",
-    "yomi": "はんかくへんかん"
+    "yomi": "はんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 277,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L277"
   },
   {
     "name": "単置換",
@@ -3491,19 +4512,27 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sのうち、最初に出現するAだけをBに置換して返す",
     "template": "【A】の【B】を【C】に単置換",
-    "yomi": "たんちかん"
+    "yomi": "たんちかん",
+    "file": "internal/stdlib/string.go",
+    "line": 130,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L130"
   },
   {
     "name": "去年",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "去年が何年かを西暦で返す",
     "template": "去年",
-    "yomi": "きょねん"
+    "yomi": "きょねん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 31,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L31"
   },
   {
     "name": "参照",
@@ -3517,9 +4546,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
-    "desc": "値A(配列",
-    "template": "【A】から【B】を参照"
+    "desc": "値A(配列/文字列/辞書型)の範囲I(キーまたは範囲オブジェクト)を参照して(コピーせず)返す",
+    "template": "【A】から【B】を参照",
+    "yomi": "さんしょう",
+    "file": "internal/stdlib/array.go",
+    "line": 213,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L213"
   },
   {
     "name": "右トリム",
@@ -3530,10 +4564,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sの末尾にある空白を削除する",
     "template": "【S】の右トリム",
-    "yomi": "みぎとりむ"
+    "yomi": "みぎとりむ",
+    "file": "internal/stdlib/string.go",
+    "line": 204,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L204"
   },
   {
     "name": "合計",
@@ -3545,19 +4583,27 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "引数(可変)に指定した値を全て合計して返す",
     "template": "【S】と合計",
-    "yomi": "ごうけい"
+    "yomi": "ごうけい",
+    "file": "internal/stdlib/math.go",
+    "line": 61,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L61"
   },
   {
     "name": "名前空間ポップ",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "プラグイン管理",
     "desc": "システム利用のため呼ぶべからず。(名前空間を一つ前の値に戻す)",
     "template": "名前空間ポップ",
-    "yomi": "なまえくうかんぽっぷ"
+    "yomi": "なまえくうかんぽっぷ",
+    "file": "internal/stdlib/system.go",
+    "line": 292,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L292"
   },
   {
     "name": "名前空間設定",
@@ -3568,10 +4614,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "プラグイン管理",
     "desc": "名前空間をSに設定する(システムにより自動的に変更される。ファイル名から拡張子を削ったもの)",
     "template": "【S】に名前空間設定",
-    "yomi": "なまえくうかんせってい"
+    "yomi": "なまえくうかんせってい",
+    "file": "internal/stdlib/system.go",
+    "line": 281,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L281"
   },
   {
     "name": "和暦変換",
@@ -3581,10 +4631,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "Sを和暦に変換する。Sは明治以降の日付が有効。",
     "template": "【S】を和暦変換",
-    "yomi": "われきへんかん"
+    "yomi": "われきへんかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L64"
   },
   {
     "name": "圧縮",
@@ -3600,9 +4654,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "圧縮・解凍",
-    "desc": "(v1非互換)ファイルAをBにZIP圧縮(実行には7-Zipが必要-https:",
-    "template": "【A】を【B】へ圧縮"
+    "desc": "(v1非互換)ファイルAをBにZIP圧縮(実行には7-Zipが必要-https://7-zip.opensource.jp/ )",
+    "template": "【A】を【B】へ圧縮",
+    "yomi": "あっしゅく",
+    "file": "internal/nodelib/zip.go",
+    "line": 15,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L15"
   },
   {
     "name": "圧縮時",
@@ -3621,10 +4680,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "圧縮・解凍",
     "desc": "圧縮処理を行い完了したときにcallback処理を指定",
     "template": "【A】で【B】を【C】に圧縮時",
-    "yomi": "あっしゅくしたとき"
+    "yomi": "あっしゅくしたとき",
+    "file": "internal/nodelib/zip.go",
+    "line": 54,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L54"
   },
   {
     "name": "圧縮解凍ツールパス変更",
@@ -3635,10 +4698,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "圧縮・解凍",
     "desc": "圧縮解凍に使うツールを取得変更する",
     "template": "【S】に圧縮解凍ツールパス変更",
-    "yomi": "あっしゅくかいとうつーるぱすへんこう"
+    "yomi": "あっしゅくかいとうつーるぱすへんこう",
+    "file": "internal/nodelib/zip.go",
+    "line": 45,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L45"
   },
   {
     "name": "変数型確認",
@@ -3648,10 +4715,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "変数Vの型を返す",
     "template": "【S】の変数型確認",
-    "yomi": "へんすうかたかくにん"
+    "yomi": "へんすうかたかくにん",
+    "file": "internal/stdlib/system.go",
+    "line": 105,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L105"
   },
   {
     "name": "変更時",
@@ -3665,10 +4736,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作とイベント",
     "desc": "無名関数FでDOMを変更した時に実行するイベントを設定",
     "template": "【A】で【B】を変更時",
-    "yomi": "へんこうしたとき"
+    "yomi": "へんこうしたとき",
+    "file": "internal/guilib/guilib.go",
+    "line": 182,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L182"
   },
   {
     "name": "大文字変換",
@@ -3679,10 +4754,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "アルファベットの文字列Sを大文字に変換",
     "template": "【S】の大文字変換",
-    "yomi": "おおもじへんかん"
+    "yomi": "おおもじへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 229,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L229"
   },
   {
     "name": "奇数",
@@ -3692,10 +4771,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "Aが奇数なら真を返す",
     "template": "【S】が奇数",
-    "yomi": "きすう"
+    "yomi": "きすう",
+    "file": "internal/stdlib/math.go",
+    "line": 38,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L38"
   },
   {
     "name": "存在",
@@ -3706,10 +4789,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ファイルPATHが存在するか確認して返す",
     "template": "【S】が存在",
-    "yomi": "そんざい"
+    "yomi": "そんざい",
+    "file": "internal/nodelib/file.go",
+    "line": 42,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L42"
   },
   {
     "name": "実数変換",
@@ -3719,10 +4806,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを実数に変換",
     "template": "【S】を実数変換",
-    "yomi": "じっすうへんかん"
+    "yomi": "じっすうへんかん",
+    "file": "internal/stdlib/system.go",
+    "line": 99,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L99"
   },
   {
     "name": "実行",
@@ -3734,10 +4825,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "特殊命令",
     "desc": "無名関数（あるいは、文字列で関数名を指定）Fを実行する(Fが関数でなければ無視する)",
     "template": "【S】を実行",
-    "yomi": "じっこう"
+    "yomi": "じっこう",
+    "file": "internal/stdlib/system.go",
+    "line": 173,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L173"
   },
   {
     "name": "実行時間計測",
@@ -3747,10 +4842,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "特殊命令",
     "desc": "関数Fを実行して要した時間をミリ秒で返す",
     "template": "【S】の実行時間計測",
-    "yomi": "じっこうじかんけいそく"
+    "yomi": "じっこうじかんけいそく",
+    "file": "internal/stdlib/system.go",
+    "line": 214,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L214"
   },
   {
     "name": "尋",
@@ -3761,10 +4860,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "標準入力を一行取得する",
     "template": "【S】と尋",
-    "yomi": "たずねる"
+    "yomi": "たずねる",
+    "file": "internal/nodelib/os.go",
+    "line": 25,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L25"
   },
   {
     "name": "小文字変換",
@@ -3775,10 +4878,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "アルファベットの文字列Sを小文字に変換",
     "template": "【S】の小文字変換",
-    "yomi": "こもじへんかん"
+    "yomi": "こもじへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 232,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L232"
   },
   {
     "name": "左トリム",
@@ -3789,10 +4896,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sの先頭にある空白を削除する",
     "template": "【S】の左トリム",
-    "yomi": "ひだりとりむ"
+    "yomi": "ひだりとりむ",
+    "file": "internal/stdlib/string.go",
+    "line": 201,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L201"
   },
   {
     "name": "平仮名変換",
@@ -3803,10 +4914,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sのカタカナをひらがなに変換",
     "template": "【S】の平仮名変換",
-    "yomi": "ひらがなへんかん"
+    "yomi": "ひらがなへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 235,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L235"
   },
   {
     "name": "年数差",
@@ -3821,10 +4936,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "日付AとBの差を年数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
     "template": "【A】と【B】の年数差",
-    "yomi": "ねんすうさ"
+    "yomi": "ねんすうさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 65,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L65"
   },
   {
     "name": "引",
@@ -3837,10 +4956,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AからBを引く",
     "template": "【A】から【B】を引",
-    "yomi": "ひく"
+    "yomi": "ひく",
+    "file": "internal/stdlib/math.go",
+    "line": 13,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L13"
   },
   {
     "name": "強制終了",
@@ -3851,9 +4974,14 @@
         "の"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『強制終了』を実行します",
-    "template": "【S】で強制終了"
+    "plugin": "plugin_node",
+    "category": "Nodeプロセス",
+    "desc": "指定した終了コードで即座にプロセスを終了する",
+    "template": "【S】で強制終了",
+    "yomi": "きょうせいしゅうりょう",
+    "file": "internal/nodelib/os.go",
+    "line": 117,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L117"
   },
   {
     "name": "強制終了時",
@@ -3865,19 +4993,27 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "Nodeでctrl+cでプログラムの実行が終了した時FUNCを実行する。もしFUNCが偽を返すと終了しない。非同期処理のとき動作する(#1010)",
     "template": "【S】を強制終了時",
-    "yomi": "きょうせいしゅうりょうしたとき"
+    "yomi": "きょうせいしゅうりょうしたとき",
+    "file": "internal/nodelib/os.go",
+    "line": 124,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L124"
   },
   {
     "name": "拝啓",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "ソースコードを読む人を気持ちよくする",
     "template": "拝啓",
-    "yomi": "はいけい"
+    "yomi": "はいけい",
+    "file": "internal/stdlib/system.go",
+    "line": 303,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L303"
   },
   {
     "name": "拡張子変更",
@@ -3893,10 +5029,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "パス操作",
     "desc": "ファイル名Aの拡張子をBに変更して返す",
     "template": "【A】の【B】に拡張子変更",
-    "yomi": "かくちょうしへんこう"
+    "yomi": "かくちょうしへんこう",
+    "file": "internal/stdlib/url.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L90"
   },
   {
     "name": "拡張子抽出",
@@ -3907,10 +5047,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "パス操作",
     "desc": "ファイル名Sから拡張子を抽出する",
     "template": "【S】から拡張子抽出",
-    "yomi": "かくちょうしちゅうしゅつ"
+    "yomi": "かくちょうしちゅうしゅつ",
+    "file": "internal/nodelib/file.go",
+    "line": 174,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L174"
   },
   {
     "name": "掛",
@@ -3924,19 +5068,27 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AにBを掛ける",
     "template": "【A】に【B】を掛",
-    "yomi": "かける"
+    "yomi": "かける",
+    "file": "internal/stdlib/math.go",
+    "line": 17,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L17"
   },
   {
     "name": "敬具",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "ソースコードを読む人を気持ちよくする",
     "template": "敬具",
-    "yomi": "けいぐ"
+    "yomi": "けいぐ",
+    "file": "internal/stdlib/system.go",
+    "line": 314,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L314"
   },
   {
     "name": "数列判定",
@@ -3947,10 +5099,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字種類",
     "desc": "文字列S全部が数字か判定",
     "template": "【S】を数列判定",
-    "yomi": "すうれつかはんてい"
+    "yomi": "すうれつかはんてい",
+    "file": "internal/stdlib/system.go",
+    "line": 115,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L115"
   },
   {
     "name": "数字判定",
@@ -3961,10 +5117,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字種類",
     "desc": "文字列Sの1文字目が数字か判定",
     "template": "【S】を数字判定",
-    "yomi": "すうじかはんてい"
+    "yomi": "すうじかはんてい",
+    "file": "internal/stdlib/string.go",
+    "line": 210,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L210"
   },
   {
     "name": "整数変換",
@@ -3974,10 +5134,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを整数に変換",
     "template": "【S】を整数変換",
-    "yomi": "せいすうへんかん"
+    "yomi": "せいすうへんかん",
+    "file": "internal/stdlib/system.go",
+    "line": 96,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L96"
   },
   {
     "name": "文字コード変換サポート判定",
@@ -3988,10 +5152,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "文字コード",
     "desc": "文字コードCODEをサポートしているか確認",
     "template": "【S】の文字コード変換サポート判定",
-    "yomi": "もじこーどへんかんさぽーとはんてい"
+    "yomi": "もじこーどへんかんさぽーとはんてい",
+    "file": "internal/nodelib/encoding.go",
+    "line": 20,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L20"
   },
   {
     "name": "文字列分割",
@@ -4004,10 +5172,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sを区切り文字Aで分割して配列で返す",
     "template": "【A】を【B】で文字列分割",
-    "yomi": "もじれつぶんかつ"
+    "yomi": "もじれつぶんかつ",
+    "file": "internal/stdlib/string.go",
+    "line": 141,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L141"
   },
   {
     "name": "文字列分解",
@@ -4019,10 +5191,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Vを一文字ずつに分解して返す",
     "template": "【S】を文字列分解",
-    "yomi": "もじれつぶんかい"
+    "yomi": "もじれつぶんかい",
+    "file": "internal/stdlib/string.go",
+    "line": 19,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L19"
   },
   {
     "name": "文字列変換",
@@ -4032,10 +5208,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vを文字列に変換",
     "template": "【S】を文字列変換",
-    "yomi": "もじれつへんかん"
+    "yomi": "もじれつへんかん",
+    "file": "internal/stdlib/system.go",
+    "line": 102,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L102"
   },
   {
     "name": "文字列連結",
@@ -4046,10 +5226,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "引数(可変)に指定した文字列を連結して文字列を返す",
     "template": "【S】と文字列連結",
-    "yomi": "もじれつれんけつ"
+    "yomi": "もじれつれんけつ",
+    "file": "internal/stdlib/string.go",
+    "line": 27,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L27"
   },
   {
     "name": "文字削除",
@@ -4067,10 +5251,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SのA文字目からB文字分を削除して返す",
     "template": "【A】の【B】から【C】だけ文字削除",
-    "yomi": "もじさくじょ"
+    "yomi": "もじさくじょ",
+    "file": "internal/stdlib/string.go",
+    "line": 107,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L107"
   },
   {
     "name": "文字右部分",
@@ -4085,10 +5273,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sの右端からCNT文字を抽出する",
     "template": "【A】の【B】だけ文字右部分",
-    "yomi": "もじみぎぶぶん"
+    "yomi": "もじみぎぶぶん",
+    "file": "internal/stdlib/string.go",
+    "line": 87,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L87"
   },
   {
     "name": "文字始",
@@ -4102,10 +5294,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SがAから始まるならば真を返す",
     "template": "【A】が【B】で文字始",
-    "yomi": "もじはじまる"
+    "yomi": "もじはじまる",
+    "file": "internal/stdlib/string.go",
+    "line": 116,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L116"
   },
   {
     "name": "文字尋",
@@ -4116,10 +5312,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "標準入力を一行取得する。ただし自動で数値に変換しない",
     "template": "【S】と文字尋",
-    "yomi": "もじたずねる"
+    "yomi": "もじたずねる",
+    "file": "internal/nodelib/os.go",
+    "line": 53,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L53"
   },
   {
     "name": "文字左部分",
@@ -4134,10 +5334,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sの左端からCNT文字を抽出する",
     "template": "【A】の【B】だけ文字左部分",
-    "yomi": "もじひだりぶぶん"
+    "yomi": "もじひだりぶぶん",
+    "file": "internal/stdlib/string.go",
+    "line": 82,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L82"
   },
   {
     "name": "文字抜き出",
@@ -4155,9 +5359,14 @@
         ""
       ]
     ],
-    "category": "命令",
-    "desc": "命令『文字抜き出』を実行します",
-    "template": "【A】で【B】から【C】を文字抜き出"
+    "plugin": "plugin_system",
+    "category": "文字列処理",
+    "desc": "文字列SのA文字目からCNT文字を抽出する(Aが0未満の時は後ろからA文字目からCNT文字を抽出)(『文字抜出』の別名)",
+    "template": "【A】で【B】から【C】を文字抜き出",
+    "yomi": "もじぬきだし",
+    "file": "internal/stdlib/string.go",
+    "line": 80,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L80"
   },
   {
     "name": "文字抜出",
@@ -4175,10 +5384,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SのA文字目からCNT文字を抽出する(Aが0未満の時は後ろからA文字目からCNT文字を抽出)",
     "template": "【A】で【B】から【C】を文字抜出",
-    "yomi": "もじぬきだす"
+    "yomi": "もじぬきだす",
+    "file": "internal/stdlib/string.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L64"
   },
   {
     "name": "文字挿入",
@@ -4196,10 +5409,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SのI文字目に文字列Aを挿入する",
     "template": "【A】で【B】に【C】を文字挿入",
-    "yomi": "もじそうにゅう"
+    "yomi": "もじそうにゅう",
+    "file": "internal/stdlib/string.go",
+    "line": 96,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L96"
   },
   {
     "name": "文字数",
@@ -4209,10 +5426,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Vの文字数を返す",
     "template": "【S】の文字数",
-    "yomi": "もじすう"
+    "yomi": "もじすう",
+    "file": "internal/stdlib/string.go",
+    "line": 16,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L16"
   },
   {
     "name": "文字検索",
@@ -4229,10 +5450,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SでA文字目から文字列Bを検索。見つからなければ0を返す。(類似命令に『何文字目』がある)(v1非互換)",
     "template": "【A】で【B】から【C】を文字検索",
-    "yomi": "もじけんさく"
+    "yomi": "もじけんさく",
+    "file": "internal/stdlib/string.go",
+    "line": 54,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L54"
   },
   {
     "name": "文字終",
@@ -4245,10 +5470,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列SがAで終わるならば真を返す",
     "template": "【A】が【B】で文字終",
-    "yomi": "もじおわる"
+    "yomi": "もじおわる",
+    "file": "internal/stdlib/string.go",
+    "line": 119,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L119"
   },
   {
     "name": "日付加算",
@@ -4261,9 +5490,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "日付SにAを加えて返す。Aには「(+｜-)yyyy",
-    "template": "【A】に【B】を日付加算"
+    "desc": "日付SにAを加えて返す。Aには「(+｜-)yyyy/mm/dd」で指定する。",
+    "template": "【A】に【B】を日付加算",
+    "yomi": "ひづけかさん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L75"
   },
   {
     "name": "日数差",
@@ -4278,10 +5512,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "日付AとBの差を日数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
     "template": "【A】と【B】の日数差",
-    "yomi": "にっすうさ"
+    "yomi": "にっすうさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 67,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L67"
   },
   {
     "name": "日時加算",
@@ -4294,10 +5532,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "日時SにAを加えて返す。Aは「(+｜-)1(年|ヶ月|日|週|時間|分|秒)」のように指定する (v1非互換)。",
     "template": "【A】に【B】を日時加算",
-    "yomi": "にちじかさん"
+    "yomi": "にちじかさん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L76"
   },
   {
     "name": "日時変換",
@@ -4308,9 +5550,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "UNIX時間 (UTC(1970",
-    "template": "【S】を日時変換"
+    "desc": "UNIX時間 (UTC(1970/1/1)からの経過秒数) を「YYYY/MM/DD HH:mm:ss」の形式に変換",
+    "template": "【S】を日時変換",
+    "yomi": "にちじへんかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 59,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L59"
   },
   {
     "name": "日時差",
@@ -4328,10 +5575,14 @@
         "による"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "日時AとBの差を種類unitで返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
     "template": "【A】と【B】の【C】による日時差",
-    "yomi": "にちじさ"
+    "yomi": "にちじさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L71"
   },
   {
     "name": "日時書式変換",
@@ -4344,34 +5595,53 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "UNIX時間TM(または日付文字列)を「YYYY",
-    "template": "【A】を【B】で日時書式変換"
+    "desc": "UNIX時間TM(または日付文字列)を「YYYY/MM/DD HH:mm:ss」または「YY-M-D H:m:s」その他、W:曜日、WWW:曜日英、MMM:月英、ccc:ミリ秒の書式に変換",
+    "template": "【A】を【B】で日時書式変換",
+    "yomi": "にちじしょしきへんかん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 63,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L63"
   },
   {
     "name": "明日",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "明日の日付を「YYYY",
-    "template": "明日"
+    "desc": "明日の日付を「YYYY/MM/DD」の形式で返す",
+    "template": "明日",
+    "yomi": "あした",
+    "file": "internal/stdlib/datetime.go",
+    "line": 27,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L27"
   },
   {
     "name": "昨日",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "昨日の日付を「YYYY",
-    "template": "昨日"
+    "desc": "昨日の日付を「YYYY/MM/DD」の形式で返す",
+    "template": "昨日",
+    "yomi": "きのう",
+    "file": "internal/stdlib/datetime.go",
+    "line": 28,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L28"
   },
   {
     "name": "時間ミリ秒取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "ミリ秒単位の時間を数値で返す。結果は実装に依存する。",
     "template": "時間ミリ秒取得",
-    "yomi": "じかんみりびょうしゅとく"
+    "yomi": "じかんみりびょうしゅとく",
+    "file": "internal/stdlib/datetime.go",
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L41"
   },
   {
     "name": "時間加算",
@@ -4384,10 +5654,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "時間SにAを加えて返す。Aには「(+｜-)hh:nn:dd」で指定する。",
     "template": "【A】に【B】を時間加算",
-    "yomi": "じかんかさん"
+    "yomi": "じかんかさん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L74"
   },
   {
     "name": "時間差",
@@ -4402,10 +5676,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "時間AとBの時間の差を求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
     "template": "【A】と【B】の時間差",
-    "yomi": "じかんさ"
+    "yomi": "じかんさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 68,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L68"
   },
   {
     "name": "曜日",
@@ -4415,10 +5693,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "Sに指定した日付の曜日を返す。不正な日付の場合は今日の曜日を返す。",
     "template": "【S】の曜日",
-    "yomi": "ようび"
+    "yomi": "ようび",
+    "file": "internal/stdlib/datetime.go",
+    "line": 42,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L42"
   },
   {
     "name": "曜日番号取得",
@@ -4428,9 +5710,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
-    "desc": "Sに指定した日付の曜日番号を番号で返す。不正な日付の場合は今日の曜日番号を返す。(0=日",
-    "template": "【S】の曜日番号取得"
+    "desc": "Sに指定した日付の曜日番号を番号で返す。不正な日付の場合は今日の曜日番号を返す。(0=日/1=月/2=火/3=水/4=木/5=金/6=土)",
+    "template": "【S】の曜日番号取得",
+    "yomi": "ようびばんごうしゅとく",
+    "file": "internal/stdlib/datetime.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L50"
   },
   {
     "name": "最大値",
@@ -4443,10 +5730,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "2個以上の数値のうち最大値を返す。",
     "template": "【A】の【B】と最大値",
-    "yomi": "さいだいち"
+    "yomi": "さいだいち",
+    "file": "internal/stdlib/math.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L64"
   },
   {
     "name": "最小値",
@@ -4459,10 +5750,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "2個以上の数値のうち最小値を返す。",
     "template": "【A】の【B】と最小値",
-    "yomi": "さいしょうち"
+    "yomi": "さいしょうち",
+    "file": "internal/stdlib/math.go",
+    "line": 66,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L66"
   },
   {
     "name": "月数差",
@@ -4477,10 +5772,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "日付AとBの差を月数で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す (v1非互換)。",
     "template": "【A】と【B】の月数差",
-    "yomi": "げっすうさ"
+    "yomi": "げっすうさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 66,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L66"
   },
   {
     "name": "未満",
@@ -4493,10 +5792,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがB未満か",
     "template": "【A】が【B】未満",
-    "yomi": "みまん"
+    "yomi": "みまん",
+    "file": "internal/stdlib/math.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L50"
   },
   {
     "name": "末尾空白除去",
@@ -4507,37 +5810,53 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sの末尾にある空白を削除する",
     "template": "【S】の末尾空白除去",
-    "yomi": "まつびくうはくじょきょ"
+    "yomi": "まつびくうはくじょきょ",
+    "file": "internal/stdlib/string.go",
+    "line": 207,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L207"
   },
   {
     "name": "来年",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "来年が何年かを西暦で返す",
     "template": "来年",
-    "yomi": "らいねん"
+    "yomi": "らいねん",
+    "file": "internal/stdlib/datetime.go",
+    "line": 30,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L30"
   },
   {
     "name": "来月",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "来月が何月かを返す(12月の場合は1を返す)",
     "template": "来月",
-    "yomi": "らいげつ"
+    "yomi": "らいげつ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 33,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L33"
   },
   {
     "name": "標準入力全取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "標準入力を全部取得して返す",
     "template": "標準入力全取得",
-    "yomi": "ひょうじゅんにゅうりょくぜんしゅとく"
+    "yomi": "ひょうじゅんにゅうりょくぜんしゅとく",
+    "file": "internal/nodelib/os.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L76"
   },
   {
     "name": "標準入力取得時",
@@ -4549,10 +5868,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "標準入力を一行取得した時に、変数『対象』に取得した文字列を代入し、無名関数（あるいは、文字列で関数名を指定）F(s: string)を実行する",
     "template": "【S】を標準入力取得時",
-    "yomi": "ひょうじゅんにゅうりょくしゅとくしたとき"
+    "yomi": "ひょうじゅんにゅうりょくしゅとくしたとき",
+    "file": "internal/nodelib/os.go",
+    "line": 92,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L92"
   },
   {
     "name": "正規表現マッチ",
@@ -4567,9 +5890,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "正規表現",
-    "desc": "文字列Aを正規表現パターンBでマッチして結果を返す(パターンBは「",
-    "template": "【A】を【B】で正規表現マッチ"
+    "desc": "文字列Aを正規表現パターンBでマッチして結果を返す(パターンBは「/pat/opt」の形式で指定。optにgの指定がなければ部分マッチが『抽出文字列』に入る)",
+    "template": "【A】を【B】で正規表現マッチ",
+    "yomi": "せいきひょうげんまっち",
+    "file": "internal/stdlib/regexp.go",
+    "line": 20,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/regexp.go#L20"
   },
   {
     "name": "正規表現区切",
@@ -4582,9 +5910,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "正規表現",
-    "desc": "文字列Sを正規表現パターンAで区切って配列で返す(パターンAは",
-    "template": "【A】を【B】で正規表現区切"
+    "desc": "文字列Sを正規表現パターンAで区切って配列で返す(パターンAは/pat/optで指定)",
+    "template": "【A】を【B】で正規表現区切",
+    "yomi": "せいきひょうげんくぎる",
+    "file": "internal/stdlib/regexp.go",
+    "line": 98,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/regexp.go#L98"
   },
   {
     "name": "正規表現抽出",
@@ -4598,10 +5931,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "正規表現",
     "desc": "文字列Sを正規表現パターンREで正規表現マッチし、すべてのキャプチャグループ( )を一次元配列として返す。抽出文字列には二次元配列を返す",
     "template": "【A】から【B】で正規表現抽出",
-    "yomi": "せいきひょうげんちゅうしゅつ"
+    "yomi": "せいきひょうげんちゅうしゅつ",
+    "file": "internal/stdlib/regexp.go",
+    "line": 45,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/regexp.go#L45"
   },
   {
     "name": "正規表現置換",
@@ -4620,18 +5957,27 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "正規表現",
-    "desc": "文字列Sの正規表現パターンAをBに置換して結果を返す(パターンAは",
-    "template": "【A】の【B】を【C】で正規表現置換"
+    "desc": "文字列Sの正規表現パターンAをBに置換して結果を返す(パターンAは/pat/optで指定)",
+    "template": "【A】の【B】を【C】で正規表現置換",
+    "yomi": "せいきひょうげんちかん",
+    "file": "internal/stdlib/regexp.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/regexp.go#L90"
   },
   {
     "name": "母艦パス取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "フォルダ取得",
     "desc": "スクリプトのあるディレクトリを返す",
     "template": "母艦パス取得",
-    "yomi": "ぼかんぱすしゅとく"
+    "yomi": "ぼかんぱすしゅとく",
+    "file": "internal/nodelib/file.go",
+    "line": 245,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L245"
   },
   {
     "name": "注目",
@@ -4643,19 +5989,27 @@
         "に"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM操作",
     "desc": "要素DOMにフォーカスする(カーソルを移動する)",
     "template": "【S】を注目",
-    "yomi": "ちゅうもく"
+    "yomi": "ちゅうもく",
+    "file": "internal/guilib/guilib.go",
+    "line": 172,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L172"
   },
   {
     "name": "環境変数一覧取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "環境変数",
     "desc": "環境変数の一覧を返す",
     "template": "環境変数一覧取得",
-    "yomi": "かんきょうへんすういちらんしゅとく"
+    "yomi": "かんきょうへんすういちらんしゅとく",
+    "file": "internal/nodelib/os.go",
+    "line": 155,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L155"
   },
   {
     "name": "環境変数取得",
@@ -4666,10 +6020,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "環境変数",
     "desc": "環境変数Sを返す",
     "template": "【S】の環境変数取得",
-    "yomi": "かんきょうへんすうしゅとく"
+    "yomi": "かんきょうへんすうしゅとく",
+    "file": "internal/nodelib/os.go",
+    "line": 151,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L151"
   },
   {
     "name": "画像リサイズ",
@@ -4680,9 +6038,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像リサイズ』を実行します",
-    "template": "【S】に画像リサイズ"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像を指定サイズ [幅, 高さ] に拡大縮小する",
+    "template": "【S】に画像リサイズ",
+    "yomi": "がぞうりさいず",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 99,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L99"
   },
   {
     "name": "画像保存",
@@ -4693,9 +6056,14 @@
         "に"
       ]
     ],
-    "category": "グラフィック",
+    "plugin": "gonako",
+    "category": "画像",
     "desc": "現在の画像をPNG/JPEGファイルへ保存する",
-    "template": "【S】へ画像保存"
+    "template": "【S】へ画像保存",
+    "yomi": "がぞうほぞん",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L75"
   },
   {
     "name": "画像円描画",
@@ -4708,9 +6076,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像円描画』を実行します",
-    "template": "【A】を【B】で画像円描画"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "画像上の指定中心座標と半径で円を指定色で描画する",
+    "template": "【A】を【B】で画像円描画",
+    "yomi": "がぞうえんびょうが",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 93,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L93"
   },
   {
     "name": "画像切替",
@@ -4721,17 +6094,27 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像切替』を実行します",
-    "template": "【S】に画像切替"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "操作対象の画像をハンドルで切り替える",
+    "template": "【S】に画像切替",
+    "yomi": "がぞうきりかえ",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L72"
   },
   {
     "name": "画像幅取得",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『画像幅取得』を実行します",
-    "template": "画像幅取得"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像の幅をピクセル単位で返す",
+    "template": "画像幅取得",
+    "yomi": "がぞうはばしゅとく",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 102,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L102"
   },
   {
     "name": "画像文字描画",
@@ -4744,9 +6127,14 @@
         "で"
       ]
     ],
-    "category": "グラフィック",
+    "plugin": "gonako",
+    "category": "画像",
     "desc": "画像上の指定位置にテキストを描画する",
-    "template": "【A】を【B】で画像文字描画"
+    "template": "【A】を【B】で画像文字描画",
+    "yomi": "がぞうもじびょうが",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 96,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L96"
   },
   {
     "name": "画像新規作成",
@@ -4757,9 +6145,14 @@
         "で"
       ]
     ],
-    "category": "グラフィック",
+    "plugin": "gonako",
+    "category": "画像",
     "desc": "指定サイズ [幅, 高さ] の新しいRGBA画像キャンバスを作成する",
-    "template": "【S】の画像新規作成"
+    "template": "【S】の画像新規作成",
+    "yomi": "がぞうしんきさくせい",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 66,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L66"
   },
   {
     "name": "画像点取得",
@@ -4770,9 +6163,14 @@
         "から"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像点取得』を実行します",
-    "template": "【S】の画像点取得"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "画像上の指定座標 [X, Y] の色を取得して返す",
+    "template": "【S】の画像点取得",
+    "yomi": "がぞうてんしゅとく",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 84,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L84"
   },
   {
     "name": "画像点設定",
@@ -4786,9 +6184,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像点設定』を実行します",
-    "template": "【A】を【B】に画像点設定"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "画像上の指定座標 [X, Y] に指定色でドットを打つ",
+    "template": "【A】を【B】に画像点設定",
+    "yomi": "がぞうてんせってい",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 81,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L81"
   },
   {
     "name": "画像矩形描画",
@@ -4801,9 +6204,14 @@
         "で"
       ]
     ],
-    "category": "グラフィック",
+    "plugin": "gonako",
+    "category": "画像",
     "desc": "画像上の指定矩形 [X, Y, 幅, 高さ] を指定色で塗りつぶす",
-    "template": "【A】を【B】で画像矩形描画"
+    "template": "【A】を【B】で画像矩形描画",
+    "yomi": "がぞうくけいびょうが",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L90"
   },
   {
     "name": "画像線描画",
@@ -4816,9 +6224,14 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像線描画』を実行します",
-    "template": "【A】を【B】で画像線描画"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "画像上に開始座標から終了座標まで直線を指定色で描画する",
+    "template": "【A】を【B】で画像線描画",
+    "yomi": "がぞうせんびょうが",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 87,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L87"
   },
   {
     "name": "画像背景色設定",
@@ -4830,17 +6243,27 @@
         "で"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『画像背景色設定』を実行します",
-    "template": "【S】に画像背景色設定"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像全体を指定色で塗りつぶす",
+    "template": "【S】に画像背景色設定",
+    "yomi": "がぞうはいけいしょくせってい",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L78"
   },
   {
     "name": "画像閉",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『画像閉』を実行します",
-    "template": "画像閉"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像のハンドルを閉じる",
+    "template": "画像閉",
+    "yomi": "がぞうとじる",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 111,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L111"
   },
   {
     "name": "画像開",
@@ -4852,25 +6275,40 @@
         "から"
       ]
     ],
-    "category": "グラフィック",
+    "plugin": "gonako",
+    "category": "画像",
     "desc": "画像ファイル (PNG/JPEG/GIF) を読み込んでキャンバスを作成する",
-    "template": "【S】を画像開"
+    "template": "【S】を画像開",
+    "yomi": "がぞうひらく",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L69"
   },
   {
     "name": "画像高さ取得",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『画像高さ取得』を実行します",
-    "template": "画像高さ取得"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像の高さをピクセル単位で返す(『画像高取得』の別名)",
+    "template": "画像高さ取得",
+    "yomi": "がぞうたかさしゅとく",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 108,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L108"
   },
   {
     "name": "画像高取得",
     "type": "func",
     "josi": null,
-    "category": "命令",
-    "desc": "命令『画像高取得』を実行します",
-    "template": "画像高取得"
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像の高さをピクセル単位で返す",
+    "template": "画像高取得",
+    "yomi": "がぞうたかしゅとく",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 105,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L105"
   },
   {
     "name": "相対パス展開",
@@ -4883,10 +6321,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "パス操作",
     "desc": "ファイル名AからパスBを展開して返す",
     "template": "【A】を【B】で相対パス展開",
-    "yomi": "そうたいぱすてんかい"
+    "yomi": "そうたいぱすてんかい",
+    "file": "internal/nodelib/file.go",
+    "line": 183,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L183"
   },
   {
     "name": "真偽判定",
@@ -4897,19 +6339,27 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "システム定数",
     "desc": "引数bが真(true)ならば「真」を偽(false)ならば「偽」を返す",
     "template": "【S】の真偽判定",
-    "yomi": "しんぎはんてい"
+    "yomi": "しんぎはんてい",
+    "file": "internal/stdlib/system.go",
+    "line": 108,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L108"
   },
   {
     "name": "礼節レベル取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "敬語",
     "desc": "(お遊び)敬語を何度使ったか返す",
     "template": "礼節レベル取得",
-    "yomi": "れいせつれべるしゅとく"
+    "yomi": "れいせつれべるしゅとく",
+    "file": "internal/stdlib/system.go",
+    "line": 319,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L319"
   },
   {
     "name": "秒タイマー開始時",
@@ -4922,10 +6372,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒ごとに実行する(『秒毎』と同じ)",
     "template": "【A】を【B】秒タイマー開始時",
-    "yomi": "びょうたいまーかいししたとき"
+    "yomi": "びょうたいまーかいししたとき",
+    "file": "internal/stdlib/timer.go",
+    "line": 21,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L21"
   },
   {
     "name": "秒差",
@@ -4940,10 +6394,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "日時処理(簡易)",
     "desc": "時間AとBの差を秒差で求めて返す。A\u003cBなら正の数、そうでないなら負の数を返す。",
     "template": "【A】と【B】の秒差",
-    "yomi": "びょうさ"
+    "yomi": "びょうさ",
+    "file": "internal/stdlib/datetime.go",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/datetime.go#L70"
   },
   {
     "name": "秒待",
@@ -4953,10 +6411,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "N秒の間待機する",
     "template": "【S】秒待",
-    "yomi": "びょうまつ"
+    "yomi": "びょうまつ",
+    "file": "internal/stdlib/timer.go",
+    "line": 14,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L14"
   },
   {
     "name": "秒待機",
@@ -4966,10 +6428,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "N秒の間待機する(『秒待』と同じ)",
     "template": "【S】秒待機",
-    "yomi": "びょうたいき"
+    "yomi": "びょうたいき",
+    "file": "internal/stdlib/timer.go",
+    "line": 17,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L17"
   },
   {
     "name": "秒後",
@@ -4982,10 +6448,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒後に実行する。変数『対象』にタイマーIDを代入する。",
     "template": "【A】を【B】秒後",
-    "yomi": "びょうご"
+    "yomi": "びょうご",
+    "file": "internal/stdlib/timer.go",
+    "line": 19,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L19"
   },
   {
     "name": "秒毎",
@@ -4998,28 +6468,40 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "タイマー",
     "desc": "無名関数（あるいは、文字列で関数名を指定）FをN秒ごとに実行する(『タイマー停止』で停止できる)。変数『対象』にタイマーIDを代入する。",
     "template": "【A】を【B】秒毎",
-    "yomi": "びょうごと"
+    "yomi": "びょうごと",
+    "file": "internal/stdlib/timer.go",
+    "line": 20,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L20"
   },
   {
     "name": "空オブジェクト",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "システム定数",
     "desc": "空のオブジェクトを返す(v3.2以降非推奨)",
     "template": "空オブジェクト",
-    "yomi": "からおぶじぇくと"
+    "yomi": "からおぶじぇくと",
+    "file": "internal/stdlib/system.go",
+    "line": 93,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L93"
   },
   {
     "name": "空ハッシュ",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "システム定数",
     "desc": "空のハッシュを返す(v3.2以降非推奨)",
     "template": "空ハッシュ",
-    "yomi": "からはっしゅ"
+    "yomi": "からはっしゅ",
+    "file": "internal/stdlib/system.go",
+    "line": 92,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L92"
   },
   {
     "name": "空白埋",
@@ -5032,10 +6514,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "指定形式",
     "desc": "文字列VをA桁の空白で埋める",
     "template": "【A】を【B】で空白埋",
-    "yomi": "くうはくうめ"
+    "yomi": "くうはくうめ",
+    "file": "internal/stdlib/string.go",
+    "line": 285,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L285"
   },
   {
     "name": "空白除去",
@@ -5046,28 +6532,40 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sの前後にある空白を削除する",
     "template": "【S】の空白除去",
-    "yomi": "くうはくじょきょ"
+    "yomi": "くうはくじょきょ",
+    "file": "internal/stdlib/string.go",
+    "line": 200,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L200"
   },
   {
     "name": "空辞書",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "システム定数",
     "desc": "空の辞書型を返す。『{}』と同義。",
     "template": "空辞書",
-    "yomi": "からじしょ"
+    "yomi": "からじしょ",
+    "file": "internal/stdlib/system.go",
+    "line": 89,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L89"
   },
   {
     "name": "空配列",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "システム定数",
     "desc": "空の配列を返す。『[]』と同義。",
     "template": "空配列",
-    "yomi": "からはいれつ"
+    "yomi": "からはいれつ",
+    "file": "internal/stdlib/system.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L86"
   },
   {
     "name": "等",
@@ -5080,10 +6578,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがBと等しいか",
     "template": "【A】が【B】と等",
-    "yomi": "ひとしい"
+    "yomi": "ひとしい",
+    "file": "internal/stdlib/math.go",
+    "line": 52,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L52"
   },
   {
     "name": "等無",
@@ -5096,10 +6598,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがBと等しくないか",
     "template": "【A】が【B】と等無",
-    "yomi": "ひとしくない"
+    "yomi": "ひとしくない",
+    "file": "internal/stdlib/math.go",
+    "line": 54,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L54"
   },
   {
     "name": "範囲",
@@ -5113,10 +6619,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AからBの範囲を表現する範囲オブジェクトを返す",
     "template": "【A】から【B】の範囲",
-    "yomi": "はんい"
+    "yomi": "はんい",
+    "file": "internal/stdlib/system.go",
+    "line": 80,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L80"
   },
   {
     "name": "範囲内",
@@ -5133,10 +6643,14 @@
         "までの"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "VがAからBの範囲内か",
     "template": "【A】が【B】から【C】の範囲内",
-    "yomi": "はんいない"
+    "yomi": "はんいない",
+    "file": "internal/stdlib/math.go",
+    "line": 56,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L56"
   },
   {
     "name": "範囲切取",
@@ -5154,28 +6668,40 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列Sで文字列AからBまでの部分を抽出して返す。切り取った残りは特殊変数『対象』に代入される。(v1非互換)",
     "template": "【A】で【B】から【C】まで範囲切取",
-    "yomi": "はんいきりとる"
+    "yomi": "はんいきりとる",
+    "file": "internal/stdlib/string.go",
+    "line": 160,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L160"
   },
   {
     "name": "終",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "Nodeでプログラム実行を強制終了する",
     "template": "終",
-    "yomi": "おわる"
+    "yomi": "おわる",
+    "file": "internal/nodelib/os.go",
+    "line": 115,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L115"
   },
   {
     "name": "終了",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "Nodeプロセス",
     "desc": "Nodeでプログラム実行を強制終了する",
     "template": "終了",
-    "yomi": "しゅうりょう"
+    "yomi": "しゅうりょう",
+    "file": "internal/nodelib/os.go",
+    "line": 111,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L111"
   },
   {
     "name": "終端パス削除",
@@ -5186,10 +6712,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "パス操作",
     "desc": "フォルダ名DIRの末尾にあるパス記号を削除する",
     "template": "【S】の終端パス削除",
-    "yomi": "しゅうたんぱすさくじょ"
+    "yomi": "しゅうたんぱすさくじょ",
+    "file": "internal/stdlib/url.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L75"
   },
   {
     "name": "終端パス追加",
@@ -5200,10 +6730,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "パス操作",
     "desc": "パスSの終端にパス区切り文字を追加して返す",
     "template": "【S】に終端パス追加",
-    "yomi": "しゅうたんぱすついか"
+    "yomi": "しゅうたんぱすついか",
+    "file": "internal/stdlib/url.go",
+    "line": 57,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L57"
   },
   {
     "name": "終端パス除去",
@@ -5214,10 +6748,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "パス操作",
     "desc": "フォルダ名DIRの末尾にあるパス記号を削除する",
     "template": "【S】の終端パス除去",
-    "yomi": "しゅうたんぱすじょきょ"
+    "yomi": "しゅうたんぱすじょきょ",
+    "file": "internal/stdlib/url.go",
+    "line": 68,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/url.go#L68"
   },
   {
     "name": "絶対パス変換",
@@ -5228,10 +6766,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "パス操作",
     "desc": "相対パスから絶対パスに変換して返す",
     "template": "【S】を絶対パス変換",
-    "yomi": "ぜったいぱすへんかん"
+    "yomi": "ぜったいぱすへんかん",
+    "file": "internal/nodelib/file.go",
+    "line": 175,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L175"
   },
   {
     "name": "継続表示",
@@ -5242,10 +6784,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "Sを改行なしで表示(ただし「表示」命令を使うことで画面出力される)",
     "template": "【S】を継続表示",
-    "yomi": "けいぞくひょうじ"
+    "yomi": "けいぞくひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 29,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L29"
   },
   {
     "name": "置換",
@@ -5264,28 +6810,40 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "置換・トリム",
     "desc": "文字列Sのうち文字列AをBに全部置換して返す",
     "template": "【A】の【B】を【C】に置換",
-    "yomi": "ちかん"
+    "yomi": "ちかん",
+    "file": "internal/stdlib/string.go",
+    "line": 126,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L126"
   },
   {
     "name": "自分IPV6アドレス取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ネットワーク",
     "desc": "ネットワークアダプターからIPアドレス(IPv6)を取得して配列で返す",
     "template": "自分IPV6アドレス取得",
-    "yomi": "じぶんIPV6あどれすしゅとく"
+    "yomi": "じぶんIPV6あどれすしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 40,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L40"
   },
   {
     "name": "自分IPアドレス取得",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_node",
     "category": "ネットワーク",
     "desc": "ネットワークアダプターからIPアドレス(IPv4)を取得して配列で返す",
     "template": "自分IPアドレス取得",
-    "yomi": "じぶんIPあどれすしゅとく"
+    "yomi": "じぶんIPあどれすしゅとく",
+    "file": "internal/nodelib/net.go",
+    "line": 25,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/net.go#L25"
   },
   {
     "name": "英数全角変換",
@@ -5296,10 +6854,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの半角英数文字を全角に変換",
     "template": "【S】の英数全角変換",
-    "yomi": "えいすうぜんかくへんかん"
+    "yomi": "えいすうぜんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 237,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L237"
   },
   {
     "name": "英数半角変換",
@@ -5310,10 +6872,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの全角英数文字を半角に変換",
     "template": "【S】の英数半角変換",
-    "yomi": "えいすうはんかくへんかん"
+    "yomi": "えいすうはんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 243,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L243"
   },
   {
     "name": "英数記号全角変換",
@@ -5324,10 +6890,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの半角英数記号文字を全角に変換",
     "template": "【S】の英数記号全角変換",
-    "yomi": "えいすうきごうぜんかくへんかん"
+    "yomi": "えいすうきごうぜんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 249,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L249"
   },
   {
     "name": "英数記号半角変換",
@@ -5338,10 +6908,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字変換",
     "desc": "文字列Sの記号文字を半角に変換",
     "template": "【S】の英数記号半角変換",
-    "yomi": "えいすうきごうはんかくへんかん"
+    "yomi": "えいすうきごうはんかくへんかん",
+    "file": "internal/stdlib/string.go",
+    "line": 258,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L258"
   },
   {
     "name": "表ソート",
@@ -5354,10 +6928,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AでB列目(0起点)(あるいはキー名)をキーに文字列順にソートする。Aの内容を書き換える。",
     "template": "【A】の【B】を表ソート",
-    "yomi": "ひょうそーと"
+    "yomi": "ひょうそーと",
+    "file": "internal/stdlib/array.go",
+    "line": 292,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L292"
   },
   {
     "name": "表ピックアップ",
@@ -5374,10 +6952,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "配列Aの列番号B(0起点)(あるいはキー名)で検索文字列Sを含む行を返す",
     "template": "【A】の【B】から【C】を表ピックアップ",
-    "yomi": "ひょうぴっくあっぷ"
+    "yomi": "ひょうぴっくあっぷ",
+    "file": "internal/stdlib/array.go",
+    "line": 294,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L294"
   },
   {
     "name": "表列削除",
@@ -5390,10 +6972,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの(0から数えて)I列目削除して返す",
     "template": "【A】の【B】を表列削除",
-    "yomi": "ひょうれつそうにゅう"
+    "yomi": "ひょうれつそうにゅう",
+    "file": "internal/stdlib/array.go",
+    "line": 393,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L393"
   },
   {
     "name": "表列取得",
@@ -5406,10 +6992,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AのI列目を返す。",
     "template": "【A】の【B】を表列取得",
-    "yomi": "ひょうれつしゅとく"
+    "yomi": "ひょうれつしゅとく",
+    "file": "internal/stdlib/array.go",
+    "line": 362,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L362"
   },
   {
     "name": "表列合計",
@@ -5423,10 +7013,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの(0から数えて)I列目を合計して返す。",
     "template": "【A】の【B】を表列合計",
-    "yomi": "ひょうれつごうけい"
+    "yomi": "ひょうれつごうけい",
+    "file": "internal/stdlib/array.go",
+    "line": 408,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L408"
   },
   {
     "name": "表列挿入",
@@ -5443,10 +7037,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの(0から数えて)I列目に配列Sを挿入して返す",
     "template": "【A】の【B】に【C】を表列挿入",
-    "yomi": "ひょうれつそうにゅう"
+    "yomi": "ひょうれつそうにゅう",
+    "file": "internal/stdlib/array.go",
+    "line": 374,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L374"
   },
   {
     "name": "表列数",
@@ -5457,10 +7055,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの列数を調べて返す。",
     "template": "【S】の表列数",
-    "yomi": "ひょうれつすう"
+    "yomi": "ひょうれつすう",
+    "file": "internal/stdlib/array.go",
+    "line": 311,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L311"
   },
   {
     "name": "表右回転",
@@ -5471,10 +7073,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aを90度回転して返す。",
     "template": "【S】の表右回転",
-    "yomi": "ひょうみぎかいてん"
+    "yomi": "ひょうみぎかいてん",
+    "file": "internal/stdlib/array.go",
+    "line": 338,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L338"
   },
   {
     "name": "表完全一致ピックアップ",
@@ -5491,10 +7097,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "配列Aの列番号B(0起点)(あるいはキー名)で検索文字列Sと一致する行を返す",
     "template": "【A】の【B】から【C】を表完全一致ピックアップ",
-    "yomi": "ひょうかんぜんいっちぴっくあっぷ"
+    "yomi": "ひょうかんぜんいっちぴっくあっぷ",
+    "file": "internal/stdlib/array.go",
+    "line": 297,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L297"
   },
   {
     "name": "表数値ソート",
@@ -5507,10 +7117,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AでB列目(0起点)(あるいはキー名)をキーに数値順にソートする。Aの内容を書き換える。",
     "template": "【A】の【B】を表数値ソート",
-    "yomi": "ひょうすうちそーと"
+    "yomi": "ひょうすうちそーと",
+    "file": "internal/stdlib/array.go",
+    "line": 293,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L293"
   },
   {
     "name": "表曖昧検索",
@@ -5529,10 +7143,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AのROW行目からCOL列目(0起点)で正規表現Sにマッチする行を検索して何行目にあるか返す。見つからなければ-1を返す。(v1非互換)",
     "template": "【A】の【B】から【C】で【D】を表曖昧検索",
-    "yomi": "ひょうあいまいけんさく"
+    "yomi": "ひょうあいまいけんさく",
+    "file": "internal/stdlib/array.go",
+    "line": 419,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L419"
   },
   {
     "name": "表検索",
@@ -5552,10 +7170,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AでCOL列目(0起点)からキーSを含む行をROW行目から検索して何行目にあるか返す。見つからなければ-1を返す。",
     "template": "【A】の【B】で【C】から【D】を表検索",
-    "yomi": "ひょうけんさく"
+    "yomi": "ひょうけんさく",
+    "file": "internal/stdlib/array.go",
+    "line": 298,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L298"
   },
   {
     "name": "表正規表現ピックアップ",
@@ -5572,10 +7194,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AでI列目(0起点)から正規表現パターンSにマッチする行をピックアップして返す。",
     "template": "【A】の【B】から【C】を表正規表現ピックアップ",
-    "yomi": "ひょうせいきひょうげんぴっくあっぷ"
+    "yomi": "ひょうせいきひょうげんぴっくあっぷ",
+    "file": "internal/stdlib/array.go",
+    "line": 436,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L436"
   },
   {
     "name": "表示",
@@ -5586,19 +7212,27 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "Sを表示",
     "template": "【S】を表示",
-    "yomi": "ひょうじ"
+    "yomi": "ひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 25,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L25"
   },
   {
     "name": "表示ログクリア",
     "type": "func",
     "josi": null,
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "表示ログを空にする",
     "template": "表示ログクリア",
-    "yomi": "ひょうじろぐくりあ"
+    "yomi": "ひょうじろぐくりあ",
+    "file": "internal/stdlib/system.go",
+    "line": 65,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L65"
   },
   {
     "name": "表行列交換",
@@ -5609,10 +7243,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの行と列を交換して返す。",
     "template": "【S】の表行列交換",
-    "yomi": "ひょうぎょうれつこうかん"
+    "yomi": "ひょうぎょうれつこうかん",
+    "file": "internal/stdlib/array.go",
+    "line": 331,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L331"
   },
   {
     "name": "表行数",
@@ -5623,10 +7261,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列Aの行数を調べて返す。",
     "template": "【S】の表行数",
-    "yomi": "ひょうぎょうすう"
+    "yomi": "ひょうぎょうすう",
+    "file": "internal/stdlib/array.go",
+    "line": 324,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L324"
   },
   {
     "name": "表重複削除",
@@ -5640,10 +7282,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "二次元配列処理",
     "desc": "二次元配列AのI列目にある重複項目を削除して返す。",
     "template": "【A】の【B】を表重複削除",
-    "yomi": "ひょうじゅうふくさくじょ"
+    "yomi": "ひょうじゅうふくさくじょ",
+    "file": "internal/stdlib/array.go",
+    "line": 345,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L345"
   },
   {
     "name": "要素数",
@@ -5653,9 +7299,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
-    "desc": "Aの要素数を返す。Aには配列",
-    "template": "【S】の要素数"
+    "desc": "Aの要素数を返す。Aには配列/辞書型/文字列を指定する。",
+    "template": "【S】の要素数",
+    "yomi": "ようそすう",
+    "file": "internal/stdlib/array.go",
+    "line": 17,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L17"
   },
   {
     "name": "解凍",
@@ -5671,9 +7322,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "圧縮・解凍",
-    "desc": "(v1非互換)ZIPファイルAをBに解凍(実行には7-Zipが必要-https:",
-    "template": "【A】を【B】へ解凍"
+    "desc": "(v1非互換)ZIPファイルAをBに解凍(実行には7-Zipが必要-https://7-zip.opensource.jp/ )",
+    "template": "【A】を【B】へ解凍",
+    "yomi": "かいとう",
+    "file": "internal/nodelib/zip.go",
+    "line": 30,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L30"
   },
   {
     "name": "解凍時",
@@ -5692,10 +7348,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "圧縮・解凍",
     "desc": "解凍処理を行い、処理が完了したときにcallback処理を実行",
     "template": "【A】で【B】を【C】に解凍時",
-    "yomi": "かいとうしたとき"
+    "yomi": "かいとうしたとき",
+    "file": "internal/nodelib/zip.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L73"
   },
   {
     "name": "言",
@@ -5706,10 +7366,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "ダイアログ",
     "desc": "メッセージダイアログにSを表示",
     "template": "【S】を言",
-    "yomi": "いう"
+    "yomi": "いう",
+    "file": "internal/stdlib/system.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L50"
   },
   {
     "name": "読",
@@ -5720,10 +7384,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ファイFSを開く",
     "template": "【S】を読",
-    "yomi": "よむ"
+    "yomi": "よむ",
+    "file": "internal/nodelib/file.go",
+    "line": 37,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L37"
   },
   {
     "name": "論理AND",
@@ -5736,10 +7404,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "論理演算",
     "desc": "AとBの論理積を返す(v1非互換)。日本語の「AかつB」に相当する",
     "template": "【A】と【B】の論理AND",
-    "yomi": "ろんりAND"
+    "yomi": "ろんりAND",
+    "file": "internal/stdlib/math.go",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L77"
   },
   {
     "name": "論理NOT",
@@ -5749,10 +7421,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "論理演算",
     "desc": "値Vが0や空ならばtrue、それ以外ならばfalseを返す(v1非互換)",
     "template": "【S】の論理NOT",
-    "yomi": "ろんりNOT"
+    "yomi": "ろんりNOT",
+    "file": "internal/stdlib/math.go",
+    "line": 83,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L83"
   },
   {
     "name": "論理OR",
@@ -5765,10 +7441,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "論理演算",
     "desc": "AとBの論理和を返す(v1非互換)。",
     "template": "【A】と【B】の論理OR",
-    "yomi": "ろんりOR"
+    "yomi": "ろんりOR",
+    "file": "internal/stdlib/math.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L71"
   },
   {
     "name": "起動",
@@ -5779,10 +7459,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "シェルコマンドSを起動",
     "template": "【S】を起動",
-    "yomi": "きどう"
+    "yomi": "きどう",
+    "file": "internal/nodelib/os.go",
+    "line": 177,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L177"
   },
   {
     "name": "起動待機",
@@ -5793,10 +7477,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "シェルコマンドSを起動し実行終了まで待機する",
     "template": "【S】を起動待機",
-    "yomi": "きどうたいき"
+    "yomi": "きどうたいき",
+    "file": "internal/nodelib/os.go",
+    "line": 175,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L175"
   },
   {
     "name": "起動時",
@@ -5811,10 +7499,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "シェルコマンドSを起動",
     "template": "【A】で【B】を起動時",
-    "yomi": "きどうしたとき"
+    "yomi": "きどうしたとき",
+    "file": "internal/nodelib/os.go",
+    "line": 179,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L179"
   },
   {
     "name": "超",
@@ -5827,10 +7519,14 @@
         ""
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AがB超か",
     "template": "【A】が【B】超",
-    "yomi": "ちょう"
+    "yomi": "ちょう",
+    "file": "internal/stdlib/math.go",
+    "line": 51,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L51"
   },
   {
     "name": "足",
@@ -5844,10 +7540,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "AとBを足す(算術演算を行う)",
     "template": "【A】に【B】を足",
-    "yomi": "たす"
+    "yomi": "たす",
+    "file": "internal/stdlib/system.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L71"
   },
   {
     "name": "辞書キー列挙",
@@ -5857,10 +7557,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "辞書型変数の操作",
     "desc": "辞書型変数Aのキーの一覧を配列で返す。",
     "template": "【S】の辞書キー列挙",
-    "yomi": "じしょきーれっきょ"
+    "yomi": "じしょきーれっきょ",
+    "file": "internal/stdlib/dict.go",
+    "line": 15,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L15"
   },
   {
     "name": "辞書キー削除",
@@ -5874,10 +7578,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "辞書型変数の操作",
     "desc": "辞書型変数AからキーKEYを削除して返す（A自体を変更する）。",
     "template": "【A】から【B】を辞書キー削除",
-    "yomi": "じしょきーさくじょ"
+    "yomi": "じしょきーさくじょ",
+    "file": "internal/stdlib/dict.go",
+    "line": 51,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L51"
   },
   {
     "name": "辞書キー存在",
@@ -5891,10 +7599,14 @@
         "が"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "辞書型変数の操作",
     "desc": "辞書型変数AのキーKEYが存在するか確認",
     "template": "【A】の【B】が辞書キー存在",
-    "yomi": "じしょきーそんざい"
+    "yomi": "じしょきーそんざい",
+    "file": "internal/stdlib/dict.go",
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/dict.go#L41"
   },
   {
     "name": "追加",
@@ -5909,10 +7621,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "文字列または配列SにAを追加して返す(v1非互換)",
     "template": "【A】で【B】を追加",
-    "yomi": "ついか"
+    "yomi": "ついか",
+    "file": "internal/stdlib/string.go",
+    "line": 35,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L35"
   },
   {
     "name": "追記",
@@ -5926,9 +7642,14 @@
         "へ"
       ]
     ],
-    "category": "命令",
-    "desc": "命令『追記』を実行します",
-    "template": "【A】を【B】に追記"
+    "plugin": "plugin_node",
+    "category": "ファイル入出力",
+    "desc": "文字列Aをファイルパスの末尾に追記する",
+    "template": "【A】を【B】に追記",
+    "yomi": "ついき",
+    "file": "internal/nodelib/file.go",
+    "line": 40,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L40"
   },
   {
     "name": "送信ボタン作成",
@@ -5938,10 +7659,14 @@
         "の"
       ]
     ],
+    "plugin": "gonako",
     "category": "DOM部品操作",
     "desc": "ラベルSの送信ボタン(input[type='submit'])を作成しDOMオブジェクトを返す",
     "template": "【S】の送信ボタン作成",
-    "yomi": "そうしんぼたんさくせい"
+    "yomi": "そうしんぼたんさくせい",
+    "file": "internal/guilib/guilib.go",
+    "line": 90,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L90"
   },
   {
     "name": "通貨形式",
@@ -5952,10 +7677,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "指定形式",
     "desc": "数値Vを三桁ごとにカンマで区切る",
     "template": "【S】を通貨形式",
-    "yomi": "つうかけいしき"
+    "yomi": "つうかけいしき",
+    "file": "internal/stdlib/string.go",
+    "line": 214,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L214"
   },
   {
     "name": "連結",
@@ -5966,10 +7695,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "文字列処理",
     "desc": "引数(可変)に指定した文字列を連結して文字列を返す",
     "template": "【S】と連結",
-    "yomi": "れんけつ"
+    "yomi": "れんけつ",
+    "file": "internal/stdlib/string.go",
+    "line": 34,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/string.go#L34"
   },
   {
     "name": "連続加算",
@@ -5983,10 +7716,14 @@
         "と"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "四則演算",
     "desc": "A1+A2+A3...にBを足す",
     "template": "【A】を【B】に連続加算",
-    "yomi": "れんぞくかさん"
+    "yomi": "れんぞくかさん",
+    "file": "internal/stdlib/math.go",
+    "line": 62,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L62"
   },
   {
     "name": "連続無改行表示",
@@ -5997,10 +7734,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "引数に指定した引数を全て表示する（改行しない)",
     "template": "【S】と連続無改行表示",
-    "yomi": "れんぞくむかいぎょうひょうじ"
+    "yomi": "れんぞくむかいぎょうひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L41"
   },
   {
     "name": "連続表示",
@@ -6011,10 +7752,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "標準出力",
     "desc": "引数に指定した引数を全て表示する",
     "template": "【S】と連続表示",
-    "yomi": "れんぞくひょうじ"
+    "yomi": "れんぞくひょうじ",
+    "file": "internal/stdlib/system.go",
+    "line": 33,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L33"
   },
   {
     "name": "進数変換",
@@ -6029,10 +7774,14 @@
         "へ"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値VをN進数に変換",
     "template": "【A】を【B】進数変換",
-    "yomi": "しんすうへんかん"
+    "yomi": "しんすうへんかん",
+    "file": "internal/stdlib/system.go",
+    "line": 125,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L125"
   },
   {
     "name": "配列カスタムソート",
@@ -6046,10 +7795,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "関数Fで配列Aをソートして返す(引数A自体を変更)",
     "template": "【A】で【B】の配列カスタムソート",
-    "yomi": "はいれつかすたむそーと"
+    "yomi": "はいれつかすたむそーと",
+    "file": "internal/stdlib/array.go",
+    "line": 263,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L263"
   },
   {
     "name": "配列シャッフル",
@@ -6060,10 +7813,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aをシャッフルして返す。Aを書き換える",
     "template": "【S】の配列シャッフル",
-    "yomi": "はいれつしゃっふる"
+    "yomi": "はいれつしゃっふる",
+    "file": "internal/stdlib/array.go",
+    "line": 148,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L148"
   },
   {
     "name": "配列ソート",
@@ -6074,10 +7831,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aをソートして返す(A自体を変更)",
     "template": "【S】の配列ソート",
-    "yomi": "はいれつそーと"
+    "yomi": "はいれつそーと",
+    "file": "internal/stdlib/array.go",
+    "line": 116,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L116"
   },
   {
     "name": "配列フィルタ",
@@ -6092,10 +7853,14 @@
         "について"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "引数を1つ持ち真偽を返す関数Fを利用して、配列Aの要素をフィルタして、新しい配列として返す。",
     "template": "【A】で【B】を配列フィルタ",
-    "yomi": "はいれつふぃるた"
+    "yomi": "はいれつふぃるた",
+    "file": "internal/stdlib/array.go",
+    "line": 256,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L256"
   },
   {
     "name": "配列プッシュ",
@@ -6109,10 +7874,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの末尾にNを追加。Aの内容を書き換える。(『配列追加』と同じ)",
     "template": "【A】に【B】を配列プッシュ",
-    "yomi": "はいれつぷっしゅ"
+    "yomi": "はいれつぷっしゅ",
+    "file": "internal/stdlib/array.go",
+    "line": 63,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L63"
   },
   {
     "name": "配列ポップ",
@@ -6123,10 +7892,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの末尾を取り出して返す。Aの内容を書き換える。",
     "template": "【S】の配列ポップ",
-    "yomi": "はいれつぽっぷ"
+    "yomi": "はいれつぽっぷ",
+    "file": "internal/stdlib/array.go",
+    "line": 65,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L65"
   },
   {
     "name": "配列マップ",
@@ -6140,10 +7913,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "引数を1つ持つ関数Fを、配列Aの全要素に適用した、新しい配列を返す。(『配列関数適用』と同じ)",
     "template": "【A】を【B】へ配列マップ",
-    "yomi": "はいれつまっぷ"
+    "yomi": "はいれつまっぷ",
+    "file": "internal/stdlib/array.go",
+    "line": 249,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L249"
   },
   {
     "name": "配列一括挿入",
@@ -6160,10 +7937,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列AのI番目(0起点)に配列bを追加して返す(v1非互換)",
     "template": "【A】の【B】に【C】を配列一括挿入",
-    "yomi": "はいれついっかつそうにゅう"
+    "yomi": "はいれついっかつそうにゅう",
+    "file": "internal/stdlib/array.go",
+    "line": 87,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L87"
   },
   {
     "name": "配列入替",
@@ -6179,10 +7960,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの(0から数えて)I番目とJ番目の要素を入れ替えて返す。Aの内容を書き換える。",
     "template": "【A】の【B】と【C】を配列入替",
-    "yomi": "はいれついれかえ"
+    "yomi": "はいれついれかえ",
+    "file": "internal/stdlib/array.go",
+    "line": 235,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L235"
   },
   {
     "name": "配列切取",
@@ -6196,10 +7981,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列AのI番目(0起点)の要素を切り取って返す。Aの内容を書き換える。引数Iには範囲オブジェクトを指定できる。その場合戻り値は配列型となる。辞書型変数ならキーIを削除する。",
     "template": "【A】の【B】を配列切取",
-    "yomi": "はいれつきりとる"
+    "yomi": "はいれつきりとる",
+    "file": "internal/stdlib/array.go",
+    "line": 112,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L112"
   },
   {
     "name": "配列削除",
@@ -6213,10 +8002,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列AのI番目(0起点)の要素を削除して返す。Aの内容を書き換える。辞書型変数ならキーIを削除する。",
     "template": "【A】の【B】を配列削除",
-    "yomi": "はいれつさくじょ"
+    "yomi": "はいれつさくじょ",
+    "file": "internal/stdlib/array.go",
+    "line": 109,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L109"
   },
   {
     "name": "配列参照",
@@ -6230,9 +8023,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
-    "desc": "値A(配列",
-    "template": "【A】の【B】を配列参照"
+    "desc": "値A(配列/文字列/辞書型)の範囲I(キーまたは範囲オブジェクト)を参照して(コピーせず)返す(『参照』と同じ)",
+    "template": "【A】の【B】を配列参照",
+    "yomi": "はいれつはんいさんしょう",
+    "file": "internal/stdlib/array.go",
+    "line": 216,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L216"
   },
   {
     "name": "配列取出",
@@ -6248,10 +8046,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列AのI番目(0起点)からCNT個の要素を取り出して返す。Aの内容を書き換える",
     "template": "【A】の【B】から【C】を配列取出",
-    "yomi": "はいれつとりだし"
+    "yomi": "はいれつとりだし",
+    "file": "internal/stdlib/array.go",
+    "line": 100,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L100"
   },
   {
     "name": "配列只結合",
@@ -6261,10 +8063,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの要素をただ結合して文字列で返す。(「」で配列結合と同じ)",
     "template": "【S】を配列只結合",
-    "yomi": "はいれつただけつごう"
+    "yomi": "はいれつただけつごう",
+    "file": "internal/stdlib/array.go",
+    "line": 35,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L35"
   },
   {
     "name": "配列合計",
@@ -6274,10 +8080,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの値を全て足して返す。配列の各要素を数値に変換して計算する。数値に変換できない文字列は0になる。",
     "template": "【S】の配列合計",
-    "yomi": "はいれつごうけい"
+    "yomi": "はいれつごうけい",
+    "file": "internal/stdlib/array.go",
+    "line": 170,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L170"
   },
   {
     "name": "配列挿入",
@@ -6294,10 +8104,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列AのI番目(0起点)に要素Sを追加して返す(v1非互換)",
     "template": "【A】の【B】に【C】を配列挿入",
-    "yomi": "はいれつそうにゅう"
+    "yomi": "はいれつそうにゅう",
+    "file": "internal/stdlib/array.go",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L78"
   },
   {
     "name": "配列数値ソート",
@@ -6308,10 +8122,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aをソートして返す(A自体を変更)",
     "template": "【S】の配列数値ソート",
-    "yomi": "はいれつすうちそーと"
+    "yomi": "はいれつすうちそーと",
+    "file": "internal/stdlib/array.go",
+    "line": 128,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L128"
   },
   {
     "name": "配列数値変換",
@@ -6322,10 +8140,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの各要素を数値に変換して返す(変数A自体を変更)",
     "template": "【S】の配列数値変換",
-    "yomi": "はいれつすうちへんかん"
+    "yomi": "はいれつすうちへんかん",
+    "file": "internal/stdlib/array.go",
+    "line": 138,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L138"
   },
   {
     "name": "配列最大値",
@@ -6335,10 +8157,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの値の最大値を調べて返す。",
     "template": "【S】の配列最大値",
-    "yomi": "はいれつさいだいち"
+    "yomi": "はいれつさいだいち",
+    "file": "internal/stdlib/array.go",
+    "line": 184,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L184"
   },
   {
     "name": "配列最小値",
@@ -6348,10 +8174,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの値の最小値を調べて返す。",
     "template": "【S】の配列最小値",
-    "yomi": "はいれつさいしょうち"
+    "yomi": "はいれつさいしょうち",
+    "file": "internal/stdlib/array.go",
+    "line": 185,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L185"
   },
   {
     "name": "配列検索",
@@ -6365,10 +8195,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aから文字列Sを探してインデックス番号(0起点)を返す。見つからなければ-1を返す。",
     "template": "【A】の【B】を配列検索",
-    "yomi": "はいれつけんさく"
+    "yomi": "はいれつけんさく",
+    "file": "internal/stdlib/array.go",
+    "line": 39,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L39"
   },
   {
     "name": "配列範囲コピー",
@@ -6382,10 +8216,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの範囲I(数値化範囲オブジェクト)を複製して返す。",
     "template": "【A】の【B】を配列範囲コピー",
-    "yomi": "はいれつはんいこぴー"
+    "yomi": "はいれつはんいこぴー",
+    "file": "internal/stdlib/array.go",
+    "line": 206,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L206"
   },
   {
     "name": "配列結合",
@@ -6398,10 +8236,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aを文字列Sでつなげて文字列で返す",
     "template": "【A】を【B】で配列結合",
-    "yomi": "はいれつけつごう"
+    "yomi": "はいれつけつごう",
+    "file": "internal/stdlib/array.go",
+    "line": 23,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L23"
   },
   {
     "name": "配列複製",
@@ -6411,10 +8253,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aを複製して返す。",
     "template": "【S】を配列複製",
-    "yomi": "はいれつふくせい"
+    "yomi": "はいれつふくせい",
+    "file": "internal/stdlib/array.go",
+    "line": 203,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L203"
   },
   {
     "name": "配列要素作成",
@@ -6428,10 +8274,14 @@
         "で"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "値AをB個持つ配列を生成して返す。引数Bに配列を指定すると二次元以上の配列を生成する。",
     "template": "【A】を【B】だけ配列要素作成",
-    "yomi": "はいれつようそさくせい"
+    "yomi": "はいれつようそさくせい",
+    "file": "internal/stdlib/array.go",
+    "line": 199,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L199"
   },
   {
     "name": "配列要素数",
@@ -6441,10 +8291,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの要素数を返す",
     "template": "【S】の配列要素数",
-    "yomi": "はいれつようそすう"
+    "yomi": "はいれつようそすう",
+    "file": "internal/stdlib/array.go",
+    "line": 20,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L20"
   },
   {
     "name": "配列足",
@@ -6459,10 +8313,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aに配列Bを足し合わせて返す。",
     "template": "【A】に【B】を配列足",
-    "yomi": "はいれつたす"
+    "yomi": "はいれつたす",
+    "file": "internal/stdlib/array.go",
+    "line": 217,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L217"
   },
   {
     "name": "配列追加",
@@ -6476,10 +8334,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aの末尾にBを追加して返す。Aの内容を書き換える。",
     "template": "【A】に【B】を配列追加",
-    "yomi": "はいれつついか"
+    "yomi": "はいれつついか",
+    "file": "internal/stdlib/array.go",
+    "line": 55,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L55"
   },
   {
     "name": "配列逆順",
@@ -6490,10 +8352,14 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "配列Aを逆にして返す。Aを書き換える(A自体を変更)。",
     "template": "【S】の配列逆順",
-    "yomi": "はいれつぎゃくじゅん"
+    "yomi": "はいれつぎゃくじゅん",
+    "file": "internal/stdlib/array.go",
+    "line": 159,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L159"
   },
   {
     "name": "配列連番作成",
@@ -6508,10 +8374,14 @@
         "の"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "AからBまでの連番配列を生成して返す。",
     "template": "【A】から【B】までの配列連番作成",
-    "yomi": "はいれつれんばんさくせい"
+    "yomi": "はいれつれんばんさくせい",
+    "file": "internal/stdlib/array.go",
+    "line": 189,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L189"
   },
   {
     "name": "配列関数適用",
@@ -6525,10 +8395,14 @@
         "に"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "配列操作",
     "desc": "引数を1つ持つ関数Fを、配列Aの全要素に適用した、新しい配列を返す。",
     "template": "【A】を【B】へ配列関数適用",
-    "yomi": "はいれつかんすうてきよう"
+    "yomi": "はいれつかんすうてきよう",
+    "file": "internal/stdlib/array.go",
+    "line": 254,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/array.go#L254"
   },
   {
     "name": "開",
@@ -6539,10 +8413,14 @@
         "から"
       ]
     ],
+    "plugin": "plugin_node",
     "category": "ファイル入出力",
     "desc": "ファイルFを開く",
     "template": "【S】を開",
-    "yomi": "ひらく"
+    "yomi": "ひらく",
+    "file": "internal/nodelib/file.go",
+    "line": 36,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L36"
   },
   {
     "name": "非数判定",
@@ -6552,9 +8430,13 @@
         "を"
       ]
     ],
+    "plugin": "plugin_system",
     "category": "型変換",
     "desc": "値Vが非数かどうかを判定(NAN判定より堅牢)",
     "template": "【S】を非数判定",
-    "yomi": "ひすうはんてい"
+    "yomi": "ひすうはんてい",
+    "file": "internal/stdlib/system.go",
+    "line": 118,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L118"
   }
 ]

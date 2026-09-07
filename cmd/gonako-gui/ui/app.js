@@ -865,11 +865,13 @@ document.addEventListener('DOMContentLoaded', () => {
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `【構文】 ${template}`,
       `【助詞】 ${josiText}`,
-      `【分類】 ${category}`,
+      `【分類】 ${cmd.plugin ? `${cmd.plugin} / ` : ''}${category}`,
       `【説明】 ${desc}`,
+      cmd.file ? `【定義】 ${cmd.file}#L${cmd.line}` : null,
+      cmd.url ? `【ソース】 ${cmd.url}` : null,
       ``,
       `※ ダブルクリックまたはエディタへのドラッグ＆ドロップで構文を挿入できます。`
-    ].join('\n');
+    ].filter(line => line !== null).join('\n');
 
     output.textContent = helpText;
     output.className = 'output has-content';

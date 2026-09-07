@@ -55,18 +55,42 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
-		"PDF新規作成":    {fn: p.create},
-		"PDF切替":      {josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.selectDoc},
-		"PDFページ追加":   {returnNone: true, fn: p.addPage},
-		"PDFフォント設定":  {josi: [][]string{{"を"}, {"で", "に"}}, returnNone: true, fn: p.setFont},
-		"PDF文字描画":    {josi: [][]string{{"を"}, {"へ", "に"}}, returnNone: true, fn: p.drawText},
-		"PDF複数行文字描画": {josi: [][]string{{"を"}, {"へ", "に"}}, returnNone: true, fn: p.drawMultiline},
-		"PDF線描画":     {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.drawLine},
-		"PDF矩形描画":    {josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.drawRect},
-		"PDF画像描画":    {josi: [][]string{{"を", "の"}, {"へ", "に"}}, returnNone: true, fn: p.drawImage},
-		"PDFタイトル設定":  {josi: [][]string{{"に", "へ", "を"}}, returnNone: true, fn: p.setTitle},
-		"PDF保存":      {josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save},
-		"PDF閉":       {returnNone: true, fn: p.close},
+		"PDF新規作成": { // @新規PDFドキュメントを作成してハンドルを返す // @PDFしんきさくせい
+			fn: p.create,
+		},
+		"PDF切替": { // @操作対象のPDFドキュメントをハンドルで切り替える // @PDFきりかえ
+			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.selectDoc,
+		},
+		"PDFページ追加": { // @現在のPDFドキュメントに新しいページを追加する // @PDFぺーじついか
+			returnNone: true, fn: p.addPage,
+		},
+		"PDFフォント設定": { // @PDFドキュメントで使うフォント名とサイズを設定する // @PDFふぉんとせってい
+			josi: [][]string{{"を"}, {"で", "に"}}, returnNone: true, fn: p.setFont,
+		},
+		"PDF文字描画": { // @PDFドキュメントの現在位置に文字列を描画する // @PDFもじびょうが
+			josi: [][]string{{"を"}, {"へ", "に"}}, returnNone: true, fn: p.drawText,
+		},
+		"PDF複数行文字描画": { // @PDFドキュメントの現在位置に複数行の文字列を折り返して描画する // @PDFふくすうぎょうもじびょうが
+			josi: [][]string{{"を"}, {"へ", "に"}}, returnNone: true, fn: p.drawMultiline,
+		},
+		"PDF線描画": { // @PDFドキュメントの現在位置から指定位置まで直線を描画する // @PDFせんびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.drawLine,
+		},
+		"PDF矩形描画": { // @PDFドキュメントの指定矩形[X, Y, 幅, 高さ]を描画する // @PDFくけいびょうが
+			josi: [][]string{{"を"}, {"で"}}, returnNone: true, fn: p.drawRect,
+		},
+		"PDF画像描画": { // @PDFドキュメントの指定位置に画像ファイルを描画する // @PDFがぞうびょうが
+			josi: [][]string{{"を", "の"}, {"へ", "に"}}, returnNone: true, fn: p.drawImage,
+		},
+		"PDFタイトル設定": { // @PDFドキュメントのタイトル(文書プロパティ)を設定する // @PDFたいとるせってい
+			josi: [][]string{{"に", "へ", "を"}}, returnNone: true, fn: p.setTitle,
+		},
+		"PDF保存": { // @PDFドキュメントを指定ファイルパスへ出力保存する // @PDFほぞん
+			josi: [][]string{{"へ", "に"}}, returnNone: true, fn: p.save,
+		},
+		"PDF閉": { // @現在のPDFドキュメントのハンドルを閉じる // @PDFとじる
+			returnNone: true, fn: p.close,
+		},
 	}
 }
 
