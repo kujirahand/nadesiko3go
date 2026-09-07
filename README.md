@@ -30,16 +30,12 @@ irm https://nadesi.com/install/gonako | iex
 
 ### Homebrewでインストール
 
-Homebrewからもインストールできます。ただし、エディタ一体型の`gonako-gui`を使う場合には、Gatekeeperのブロックを解除が必要です。
+Homebrewからもインストールできます。
 
 ```sh
-# Homebrewでtapを追加
-brew tap kujirahand/nadesiko3
-brew trust kujirahand/nadesiko3
-# CLI版をインストール
-brew install gonako
-# GUI版(エディタ一体型)をインストール
-brew install --cask gonako-gui
+# Homebrewでtapを追加して、CLI/GUI版をインストール
+brew tap kujirahand/nadesiko3 && brew trust kujirahand/nadesiko3
+brew install gonako && brew install --cask gonako-gui
 ```
 
 ----------------------------
