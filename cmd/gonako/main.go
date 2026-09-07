@@ -493,16 +493,30 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return runCommandDiff(args[2:], stdout, stderr)
 	}
 
-	// ファイル直接指定の場合 (例: gonako main.nako3, gonako -)
-	if args[0] == "-" || strings.HasSuffix(args[0], ".nako3") || strings.HasSuffix(args[0], ".nako") {
-		return runFile(args, stdout)
-	}
-	if _, err := os.Stat(args[0]); err == nil {
+	// ファイル直接指定の場合 (例: gonako main.nako3, gonako index.html, gonako -)
+	if isRunnableFileArg(args[0]) {
 		return runFile(args, stdout)
 	}
 
 	fmt.Fprint(stderr, usage)
 	return fmt.Errorf("不明なサブコマンドです: %s", args[0])
+}
+
+// isRunnableFileArg は、サブコマンドを省略して `gonako run` のショートカットとして
+// 扱ってよい引数かどうかを判定する。拡張子が.nako3/.nako/.html/.htmなら、
+// ファイルが存在しなくても『ファイルを読み込めません』という分かりやすいエラーを
+// runFile側で出すため、ここでは常にrunFileへ回す。それ以外の拡張子は、
+// 存在するファイルであればrunFileへ回す。
+func isRunnableFileArg(arg string) bool {
+	if arg == "-" {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(arg)) {
+	case ".nako3", ".nako", ".html", ".htm":
+		return true
+	}
+	_, err := os.Stat(arg)
+	return err == nil
 }
 
 func runCommandDiff(args []string, stdout, stderr io.Writer) error {
