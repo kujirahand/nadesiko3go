@@ -209,7 +209,8 @@ go mod tidy
 go test ./...
 ```
 
-設計と開発上の制約は [AGENTS.md](./AGENTS.md)、VMの詳細は
-[docs/vm.md](./docs/vm.md)、実行速度の比較は
-[benchmark/README.md](./benchmark/README.md) を参照してください。
-残作業は [Issue #9](https://github.com/kujirahand/nadesiko3go/issues/9) にまとめています。
+## 参考
+
+- 設計と開発上の制約: [AGENTS.md](./AGENTS.md)
+- VMの詳細: [docs/vm.md](./docs/vm.md)
+- 実行速度の比較: [benchmark/README.md](./benchmark/README.md)
