@@ -14,33 +14,41 @@
 
 ## 2. リリースバイナリのビルド
 
-バージョン番号（例: `3.8.1`）を指定して `just release` を実行します。CLI版とGUI版の各プラットフォーム用成果物が `bin/` 配下に一括生成されます。
+まず `just version-update` でバージョン番号を一箇所（`internal/version/version.go`）から
+更新します。インストーラースクリプトやREADME、このドキュメントの表記も自動的に揃います。
 
 ```bash
-VERSION=3.8.1 just release
+just version-update 3.8.2
+```
+
+続けて `just release` を実行します（`VERSION` を省略すると更新後の値が使われます）。
+CLI版とGUI版の各プラットフォーム用成果物が `bin/` 配下に一括生成されます。
+
+```bash
+just release
 ```
 
 ### 生成される主な成果物 (`bin/`)
 
 | ファイル名 | 対象 | 形式 |
 |---|---|---|
-| `gonako-3.8.1-darwin-arm64` | macOS (Apple Silicon) | CLIバイナリ |
-| `gonako-3.8.1-darwin-amd64` | macOS (Intel) | CLIバイナリ |
-| `gonako-3.8.1-linux-amd64` | Linux (x86_64) | CLIバイナリ |
-| `gonako-3.8.1-linux-arm64` | Linux (aarch64) | CLIバイナリ |
-| `gonako-3.8.1-windows-amd64.exe` | Windows (x86_64) | CLIバイナリ |
-| `gonako-gui-3.8.1-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle zip |
-| `gonako-gui-3.8.1-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
-| `gonako-gui-3.8.1-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
+| `gonako-3.8.2-darwin-arm64` | macOS (Apple Silicon) | CLIバイナリ |
+| `gonako-3.8.2-darwin-amd64` | macOS (Intel) | CLIバイナリ |
+| `gonako-3.8.2-linux-amd64` | Linux (x86_64) | CLIバイナリ |
+| `gonako-3.8.2-linux-arm64` | Linux (aarch64) | CLIバイナリ |
+| `gonako-3.8.2-windows-amd64.exe` | Windows (x86_64) | CLIバイナリ |
+| `gonako-gui-3.8.2-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle zip |
+| `gonako-gui-3.8.2-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
+| `gonako-gui-3.8.2-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
 
 ---
 
 ## 3. GitHub Releases へのアップロード
 
-生成した成果物を GitHub Releases の該当タグ（例: `3.8.1`）にアップロードします。
+生成した成果物を GitHub Releases の該当タグ（例: `3.8.2`）にアップロードします。
 
 ```bash
-VERSION=3.8.1
+VERSION=3.8.2
 
 # リリースがまだない場合は作成
 gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
@@ -65,7 +73,7 @@ gh release upload "$VERSION" \
 Formula および Cask に設定するための SHA-256 ハッシュ値を算出します。
 
 ```bash
-VERSION=3.8.1
+VERSION=3.8.2
 shasum -a 256 \
   "bin/gonako-${VERSION}-darwin-arm64" \
   "bin/gonako-${VERSION}-darwin-amd64" \
@@ -95,7 +103,7 @@ mkdir -p Formula Casks
 class Gonako < Formula
   desc "日本語プログラミング言語 なでしこ3 (Go言語版)"
   homepage "https://github.com/kujirahand/nadesiko3go"
-  version "3.8.1"
+  version "3.8.2"
 
   on_macos do
     if Hardware::CPU.arm?
@@ -133,7 +141,7 @@ end
 
 ```ruby
 cask "gonako-gui" do
-  version "3.8.1"
+  version "3.8.2"
 
   if Hardware::CPU.arm?
     url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-gui-#{version}-darwin-arm64.app.zip"

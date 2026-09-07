@@ -3,6 +3,8 @@ package doctest
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/version"
 )
 
 func TestExtractDisplayResult(t *testing.T) {
@@ -44,7 +46,7 @@ func TestRunSkipsCommandsOutsideTheGoBackend(t *testing.T) {
 }
 
 func TestRunDoesNotSkipNadesikoConstants(t *testing.T) {
-	test := Test{Code: "ナデシコバージョンを表示", Expect: "3.8.1", Runtime: CNako}
+	test := Test{Code: "ナデシコバージョンを表示", Expect: version.Nadesiko, Runtime: CNako}
 	result := Run(test)
 	if result.Skipped || !result.OK {
 		t.Fatalf("Run = %#v", result)

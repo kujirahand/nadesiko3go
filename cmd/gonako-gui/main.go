@@ -24,6 +24,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/version"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 	"github.com/webview/webview_go"
 )
@@ -33,7 +34,7 @@ var uiFS embed.FS
 
 // appVersion is what the editor reports and what a converted macOS app
 // records in its Info.plist.
-const appVersion = "3.6.0"
+const appVersion = version.Version
 
 // guiPlugins is the command set a GUI program can use. It goes both into the
 // default runtime registry (so that a bundled program compiles and runs with

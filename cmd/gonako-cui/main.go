@@ -14,11 +14,12 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
+	"github.com/kujirahand/nadesiko3go/internal/version"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 // Version is the current release version of gonako-cui.
-var Version = "3.6.0"
+var Version = version.Version
 
 const usage = `gonako-cui - なでしこ3 Go言語版 (軽量CUI版)
 

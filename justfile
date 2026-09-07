@@ -1,5 +1,6 @@
 go := env_var_or_default("GO", "go")
-version := env_var_or_default("VERSION", "dev")
+# 空のままなら internal/version.Version（唯一の定義元）を build-release.go 側で使う
+version := env_var_or_default("VERSION", "")
 platforms := env_var_or_default("PLATFORMS", "darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64")
 
 # 既定タスク: 一覧を表示
@@ -74,3 +75,8 @@ compat-check:
 # command-list.jsonを生成する（GUIエディタの色分け用）
 gen-command-list:
     {{go}} run ./scripts/gen-command-list.go
+
+# バージョン番号を一括更新する（例: just version-update 3.8.2）
+# 引数なしなら internal/version/version.go の現在値へ他ファイルを再同期する
+version-update *args:
+    {{go}} run ./scripts/version-update.go {{args}}

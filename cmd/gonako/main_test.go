@@ -109,7 +109,7 @@ func TestRunVersion(t *testing.T) {
 		if err := run([]string{flag}, &out, &errOut); err != nil {
 			t.Fatalf("%s failed: %v", flag, err)
 		}
-		if !strings.HasPrefix(out.String(), "gonako v3.6.0") {
+		if !strings.HasPrefix(out.String(), "gonako v"+Version) {
 			t.Errorf("%s 出力 = %q", flag, out.String())
 		}
 	}

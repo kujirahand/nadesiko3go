@@ -16,6 +16,8 @@ import (
 	"runtime"
 	"strings"
 	"text/template"
+
+	"github.com/kujirahand/nadesiko3go/internal/version"
 )
 
 type config struct {
@@ -27,9 +29,11 @@ type config struct {
 }
 
 func main() {
+	// バージョン番号の既定値: VERSION環境変数 > internal/version.Version の順で決める。
+	// internal/version がリリース版番号の定義元であり、`just version-update` で更新する。
 	defaultVersion := os.Getenv("VERSION")
 	if defaultVersion == "" {
-		defaultVersion = "dev"
+		defaultVersion = version.Version
 	}
 
 	defaultPlatforms := os.Getenv("PLATFORMS")
@@ -43,6 +47,11 @@ func main() {
 	skipCLIFlag := flag.Bool("skip-cli", false, "Skip CLI (gonako) build")
 	skipGUIFlag := flag.Bool("skip-gui", false, "Skip GUI (gonako-gui) build")
 	flag.Parse()
+
+	// justfile側が空文字を明示的に渡した場合（VERSION未設定時）もdefaultVersionへ戻す。
+	if *verFlag == "" {
+		*verFlag = defaultVersion
+	}
 
 	cfg := config{
 		version:   *verFlag,
