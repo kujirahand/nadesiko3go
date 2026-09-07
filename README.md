@@ -47,12 +47,10 @@ brew install --cask gonako-gui
 ## gonakoを使ってみよう
 
 ```bash
-just build              # bin/gonako ができる
-
-bin/gonako run hello.nako3        # ファイルを実行する
-bin/gonako run hello.nako3 引数    # 引数は『コマンドライン』で受け取れる
-bin/gonako -e '「こんにちは」と表示'  # その場で実行する
-cat hello.nako3 | bin/gonako run - # 標準入力から読む
+gonako hello.nako3        # ファイルを実行する
+gonako run hello.nako3 引数    # 引数は『コマンドライン』で受け取れる
+gonako -e '「こんにちは」と表示'  # その場で実行する
+cat hello.nako3 | gonako run - # 標準入力から読む
 ```
 
 ```nako3
