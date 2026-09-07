@@ -27,14 +27,14 @@ gonako doctest manual/plugin_system/01-文字列.txt testdata/doctest/core/
 gonako doctest -max 0 testdata/doctest/core/plugin_system.txt
 ```
 
-### 2. Makefile で実行
+### 2. just で実行
 
 ```bash
 # デフォルト対象を実行
-make doctest
+just doctest
 
 # 特定のファイルやディレクトリに絞って実行
-make doctest DOCTEST_ARGS="testdata/doctest/core/plugin_system.txt"
+just doctest testdata/doctest/core/plugin_system.txt
 ```
 
 ---

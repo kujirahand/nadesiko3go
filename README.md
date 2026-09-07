@@ -46,7 +46,7 @@ xattr -cr /Applications/なでしこ3.app
 ## gonakoを使ってみよう
 
 ```bash
-make build              # bin/gonako ができる
+just build              # bin/gonako ができる
 
 bin/gonako run hello.nako3        # ファイルを実行する
 bin/gonako run hello.nako3 引数    # 引数は『コマンドライン』で受け取れる
@@ -102,21 +102,20 @@ gonako build ゲーム.nako3 --runtime ./gonako-linux-amd64 --out ゲーム-linu
 
 gonako / gonako-gui をソースコードからコンパイルするのも簡単です。以下のコマンドを実行すると、/binフォルダ以下にgonako/gonako-guiが作成されます。
 
+タスクランナーには[just](https://github.com/casey/just)を使っています。
+`brew install just`（またはお使いのOSのパッケージマネージャ）で導入してください。
+
 ```bash
 # ビルド
 git clone https://github.com/kujirahand/nadesiko3go.git
 cd nadesiko3go
-make build
+just build
 # もし各種OSのリリースファイルを生成するなら
-make release VERSION=3.8.1
+VERSION=3.8.1 just release
 ```
 
-Windowsで`make`が無い場合は、`bat\`以下の同等バッチファイルを使えます。
-
-```bat
-bat\build.bat
-bat\release.bat 3.8.1
-```
+`make build` / `make install` だけは互換のため`Makefile`にも残してあります。
+一覧は `just --list` で確認できます。
 
 ----------------------------
 
@@ -173,7 +172,7 @@ Goコード生成(`gogen`)を比較しています。結果と考察は
 ベンチマークは自分の環境でも回せます。
 
 ```bash
-make cmd                      # gonako本体をビルド
+just cmd                      # gonako本体をビルド
 go run ./benchmark/runner.go  # 測定してbenchmark/README.mdを再生成
 ```
 
@@ -186,15 +185,12 @@ go run ./benchmark/runner.go  # 測定してbenchmark/README.mdを再生成
 
 ```bash
 go version          # go version go1.27.0 ... を確認
-make test           # テスト
-make doctest        # manualとtestdata/doctestのサンプルを実行
-make sync-compat    # 本家の差分fixtureをGo側へ同期
-make compat-run     # 全ケースを実行して out/ へ出力
-make compat-check   # 本家のoracleと照合して通過率を出す
+just test           # テスト
+just doctest        # manualとtestdata/doctestのサンプルを実行
+just sync-compat    # 本家の差分fixtureをGo側へ同期
+just compat-run     # 全ケースを実行して out/ へ出力
+just compat-check   # 本家のoracleと照合して通過率を出す
 ```
-
-Windowsで`make`が無い場合は`bat\`以下に同名のバッチファイルがあります
-（例: `bat\test.bat`, `bat\doctest.bat`, `bat\compat-run.bat`）。
 
 将来、GoとSQLiteを新しい確定版へ更新する場合は、バージョンを明示して実行します。
 
