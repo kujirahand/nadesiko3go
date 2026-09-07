@@ -87,10 +87,10 @@ if [ "$OS" = "darwin" ]; then
     APP_SRC=$(find "$TMP_DIR" -name "*.app" -maxdepth 2 | head -n 1)
 
     if [ -n "$APP_SRC" ] && [ -d "$APP_SRC" ]; then
-      APP_DEST="/Applications/なでしこ3.app"
+      APP_DEST="/Applications/gonako-gui.app"
       if [ ! -w "/Applications" ]; then
         mkdir -p "$HOME/Applications"
-        APP_DEST="$HOME/Applications/なでしこ3.app"
+        APP_DEST="$HOME/Applications/gonako-gui.app"
       fi
 
       rm -rf "$APP_DEST"

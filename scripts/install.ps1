@@ -68,7 +68,7 @@ try {
     # デスクトップにショートカットを作成
     $wshShell = New-Object -ComObject WScript.Shell
     $desktopDir = [Environment]::GetFolderPath("Desktop")
-    $shortcutPath = Join-Path $desktopDir "なでしこ3 (gonako-gui).lnk"
+    $shortcutPath = Join-Path $desktopDir "なでしこ3 - gonako.lnk"
     $shortcut = $wshShell.CreateShortcut($shortcutPath)
     $shortcut.TargetPath = $guiTargetPath
     $shortcut.Description = "なでしこ3 GUIエディタ"
