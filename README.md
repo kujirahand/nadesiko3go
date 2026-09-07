@@ -133,8 +133,7 @@ just release
 | SQLite | DB開閉・切替・SQL実行・単一行/全行取得・位置/名前付きパラメータ・コールバック |
 | 配布 | プログラムとリソースを単一の実行ファイルに梱包 |
 
-**互換性を保証するのは `plugin_system` の範囲だけ**です。OS連携（`internal/nodelib`）は
-Goらしく再設計してよい領域としています（AGENTS.md 3節）。
+※ 完全な互換性を保証するのは 標準ライブラリ(`plugin_system`の範囲だけ)です。
 
 ### gonako-gui に関して
 
