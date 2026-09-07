@@ -3,7 +3,8 @@
 //
 // The format is the one nadesiko3/doc/doctest.md defines: a 『{{{#nako3』 block
 // whose body contains a 『### 表示結果:』 line. A block without one is prose, not
-// a test.
+// a test. 『### GO表示結果:』 is the same, but marks a sample for a gonako専用
+// (独自) command — it runs under CNako exactly like 『### 表示結果:』.
 //
 //	{{{#nako3
 //	「こんにちは」と表示。
@@ -41,7 +42,8 @@ type Test struct {
 
 var (
 	// expectHead matches the line that starts the expected output.
-	expectHead = regexp.MustCompile(`^###[ \t]*(WEB表示結果|表示結果)[ \t]*[:：]?[ \t]?(.*)$`)
+	// GO表示結果 marks a gonako専用命令のサンプルで、CNakoとして実行・検証する。
+	expectHead = regexp.MustCompile(`^###[ \t]*(WEB表示結果|GO表示結果|表示結果)[ \t]*[:：]?[ \t]?(.*)$`)
 	// expectTail matches the second and later lines of it.
 	expectTail = regexp.MustCompile(`^###[ \t]?(.*)$`)
 	// trailingSpace matches the whitespace both sides trim before comparing.

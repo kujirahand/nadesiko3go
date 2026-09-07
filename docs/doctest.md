@@ -11,7 +11,7 @@
 `gonako doctest` サブコマンドを使用します。
 
 ```bash
-# デフォルト対象（manual/plugin_system および testdata/doctest）を実行
+# デフォルト対象（manual/plugin_system、manual/gonako、testdata/doctest）を実行
 gonako doctest
 
 # ディレクトリを指定して実行
@@ -73,6 +73,19 @@ just doctest testdata/doctest/core/plugin_system.txt
 L＝「こんにちは」のラベル作成。
 Lのテキスト取得して表示。
 ### WEB表示結果: こんにちは
+}}}
+```
+
+### GO表示結果 (gonako独自命令)
+
+本家TypeScript版には存在しない、gonako独自の命令（`manual/gonako/` 以下）のサンプルは
+`### GO表示結果:` と記述します。`### 表示結果:` と同じくCNako（CUI版）として実際に実行・検証されます。
+本家の命令ではないことを明示しつつ、`gonako doctest` の対象にするための書き分けです。
+
+```text
+{{{#nako3
+「12345」をハッシュ値計算して表示。
+### GO表示結果: 5994471abb01112afcc18159f6cc74b4f511b99806da59b3caf5a9c173cacfc5
 }}}
 ```
 

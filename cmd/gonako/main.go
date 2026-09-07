@@ -59,7 +59,7 @@ build のオプション:
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
-  パスを省略すると manual/plugin_system と testdata/doctest を対象にします。
+  パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -312,7 +312,7 @@ func defaultOutputName(source, runtimePath string) string {
 // defaultDocTestTargets are the manual and repository-owned fixtures used when
 // no path is given. Keeping fixed tests outside manual makes them available in
 // environments where the nadesiko3doc symlink is absent.
-var defaultDocTestTargets = []string{"manual/plugin_system", "testdata/doctest"}
+var defaultDocTestTargets = []string{"manual/plugin_system", "manual/gonako", "testdata/doctest"}
 
 // runDocTests runs sample code from the manual and fixed test data, then
 // reports what did not match. Failures are summarised by reason and only the

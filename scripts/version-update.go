@@ -74,7 +74,6 @@ func main() {
 	singles := []singleOccurrence{
 		{"scripts/install.sh", regexp.MustCompile(`DEFAULT_VERSION="([0-9]+\.[0-9]+\.[0-9]+)"`)},
 		{"scripts/install.ps1", regexp.MustCompile(`\$defaultVersion = "([0-9]+\.[0-9]+\.[0-9]+)"`)},
-		{"README.md", regexp.MustCompile(`VERSION=([0-9]+\.[0-9]+\.[0-9]+) just release`)},
 	}
 	for _, s := range singles {
 		ok, wasChanged, err := syncSingleOccurrence(s, newVersion, *checkFlag)
