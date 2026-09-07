@@ -26,13 +26,9 @@ curl -fsSL https://nadesi.com/install/gonako | bash
 irm https://nadesi.com/install/gonako | iex
 ```
 
-----------------------------
+### Homebrew (macOS) でインストールする方法
 
-### Homebrewでインストール
-
-Homebrewからもインストールできます。
-
-```sh
+```bash
 # Homebrewでtapを追加して、CLI/GUI版をインストール
 brew tap kujirahand/nadesiko3 && brew trust kujirahand/nadesiko3
 brew install gonako && brew install --cask gonako-gui
@@ -56,11 +52,15 @@ brew install gonako && brew install --cask gonako-gui
 `gonako`は、コマンドラインから使うCLIツールです。なでしこのプログラムを作ったり、配布ファイルを作ったりできます。
 
 ```bash
-gonako hello.nako3        # ファイルを実行する
+# ファイルを実行する
+gonako hello.nako3
 gonako run hello.nako3 引数    # 引数は『コマンドライン』で受け取れる
-gonako -e '「こんにちは」と表示'  # その場で実行する
+# その場で実行する
+gonako -e '「こんにちは」と表示'
 cat hello.nako3 | gonako run - # 標準入力から読む
 ```
+
+### 簡単なプログラム
 
 ```nako3
 # hello.nako3
