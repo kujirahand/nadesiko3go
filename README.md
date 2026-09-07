@@ -15,11 +15,13 @@
 ### コマンド一発でインストール (ワンライナー)
 
 **macOS / Linux (ターミナル):**
+
 ```bash
 curl -fsSL https://nadesi.com/install/gonako | bash
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 irm https://nadesi.com/install/gonako | iex
 ```
@@ -131,6 +133,11 @@ VERSION=3.8.1 just release
 
 **互換性を保証するのは `plugin_system` の範囲だけ**です。OS連携（`internal/nodelib`）は
 Goらしく再設計してよい領域としています（AGENTS.md 3節）。
+
+### gonako-gui に関して
+
+`gonako-gui`は、GUI(WebView)を持ったなでしこ3の実行ランタイムですが、開発エディタを同梱しています。
+`gonako-gui`を実行すると、デフォルトエディタが表示されます。
 
 ### SQLite
 
