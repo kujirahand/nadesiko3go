@@ -23,8 +23,8 @@ just version-update 3.8.2
 
 続けて `just release` を実行します（`VERSION` を省略すると更新後の値が使われます）。
 CLI版とGUI版の各プラットフォーム用成果物（すべてZIP形式）が `release/` 配下に
-一括生成され、あわせて `release/upload-${VERSION}.sh`（GitHub Releasesへ
-アップロードするスクリプト）も生成されます。
+一括生成され、あわせて `release/upload-${VERSION}.sh` および `release/upload-${VERSION}.bat`（GitHub Releasesへ
+アップロードするスクリプト・バッチ）も生成されます。
 
 ```bash
 just release
@@ -43,7 +43,8 @@ just release
 | `gonako-gui-3.8.2-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
 | `gonako-gui-3.8.2-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
 | `gonako-gui-3.8.2-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイルzip |
-| `upload-3.8.2.sh` | - | GitHub Releasesアップロード用スクリプト |
+| `upload-3.8.2.sh` | - | GitHub Releasesアップロード用スクリプト（macOS/Linux用） |
+| `upload-3.8.2.bat` | - | GitHub Releasesアップロード用バッチ（Windows用） |
 
 ---
 
@@ -60,7 +61,11 @@ VERSION=3.8.2
 gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
 
 # 成果物をアップロード（just release が生成したスクリプトを使う）
+# macOS / Linux:
 ./release/upload-${VERSION}.sh
+
+# Windows (コマンドプロンプトまたはPowerShell):
+.\release\upload-3.8.2.bat
 ```
 
 ---

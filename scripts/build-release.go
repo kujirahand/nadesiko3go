@@ -101,7 +101,7 @@ func main() {
 	}
 
 	// 3. アップロード用スクリプトの生成（gh コマンドでZIPをリリースへ追加する）
-	if err := writeUploadScript(cfg); err != nil {
+	if err := writeUploadScripts(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "  [ERROR] アップロードスクリプトの生成に失敗: %v\n", err)
 		hasError = true
 	}
@@ -112,16 +112,17 @@ func main() {
 	}
 }
 
-// writeUploadScript は release/*.zip を gh コマンドで既存のGitHubリリースへ
-// アップロードするスクリプト release/upload-{version}.sh を生成する。
-func writeUploadScript(cfg config) error {
+// writeUploadScripts は release/*.zip を gh コマンドで既存のGitHubリリースへ
+// アップロードするスクリプト release/upload-{version}.sh および release/upload-{version}.bat を生成する。
+func writeUploadScripts(cfg config) error {
 	zips, err := filepath.Glob(filepath.Join(cfg.outDir, "*.zip"))
 	if err != nil {
 		return err
 	}
 
-	scriptName := fmt.Sprintf("upload-%s.sh", cfg.version)
-	scriptPath := filepath.Join(cfg.outDir, scriptName)
+	// 1. シェルスクリプト (.sh) の生成
+	shName := fmt.Sprintf("upload-%s.sh", cfg.version)
+	shPath := filepath.Join(cfg.outDir, shName)
 
 	var sb strings.Builder
 	sb.WriteString("#!/bin/sh\n")
@@ -137,7 +138,29 @@ func writeUploadScript(cfg config) error {
 	}
 	sb.WriteString("  --clobber\n")
 
-	return os.WriteFile(scriptPath, []byte(sb.String()), 0o755)
+	if err := os.WriteFile(shPath, []byte(sb.String()), 0o755); err != nil {
+		return err
+	}
+
+	// 2. Windows用バッチファイル (.bat) の生成
+	batName := fmt.Sprintf("upload-%s.bat", cfg.version)
+	batPath := filepath.Join(cfg.outDir, batName)
+
+	var bat strings.Builder
+	bat.WriteString("@echo off\r\n")
+	bat.WriteString(fmt.Sprintf("rem なでしこ3 (gonako) v%s のZIPをGitHubリリースへアップロードする\r\n", cfg.version))
+	bat.WriteString("rem 事前に `gh release create " + cfg.version + "` 等でリリース自体を作成しておくこと\r\n")
+	bat.WriteString("rem タグ名はダウンロードURL (install.sh/install.ps1) と合わせて v なしのバージョン番号そのもの\r\n")
+	bat.WriteString("setlocal\r\n")
+	bat.WriteString(fmt.Sprintf("set TAG=%s\r\n\r\n", cfg.version))
+	bat.WriteString("gh release upload \"%TAG%\" ^\r\n")
+	for _, z := range zips {
+		name := filepath.Base(z)
+		bat.WriteString(fmt.Sprintf("  \"%%~dp0%s\" ^\r\n", name))
+	}
+	bat.WriteString("  --clobber\r\n")
+
+	return os.WriteFile(batPath, []byte(bat.String()), 0o755)
 }
 
 // buildCLI builds the pure Go gonako CLI executable and packages it as a zip.
