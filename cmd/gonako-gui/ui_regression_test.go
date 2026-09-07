@@ -164,6 +164,18 @@ func TestOutputPanelCanCloseAndReopensOnRun(t *testing.T) {
 	}
 }
 
+// ウィンドウモードでは『表示』は画面プレビューに描かれる。同じ文字を下の
+// 出力欄にも流すと二重に見えるので、出力欄はコマンドラインのときだけ使う。
+func TestWindowModeDoesNotDuplicateDisplayOutput(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	if !strings.Contains(app, "if (!isWindowMode) appendGUIOutput(status.output") {
+		t.Fatal("ウィンドウモードでは『表示』の出力を出力欄へ流してはいけない（画面プレビューと二重になる）")
+	}
+	if strings.Contains(app, "appendGUIOutput(data.output") {
+		t.Fatal("実行結果・イベント結果の出力を出力欄へ流すと、画面プレビューと二重になる")
+	}
+}
+
 func TestBinaryFileRequiresConfirmationBeforeEditorLoad(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{

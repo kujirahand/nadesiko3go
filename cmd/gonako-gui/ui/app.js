@@ -418,7 +418,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // 実行が終わるのを待たず、ポーリングのたびに途中経過の出力・GUI操作を
       // 反映する。ここで捨てると『表示』がプログラム終了までまとめて
       // 出なくなってしまう（#48）。
-      appendGUIOutput(status.output || '');
+      // ウィンドウモードでは『表示』が画面プレビューにも描かれるので、
+      // 下の出力欄には出さない。両方に出すと同じ文字が二重に見える。
+      if (!isWindowMode) appendGUIOutput(status.output || '');
       if (status.operations && status.operations.length > 0) {
         if (isWindowMode) {
           windowPreview.style.display = 'block';
@@ -1607,7 +1609,8 @@ document.addEventListener('DOMContentLoaded', () => {
         activeGUIRunID, Number(handle), eventName, collectGUIValues()
       );
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      appendGUIOutput(data.output || '');
+      // イベントは画面からしか来ない＝ウィンドウモード。『表示』は画面
+      // プレビュー側に描かれるので、出力欄には出さない（二重表示になる）。
       applyGUIOperations(data.operations || []);
       if (data.error) {
         appendGUIOutput(`\n${data.error}\n`);
@@ -1752,21 +1755,18 @@ document.addEventListener('DOMContentLoaded', () => {
       // 非同期実行では出力も画面操作も waitForNakoRun のポーリングで
       // 反映済みで、data には残っていない。同期フォールバック
       // (runNakoFile) のときだけ data から取り出す。
+      // ウィンドウモードでは『表示』は画面プレビューに描かれるので、
+      // 出力欄にはエラーだけを出す。
       if (data.error) {
-        if (usesAsyncRun) {
-          output.textContent += (output.textContent ? '\n' : '') + data.error;
-        } else {
-          output.textContent = (data.output ? data.output + '\n' : '') + data.error;
-        }
+        if (!usesAsyncRun && !isWindowMode) output.textContent = data.output || '';
+        output.textContent += (output.textContent ? '\n' : '') + data.error;
         output.className = 'output has-error';
         execStatus.textContent = `エラー (${elapsed}s)`;
         execStatus.className = 'status-indicator error';
         setStatus(`実行エラー (${elapsed}秒)`);
         windowPreview.style.display = 'none';
       } else {
-        if (!usesAsyncRun) output.textContent = data.output || '';
-        if (!output.textContent) output.textContent = '（出力なし）';
-        output.className = 'output has-content';
+        if (!isWindowMode && !usesAsyncRun) output.textContent = data.output || '';
         execStatus.textContent = `完了 (${elapsed}s)`;
         execStatus.className = 'status-indicator success';
         setStatus(`実行完了 (${elapsed}秒)`);
@@ -1782,6 +1782,11 @@ document.addEventListener('DOMContentLoaded', () => {
           activeGUIRunID = 0;
           windowPreview.style.display = 'none';
         }
+        // 画面にも出力欄にも何も出なかったときだけ、空でないことを示す。
+        if (!output.textContent && windowPreview.style.display !== 'block') {
+          output.textContent = '（出力なし）';
+        }
+        if (output.textContent) output.className = 'output has-content';
       }
     } catch (err) {
       output.textContent = `[システムエラー] ${err.message || err}`;
