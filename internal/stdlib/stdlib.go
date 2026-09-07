@@ -62,6 +62,13 @@ type Context interface {
 	CurrentSourcePos() (file string, line int)
 }
 
+// DialogContext is implemented by GUI runtimes that can show an HTML dialog.
+// It is intentionally optional: the same standard commands also run in CUI
+// and fixture hosts that have no screen.
+type DialogContext interface {
+	ShowDialog(kind, message string) (answer string, accepted, supported bool, err error)
+}
+
 // Impl is a command implementation. Returning an error raises a nadesiko
 // runtime error at the call site.
 type Impl func(ctx Context, args []value.Value) (value.Value, error)

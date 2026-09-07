@@ -16,29 +16,40 @@ import (
 // Plugin is the GUI command set for WebView and native dialog operations.
 type Plugin struct {
 	dialogs fileDialogs
+	screen  *Screen
 }
 
 // New creates a new guilib plugin instance.
 func New() *Plugin {
-	return &Plugin{dialogs: nativeFileDialogs()}
+	return &Plugin{dialogs: nativeFileDialogs(), screen: NewScreen()}
+}
+
+// NewWithScreen creates a plugin that writes GUI commands to screen.
+func NewWithScreen(screen *Screen) *Plugin {
+	if screen == nil {
+		screen = NewScreen()
+	}
+	return &Plugin{dialogs: nativeFileDialogs(), screen: screen}
 }
 
 type command struct {
 	josi       [][]string
 	returnNone bool
+	pure       bool
 	fn         stdlib.Impl
 }
 
 // FuncList returns the command signatures for parser and lexer.
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
+	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,
 			Type:       "func",
 			Josi:       c.josi,
 			ReturnNone: c.returnNone,
-			Pure:       false,
+			Pure:       c.pure,
 		}
 	}
 	return list
@@ -55,6 +66,129 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
+		"HTML表示": {
+			josi:       [][]string{{"を", "と"}},
+			returnNone: true,
+			fn:         p.cmdDisplayHTML,
+		},
+		"二択": {
+			josi: [][]string{{"で", "の", "と", "を"}},
+			fn:   p.cmdConfirm,
+		},
+		"ラベル作成": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateLabel,
+		},
+		"エディタ作成": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateEditor,
+		},
+		"ボタン作成": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateButton,
+		},
+		"送信ボタン作成": {
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateSubmit,
+		},
+		"フォーム作成": {
+			josi: [][]string{{"で", "の"}, {"を"}},
+			fn:   p.cmdCreateForm,
+		},
+		"テキスト設定": {
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetText,
+		},
+		"テキスト取得": {
+			josi: [][]string{{"の", "から"}},
+			fn:   p.cmdGetText,
+		},
+		"DOMスタイル一括設定": {
+			josi:       [][]string{{"に", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetStyles,
+		},
+		"DOM属性設定": {
+			josi:       [][]string{{"の"}, {"に", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetAttribute,
+		},
+		"DOM属性一括設定": {
+			josi:       [][]string{{"に", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetAttributes,
+		},
+		"DOM要素ID取得": {
+			josi: [][]string{{"の", "を"}},
+			pure: true,
+			fn:   p.cmdGetElementByID,
+		},
+		"DOM要素取得": {
+			josi: [][]string{{"の", "を"}},
+			pure: true,
+			fn:   p.cmdGetElement,
+		},
+		"DOM要素全取得": {
+			josi: [][]string{{"の", "を"}},
+			pure: true,
+			fn:   p.cmdGetAllElements,
+		},
+		"DOMテキスト取得": {
+			josi: [][]string{{"の", "から"}},
+			pure: true,
+			fn:   p.cmdGetText,
+		},
+		"DOMテキスト変更": {
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetText,
+		},
+		"DOMテキスト設定": {
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetText,
+		},
+		"HTML取得": {
+			josi: [][]string{{"の", "から"}},
+			pure: true,
+			fn:   p.cmdGetHTML,
+		},
+		"HTML変更": {
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetHTML,
+		},
+		"HTML設定": {
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetHTML,
+		},
+		"DOM注目": {
+			josi:       [][]string{{"を", "へ", "に"}},
+			returnNone: true,
+			fn:         p.cmdFocus,
+		},
+		"注目": {
+			josi:       [][]string{{"を", "へ", "に"}},
+			returnNone: true,
+			fn:         p.cmdFocus,
+		},
+		"クリック時": {
+			josi:       [][]string{{"で"}, {"を", "の"}},
+			returnNone: true,
+			fn:         p.cmdOnClick,
+		},
+		"変更時": {
+			josi:       [][]string{{"で"}, {"を", "の"}},
+			returnNone: true,
+			fn:         p.cmdOnChange,
+		},
+		"フォーム送信時": {
+			josi:       [][]string{{"で"}, {"を", "の"}},
+			returnNone: true,
+			fn:         p.cmdOnSubmit,
+		},
 		"ファイル選択": {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdSelectFile,
@@ -73,6 +207,200 @@ func (p *Plugin) commands() map[string]command {
 			fn:         p.cmdCreateWindow,
 		},
 	}
+}
+
+func (p *Plugin) cmdConfirm(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	if dialogs, ok := ctx.(stdlib.DialogContext); ok {
+		_, accepted, supported, err := dialogs.ShowDialog("confirm", value.ToString(arg(args, 0)))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		if supported {
+			return value.Bool(accepted), nil
+		}
+	}
+	return value.Bool(false), nil
+}
+
+func (p *Plugin) cmdDisplayHTML(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	p.screen.DisplayHTML(value.ToString(arg(args, 0)))
+	return value.Undefined(), nil
+}
+
+func (p *Plugin) cmdCreateLabel(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h := p.screen.create("span", value.ToString(arg(args, 0)), "", "", 0)
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateEditor(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h := p.screen.create("input", value.ToString(arg(args, 0)), "", "", 0)
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateButton(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h := p.screen.create("button", value.ToString(arg(args, 0)), "", "", 0)
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateSubmit(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h := p.screen.create("submit", value.ToString(arg(args, 0)), "", "", 0)
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateForm(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	form := p.screen.create("form", "", "", "", 0)
+	if attrs, ok := arg(args, 0).Dict(); ok && attrs != nil {
+		values, err := stringMap(arg(args, 0))
+		if err == nil {
+			_ = p.screen.setAttributes(form, values)
+		}
+	}
+	for _, row := range formRows(arg(args, 1)) {
+		p.screen.create("label", row[0], "", "", form)
+		editor := p.screen.create("input", row[1], "", row[0], form)
+		_ = p.screen.setAttributes(editor, map[string]string{"name": row[0]})
+	}
+	p.screen.create("submit", "送信", "", "", form)
+	return value.Number(float64(form)), nil
+}
+
+func (p *Plugin) cmdSetText(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.setText(h, value.ToString(arg(args, 1)))
+}
+
+func (p *Plugin) cmdGetText(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.String(""), err
+	}
+	text, err := p.screen.text(h)
+	return value.String(text), err
+}
+
+func (p *Plugin) cmdSetStyles(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	styles, err := stringMap(arg(args, 1))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.setStyles(h, styles)
+}
+
+func (p *Plugin) cmdSetAttribute(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	attrs := map[string]string{value.ToString(arg(args, 1)): value.ToString(arg(args, 2))}
+	return value.Undefined(), p.screen.setAttributes(h, attrs)
+}
+
+func (p *Plugin) cmdSetAttributes(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	attrs, err := stringMap(arg(args, 1))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.setAttributes(h, attrs)
+}
+
+func (p *Plugin) cmdGetElementByID(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	if handle, ok := p.screen.queryByID(value.ToString(arg(args, 0))); ok {
+		return value.Number(float64(handle)), nil
+	}
+	return value.Null(), nil
+}
+
+func (p *Plugin) cmdGetElement(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	query := arg(args, 0)
+	selector, isString := query.String()
+	if !isString {
+		// TypeScript版と同じく、DOMハンドルが渡された場合はそのまま返す。
+		return query, nil
+	}
+	if handle, ok := p.screen.query(selector); ok {
+		return value.Number(float64(handle)), nil
+	}
+	return value.Null(), nil
+}
+
+func (p *Plugin) cmdGetAllElements(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	handles := p.screen.queryAll(value.ToString(arg(args, 0)))
+	values := make([]value.Value, len(handles))
+	for i, handle := range handles {
+		values[i] = value.Number(float64(handle))
+	}
+	return value.ArrayValue(value.NewArray(values...)), nil
+}
+
+func (p *Plugin) cmdSetHTML(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.setHTML(h, value.ToString(arg(args, 1)))
+}
+
+func (p *Plugin) cmdGetHTML(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.String(""), err
+	}
+	html, err := p.screen.html(h)
+	return value.String(html), err
+}
+
+func (p *Plugin) cmdFocus(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	target := arg(args, 0)
+	if selector, ok := target.String(); ok {
+		h, found := p.screen.query(selector)
+		if !found {
+			return value.Undefined(), nil
+		}
+		return value.Undefined(), p.screen.focus(h)
+	}
+	if target.Kind() == value.KindNull || target.Kind() == value.KindUndefined {
+		return value.Undefined(), nil
+	}
+	h, err := handleValue(target)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.focus(h)
+}
+
+func (p *Plugin) bindEvent(ctx stdlib.Context, args []value.Value, event string) (value.Value, error) {
+	fn, err := callable(ctx, arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	h, err := handleValue(arg(args, 1))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.bind(h, event, eventBinding{ctx: ctx, fn: fn})
+}
+
+func (p *Plugin) cmdOnClick(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.bindEvent(ctx, args, "click")
+}
+
+func (p *Plugin) cmdOnChange(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.bindEvent(ctx, args, "change")
+}
+
+func (p *Plugin) cmdOnSubmit(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.bindEvent(ctx, args, "submit")
 }
 
 func (p *Plugin) cmdSelectFile(ctx stdlib.Context, args []value.Value) (value.Value, error) {

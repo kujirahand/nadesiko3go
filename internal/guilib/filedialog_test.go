@@ -29,6 +29,9 @@ func TestAddDefaultExtension(t *testing.T) {
 		{"", ".txt", ""},
 		{"program", ".txt", "program.txt"},
 		{"program.nako", ".txt", "program.nako"},
+		{"program.php", ".nako3", "program.php"},
+		{"program.nako3", ".nako3", "program.nako3"},
+		{"program.php", "", "program.php"},
 		{"program", "", "program.nako3"},
 	}
 	for _, test := range tests {

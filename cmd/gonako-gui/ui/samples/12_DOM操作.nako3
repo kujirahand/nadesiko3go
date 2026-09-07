@@ -1,0 +1,23 @@
+// DOM要素の検索・内容変更・フォーカス・イベントを試すサンプル
+画面HTML=『<section class="dom-sample">
+  <h2 id="title">DOM操作サンプル</h2>
+  <label>名前: <input id="name" class="field" value="太郎"></label>
+  <button id="hello" class="action">挨拶する</button>
+  <p id="result">ここに結果を表示します。</p>
+</section>』
+画面HTMLをHTML表示
+
+名前入力=「#name」をDOM要素取得
+結果=「result」をDOM要素ID取得
+ボタン一覧=「button.action」をDOM要素全取得
+
+結果に「ボタンは{ボタン一覧の要素数}個あります。」をDOMテキスト変更
+結果に「<strong>名前を入力して、ボタンを押してください。</strong>」をHTML変更
+結果HTML=結果のHTML取得
+
+名前入力をDOM注目
+挨拶ボタン=「hello」をDOM要素ID取得
+挨拶ボタンをクリックした時には
+　名前=名前入力のDOMテキスト取得
+　結果に「こんにちは、{名前}さん！」をDOMテキスト変更
+ここまで

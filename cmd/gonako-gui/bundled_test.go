@@ -109,6 +109,33 @@ func TestBuildAppFromFolderProgram(t *testing.T) {
 	}
 }
 
+func TestBundledProgramPagesApplyHTMLAndFocusOperations(t *testing.T) {
+	pages := []string{
+		bundledAsyncProgramPage(1),
+		bundledProgramPage(RunResult{OK: true}),
+	}
+	for i, page := range pages {
+		for _, required := range []string{"o.type==='html'", "e.innerHTML=o.html||''", "o.type==='focus'", "e.focus()"} {
+			if !strings.Contains(page, required) {
+				t.Errorf("page %d is missing %q", i, required)
+			}
+		}
+	}
+}
+
+func TestBundledPromptDialogIgnoresIMEEnter(t *testing.T) {
+	page := bundledAsyncProgramPage(1)
+	for _, required := range []string{
+		"input.oncompositionstart=()=>{composing=true}",
+		"input.oncompositionend=()=>{composing=false}",
+		"e.isComposing||composing||e.keyCode===229",
+	} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("bundled dialog is missing IME guard %q", required)
+		}
+	}
+}
+
 // HTMLを梱包すると、開始ページ付きのHTMLアプリになる。
 func TestBuildAppFromFolderHTML(t *testing.T) {
 	dir := t.TempDir()

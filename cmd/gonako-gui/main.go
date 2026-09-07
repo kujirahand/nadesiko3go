@@ -14,8 +14,6 @@ import (
 	"runtime"
 	"sort"
 	"strings"
-	"time"
-	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -41,9 +39,13 @@ const appVersion = "3.6.0"
 // default runtime registry (so that a bundled program compiles and runs with
 // the same commands) and into the editor's own registry.
 func guiPlugins() []stdlib.Plugin {
+	return guiPluginsWith(guilib.New())
+}
+
+func guiPluginsWith(guiPlugin stdlib.Plugin) []stdlib.Plugin {
 	return []stdlib.Plugin{
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guiPlugin,
 	}
 }
 
@@ -53,9 +55,11 @@ func init() {
 
 // RunResult is the JSON structure returned to JavaScript after execution.
 type RunResult struct {
-	OK     bool   `json:"ok"`
-	Output string `json:"output"`
-	Error  string `json:"error,omitempty"`
+	OK         bool               `json:"ok"`
+	RunID      uint64             `json:"runId,omitempty"`
+	Output     string             `json:"output"`
+	Operations []guilib.Operation `json:"operations,omitempty"`
+	Error      string             `json:"error,omitempty"`
 }
 
 // AppInfo contains metadata about the running gonako-gui application.
@@ -206,7 +210,7 @@ func getTemplateList() []TemplateItem {
 			category = "オフィス"
 		case strings.Contains(base, "画像"):
 			category = "グラフィック"
-		case strings.Contains(base, "ウィンドウ"):
+		case strings.Contains(base, "ウィンドウ") || strings.Contains(base, "フォーム") || strings.Contains(base, "DOM"):
 			category = "GUI"
 		}
 
@@ -301,10 +305,10 @@ func listFiles(dirPath string) DirListing {
 	}
 }
 
-func createNewFile(dirPath string) (string, string, error) {
+func createNewFolder(dirPath, name string) (string, error) {
 	if dirPath == "" || dirPath == "$DESKTOP" {
 		dirPath = getDesktopDir()
-	} else if dirPath == "$HOME" {
+	} else if dirPath == "~" || dirPath == "$HOME" {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			dirPath = "."
@@ -314,22 +318,17 @@ func createNewFile(dirPath string) (string, string, error) {
 	}
 	absDir, err := filepath.Abs(dirPath)
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-
-	dateStr := time.Now().Format("2006-01-02")
-	for i := 1; i <= 999; i++ {
-		filename := fmt.Sprintf("%s-新規-%d.nako3", dateStr, i)
-		fullPath := filepath.Join(absDir, filename)
-		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-			content := fmt.Sprintf("// %s\n「こんにちは」と表示。\n", filename)
-			if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
-				return "", "", err
-			}
-			return fullPath, filename, nil
-		}
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+		return "", fmt.Errorf("使用できないフォルダ名です: %q", name)
 	}
-	return "", "", fmt.Errorf("新規ファイルの上限に達しました")
+	fullPath := filepath.Join(absDir, name)
+	if err := os.Mkdir(fullPath, 0o755); err != nil {
+		return "", err
+	}
+	return fullPath, nil
 }
 
 func revealInFinder(targetPath string) error {
@@ -463,10 +462,20 @@ func main() {
 	w.SetTitle(*titleFlag)
 	w.SetSize(*widthFlag, *heightFlag, webview.HintNone)
 
-	guiRegistry := stdlib.NewRegistry(guiPlugins()...)
+	guiRuntime := &guiSession{}
 
-	// Go ↔ JavaScript バインディング: なでしこコードの実行
-	_ = w.Bind("runNakoCode", func(code string, filePath string) string {
+	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
+	_ = w.Bind("runNakoCode", func(code string) string {
+		result := guiRuntime.run(code, "gui.nako3", false, nil, nil)
+		b, _ := json.Marshal(result)
+		return string(b)
+	})
+	_ = w.Bind("startNakoCode", func(code string) uint64 {
+		return guiRuntime.start(code, "gui.nako3", false, nil, nil)
+	})
+
+	// 内蔵エディタ用。ファイル位置とウィンドウ表示モードも受け取る。
+	_ = w.Bind("runNakoFile", func(code string, filePath string, windowMode bool) string {
 		origDir, _ := os.Getwd()
 		defer func() {
 			_ = os.Chdir(origDir)
@@ -483,17 +492,46 @@ func main() {
 			runFile = "gui.nako3"
 		}
 
-		var outBuf strings.Builder
-		host := vm.NewCUIHost(&outBuf, strings.NewReader(""), nil)
+		result := guiRuntime.run(code, runFile, windowMode, nil, nil)
+		b, _ := json.Marshal(result)
+		return string(b)
+	})
 
-		runErr := vm.RunWithHostAndRegistry(code, runFile, guiRegistry, host)
-		result := RunResult{
-			OK:     runErr == nil,
-			Output: outBuf.String(),
+	// ダイアログを使うプログラムはWebViewのUIスレッドを塞がないよう、
+	// バックグラウンドで実行してHTML側から進捗を取得する。
+	_ = w.Bind("startNakoFile", func(code string, filePath string, windowMode bool) uint64 {
+		runFile := filePath
+		if runFile != "" {
+			scriptDir := filepath.Dir(runFile)
+			if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
+				origDir, _ := os.Getwd()
+				_ = os.Chdir(scriptDir)
+				defer func() { _ = os.Chdir(origDir) }()
+			}
+		} else {
+			runFile = "gui.nako3"
 		}
-		if runErr != nil {
-			result.Error = runErr.Error()
-		}
+		return guiRuntime.start(code, runFile, windowMode, nil, nil)
+	})
+
+	_ = w.Bind("pollNakoRun", func(runID uint64) string {
+		status := guiRuntime.poll(runID)
+		b, _ := json.Marshal(status)
+		return string(b)
+	})
+
+	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
+		return guiRuntime.resolveDialog(runID, dialogID, text, accepted)
+	})
+
+	// WKWebViewではアプリの起動形態によって標準のコピー＆ペーストが
+	// textareaまで届かないため、メインエディタ用にOSクリップボードを公開する。
+	_ = w.Bind("readClipboardText", readClipboardText)
+	_ = w.Bind("writeClipboardText", writeClipboardText)
+
+	// Go ↔ JavaScript バインディング: 画面部品イベントを実行中のVMへ返す
+	_ = w.Bind("dispatchNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
+		result := guiRuntime.dispatch(runID, handle, event, values)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
@@ -534,37 +572,17 @@ func main() {
 		return string(b)
 	})
 
-	// Go ↔ JavaScript バインディング: ファイル読み込み
-	_ = w.Bind("readFile", func(path string) string {
-		data, err := os.ReadFile(path)
-		res := struct {
-			OK       bool   `json:"ok"`
-			Content  string `json:"content,omitempty"`
-			IsBinary bool   `json:"isBinary,omitempty"`
-			Path     string `json:"path"`
-			Error    string `json:"error,omitempty"`
-		}{
-			Path: path,
-		}
-		if err != nil {
-			res.OK = false
-			res.Error = err.Error()
-		} else if !utf8.Valid(data) {
-			// PNGなどのバイナリファイル。文字コード範囲外のバイトを含むので、
-			// 中身は送らず「編集不可」の表示だけJS側に任せる。
-			res.OK = true
-			res.IsBinary = true
-		} else {
-			res.OK = true
-			res.Content = string(data)
-		}
+	// Go ↔ JavaScript バインディング: ファイル判定と読み込み。
+	// UTF-8でないファイルは、HTML側で利用者の確認を取ってから再度読み込む。
+	_ = w.Bind("readFile", func(path string, allowNonUTF8 bool) string {
+		res := readEditorFile(path, allowNonUTF8)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
 
 	// Go ↔ JavaScript バインディング: ファイル保存
-	_ = w.Bind("saveFile", func(path, content string) string {
-		err := os.WriteFile(path, []byte(content), 0o644)
+	_ = w.Bind("saveFile", func(path, content, encoding string) string {
+		err := writeEditorFile(path, content, encoding)
 		res := struct {
 			OK    bool   `json:"ok"`
 			Path  string `json:"path"`
@@ -628,13 +646,12 @@ func main() {
 		return string(b)
 	})
 
-	// Go ↔ JavaScript バインディング: 新規ファイル作成 (YYYY-MM-DD-新規-N.nako3)
-	_ = w.Bind("createNewFile", func(dirPath string) string {
-		fullPath, filename, err := createNewFile(dirPath)
+	// Go ↔ JavaScript バインディング: 新規フォルダ作成
+	_ = w.Bind("createNewFolder", func(dirPath, name string) string {
+		fullPath, err := createNewFolder(dirPath, name)
 		res := struct {
 			OK    bool   `json:"ok"`
 			Path  string `json:"path,omitempty"`
-			Name  string `json:"name,omitempty"`
 			Error string `json:"error,omitempty"`
 		}{}
 		if err != nil {
@@ -643,7 +660,6 @@ func main() {
 		} else {
 			res.OK = true
 			res.Path = fullPath
-			res.Name = filename
 		}
 		b, _ := json.Marshal(res)
 		return string(b)
@@ -683,4 +699,46 @@ func main() {
 	// WebViewを開く
 	w.Navigate(finalURL)
 	w.Run()
+}
+
+func readClipboardText() (string, error) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbpaste")
+	case "windows":
+		cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw")
+	default:
+		if path, err := exec.LookPath("wl-paste"); err == nil {
+			cmd = exec.Command(path, "--no-newline")
+		} else {
+			cmd = exec.Command("xclip", "-selection", "clipboard", "-o")
+		}
+	}
+	b, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("クリップボードを読み込めません: %w", err)
+	}
+	return string(b), nil
+}
+
+func writeClipboardText(text string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "windows":
+		cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value ([Console]::In.ReadToEnd())")
+	default:
+		if path, err := exec.LookPath("wl-copy"); err == nil {
+			cmd = exec.Command(path)
+		} else {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		}
+	}
+	cmd.Stdin = strings.NewReader(text)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("クリップボードへ書き込めません: %w", err)
+	}
+	return nil
 }

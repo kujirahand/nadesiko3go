@@ -806,6 +806,18 @@ func (m *VM) Write(s string) { m.host.Write(s) }
 
 func (m *VM) ReadLine() (string, error) { return m.host.ReadLine() }
 
+// ShowDialog forwards an optional HTML dialog request to GUI hosts. Keeping
+// this outside Host lets CUI and test hosts remain small and compatible.
+func (m *VM) ShowDialog(kind, message string) (string, bool, bool, error) {
+	h, ok := m.host.(interface {
+		ShowDialog(kind, message string) (string, bool, bool, error)
+	})
+	if !ok {
+		return "", false, false, nil
+	}
+	return h.ShowDialog(kind, message)
+}
+
 func (m *VM) Args() []string { return m.host.Args() }
 
 func (m *VM) ReadResource(name string) ([]byte, bool) { return m.host.ReadResource(name) }

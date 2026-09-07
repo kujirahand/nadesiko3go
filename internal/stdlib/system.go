@@ -47,7 +47,20 @@ func implementations() map[string]Impl {
 		return value.Undefined(), nil
 	}
 	m["ハテナ関数実行"] = m["表示"] // 『??』のエイリアス #1745
-	m["言"] = m["表示"]
+	m["言"] = func(ctx Context, args []value.Value) (value.Value, error) {
+		message := value.ToString(arg(args, 0))
+		if dialogs, ok := ctx.(DialogContext); ok {
+			_, _, supported, err := dialogs.ShowDialog("alert", message)
+			if err != nil {
+				return value.Undefined(), err
+			}
+			if supported {
+				return value.Undefined(), nil
+			}
+		}
+		ctx.Print(message)
+		return value.Undefined(), nil
+	}
 	m["コンソール表示"] = m["表示"]
 	m["表示ログクリア"] = func(ctx Context, _ []value.Value) (value.Value, error) {
 		ctx.SetSysVar("表示ログ", value.String(""))

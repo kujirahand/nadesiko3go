@@ -10,6 +10,7 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"html"
@@ -18,7 +19,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"text/template"
 
@@ -26,10 +26,6 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 	"github.com/webview/webview_go"
 )
-
-// htmlLikeRE decides whether a program's output should be shown as HTML.
-// エディタの「ウィンドウ」表示と同じ判定にしてある。
-var htmlLikeRE = regexp.MustCompile(`(?is)<[a-z][\s\S]*>`)
 
 // BuildResult is the JSON structure returned to JavaScript after a build.
 type BuildResult struct {
@@ -95,32 +91,54 @@ func runBundledHTML(packed *bundle.Bundle) {
 // printed. A program that opened its own window with 『ウィンドウ作成』 prints
 // nothing, and then there is no second window to show.
 func runBundledProgram(packed *bundle.Bundle) {
-	var out strings.Builder
-	host := vm.NewCUIHost(&out, strings.NewReader(""), os.Args[1:])
-	host.Bundle = packed
-
-	runErr := vm.RunCompiled(packed.Program, host)
-	text := out.String()
-
-	if runErr != nil {
-		showMessageWindow(packed.Title, text+"\n"+runErr.Error())
-		return
-	}
-	if strings.TrimSpace(text) == "" {
-		return
-	}
+	session := &guiSession{}
 	w := newAppWindow(packed.Title)
 	if w == nil {
 		return
 	}
 	defer w.Destroy()
-	// 出力がHTMLならそのまま描き、そうでなければ文字のまま読めるように包む
-	if htmlLikeRE.MatchString(text) {
-		w.SetHtml(text)
-	} else {
-		w.SetHtml(textPage(text))
-	}
+	_ = w.Bind("dispatchNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
+		next := session.dispatch(runID, handle, event, values)
+		b, _ := json.Marshal(next)
+		return string(b)
+	})
+	_ = w.Bind("pollNakoRun", func(runID uint64) string {
+		b, _ := json.Marshal(session.poll(runID))
+		return string(b)
+	})
+	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
+		return session.resolveDialog(runID, dialogID, text, accepted)
+	})
+	_ = w.Bind("closeBundledWindow", func() {
+		w.Terminate()
+	})
+	runID := session.startCompiled(packed.Program, os.Args[1:], packed)
+	w.SetHtml(bundledAsyncProgramPage(runID))
 	w.Run()
+}
+
+func bundledAsyncProgramPage(runID uint64) string {
+	return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+		`<style>body{box-sizing:border-box;margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222}.gonako-part{box-sizing:border-box;margin:4px}input{padding:7px 9px;border:1px solid #aaa;border-radius:4px}button{padding:7px 14px;border:0;border-radius:5px;background:#3b82f6;color:#fff;cursor:pointer}form{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}form>button{grid-column:2}.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:10}.dialog{width:min(420px,85vw);padding:20px;border-radius:10px;background:#fff;box-shadow:0 14px 40px #0005}.dialog p{white-space:pre-wrap}.dialog input{box-sizing:border-box;width:100%;margin:8px 0 18px}.actions{display:flex;justify-content:flex-end;gap:8px}.secondary{background:#777}</style></head>` +
+		`<body><main id="gonako-screen"></main><pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre><div id="overlay" class="overlay"><div class="dialog"><h3 id="dialog-title"></h3><p id="dialog-message"></p><input id="dialog-input"><div class="actions"><button id="dialog-cancel" class="secondary">キャンセル</button><button id="dialog-ok">OK</button></div></div></div><script>` +
+		`const root=document.getElementById('gonako-screen'),runId=` + fmt.Sprint(runID) + `;let state={runId};` +
+		`function values(){const v={};root.querySelectorAll('[data-gonako-handle]').forEach(e=>{if(e.matches('input,textarea,select'))v[e.dataset.gonakoHandle]=e.value});return v}` +
+		`async function send(h,n){const raw=await window.dispatchNakoEvent(state.runId,Number(h),n,values());const d=typeof raw==='string'?JSON.parse(raw):raw;apply(d.operations||[]);if(d.error)document.getElementById('gonako-error').textContent=d.error}` +
+		`function apply(ops){ops.forEach(o=>{const q='[data-gonako-handle="'+o.handle+'"]';if(o.type==='create'){const p=o.parent?root.querySelector('[data-gonako-handle="'+o.parent+'"]'):root;if(!p)return;let e;if(o.tag==='submit'){e=document.createElement('button');e.type='submit'}else{e=document.createElement(o.tag||'div');if(o.tag==='input')e.type='text'}e.dataset.gonakoHandle=String(o.handle);e.classList.add('gonako-part');if(o.name)e.name=o.name;if(o.html)e.innerHTML=o.html;else if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||'';p.appendChild(e);return}const e=root.querySelector(q);if(!e)return;if(o.type==='text'){if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||''}else if(o.type==='html')e.innerHTML=o.html||'';else if(o.type==='styles')Object.entries(o.styles||{}).forEach(([k,v])=>e.style[k]=v);else if(o.type==='attributes')Object.entries(o.attributes||{}).forEach(([k,v])=>e.setAttribute(k,v));else if(o.type==='listen'&&!e.dataset['gonakoEvent'+o.event]){e.dataset['gonakoEvent'+o.event]='1';e.addEventListener(o.event,x=>{if(o.event==='submit')x.preventDefault();send(o.handle,o.event)})}else if(o.type==='focus')e.focus()})}` +
+		`function ask(d){return new Promise(resolve=>{const overlay=document.getElementById('overlay'),input=document.getElementById('dialog-input'),cancel=document.getElementById('dialog-cancel'),ok=document.getElementById('dialog-ok');let composing=false;document.getElementById('dialog-title').textContent=d.kind==='prompt'?'入力':d.kind==='confirm'?'確認':'メッセージ';document.getElementById('dialog-message').textContent=d.message||'';input.style.display=d.kind==='prompt'?'block':'none';input.value='';cancel.style.display=d.kind==='alert'?'none':'inline-block';overlay.style.display='flex';input.oncompositionstart=()=>{composing=true};input.oncompositionend=()=>{composing=false};const done=(accepted)=>{overlay.style.display='none';ok.onclick=null;cancel.onclick=null;input.onkeydown=null;input.oncompositionstart=null;input.oncompositionend=null;resolve({text:d.kind==='prompt'?input.value:'',accepted})};ok.onclick=()=>done(true);cancel.onclick=()=>done(false);input.onkeydown=e=>{if(e.isComposing||composing||e.keyCode===229)return;if(e.key==='Enter')done(true);else if(e.key==='Escape')done(false)};(d.kind==='prompt'?input:ok).focus()})}` +
+		`async function run(){for(;;){const raw=await window.pollNakoRun(runId),s=typeof raw==='string'?JSON.parse(raw):raw;if(s.dialog){const a=await ask(s.dialog);await window.resolveNakoDialog(runId,s.dialog.id,a.text,a.accepted);continue}if(s.done){const r=s.result||{};state=r;apply(r.operations||[]);if(r.error)document.getElementById('gonako-error').textContent=(r.output?r.output+'\n':'')+r.error;if(!r.error&&(!r.operations||r.operations.length===0))await window.closeBundledWindow();return}await new Promise(x=>setTimeout(x,20))}}run();</script></body></html>`
+}
+
+func bundledProgramPage(result RunResult) string {
+	data, _ := json.Marshal(result)
+	return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+		`<style>body{box-sizing:border-box;margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222}.gonako-part{box-sizing:border-box;margin:4px}input{padding:7px 9px;border:1px solid #aaa;border-radius:4px}button{padding:7px 14px;border:0;border-radius:5px;background:#3b82f6;color:#fff;cursor:pointer}form{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}form>button{grid-column:2}</style></head>` +
+		`<body><main id="gonako-screen"></main><pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre><script>` +
+		`const root=document.getElementById('gonako-screen');let state=` + string(data) + `;` +
+		`function values(){const v={};root.querySelectorAll('[data-gonako-handle]').forEach(e=>{if(e.matches('input,textarea,select'))v[e.dataset.gonakoHandle]=e.value});return v}` +
+		`async function send(h,n){const raw=await window.dispatchNakoEvent(state.runId,Number(h),n,values());const d=typeof raw==='string'?JSON.parse(raw):raw;apply(d.operations||[]);if(d.error)document.getElementById('gonako-error').textContent=d.error}` +
+		`function apply(ops){ops.forEach(o=>{const q='[data-gonako-handle="'+o.handle+'"]';if(o.type==='create'){const p=o.parent?root.querySelector('[data-gonako-handle="'+o.parent+'"]'):root;if(!p)return;let e;if(o.tag==='submit'){e=document.createElement('button');e.type='submit'}else{e=document.createElement(o.tag||'div');if(o.tag==='input')e.type='text'}e.dataset.gonakoHandle=String(o.handle);e.classList.add('gonako-part');if(o.name)e.name=o.name;if(o.html)e.innerHTML=o.html;else if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||'';p.appendChild(e);return}const e=root.querySelector(q);if(!e)return;if(o.type==='text'){if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||''}else if(o.type==='html')e.innerHTML=o.html||'';else if(o.type==='styles')Object.entries(o.styles||{}).forEach(([k,v])=>e.style[k]=v);else if(o.type==='attributes')Object.entries(o.attributes||{}).forEach(([k,v])=>e.setAttribute(k,v));else if(o.type==='listen'&&!e.dataset['gonakoEvent'+o.event]){e.dataset['gonakoEvent'+o.event]='1';e.addEventListener(o.event,x=>{if(o.event==='submit')x.preventDefault();send(o.handle,o.event)})}else if(o.type==='focus')e.focus()})}` +
+		`apply(state.operations||[]);</script></body></html>`
 }
 
 // newAppWindow opens the window a converted application runs in.

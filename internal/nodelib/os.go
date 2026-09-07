@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -20,6 +22,18 @@ func osCommands(m map[string]command) {
 	// --- 標準入出力 ---
 
 	m["尋"] = command{josi: [][]string{{"と", "を"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+		if dialogs, ok := ctx.(stdlib.DialogContext); ok {
+			answer, accepted, supported, err := dialogs.ShowDialog("prompt", str(a, 0))
+			if err != nil {
+				return value.Undefined(), err
+			}
+			if supported {
+				if !accepted {
+					return value.String(""), nil
+				}
+				return promptValue(answer), nil
+			}
+		}
 		// プロンプトは改行しない。入力が同じ行に続くため。
 		if prompt := str(a, 0); prompt != "" {
 			ctx.Write(prompt)
@@ -36,6 +50,18 @@ func osCommands(m map[string]command) {
 	}}
 
 	m["文字尋"] = command{josi: [][]string{{"と", "を"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
+		if dialogs, ok := ctx.(stdlib.DialogContext); ok {
+			answer, accepted, supported, err := dialogs.ShowDialog("prompt", str(a, 0))
+			if err != nil {
+				return value.Undefined(), err
+			}
+			if supported {
+				if !accepted {
+					return value.String(""), nil
+				}
+				return value.String(answer), nil
+			}
+		}
 		if prompt := str(a, 0); prompt != "" {
 			ctx.Write(prompt)
 		}
@@ -176,6 +202,34 @@ func osCommands(m map[string]command) {
 			return value.Undefined(), nil
 		}}
 }
+
+func promptValue(input string) value.Value {
+	if input == "" {
+		return value.String(input)
+	}
+	var b strings.Builder
+	for _, r := range input {
+		switch {
+		case r >= '０' && r <= '９':
+			b.WriteRune(r - '０' + '0')
+		case r == '＋':
+			b.WriteByte('+')
+		case r == '－':
+			b.WriteByte('-')
+		case r == '．':
+			b.WriteByte('.')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	normalized := b.String()
+	if n, err := strconv.ParseFloat(normalized, 64); err == nil && decimalPromptRE.MatchString(normalized) {
+		return value.Number(n)
+	}
+	return value.String(input)
+}
+
+var decimalPromptRE = regexp.MustCompile(`^[-+]?\d+(\.\d+)?$`)
 
 // runCommand runs a shell command and returns what it printed.
 func runCommand(_ stdlib.Context, a []value.Value) (value.Value, error) {
