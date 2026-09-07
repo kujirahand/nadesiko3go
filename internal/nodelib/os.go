@@ -14,6 +14,7 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
+	"golang.org/x/text/encoding/japanese"
 )
 
 // osCommands adds the commands that talk to the operating system and to the
@@ -244,10 +245,24 @@ func runCommand(_ stdlib.Context, a []value.Value) (value.Value, error) {
 		cmd = exec.Command("sh", "-c", line)
 	}
 	out, err := cmd.CombinedOutput()
+	text := decodeCommandOutput(out)
 	if err != nil {
-		return value.String(string(out)), errors.New("コマンド『" + line + "』の実行に失敗しました。" + err.Error())
+		return value.String(text), errors.New("コマンド『" + line + "』の実行に失敗しました。" + err.Error())
 	}
-	return value.String(string(out)), nil
+	return value.String(text), nil
+}
+
+// decodeCommandOutput は外部コマンドの標準出力をUTF-8文字列に変換する。
+// Windowsのcmd.exeは既定でコンソールのコードページ（多くの場合Shift-JIS/CP932）
+// で出力するため、そのままUTF-8として扱うと日本語が文字化けする。
+func decodeCommandOutput(out []byte) string {
+	if runtime.GOOS != "windows" {
+		return string(out)
+	}
+	if decoded, err := decodeBytes(out, japanese.ShiftJIS); err == nil {
+		return decoded
+	}
+	return string(out)
 }
 
 func runCommandAsync(_ stdlib.Context, a []value.Value) (value.Value, error) {

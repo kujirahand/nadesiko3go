@@ -95,7 +95,7 @@ A="a"と"b"をパス結合
 		"名前: c.txt",
 		"パス: /a/b",
 		"拡張子: .txt",
-		"結合: a/b",
+		"結合: " + filepath.Join("a", "b"),
 	}, "\n")
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
