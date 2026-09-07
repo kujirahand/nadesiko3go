@@ -22,30 +22,36 @@ just version-update 3.8.2
 ```
 
 続けて `just release` を実行します（`VERSION` を省略すると更新後の値が使われます）。
-CLI版とGUI版の各プラットフォーム用成果物が `bin/` 配下に一括生成されます。
+CLI版とGUI版の各プラットフォーム用成果物（すべてZIP形式）が `release/` 配下に
+一括生成され、あわせて `release/upload-${VERSION}.sh`（GitHub Releasesへ
+アップロードするスクリプト）も生成されます。
 
 ```bash
 just release
 ```
 
-### 生成される主な成果物 (`bin/`)
+### 生成される主な成果物 (`release/`)
 
 | ファイル名 | 対象 | 形式 |
 |---|---|---|
-| `gonako-3.8.2-darwin-arm64` | macOS (Apple Silicon) | CLIバイナリ |
-| `gonako-3.8.2-darwin-amd64` | macOS (Intel) | CLIバイナリ |
-| `gonako-3.8.2-linux-amd64` | Linux (x86_64) | CLIバイナリ |
-| `gonako-3.8.2-linux-arm64` | Linux (aarch64) | CLIバイナリ |
-| `gonako-3.8.2-windows-amd64.exe` | Windows (x86_64) | CLIバイナリ |
+| `gonako-3.8.2-darwin-arm64.zip` | macOS (Apple Silicon) | CLIバイナリzip |
+| `gonako-3.8.2-darwin-amd64.zip` | macOS (Intel) | CLIバイナリzip |
+| `gonako-3.8.2-linux-amd64.zip` | Linux (x86_64) | CLIバイナリzip |
+| `gonako-3.8.2-linux-arm64.zip` | Linux (aarch64) | CLIバイナリzip |
+| `gonako-3.8.2-windows-amd64.zip` | Windows (x86_64) | CLIバイナリzip（中身は`gonako.exe`） |
 | `gonako-gui-3.8.2-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle zip |
 | `gonako-gui-3.8.2-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
 | `gonako-gui-3.8.2-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
+| `gonako-gui-3.8.2-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイルzip |
+| `upload-3.8.2.sh` | - | GitHub Releasesアップロード用スクリプト |
 
 ---
 
 ## 3. GitHub Releases へのアップロード
 
 生成した成果物を GitHub Releases の該当タグ（例: `3.8.2`）にアップロードします。
+タグ名は `install.sh` / `install.ps1` のダウンロードURLに合わせて
+`v` を付けないバージョン番号そのものにします。
 
 ```bash
 VERSION=3.8.2
@@ -53,17 +59,8 @@ VERSION=3.8.2
 # リリースがまだない場合は作成
 gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
 
-# 成果物をアップロード
-gh release upload "$VERSION" \
-  "bin/gonako-${VERSION}-darwin-arm64" \
-  "bin/gonako-${VERSION}-darwin-amd64" \
-  "bin/gonako-${VERSION}-linux-amd64" \
-  "bin/gonako-${VERSION}-linux-arm64" \
-  "bin/gonako-${VERSION}-windows-amd64.exe" \
-  "bin/gonako-gui-${VERSION}-darwin-arm64.app.zip" \
-  "bin/gonako-gui-${VERSION}-darwin-amd64.app.zip" \
-  "bin/gonako-gui-${VERSION}-windows-amd64.zip" \
-  --clobber
+# 成果物をアップロード（just release が生成したスクリプトを使う）
+./release/upload-${VERSION}.sh
 ```
 
 ---
@@ -75,12 +72,12 @@ Formula および Cask に設定するための SHA-256 ハッシュ値を算出
 ```bash
 VERSION=3.8.2
 shasum -a 256 \
-  "bin/gonako-${VERSION}-darwin-arm64" \
-  "bin/gonako-${VERSION}-darwin-amd64" \
-  "bin/gonako-${VERSION}-linux-arm64" \
-  "bin/gonako-${VERSION}-linux-amd64" \
-  "bin/gonako-gui-${VERSION}-darwin-arm64.app.zip" \
-  "bin/gonako-gui-${VERSION}-darwin-amd64.app.zip"
+  "release/gonako-${VERSION}-darwin-arm64.zip" \
+  "release/gonako-${VERSION}-darwin-amd64.zip" \
+  "release/gonako-${VERSION}-linux-arm64.zip" \
+  "release/gonako-${VERSION}-linux-amd64.zip" \
+  "release/gonako-gui-${VERSION}-darwin-arm64.app.zip" \
+  "release/gonako-gui-${VERSION}-darwin-amd64.app.zip"
 ```
 
 ---
@@ -107,28 +104,27 @@ class Gonako < Formula
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-darwin-arm64"
-      sha256 "<darwin-arm64のSHA-256>"
+      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-darwin-arm64.zip"
+      sha256 "<darwin-arm64.zipのSHA-256>"
     else
-      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-darwin-amd64"
-      sha256 "<darwin-amd64のSHA-256>"
+      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-darwin-amd64.zip"
+      sha256 "<darwin-amd64.zipのSHA-256>"
     end
   end
 
   on_linux do
     if Hardware::CPU.arm?
-      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-linux-arm64"
-      sha256 "<linux-arm64のSHA-256>"
+      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-linux-arm64.zip"
+      sha256 "<linux-arm64.zipのSHA-256>"
     else
-      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-linux-amd64"
-      sha256 "<linux-amd64のSHA-256>"
+      url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-#{version}-linux-amd64.zip"
+      sha256 "<linux-amd64.zipのSHA-256>"
     end
   end
 
+  # url が .zip なので Homebrew が自動展開する。展開後の実行ファイル名は "gonako"。
   def install
-    cpu = Hardware::CPU.arm? ? "arm64" : "amd64"
-    os = OS.mac? ? "darwin" : "linux"
-    bin.install "gonako-#{version}-#{os}-#{cpu}" => "gonako"
+    bin.install "gonako"
   end
 
   test do

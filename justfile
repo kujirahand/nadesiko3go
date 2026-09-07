@@ -29,15 +29,15 @@ install:
 
 # 配布用に各プラットフォーム向けのバイナリ・ツール（CLI・GUI）を作る
 release:
-    {{go}} run ./scripts/build-release.go -version {{version}} -platforms "{{platforms}}"
+    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}"
 
 # CLI版のみ配布用バイナリを作る
 release-cli:
-    {{go}} run ./scripts/build-release.go -version {{version}} -platforms "{{platforms}}" -skip-gui
+    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-gui
 
 # GUI版のみ配布用バイナリを作る
 release-gui:
-    {{go}} run ./scripts/build-release.go -version {{version}} -platforms "{{platforms}}" -skip-cli
+    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-cli
 
 # GUI版をビルドせずに実行
 run-gui:

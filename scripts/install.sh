@@ -57,20 +57,22 @@ mkdir -p "$INSTALL_DIR"
 # ----------------------------------------------------
 # 1. CLI版 (gonako) のインストール
 # ----------------------------------------------------
-BIN_NAME="gonako-${VERSION}-${OS}-${ARCH}"
-URL="https://github.com/${REPO}/releases/download/${VERSION}/${BIN_NAME}"
+CLI_ZIP="gonako-${VERSION}-${OS}-${ARCH}.zip"
+URL="https://github.com/${REPO}/releases/download/${VERSION}/${CLI_ZIP}"
 TARGET="$INSTALL_DIR/gonako"
 
 echo "===> [1/2] なでしこ3 CLI版 (gonako v${VERSION}) をインストール中..."
-TMP_FILE="$(mktemp)"
-if curl -fSL "$URL" -o "$TMP_FILE"; then
-  mv "$TMP_FILE" "$TARGET"
+TMP_ZIP="$(mktemp).zip"
+TMP_DIR="$(mktemp -d)"
+if curl -fSL "$URL" -o "$TMP_ZIP"; then
+  unzip -q -o "$TMP_ZIP" -d "$TMP_DIR"
+  mv "$TMP_DIR/gonako" "$TARGET"
   chmod 755 "$TARGET"
   echo "  -> インストール完了: $TARGET"
 else
-  rm -f "$TMP_FILE"
   echo "  [警告] CLI版のダウンロードに失敗しました ($URL)" >&2
 fi
+rm -rf "$TMP_ZIP" "$TMP_DIR"
 
 # ----------------------------------------------------
 # 2. GUI版 (gonako-gui / なでしこ3.app) のインストール

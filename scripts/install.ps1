@@ -39,12 +39,15 @@ if (-not (Test-Path $installDir)) {
 # 1. CLI版 (gonako.exe) のインストール
 # ----------------------------------------------------
 Write-Host "===> [1/2] なでしこ3 CLI版 (gonako v$version) をダウンロード中..." -ForegroundColor Cyan
-$binName = "gonako-$version-windows-amd64.exe"
-$url = "https://github.com/$repo/releases/download/$version/$binName"
+$cliZipName = "gonako-$version-windows-amd64.zip"
+$cliUrl = "https://github.com/$repo/releases/download/$version/$cliZipName"
 $targetPath = Join-Path $installDir "gonako.exe"
+$tmpCliZip = Join-Path $env:TEMP "gonako-cli.zip"
 
 try {
-    Invoke-WebRequest -Uri $url -OutFile $targetPath
+    Invoke-WebRequest -Uri $cliUrl -OutFile $tmpCliZip
+    Expand-Archive -Path $tmpCliZip -DestinationPath $installDir -Force
+    Remove-Item $tmpCliZip -Force -ErrorAction SilentlyContinue
     Write-Host "  -> CLI版の保存完了: $targetPath" -ForegroundColor Green
 } catch {
     Write-Warning "CLI版のダウンロードに失敗しました: $_"

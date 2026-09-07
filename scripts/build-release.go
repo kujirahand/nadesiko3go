@@ -3,10 +3,8 @@
 package main
 
 import (
-	"archive/tar"
 	"archive/zip"
 	"bytes"
-	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
@@ -43,7 +41,7 @@ func main() {
 
 	verFlag := flag.String("version", defaultVersion, "Release version")
 	platFlag := flag.String("platforms", defaultPlatforms, "Space-separated list of target platforms (os/arch)")
-	outDirFlag := flag.String("outdir", "bin", "Output directory for release binaries")
+	outDirFlag := flag.String("outdir", "release", "Output directory for release archives")
 	skipCLIFlag := flag.Bool("skip-cli", false, "Skip CLI (gonako) build")
 	skipGUIFlag := flag.Bool("skip-gui", false, "Skip GUI (gonako-gui) build")
 	flag.Parse()
@@ -102,14 +100,52 @@ func main() {
 		}
 	}
 
+	// 3. アップロード用スクリプトの生成（gh コマンドでZIPをリリースへ追加する）
+	if err := writeUploadScript(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "  [ERROR] アップロードスクリプトの生成に失敗: %v\n", err)
+		hasError = true
+	}
+
 	fmt.Println("\n===> リリースビルド完了")
 	if hasError {
 		os.Exit(1)
 	}
 }
 
-// buildCLI builds the pure Go gonako CLI executable.
+// writeUploadScript は release/*.zip を gh コマンドで既存のGitHubリリースへ
+// アップロードするスクリプト release/upload-{version}.sh を生成する。
+func writeUploadScript(cfg config) error {
+	zips, err := filepath.Glob(filepath.Join(cfg.outDir, "*.zip"))
+	if err != nil {
+		return err
+	}
+
+	scriptName := fmt.Sprintf("upload-%s.sh", cfg.version)
+	scriptPath := filepath.Join(cfg.outDir, scriptName)
+
+	var sb strings.Builder
+	sb.WriteString("#!/bin/sh\n")
+	sb.WriteString(fmt.Sprintf("# なでしこ3 (gonako) v%s のZIPをGitHubリリースへアップロードする\n", cfg.version))
+	sb.WriteString("# 事前に `gh release create " + cfg.version + "` 等でリリース自体を作成しておくこと\n")
+	sb.WriteString("# タグ名はダウンロードURL (install.sh/install.ps1) と合わせて v なしのバージョン番号そのもの\n")
+	sb.WriteString("set -eu\n\n")
+	sb.WriteString(fmt.Sprintf("TAG=\"%s\"\n\n", cfg.version))
+	sb.WriteString("gh release upload \"$TAG\" \\\n")
+	for _, z := range zips {
+		name := filepath.Base(z)
+		sb.WriteString(fmt.Sprintf("  \"$(dirname \"$0\")/%s\" \\\n", name))
+	}
+	sb.WriteString("  --clobber\n")
+
+	return os.WriteFile(scriptPath, []byte(sb.String()), 0o755)
+}
+
+// buildCLI builds the pure Go gonako CLI executable and packages it as a zip.
 func buildCLI(cfg config, goos, goarch string) error {
+	binName := "gonako"
+	if goos == "windows" {
+		binName += ".exe"
+	}
 	outName := fmt.Sprintf("gonako-%s-%s-%s", cfg.version, goos, goarch)
 	if goos == "windows" {
 		outName += ".exe"
@@ -126,8 +162,15 @@ func buildCLI(cfg config, goos, goarch string) error {
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	defer os.Remove(outPath)
 
-	return cmd.Run()
+	zipName := fmt.Sprintf("gonako-%s-%s-%s.zip", cfg.version, goos, goarch)
+	zipPath := filepath.Join(cfg.outDir, zipName)
+	fmt.Printf("  -> zip アーカイブ作成中: %s\n", zipName)
+	return zipSingleFile(outPath, zipPath, binName)
 }
 
 // buildGUI builds the webview-based gonako-gui application.
@@ -185,6 +228,9 @@ func buildGUIDarwin(cfg config, goarch string) error {
 	if err := zipDirectory(appPath, zipPath, appName); err != nil {
 		return fmt.Errorf("zip の作成に失敗しました: %w", err)
 	}
+
+	_ = os.Remove(binPath)
+	_ = os.RemoveAll(appPath)
 
 	return nil
 }
@@ -313,6 +359,8 @@ func buildGUIWindows(cfg config, goarch string) error {
 		return fmt.Errorf("zip の作成に失敗しました: %w", err)
 	}
 
+	_ = os.Remove(binPath)
+
 	return nil
 }
 
@@ -356,13 +404,15 @@ func buildGUILinux(cfg config, goarch string) error {
 		return err
 	}
 
-	// tar.gz アーカイブの作成
-	tarName := fmt.Sprintf("gonako-gui-%s-linux-%s.tar.gz", cfg.version, goarch)
-	tarPath := filepath.Join(cfg.outDir, tarName)
-	fmt.Printf("  -> tar.gz アーカイブ作成中: %s\n", tarName)
-	if err := tarGzSingleFile(binPath, tarPath, "gonako-gui"); err != nil {
-		return fmt.Errorf("tar.gz の作成に失敗しました: %w", err)
+	// zip アーカイブの作成
+	zipName := fmt.Sprintf("gonako-gui-%s-linux-%s.zip", cfg.version, goarch)
+	zipPath := filepath.Join(cfg.outDir, zipName)
+	fmt.Printf("  -> zip アーカイブ作成中: %s\n", zipName)
+	if err := zipSingleFile(binPath, zipPath, "gonako-gui"); err != nil {
+		return fmt.Errorf("zip の作成に失敗しました: %w", err)
 	}
+
+	_ = os.Remove(binPath)
 
 	return nil
 }
@@ -480,43 +530,5 @@ func zipSingleFile(srcFile, zipPath, nameInZip string) error {
 	defer file.Close()
 
 	_, err = io.Copy(writer, file)
-	return err
-}
-
-func tarGzSingleFile(srcFile, tarGzPath, nameInTar string) error {
-	info, err := os.Stat(srcFile)
-	if err != nil {
-		return err
-	}
-
-	outFile, err := os.Create(tarGzPath)
-	if err != nil {
-		return err
-	}
-	defer outFile.Close()
-
-	gw := gzip.NewWriter(outFile)
-	defer gw.Close()
-
-	tw := tar.NewWriter(gw)
-	defer tw.Close()
-
-	header, err := tar.FileInfoHeader(info, "")
-	if err != nil {
-		return err
-	}
-	header.Name = nameInTar
-
-	if err := tw.WriteHeader(header); err != nil {
-		return err
-	}
-
-	file, err := os.Open(srcFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = io.Copy(tw, file)
 	return err
 }
