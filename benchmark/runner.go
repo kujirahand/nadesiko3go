@@ -307,7 +307,7 @@ replace github.com/kujirahand/nadesiko3go => %s
 	md.WriteString("### ① Go版が本家より速いところ\n\n")
 	md.WriteString("**起動が軽い。** Goのネイティブ単一バイナリなので、Node.jsプロセスの初期化とTypeScriptパーサーの読み込みがありません。数十msで終わるテスト（String・Dict）では、この差がそのまま順位になります。\n\n")
 	md.WriteString("**文字列と辞書が速い。** Goネイティブの `string` (UTF-8) と、挿入順を保つ辞書の実装が効きます。特に文字列処理は本家の5倍前後です。\n\n")
-	md.WriteString("**関数呼び出しが速い。** 再帰（Fibonacci）は本家の2.6倍前後で、これが合計を押し上げている最大の要因です。呼び出し1回あたりの割り当てを3個まで減らしてあります（AGENTS.md 6節）。\n\n")
+	md.WriteString("**関数呼び出しが速い。** 再帰（Fibonacci）は本家の2.6倍前後で、これが合計を押し上げている最大の要因です。呼び出し1回あたりの割り当てを3個まで減らしてあります（docs/parser.md）。\n\n")
 
 	md.WriteString("### ② VM実行が本家より遅いところ\n\n")
 	md.WriteString("**数値ループはV8のJITに負けます。** Collatz・Mandelbrot・Sieve は本家より遅く、特にCollatzで差が開きます。V8はホットな数値ループを型を特殊化したマシン語に落としますが、`gonako` のVMはバイトコードインタプリタで、JITを持ちません。\n\n")
@@ -316,7 +316,7 @@ replace github.com/kujirahand/nadesiko3go => %s
 	md.WriteString("### ③ gogen (Goネイティブ生成) は数値計算で本家を追い越します\n\n")
 	md.WriteString("`internal/gogen/types.go` の型推論により、生成コードは**数値と証明できた場所を生の `float64` で計算します**。オペランドスタックはGoのローカル変数に、捕捉されない数値ローカルはただの `float64` 変数になり、`rt.Binary(...)` は `f0 = f1 + f2` になります。\n\n")
 	md.WriteString("この結果、計算集約のケースでgogenがVMを大きく引き離します（同一マシンでの前後比較は次節）。\n\n")
-	md.WriteString("推論できないところは今までどおり `rt.Value` のまま一般経路を通ります。**証明できたときだけ特殊化する**方針なので、当てが外れても遅くなるだけで、結果は変わりません（AGENTS.md 12節）。\n\n")
+	md.WriteString("推論できないところは今までどおり `rt.Value` のまま一般経路を通ります。**証明できたときだけ特殊化する**方針なので、当てが外れても遅くなるだけで、結果は変わりません（docs/gogen.md）。\n\n")
 	md.WriteString("逆に、文字列処理（String）や辞書操作（Dict）はもともと命令呼び出しが主体で、数値演算がほとんどないため、gogenにしてもVMとあまり変わりません。\n\n")
 
 	md.WriteString("### ④ 表の読み方の注意\n\n")
