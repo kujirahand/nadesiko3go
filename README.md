@@ -36,11 +36,10 @@ Homebrewからもインストールできます。ただし、エディタ一体
 # Homebrewでtapを追加
 brew tap kujirahand/nadesiko3
 brew trust kujirahand/nadesiko3
-# インストール(CUI + GUI)
-brew install gonako          # CLI版
-brew install --cask gonako-gui   # GUI版
-# Gatekeeperのブロックを解除
-xattr -cr /Applications/なでしこ3.app
+# CLI版をインストール
+brew install gonako
+# GUI版(エディタ一体型)をインストール
+brew install --cask gonako-gui
 ```
 
 ----------------------------
