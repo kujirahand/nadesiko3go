@@ -43,6 +43,12 @@ brew install gonako && brew install --cask gonako-gui
 開発用エディタの左側には、「ひな形」というタブがあるので、そこでひな形を選んで実行してみてください。
 なでしこの雰囲気を掴むことができます。
 
+### なでしこ3を学ぶには？
+
+- [なでしこ3のチュートリアル](https://nadesi.com/v3/doc/index.php?%E3%83%81%E3%83%A5%E3%83%BC%E3%83%88%E3%83%AA%E3%82%A2%E3%83%AB&show)
+- [なでしこ3の文法](https://nadesi.com/v3/doc/index.php?%E6%96%87%E6%B3%95&show)
+- [なでしこ3(gonako)の命令一覧](https://nadesi.com/v3/doc/index.php?gonako&show)
+
 ----------------------------
 
 
