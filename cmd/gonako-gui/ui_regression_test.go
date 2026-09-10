@@ -147,6 +147,30 @@ func TestFileTabNavigationControls(t *testing.T) {
 	}
 }
 
+func TestAIProjectTemplateMenuIsWired(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+	for _, required := range []string{`id="menu-item-ai-project"`, "AI用の雛形を作成"} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html is missing AI project menu %q", required)
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"(currentFilePath ? pathDirName(currentFilePath) : '') || currentDirPath",
+		"showConfirmDialog(",
+		"既存のファイルは上書きしません",
+		"window.createAIProject(targetDir)",
+		"activateTab(tabBtnFile, tabContentFile)",
+		"await loadDirectory(data.path)",
+		"AGENTS.md", "CLAUDE.md",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing AI project behavior %q", required)
+		}
+	}
+}
+
 func TestOutputPanelCanCloseAndReopensOnRun(t *testing.T) {
 	html := readUIAsset(t, "index.html")
 	if !strings.Contains(html, `id="btn-close-output"`) {

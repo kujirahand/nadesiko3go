@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItemOpen = document.getElementById('menu-item-open');
   const menuItemSave = document.getElementById('menu-item-save');
   const menuItemSaveAs = document.getElementById('menu-item-save-as');
+  const menuItemAIProject = document.getElementById('menu-item-ai-project');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
   const menuItemBuildApp = document.getElementById('menu-item-build-app');
@@ -301,6 +302,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function showConfirmDialog(title, message, okLabel = '作成') {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = title;
+      dialogMessage.textContent = message;
+      dialogInputWrapper.style.display = 'none';
+
+      dialogBtnCancel.style.display = 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = okLabel;
+
+      dialogOverlay.style.display = 'flex';
+      dialogBtnOk.focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOk);
+      }
+      function onCancel() {
+        cleanup();
+        resolve(false);
+      }
+      function onOk() {
+        cleanup();
+        resolve(true);
+      }
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOk);
+    });
+  }
+
   function showAlertDialog(title, message) {
     return new Promise((resolve) => {
       dialogTitle.textContent = title;
@@ -530,6 +564,55 @@ document.addEventListener('DOMContentLoaded', () => {
 
   menuItemShortcuts.addEventListener('click', openShortcutsModal);
   menuItemAbout.addEventListener('click', openAboutModal);
+
+  // --- AI開発用プロジェクト作成 ---
+  async function createAIProjectFromCurrentFolder() {
+    closeHamburger();
+    if (typeof window.createAIProject !== 'function') {
+      await showAlertDialog('作成できません', 'この機能は gonako-gui 上でのみ使えます。');
+      return;
+    }
+
+    const targetDir = (currentFilePath ? pathDirName(currentFilePath) : '') || currentDirPath || desktopDirPath || homeDirPath;
+    if (!targetDir) {
+      await showAlertDialog('作成できません', '保存先のフォルダが分かりません。先にファイルを開くか、ファイルタブでフォルダを表示してください。');
+      return;
+    }
+
+    const confirmed = await showConfirmDialog(
+      'AI用の雛形を作成',
+      `次のフォルダへAGENTS.mdとCLAUDE.mdを作成します。\n既存のファイルは上書きしません。\n\n${targetDir}`,
+      '作成'
+    );
+    if (!confirmed) return;
+
+    menuItemAIProject.disabled = true;
+    setStatus('AI用の雛形を作成中...');
+    try {
+      const res = await window.createAIProject(targetDir);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (!data.ok) {
+        setStatus(`作成エラー: ${data.error}`);
+        await showAlertDialog('作成エラー', data.error || 'AI用の雛形を作成できませんでした。');
+        return;
+      }
+
+      activateTab(tabBtnFile, tabContentFile);
+      toggleSidebar(false);
+      await loadDirectory(data.path);
+      const files = (data.files || ['AGENTS.md', 'CLAUDE.md']).join('\n');
+      setStatus(`AI用の雛形を作成しました: ${data.path}`);
+      await showAlertDialog('AI用の雛形を作成しました', `${data.path}\n\n作成したファイル:\n${files}`);
+    } catch (err) {
+      console.error('AI用ひな形作成エラー:', err);
+      setStatus(`作成エラー: ${err.message || err}`);
+      await showAlertDialog('作成エラー', `${err.message || err}`);
+    } finally {
+      menuItemAIProject.disabled = false;
+    }
+  }
+
+  menuItemAIProject.addEventListener('click', createAIProjectFromCurrentFolder);
 
   // --- フォルダを実行ファイルに変換 ---
   function pathDirName(p) {

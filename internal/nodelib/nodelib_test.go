@@ -586,7 +586,7 @@ func TestZipEventCommands(t *testing.T) {
 
 func TestNetExtendedCommands(t *testing.T) {
 	dir := t.TempDir()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			fmt.Fprint(w, "GET応答")
 			return
@@ -603,8 +603,14 @@ func TestNetExtendedCommands(t *testing.T) {
 			fmt.Fprintf(w, "POST応答:%s", val)
 			return
 		}
-	}))
-	defer server.Close()
+	})
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder.Result(), nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
 
 	code := fmt.Sprintf(`
 ●AJAX_CB
@@ -642,7 +648,7 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 "dummy"にAJAXオプション設定
 「ERR_CB」のAJAX失敗時
 「オプション設定完了」と表示
-`, server.URL)
+`, "http://nodelib.test")
 
 	got := runIn(t, dir, code)
 	want := strings.Join([]string{
@@ -658,4 +664,11 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
+}
+
+// roundTripFunc は実ソケットを使わずにHTTP要求をHandlerへ渡すテスト用Transport。
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
