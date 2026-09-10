@@ -51,6 +51,7 @@ type Screen struct {
 	mu         sync.Mutex
 	dispatchMu sync.Mutex
 	nextHandle int
+	domParent  int
 	nodes      map[int]*screenNode
 	events     map[int]map[string]eventBinding
 	operations []Operation
@@ -187,6 +188,33 @@ func (s *Screen) node(handle int, command string) (*screenNode, error) {
 		return nil, fmt.Errorf("『%s』で画面部品ハンドル『%d』が見つかりません。", command, handle)
 	}
 	return n, nil
+}
+
+func (s *Screen) hasNode(handle int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.nodes[handle]
+	return ok
+}
+
+func (s *Screen) setParent(handle int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if handle == 0 {
+		s.domParent = 0
+		return nil
+	}
+	if _, err := s.node(handle, "DOM親要素設定"); err != nil {
+		return err
+	}
+	s.domParent = handle
+	return nil
+}
+
+func (s *Screen) parent() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.domParent
 }
 
 func (s *Screen) setText(handle int, text string) error {

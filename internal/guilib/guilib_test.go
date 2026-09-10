@@ -18,12 +18,16 @@ func TestGuilibPlugin(t *testing.T) {
 	}
 	for _, name := range []string{
 		"ファイル選択", "保存ファイル選択", "フォルダ選択",
+		"DOM親要素設定", "DOM親部品設定", "DOM部品作成",
 		"DOM要素取得", "DOM要素ID取得", "DOM要素全取得",
 		"DOMテキスト取得", "DOMテキスト変更", "HTML取得", "HTML変更", "DOM注目",
 	} {
 		if _, ok := funcs[name]; !ok {
 			t.Fatalf("%s command not found in guilib", name)
 		}
+	}
+	if parent := funcs["DOM親要素"]; parent == nil || parent.Type != "const" || parent.Value != 0 {
+		t.Fatalf("DOM親要素 = %#v", parent)
 	}
 
 	reg := stdlib.NewRegistry(New())
@@ -43,6 +47,126 @@ func TestGuilibPlugin(t *testing.T) {
 	}
 	if cfg.width != 800 || cfg.height != 600 {
 		t.Errorf("expected size 800x600, got %dx%d", cfg.width, cfg.height)
+	}
+}
+
+func TestDOMPartCreateUsesConfiguredParent(t *testing.T) {
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	registry := stdlib.NewRegistry(p)
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `「<section id="main"></section>」をHTML表示
+「#main」にDOM親要素設定
+部品=「article」のDOM部品作成
+部品に「本文」をDOMテキスト設定
+「見出し」のラベル作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+
+	// HTML表示のラッパーが1、sectionが2、articleが3、ラベルが4。
+	ops := screen.DrainOperations()
+	if len(ops) != 4 {
+		t.Fatalf("operations = %#v", ops)
+	}
+	if got := ops[1]; got.Type != "create" || got.Handle != 3 || got.Parent != 2 || got.Tag != "article" {
+		t.Fatalf("DOM部品作成 operation = %#v", got)
+	}
+	if got := ops[3]; got.Type != "create" || got.Handle != 4 || got.Parent != 2 || got.Tag != "span" {
+		t.Fatalf("ラベル作成 operation = %#v", got)
+	}
+	if text, err := screen.text(3); err != nil || text != "本文" {
+		t.Fatalf("article text = %q, err = %v", text, err)
+	}
+}
+
+func TestDOMParentAliasAcceptsIDAndHandle(t *testing.T) {
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	registry := stdlib.NewRegistry(p)
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	code := `「<div id="main"></div>」をHTML表示
+「main」にDOM親部品設定
+DOM親要素を表示
+親=「section」のDOM部品作成
+親にDOM親要素設定
+「button」のDOM部品作成
+0にDOM親要素設定
+「footer」のDOM部品作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if len(ops) != 4 || ops[1].Parent != 2 || ops[2].Parent != 3 || ops[3].Parent != 0 {
+		t.Fatalf("operations = %#v", ops)
+	}
+	if got := strings.TrimSpace(out.String()); got != "2" {
+		t.Fatalf("DOM親要素 = %q, want 2", got)
+	}
+}
+
+func TestDOMPartCreateDefaultsToRoot(t *testing.T) {
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	registry := stdlib.NewRegistry(p)
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	if err := vm.RunWithHostAndRegistry(`「DIV」のDOM部品作成`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if len(ops) != 1 || ops[0].Parent != 0 || ops[0].Tag != "div" {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
+func TestExistingCreateCommandsUseConfiguredParent(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `「<div id="parts"></div>」をHTML表示
+「#parts」にDOM親要素設定
+「見出し」のラベル作成
+「入力」のエディタ作成
+「実行」のボタン作成
+「送信」の送信ボタン作成
+{}で「名前=太郎」をフォーム作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+
+	// HTML表示内のdivが2。直後に作る5部品はすべてその子になる。
+	for handle := 3; handle <= 7; handle++ {
+		if got := screen.nodes[handle].parent; got != 2 {
+			t.Fatalf("handle %d parent = %d, want 2", handle, got)
+		}
+	}
+	// フォームが作るラベル、入力欄、送信ボタンはフォーム自身の子になる。
+	for handle := 8; handle <= 10; handle++ {
+		if got := screen.nodes[handle].parent; got != 7 {
+			t.Fatalf("form child %d parent = %d, want 7", handle, got)
+		}
+	}
+}
+
+func TestDOMPartCreateRejectsInvalidTargets(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		code string
+		want string
+	}{
+		{name: "missing parent", code: `「#missing」にDOM親要素設定`, want: "見つかりません"},
+		{name: "invalid tag", code: `「div script」のDOM部品作成`, want: "タグ名"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			screen := NewScreen()
+			registry := stdlib.NewRegistry(NewWithScreen(screen))
+			host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+			err := vm.RunWithHostAndRegistry(tc.code, "gui.nako3", registry, host)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error = %v, want %q", err, tc.want)
+			}
+		})
 	}
 }
 

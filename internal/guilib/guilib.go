@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -43,6 +44,7 @@ type command struct {
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
+	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,
@@ -74,6 +76,18 @@ func (p *Plugin) commands() map[string]command {
 		"二択": {
 			josi: [][]string{{"で", "の", "と", "を"}},
 			fn:   p.cmdConfirm,
+		},
+		"DOM親要素設定": { // @DOM部品を追加する親要素を指定して、その要素を返す // @DOMおやようそせってい
+			josi: [][]string{{"に", "へ"}},
+			fn:   p.cmdSetDOMParent,
+		},
+		"DOM親部品設定": { // @DOM親要素設定と同じ // @DOMおやぶひんせってい
+			josi: [][]string{{"に", "へ"}},
+			fn:   p.cmdSetDOMParent,
+		},
+		"DOM部品作成": { // @タグ名のDOM部品を現在の親要素へ追加してハンドルを返す // @DOMぶひんさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateDOMPart,
 		},
 		"ラベル作成": {
 			josi: [][]string{{"の"}},
@@ -227,28 +241,93 @@ func (p *Plugin) cmdDisplayHTML(_ stdlib.Context, args []value.Value) (value.Val
 	return value.Undefined(), nil
 }
 
-func (p *Plugin) cmdCreateLabel(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("span", value.ToString(arg(args, 0)), "", "", 0)
+func (p *Plugin) cmdSetDOMParent(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	target := arg(args, 0)
+	handle, err := p.resolveDOMParent(target)
+	if err != nil {
+		return value.Null(), err
+	}
+	if err := p.screen.setParent(handle); err != nil {
+		return value.Null(), err
+	}
+	ctx.SetSysVar("DOM親要素", value.Number(float64(handle)))
+	return value.Number(float64(handle)), nil
+}
+
+func (p *Plugin) resolveDOMParent(target value.Value) (int, error) {
+	if selector, ok := target.String(); ok {
+		if handle, found := p.screen.query(selector); found {
+			return handle, nil
+		}
+		if handle, found := p.screen.queryByID(selector); found {
+			return handle, nil
+		}
+		return 0, fmt.Errorf("『DOM親要素設定』で要素『%s』が見つかりません。", selector)
+	}
+	if number, ok := target.Number(); ok && number == 0 {
+		return 0, nil
+	}
+	handle, err := handleValue(target)
+	if err != nil {
+		return 0, err
+	}
+	if !p.screen.hasNode(handle) {
+		return 0, fmt.Errorf("『DOM親要素設定』で画面部品ハンドル『%d』が見つかりません。", handle)
+	}
+	return handle, nil
+}
+
+func validDOMTag(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	for i, r := range tag {
+		if i == 0 {
+			if !unicode.IsLetter(r) {
+				return false
+			}
+			continue
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *Plugin) createPart(tag, text, html, name string) (value.Value, error) {
+	parent := p.screen.parent()
+	h := p.screen.create(tag, text, html, name, parent)
 	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateDOMPart(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	tag := strings.TrimSpace(value.ToString(arg(args, 0)))
+	if !validDOMTag(tag) {
+		return value.Undefined(), fmt.Errorf("『DOM部品作成』のタグ名『%s』が不正です。", tag)
+	}
+	return p.createPart(strings.ToLower(tag), "", "", "")
+}
+
+func (p *Plugin) cmdCreateLabel(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart("span", value.ToString(arg(args, 0)), "", "")
 }
 
 func (p *Plugin) cmdCreateEditor(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("input", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+	return p.createPart("input", value.ToString(arg(args, 0)), "", "")
 }
 
 func (p *Plugin) cmdCreateButton(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("button", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+	return p.createPart("button", value.ToString(arg(args, 0)), "", "")
 }
 
 func (p *Plugin) cmdCreateSubmit(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("submit", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+	return p.createPart("submit", value.ToString(arg(args, 0)), "", "")
 }
 
 func (p *Plugin) cmdCreateForm(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	form := p.screen.create("form", "", "", "", 0)
+	parent := p.screen.parent()
+	form := p.screen.create("form", "", "", "", parent)
 	if attrs, ok := arg(args, 0).Dict(); ok && attrs != nil {
 		values, err := stringMap(arg(args, 0))
 		if err == nil {

@@ -193,7 +193,7 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 		t.Fatalf("sample failed: %s", result.Error)
 	}
 
-	wantTypes := []string{"create", "text", "html", "focus", "listen"}
+	wantTypes := []string{"create", "text", "html", "focus", "create", "text", "listen"}
 	if len(result.Operations) != len(wantTypes) {
 		t.Fatalf("operations = %#v", result.Operations)
 	}
@@ -201,6 +201,9 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 		if got := result.Operations[i].Type; got != want {
 			t.Fatalf("operation[%d].Type = %q, want %q", i, got, want)
 		}
+	}
+	if op := result.Operations[4]; op.Tag != "aside" || op.Parent != 2 {
+		t.Fatalf("DOM部品作成 operation = %#v", op)
 	}
 
 	clicked := dispatchEvent(t, session, result.RunID, 6, "click", map[string]string{"5": "花子"})
