@@ -24,8 +24,8 @@ func TestGUISessionRetainsVMForBrowserEvents(t *testing.T) {
 		t.Fatalf("initial operations = %#v", initial.Operations)
 	}
 
-	first := session.dispatch(initial.RunID, 1, "click", nil)
-	second := session.dispatch(initial.RunID, 1, "click", nil)
+	first := dispatchEvent(t, session, initial.RunID, 1, "click", nil)
+	second := dispatchEvent(t, session, initial.RunID, 1, "click", nil)
 	if !first.OK || strings.TrimSpace(first.Output) != "1回" {
 		t.Fatalf("first click = %#v", first)
 	}
@@ -44,8 +44,8 @@ func TestGUISessionRejectsStaleEvents(t *testing.T) {
 	if first.RunID == second.RunID {
 		t.Fatal("run ids must change")
 	}
-	got := session.dispatch(first.RunID, 1, "click", nil)
-	if got.OK || !strings.Contains(got.Error, "古い実行結果") {
+	got := session.startEvent(first.RunID, 1, "click", nil)
+	if !strings.Contains(got.Error, "古い実行結果") {
 		t.Fatalf("stale event result = %#v", got)
 	}
 }
@@ -134,12 +134,12 @@ func TestDispatchDuringRunDoesNotBlock(t *testing.T) {
 	}
 
 	start := time.Now()
-	got := session.dispatch(runID, 1, "click", nil)
+	got := session.startEvent(runID, 1, "click", nil)
 	elapsed := time.Since(start)
 	if elapsed > time.Second {
 		t.Fatalf("実行終了まで待たされた: %v", elapsed)
 	}
-	if got.OK || !strings.Contains(got.Error, "実行中") {
+	if !strings.Contains(got.Error, "実行中") {
 		t.Fatalf("dispatch during run = %#v", got)
 	}
 }
@@ -158,15 +158,12 @@ func TestBundledAsyncPageConsumesStreamedOperations(t *testing.T) {
 	}
 }
 
-func TestBundledProgramPageEscapesEmbeddedHTML(t *testing.T) {
-	result := RunResult{OK: true, RunID: 1}
-	result.Operations = append(result.Operations, guilib.Operation{Type: "create", Handle: 1, Tag: "div", HTML: `</script><b>ok</b>`})
-	page := bundledProgramPage(result)
-	if strings.Contains(page, `</script><b>ok</b>`) {
-		t.Fatal("operation JSON must not be able to close the bootstrap script")
-	}
-	if !strings.Contains(page, `dispatchNakoEvent`) {
-		t.Fatal("bundled page must include the event bridge")
+func TestBundledAsyncProgramPageIncludesEventBridge(t *testing.T) {
+	page := bundledAsyncProgramPage(1)
+	for _, required := range []string{"window.startNakoEvent(", "window.resolveNakoDialog(id,"} {
+		if !strings.Contains(page, required) {
+			t.Fatalf("bundled page is missing %q", required)
+		}
 	}
 }
 
@@ -206,7 +203,7 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 		}
 	}
 
-	clicked := session.dispatch(result.RunID, 6, "click", map[string]string{"5": "花子"})
+	clicked := dispatchEvent(t, session, result.RunID, 6, "click", map[string]string{"5": "花子"})
 	if !clicked.OK {
 		t.Fatalf("click failed: %s", clicked.Error)
 	}
@@ -268,6 +265,61 @@ B=「続ける？」で二択
 	if status.Result.Output != "" || len(status.Result.Operations) != 0 {
 		t.Fatalf("非同期実行のResultには出力・画面操作を残さない: %#v", status.Result)
 	}
+}
+
+// イベントハンドラの中の『言う』で固まらないこと（#59）。同期実行していた
+// 頃は、ダイアログの応答を待つイベントと、イベントの終了を待つ画面とが
+// 互いに待ち合ってウィンドウごと固まっていた。
+func TestEventHandlerDialogDoesNotDeadlock(t *testing.T) {
+	session := &guiSession{}
+	code := `「あ」のボタン作成
+それのクリック時には
+　「あ」と言う
+ここまで`
+	initial := session.run(code, "gui.nako3", true, nil, nil)
+	if !initial.OK {
+		t.Fatalf("initial result = %#v", initial)
+	}
+
+	started := session.startEvent(initial.RunID, 1, "click", nil)
+	if started.Error != "" || started.RunID == 0 {
+		t.Fatalf("startEvent = %#v", started)
+	}
+	collector := newAsyncCollector(session, started.RunID)
+	status := waitForDialog(t, collector)
+	if status.Dialog.Kind != "alert" || status.Dialog.Message != "あ" {
+		t.Fatalf("dialog = %#v", status.Dialog)
+	}
+	if !session.resolveDialog(started.RunID, status.Dialog.ID, "", true) {
+		t.Fatal("resolveDialog に失敗した")
+	}
+	if done := waitForAsyncDone(t, collector); done.Result == nil || !done.Result.OK {
+		t.Fatalf("event result = %#v", done.Result)
+	}
+
+	// 応答を返せば次のイベントも普通に動く＝execMuが解放されている。
+	if again := session.startEvent(initial.RunID, 1, "click", nil); again.Error != "" {
+		t.Fatalf("ダイアログ応答後にイベントが動かない: %#v", again)
+	}
+}
+
+// dispatchEvent は画面と同じ手順でイベントを最後まで進め、届いた出力と
+// 画面操作をまとめて返す。非同期実行なので、ポーリングでしか受け取れない。
+func dispatchEvent(t *testing.T, session *guiSession, runID uint64, handle int, event string, values map[string]string) RunResult {
+	t.Helper()
+	started := session.startEvent(runID, handle, event, values)
+	if started.Error != "" {
+		return RunResult{RunID: runID, Error: started.Error}
+	}
+	collector := newAsyncCollector(session, started.RunID)
+	status := waitForAsyncDone(t, collector)
+	result := RunResult{RunID: runID}
+	if status.Result != nil {
+		result = *status.Result
+	}
+	result.Output = collector.output.String()
+	result.Operations = collector.ops
+	return result
 }
 
 // asyncCollector polls the way a frontend has to: Output と Operations は

@@ -141,6 +141,11 @@ type guiAsyncRun struct {
 	done         bool
 	result       RunResult
 
+	// isEvent はこの実行がクリックなどのイベント処理であることを示す。
+	// イベントはクリックのたびに起きるので、画面が結果を読み終えたら
+	// セッションから捨てる（→ poll）。
+	isEvent bool
+
 	// pendingOutput/pendingOps hold 『表示』の出力とGUI操作のうち、実行中に
 	// 発生したがまだポーリングで取り出されていない分。実行が終わるまで
 	// まとめて返してしまうと、ループの途中経過が画面に出ないまま終了時に
@@ -395,7 +400,15 @@ func (s *guiSession) poll(runID uint64) AsyncRunStatus {
 	if state == nil {
 		return AsyncRunStatus{Done: true, Result: &RunResult{OK: false, RunID: runID, Error: "実行結果が見つかりません。"}}
 	}
-	return state.status()
+	status := state.status()
+	// イベントの実行状態は、画面が done を読んだ時点で用済み。クリックのたびに
+	// 増え続けないよう、ここで捨てる。
+	if status.Done && state.isEvent {
+		s.mu.Lock()
+		delete(s.async, runID)
+		s.mu.Unlock()
+	}
+	return status
 }
 
 func (s *guiSession) resolveDialog(runID, dialogID uint64, text string, accepted bool) bool {
@@ -423,7 +436,28 @@ func (s *guiSession) lockExecWithin(timeout time.Duration) bool {
 	}
 }
 
-func (s *guiSession) dispatch(runID uint64, handle int, event string, values map[string]string) RunResult {
+// EventStart is what startEvent hands back to the screen: the async run id to
+// poll, or the reason the event could not be started.
+type EventStart struct {
+	RunID uint64 `json:"runId"`
+	Error string `json:"error,omitempty"`
+}
+
+// startEvent runs a screen event handler in the background and returns the
+// async run id the screen polls for output・画面操作・ダイアログ.
+//
+// イベントを同期実行してはいけない (#59)。ハンドラの中で『言う』などが
+// 呼ばれるとダイアログの応答を待つが、その応答を返すはずの画面側は
+// イベント呼び出しの戻り値をまだ待っている。互いに待ち合う行き詰まりで、
+// ウィンドウごと固まってしまう。通常実行と同じポーリング経路に載せれば、
+// 画面はダイアログを見つけて resolveDialog を返せる。
+func (s *guiSession) startEvent(runID uint64, handle int, event string, values map[string]string) EventStart {
+	s.mu.Lock()
+	exec := s.active
+	s.mu.Unlock()
+	if exec == nil || exec.id != runID {
+		return EventStart{Error: "この画面は古い実行結果です。もう一度実行してください。"}
+	}
 	// 実行中のイベントは、少しだけ待って取れなければ断る。無制限に待つと、
 	// WebViewのバインド呼び出しはUIスレッド上で処理されるため、長く走る
 	// プログラムの間ウィンドウごと固まってしまう。画面部品は実行中にも
@@ -431,33 +465,44 @@ func (s *guiSession) dispatch(runID uint64, handle int, event string, values map
 	// 猶予を置くのは、実行終了(finish)からexecMu解放までの僅かな隙間で
 	// 押されたクリックを、実行中だと誤って断らないため。
 	if !s.lockExecWithin(dispatchLockGrace) {
-		return RunResult{OK: false, RunID: runID, Error: "プログラムの実行中はイベントを処理できません。"}
+		return EventStart{Error: "プログラムの実行中はイベントを処理できません。"}
 	}
-	defer s.execMu.Unlock()
-	s.mu.Lock()
-	exec := s.active
-	s.mu.Unlock()
-	if exec == nil || exec.id != runID {
-		return RunResult{OK: false, RunID: runID, Error: "この画面は古い実行結果です。もう一度実行してください。"}
-	}
-	originalDir, _ := os.Getwd()
-	if exec.workDir != "" {
-		_ = os.Chdir(exec.workDir)
-	}
-	defer func() {
-		if originalDir != "" {
-			_ = os.Chdir(originalDir)
+	eventID, state := s.reserveRun(true)
+	state.isEvent = true
+
+	// execMu はイベントの実行が終わるまで握ったままにする。Goのミューテックスは
+	// 所有者を見ないので、ロックした場所と解放する場所が違ってよい。
+	go func() {
+		defer s.execMu.Unlock()
+		originalDir, _ := os.Getwd()
+		if exec.workDir != "" {
+			_ = os.Chdir(exec.workDir)
 		}
+		defer func() {
+			if originalDir != "" {
+				_ = os.Chdir(originalDir)
+			}
+		}()
+		// ダイアログの宛先を今回のイベントに向ける。プログラム本体の実行は
+		// すでに終わっており、そのままではもう誰も応答しない状態を待ってしまう。
+		exec.host.dialog = state.showDialog
+
+		done := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			streamPendingOutput(state, exec.host, exec.screen, done)
+		}()
+		err := exec.screen.DispatchEvent(handle, event, values)
+		close(done)
+		wg.Wait()
+
+		result := RunResult{OK: err == nil, RunID: runID}
+		if err != nil {
+			result.Error = err.Error()
+		}
+		state.finish(result)
 	}()
-	err := exec.screen.DispatchEvent(handle, event, values)
-	result := RunResult{
-		OK:         err == nil,
-		RunID:      runID,
-		Output:     exec.host.drainOutput(),
-		Operations: exec.screen.DrainOperations(),
-	}
-	if err != nil {
-		result.Error = err.Error()
-	}
-	return result
+	return EventStart{RunID: eventID}
 }

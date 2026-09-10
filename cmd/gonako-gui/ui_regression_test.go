@@ -52,9 +52,11 @@ func TestGUIEventBridgeIsWired(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{
 		"window.runNakoFile(code, currentFilePath || '', isWindowMode)",
-		"window.dispatchNakoEvent(",
+		"window.startNakoEvent(",
 		"collectGUIValues()",
-		"applyGUIOperations(data.operations",
+		"applyGUIOperations(status.operations)",
+		// イベント中のダイアログに応答できること（#59）。
+		"window.resolveNakoDialog(eventRunID",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js is missing GUI bridge contract %q", required)

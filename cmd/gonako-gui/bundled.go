@@ -97,9 +97,8 @@ func runBundledProgram(packed *bundle.Bundle) {
 		return
 	}
 	defer w.Destroy()
-	_ = w.Bind("dispatchNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
-		next := session.dispatch(runID, handle, event, values)
-		b, _ := json.Marshal(next)
+	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
+		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
 	})
 	_ = w.Bind("pollNakoRun", func(runID uint64) string {
@@ -123,25 +122,16 @@ func bundledAsyncProgramPage(runID uint64) string {
 		`<body><main id="gonako-screen"></main><pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre><div id="overlay" class="overlay"><div class="dialog"><h3 id="dialog-title"></h3><p id="dialog-message"></p><input id="dialog-input"><div class="actions"><button id="dialog-cancel" class="secondary">キャンセル</button><button id="dialog-ok">OK</button></div></div></div><script>` +
 		`const root=document.getElementById('gonako-screen'),runId=` + fmt.Sprint(runID) + `;let state={runId};` +
 		`function values(){const v={};root.querySelectorAll('[data-gonako-handle]').forEach(e=>{if(e.matches('input,textarea,select'))v[e.dataset.gonakoHandle]=e.value});return v}` +
-		`async function send(h,n){const raw=await window.dispatchNakoEvent(state.runId,Number(h),n,values());const d=typeof raw==='string'?JSON.parse(raw):raw;apply(d.operations||[]);if(d.error)document.getElementById('gonako-error').textContent=d.error}` +
+		// イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
+		// ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
+		// この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
+		`async function send(h,n){const err=document.getElementById('gonako-error');const raw=await window.startNakoEvent(state.runId,Number(h),n,values());const st=typeof raw==='string'?JSON.parse(raw):raw;if(st.error){err.textContent=st.error;return}const id=st.runId;for(;;){const p=await window.pollNakoRun(id),s=typeof p==='string'?JSON.parse(p):p;if(s.operations&&s.operations.length)apply(s.operations);if(s.dialog){const a=await ask(s.dialog);await window.resolveNakoDialog(id,s.dialog.id,a.text,a.accepted);continue}if(s.done){const r=s.result||{};if(r.error)err.textContent=r.error;return}await new Promise(x=>setTimeout(x,20))}}` +
 		`function apply(ops){ops.forEach(o=>{const q='[data-gonako-handle="'+o.handle+'"]';if(o.type==='create'){const p=o.parent?root.querySelector('[data-gonako-handle="'+o.parent+'"]'):root;if(!p)return;let e;if(o.tag==='submit'){e=document.createElement('button');e.type='submit'}else{e=document.createElement(o.tag||'div');if(o.tag==='input')e.type='text'}e.dataset.gonakoHandle=String(o.handle);e.classList.add('gonako-part');if(o.name)e.name=o.name;if(o.html)e.innerHTML=o.html;else if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||'';p.appendChild(e);return}const e=root.querySelector(q);if(!e)return;if(o.type==='text'){if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||''}else if(o.type==='html')e.innerHTML=o.html||'';else if(o.type==='styles')Object.entries(o.styles||{}).forEach(([k,v])=>e.style[k]=v);else if(o.type==='attributes')Object.entries(o.attributes||{}).forEach(([k,v])=>e.setAttribute(k,v));else if(o.type==='listen'&&!e.dataset['gonakoEvent'+o.event]){e.dataset['gonakoEvent'+o.event]='1';e.addEventListener(o.event,x=>{if(o.event==='submit')x.preventDefault();send(o.handle,o.event)})}else if(o.type==='focus')e.focus()})}` +
 		`function ask(d){return new Promise(resolve=>{const overlay=document.getElementById('overlay'),input=document.getElementById('dialog-input'),cancel=document.getElementById('dialog-cancel'),ok=document.getElementById('dialog-ok');let composing=false;document.getElementById('dialog-title').textContent=d.kind==='prompt'?'入力':d.kind==='confirm'?'確認':'メッセージ';document.getElementById('dialog-message').textContent=d.message||'';input.style.display=d.kind==='prompt'?'block':'none';input.value='';cancel.style.display=d.kind==='alert'?'none':'inline-block';overlay.style.display='flex';input.oncompositionstart=()=>{composing=true};input.oncompositionend=()=>{composing=false};const done=(accepted)=>{overlay.style.display='none';ok.onclick=null;cancel.onclick=null;input.onkeydown=null;input.oncompositionstart=null;input.oncompositionend=null;resolve({text:d.kind==='prompt'?input.value:'',accepted})};ok.onclick=()=>done(true);cancel.onclick=()=>done(false);input.onkeydown=e=>{if(e.isComposing||composing||e.keyCode===229)return;if(e.key==='Enter')done(true);else if(e.key==='Escape')done(false)};(d.kind==='prompt'?input:ok).focus()})}` +
 		// 出力と画面操作はポーリングのたびに届き、読まなければ消える。done を
 		// 見る前に必ず適用すること（→ AsyncRunStatus のコメント）。ウィンドウを
 		// 閉じてよいかの判定も、実行中に届いた分を数えた ops で行う。
 		`async function run(){let out='',ops=0;for(;;){const raw=await window.pollNakoRun(runId),s=typeof raw==='string'?JSON.parse(raw):raw;if(s.output)out+=s.output;if(s.operations&&s.operations.length){ops+=s.operations.length;apply(s.operations)}if(s.dialog){const a=await ask(s.dialog);await window.resolveNakoDialog(runId,s.dialog.id,a.text,a.accepted);continue}if(s.done){const r=s.result||{};state=r;if(r.error)document.getElementById('gonako-error').textContent=(out?out+'\n':'')+r.error;if(!r.error&&ops===0)await window.closeBundledWindow();return}await new Promise(x=>setTimeout(x,20))}}run();</script></body></html>`
-}
-
-func bundledProgramPage(result RunResult) string {
-	data, _ := json.Marshal(result)
-	return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-		`<style>body{box-sizing:border-box;margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222}.gonako-part{box-sizing:border-box;margin:4px}input{padding:7px 9px;border:1px solid #aaa;border-radius:4px}button{padding:7px 14px;border:0;border-radius:5px;background:#3b82f6;color:#fff;cursor:pointer}form{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}form>button{grid-column:2}</style></head>` +
-		`<body><main id="gonako-screen"></main><pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre><script>` +
-		`const root=document.getElementById('gonako-screen');let state=` + string(data) + `;` +
-		`function values(){const v={};root.querySelectorAll('[data-gonako-handle]').forEach(e=>{if(e.matches('input,textarea,select'))v[e.dataset.gonakoHandle]=e.value});return v}` +
-		`async function send(h,n){const raw=await window.dispatchNakoEvent(state.runId,Number(h),n,values());const d=typeof raw==='string'?JSON.parse(raw):raw;apply(d.operations||[]);if(d.error)document.getElementById('gonako-error').textContent=d.error}` +
-		`function apply(ops){ops.forEach(o=>{const q='[data-gonako-handle="'+o.handle+'"]';if(o.type==='create'){const p=o.parent?root.querySelector('[data-gonako-handle="'+o.parent+'"]'):root;if(!p)return;let e;if(o.tag==='submit'){e=document.createElement('button');e.type='submit'}else{e=document.createElement(o.tag||'div');if(o.tag==='input')e.type='text'}e.dataset.gonakoHandle=String(o.handle);e.classList.add('gonako-part');if(o.name)e.name=o.name;if(o.html)e.innerHTML=o.html;else if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||'';p.appendChild(e);return}const e=root.querySelector(q);if(!e)return;if(o.type==='text'){if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||''}else if(o.type==='html')e.innerHTML=o.html||'';else if(o.type==='styles')Object.entries(o.styles||{}).forEach(([k,v])=>e.style[k]=v);else if(o.type==='attributes')Object.entries(o.attributes||{}).forEach(([k,v])=>e.setAttribute(k,v));else if(o.type==='listen'&&!e.dataset['gonakoEvent'+o.event]){e.dataset['gonakoEvent'+o.event]='1';e.addEventListener(o.event,x=>{if(o.event==='submit')x.preventDefault();send(o.handle,o.event)})}else if(o.type==='focus')e.focus()})}` +
-		`apply(state.operations||[]);</script></body></html>`
 }
 
 // newAppWindow opens the window a converted application runs in.
