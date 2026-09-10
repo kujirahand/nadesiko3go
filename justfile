@@ -91,7 +91,7 @@ version-update *args:
 homebrew-update *args:
     {{go}} run ./scripts/update-homebrew-tap.go {{args}}
 
-# Homebrew Tapが現在のバージョンに追随しているか検査する（CI用）
+# Homebrew Tapが現在のバージョンに追随しているか検査する
 homebrew-check:
     {{go}} run ./scripts/update-homebrew-tap.go -check
 

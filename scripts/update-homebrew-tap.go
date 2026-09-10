@@ -10,7 +10,7 @@
 //	go run ./scripts/update-homebrew-tap.go 3.8.4           バージョンを指定して更新
 //	go run ./scripts/update-homebrew-tap.go -commit -push   更新してコミット＆プッシュまで行う
 //	go run ./scripts/update-homebrew-tap.go -local          公開前に手元の release/ のZIPから算出する
-//	go run ./scripts/update-homebrew-tap.go -check          書き換えず、Tapが最新かどうかだけ検査する（CI用）
+//	go run ./scripts/update-homebrew-tap.go -check          書き換えず、Tapが最新かどうかだけ検査する
 //
 // SHA-256は既定でGitHub Releasesにアップロード済みのZIPから算出する。実際に
 // 配布されるファイルが唯一の正解であり、手元の release/ を再ビルドすると

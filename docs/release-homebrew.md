@@ -2,8 +2,8 @@
 
 日本語プログラミング言語「なでしこ3」Go言語版（CLI: `gonako`, GUI: `gonako-gui`）を、公式Tapリポジトリ `kujirahand/homebrew-nadesiko3` に登録・更新する手順です。
 
-**Homebrewへの配信は自動化されています。**通常は次の3コマンドだけで済みます（詳細は「0. 自動化された配信」）。
-手動でやる場合の内訳は1章以降に残してあります。
+**Homebrewへの配信はコマンド化されています。**通常は手元で次の3コマンドを実行するだけで済みます
+（詳細は「0. 配信コマンド」）。何をしているかの内訳は1章以降に残してあります。
 
 ```bash
 just version-update 3.8.3   # バージョン番号を一括更新
@@ -13,7 +13,7 @@ just publish                # GitHubリリース作成 → 成果物アップロ
 
 ---
 
-## 0. 自動化された配信
+## 0. 配信コマンド（手元で実行する）
 
 ### 0-1. `just publish`（手元から一括で配信する）
 
@@ -42,20 +42,11 @@ SHA-256は**GitHub Releasesにアップロード済みのZIPから算出**しま
 ファイルだけが正解であり、手元の `release/` を再ビルドするとハッシュがずれるためです。
 公開前に手元のZIPから算出したいときだけ `-local` を付けます。
 
+アップロード直後でGitHub側の反映が遅れているときは `-wait 20m` のように指定すると、
+成果物が取得できるまで30秒おきに待って再試行します。
+
 Tapの作業ディレクトリは既定で `./homebrew-nadesiko3`（`.gitignore` 対象）です。
 無ければ自動的にcloneします。`-tap <dir>` で変更できます。
-
-### 0-3. GitHub Actions（リリース公開で自動更新）
-
-`.github/workflows/homebrew.yml` が `release: published` で起動し、同じスクリプトで
-Tapを更新してプッシュします。手動実行（workflow_dispatch）ではバージョンの指定と、
-プッシュせず差分だけ見る `dry_run` が選べます。
-
-- 別リポジトリへプッシュするため、`nadesiko3go` の Secrets に
-  **`HOMEBREW_TAP_TOKEN`**（`kujirahand/homebrew-nadesiko3` に対して contents:write を持つPAT）
-  を登録しておく必要があります。
-- リリース公開直後は成果物のアップロードが終わっていないことがあるため、
-  スクリプトは `-wait 20m` で成果物が揃うまで待ってから算出します。
 
 ---
 
