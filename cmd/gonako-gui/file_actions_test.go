@@ -31,13 +31,13 @@ func TestCreateNewFolderRejectsInvalidName(t *testing.T) {
 }
 
 func TestCreateAIProject(t *testing.T) {
-	base := t.TempDir()
-	projectPath, files, err := createAIProject(base, "俳句アプリ")
+	projectPath := t.TempDir()
+	gotPath, files, err := createAIProject(projectPath)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if projectPath != filepath.Join(base, "俳句アプリ") {
-		t.Fatalf("project path = %q", projectPath)
+	if gotPath != projectPath {
+		t.Fatalf("project path = %q, want %q", gotPath, projectPath)
 	}
 	if got := aiProjectFileNames(files); len(got) != 2 || got[0] != "AGENTS.md" || got[1] != "CLAUDE.md" {
 		t.Fatalf("created files = %#v", got)
@@ -60,19 +60,15 @@ func TestCreateAIProject(t *testing.T) {
 	}
 }
 
-func TestCreateAIProjectDoesNotOverwriteExistingFolder(t *testing.T) {
-	base := t.TempDir()
-	existing := filepath.Join(base, "既存")
-	if err := os.Mkdir(existing, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	important := filepath.Join(existing, "AGENTS.md")
+func TestCreateAIProjectDoesNotOverwriteExistingFiles(t *testing.T) {
+	projectPath := t.TempDir()
+	important := filepath.Join(projectPath, "AGENTS.md")
 	if err := os.WriteFile(important, []byte("残す"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, _, err := createAIProject(base, "既存"); err == nil {
-		t.Fatal("既存のプロジェクトフォルダを受け入れてしまった")
+	if _, _, err := createAIProject(projectPath); err == nil {
+		t.Fatal("既存のAGENTS.mdを受け入れてしまった")
 	}
 	data, err := os.ReadFile(important)
 	if err != nil {
@@ -80,5 +76,8 @@ func TestCreateAIProjectDoesNotOverwriteExistingFolder(t *testing.T) {
 	}
 	if string(data) != "残す" {
 		t.Fatalf("既存ファイルを上書きした: %q", data)
+	}
+	if _, err := os.Stat(filepath.Join(projectPath, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Fatalf("片方だけ作成してしまった: %v", err)
 	}
 }

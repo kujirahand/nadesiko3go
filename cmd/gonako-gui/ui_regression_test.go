@@ -157,7 +157,10 @@ func TestAIProjectTemplateMenuIsWired(t *testing.T) {
 
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{
-		"window.createAIProject(baseDir, name)",
+		"(currentFilePath ? pathDirName(currentFilePath) : '') || currentDirPath",
+		"showConfirmDialog(",
+		"既存のファイルは上書きしません",
+		"window.createAIProject(targetDir)",
 		"activateTab(tabBtnFile, tabContentFile)",
 		"await loadDirectory(data.path)",
 		"AGENTS.md", "CLAUDE.md",

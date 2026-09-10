@@ -674,8 +674,8 @@ func main() {
 	})
 
 	// Go ↔ JavaScript バインディング: AI開発用プロジェクト作成
-	_ = w.Bind("createAIProject", func(dirPath, name string) string {
-		projectPath, files, err := createAIProject(dirPath, name)
+	_ = w.Bind("createAIProject", func(dirPath string) string {
+		projectPath, files, err := createAIProject(dirPath)
 		res := struct {
 			OK    bool     `json:"ok"`
 			Path  string   `json:"path,omitempty"`

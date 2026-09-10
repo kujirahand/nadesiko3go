@@ -302,6 +302,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function showConfirmDialog(title, message, okLabel = '作成') {
+    return new Promise((resolve) => {
+      dialogTitle.textContent = title;
+      dialogMessage.textContent = message;
+      dialogInputWrapper.style.display = 'none';
+
+      dialogBtnCancel.style.display = 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'inline-flex';
+      dialogBtnOk.textContent = okLabel;
+
+      dialogOverlay.style.display = 'flex';
+      dialogBtnOk.focus();
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOk);
+      }
+      function onCancel() {
+        cleanup();
+        resolve(false);
+      }
+      function onOk() {
+        cleanup();
+        resolve(true);
+      }
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOk);
+    });
+  }
+
   function showAlertDialog(title, message) {
     return new Promise((resolve) => {
       dialogTitle.textContent = title;
@@ -540,19 +573,23 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const name = await showPromptDialog(
+    const targetDir = (currentFilePath ? pathDirName(currentFilePath) : '') || currentDirPath || desktopDirPath || homeDirPath;
+    if (!targetDir) {
+      await showAlertDialog('作成できません', '保存先のフォルダが分かりません。先にファイルを開くか、ファイルタブでフォルダを表示してください。');
+      return;
+    }
+
+    const confirmed = await showConfirmDialog(
       'AI用の雛形を作成',
-      '現在のフォルダに新しいプロジェクトを作り、AGENTS.mdとCLAUDE.mdを配置します。\n\nプロジェクト名:',
-      'なでしこプロジェクト',
+      `次のフォルダへAGENTS.mdとCLAUDE.mdを作成します。\n既存のファイルは上書きしません。\n\n${targetDir}`,
       '作成'
     );
-    if (!name) return;
+    if (!confirmed) return;
 
-    const baseDir = currentDirPath || (currentFilePath ? pathDirName(currentFilePath) : '') || desktopDirPath || homeDirPath;
     menuItemAIProject.disabled = true;
     setStatus('AI用の雛形を作成中...');
     try {
-      const res = await window.createAIProject(baseDir, name);
+      const res = await window.createAIProject(targetDir);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (!data.ok) {
         setStatus(`作成エラー: ${data.error}`);
