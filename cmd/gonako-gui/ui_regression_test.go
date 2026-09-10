@@ -20,13 +20,13 @@ func TestEditorUsesClipboardBridgeWithoutBrowserClipboard(t *testing.T) {
 		t.Fatal("app.js must not manually paste clipboard text in addition to the WebView default action")
 	}
 	for _, required := range []string{
-		"activeEl === editor",
+		"isCmdOrCtrl && isInput",
 		"window.readClipboardText()",
 		"window.writeClipboardText(selectedText)",
-		"editor.setRangeText",
+		"activeEl.setRangeText",
 	} {
 		if !strings.Contains(app, required) {
-			t.Fatalf("app.js is missing editor clipboard bridge %q", required)
+			t.Fatalf("app.js is missing input clipboard bridge %q", required)
 		}
 	}
 }

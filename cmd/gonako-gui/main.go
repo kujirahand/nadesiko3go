@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"flag"
@@ -14,6 +15,8 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+
+	"golang.design/x/clipboard"
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -362,6 +365,8 @@ func main() {
 		return
 	}
 
+	initClipboard()
+
 	flags := flag.NewFlagSet("gonako-gui", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Print(usage)
@@ -702,21 +707,27 @@ func main() {
 	w.Run()
 }
 
-func readClipboardText() (string, error) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("pbpaste")
-	case "windows":
-		cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-Clipboard -Raw")
-	default:
-		if path, err := exec.LookPath("wl-paste"); err == nil {
-			cmd = exec.Command(path, "--no-newline")
-		} else {
-			cmd = exec.Command("xclip", "-selection", "clipboard", "-o")
-		}
+// clipboardReady は initClipboard での golang.design/x/clipboard の初期化に
+// 成功したかどうかを示す。OSのサブプロセス（PowerShellなど）を都度起動する
+// 実装だとウィンドウのちらつきや文字コード不一致による文字化けが起きるため、
+// OSクリップボードAPIを直接叩くこのライブラリに置き換えている。
+var clipboardReady bool
+
+// initClipboard はクリップボード機能を初期化する。失敗してもGUI自体は
+// 継続できるようにし、以後のクリップボード操作でエラーを返すだけにする。
+func initClipboard() {
+	if err := clipboard.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "クリップボード機能の初期化に失敗しました: %v\n", err)
+		return
 	}
-	b, err := cmd.Output()
+	clipboardReady = true
+}
+
+func readClipboardText() (string, error) {
+	if !clipboardReady {
+		return "", fmt.Errorf("クリップボード機能が利用できません")
+	}
+	b, err := clipboard.Read(context.Background(), clipboard.FmtText)
 	if err != nil {
 		return "", fmt.Errorf("クリップボードを読み込めません: %w", err)
 	}
@@ -724,21 +735,10 @@ func readClipboardText() (string, error) {
 }
 
 func writeClipboardText(text string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("pbcopy")
-	case "windows":
-		cmd = exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", "Set-Clipboard -Value ([Console]::In.ReadToEnd())")
-	default:
-		if path, err := exec.LookPath("wl-copy"); err == nil {
-			cmd = exec.Command(path)
-		} else {
-			cmd = exec.Command("xclip", "-selection", "clipboard")
-		}
+	if !clipboardReady {
+		return fmt.Errorf("クリップボード機能が利用できません")
 	}
-	cmd.Stdin = strings.NewReader(text)
-	if err := cmd.Run(); err != nil {
+	if _, err := clipboard.Write(context.Background(), clipboard.FmtText, []byte(text)); err != nil {
 		return fmt.Errorf("クリップボードへ書き込めません: %w", err)
 	}
 	return nil

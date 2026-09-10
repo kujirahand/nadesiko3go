@@ -1517,22 +1517,22 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // メインエディタのコピー・切り取り・貼り付け。
+    // メインエディタおよび命令検索欄などのinput/textarea全般のコピー・切り取り・貼り付け。
     // WKWebViewの標準編集ショートカットが届かない起動形態があるため、
     // Go側のOSクリップボード橋渡しがある場合だけ標準動作を置き換える。
-    if (isCmdOrCtrl && activeEl === editor && !e.shiftKey && !e.altKey) {
+    if (isCmdOrCtrl && isInput && !e.shiftKey && !e.altKey) {
       const key = e.key.toLowerCase();
       if ((key === 'c' || key === 'x') && typeof window.writeClipboardText === 'function') {
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
         if (start !== end) {
           e.preventDefault();
-          const selectedText = editor.value.substring(start, end);
+          const selectedText = activeEl.value.substring(start, end);
           void window.writeClipboardText(selectedText).then(() => {
             if (key === 'x') {
-              editor.setRangeText('', start, end, 'end');
-              editor.dispatchEvent(new Event('input', { bubbles: true }));
-              updateCursorPos();
+              activeEl.setRangeText('', start, end, 'end');
+              activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+              if (activeEl === editor) updateCursorPos();
               setStatus('選択範囲を切り取りました');
             } else {
               setStatus('選択範囲をコピーしました');
@@ -1543,12 +1543,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (key === 'v' && typeof window.readClipboardText === 'function') {
         e.preventDefault();
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
         void window.readClipboardText().then(text => {
-          editor.setRangeText(String(text ?? ''), start, end, 'end');
-          editor.dispatchEvent(new Event('input', { bubbles: true }));
-          updateCursorPos();
+          activeEl.setRangeText(String(text ?? ''), start, end, 'end');
+          activeEl.dispatchEvent(new Event('input', { bubbles: true }));
+          if (activeEl === editor) updateCursorPos();
           setStatus('クリップボードから貼り付けました');
         }).catch(err => setStatus(`クリップボードエラー: ${err.message || err}`));
         return;
