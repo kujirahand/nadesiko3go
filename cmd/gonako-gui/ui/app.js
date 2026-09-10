@@ -251,39 +251,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function showBinaryOpenConfirmDialog(filename) {
-    return new Promise((resolve) => {
-      dialogTitle.textContent = 'テキストとして読み込みますか？';
-      dialogMessage.textContent =
-        `「${filename}」はUTF-8以外の文字コード、またはバイナリ形式です。\n` +
-        'テキストとして読み込む場合、Shift_JISからUTF-8へ変換して表示します。保存時はShift_JIS形式を維持します。';
-      dialogInputWrapper.style.display = 'none';
-      dialogBtnCancel.style.display = 'inline-flex';
-      dialogBtnCancel.textContent = 'キャンセル';
-      dialogBtnDiscard.style.display = 'none';
-      dialogBtnOk.style.display = 'inline-flex';
-      dialogBtnOk.textContent = '読み込む';
-      dialogOverlay.style.display = 'flex';
-      dialogBtnCancel.focus();
-
-      function cleanup() {
-        dialogOverlay.style.display = 'none';
-        dialogBtnCancel.removeEventListener('click', onCancel);
-        dialogBtnOk.removeEventListener('click', onOpen);
-      }
-      function onCancel() {
-        cleanup();
-        resolve(false);
-      }
-      function onOpen() {
-        cleanup();
-        resolve(true);
-      }
-      dialogBtnCancel.addEventListener('click', onCancel);
-      dialogBtnOk.addEventListener('click', onOpen);
-    });
-  }
-
   function showPromptDialog(title, message, defaultValue = '', okLabel = '保存') {
     return new Promise((resolve) => {
       dialogTitle.textContent = title;
@@ -1263,34 +1230,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.readFile !== 'function') return;
     try {
       setStatus(`ファイル読み込み中: ${fileName}...`);
-      let res = await window.readFile(filePath, false);
-      let data = typeof res === 'string' ? JSON.parse(res) : res;
-      if (data.ok && data.isBinary) {
-        if (!(await showBinaryOpenConfirmDialog(fileName))) {
-          setStatus(`読み込みをキャンセルしました: ${fileName}`);
-          return;
-        }
-        setStatus(`テキストとして読み込み中: ${fileName}...`);
-        res = await window.readFile(filePath, true);
-        data = typeof res === 'string' ? JSON.parse(res) : res;
-      }
+      const res = await window.readFile(filePath);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        isBinaryFile = false;
+        // PNGなどのバイナリは編集させず、読み取り専用で開く
+        isBinaryFile = !!data.isBinary;
         editor.value = data.content || '';
-        editor.readOnly = false;
-        editor.placeholder = defaultEditorPlaceholder;
+        editor.readOnly = isBinaryFile;
+        editor.placeholder = isBinaryFile
+          ? `「${fileName}」はバイナリファイルのため表示・編集できません。`
+          : defaultEditorPlaceholder;
         savedContent = editor.value;
         currentFilePath = filePath;
         currentFileDisplayName = fileName;
-        currentFileEncoding = data.encoding === 'Shift_JIS' ? 'Shift_JIS' : 'UTF-8';
+        currentFileEncoding = data.encoding === 'Shift_JIS' || data.encoding === 'EUC-JP' ? data.encoding : 'UTF-8';
         currentTemplateBaseName = '';
         activeFileName.title = filePath;
         updateFileTitleDisplay();
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
-        const conversion = data.converted ? ` (${data.encoding || 'UTF-8'}から変換)` : '';
-        setStatus(`開きました: ${fileName}${conversion}`);
+        if (isBinaryFile) {
+          setStatus(`バイナリファイルのため編集できません: ${fileName}`);
+        } else {
+          // Shift_JIS/EUC-JPは確認なしでUTF-8へ変換し、保存時は元の文字コードへ戻す
+          const conversion = data.converted ? ` (${data.encoding}から変換。保存時は${data.encoding}形式を維持します)` : '';
+          setStatus(`開きました: ${fileName}${conversion}`);
+        }
       } else {
         await showAlertDialog('エラー', `ファイルを開けませんでした: ${data.error}`);
         setStatus(`エラー: ${data.error}`);

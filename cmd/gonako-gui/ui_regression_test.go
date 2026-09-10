@@ -178,18 +178,27 @@ func TestWindowModeDoesNotDuplicateDisplayOutput(t *testing.T) {
 	}
 }
 
-func TestBinaryFileRequiresConfirmationBeforeEditorLoad(t *testing.T) {
+// バイナリは確認ダイアログを出さずに読み取り専用で開き、
+// Shift_JIS/EUC-JPは確認なしでUTF-8へ変換して開く（#44）。
+func TestBinaryFileOpensReadOnlyWithoutConfirmation(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{
-		"showBinaryOpenConfirmDialog(fileName)",
-		"window.readFile(filePath, false)",
-		"window.readFile(filePath, true)",
-		"currentFileEncoding = data.encoding === 'Shift_JIS' ? 'Shift_JIS' : 'UTF-8'",
+		"window.readFile(filePath)",
+		"isBinaryFile = !!data.isBinary",
+		"editor.readOnly = isBinaryFile",
+		"data.encoding === 'Shift_JIS' || data.encoding === 'EUC-JP' ? data.encoding : 'UTF-8'",
 		"window.saveFile(targetPath, editor.value, currentFileEncoding)",
-		"保存時はShift_JIS形式を維持します",
 	} {
 		if !strings.Contains(app, required) {
-			t.Fatalf("app.js is missing binary file confirmation behavior %q", required)
+			t.Fatalf("app.js is missing binary/encoding handling %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		"showBinaryOpenConfirmDialog",
+		"window.readFile(filePath, true)",
+	} {
+		if strings.Contains(app, forbidden) {
+			t.Fatalf("app.js must not ask for confirmation any more: %q", forbidden)
 		}
 	}
 }
