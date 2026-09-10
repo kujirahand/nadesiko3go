@@ -2,6 +2,52 @@
 
 日本語プログラミング言語「なでしこ3」Go言語版（CLI: `gonako`, GUI: `gonako-gui`）を、公式Tapリポジトリ `kujirahand/homebrew-nadesiko3` に登録・更新する手順です。
 
+**Homebrewへの配信はコマンド化されています。**通常は手元で次の3コマンドを実行するだけで済みます
+（詳細は「0. 配信コマンド」）。何をしているかの内訳は1章以降に残してあります。
+
+```bash
+just version-update 3.8.3   # バージョン番号を一括更新
+just release                # 全プラットフォームの成果物をビルド
+just publish                # GitHubリリース作成 → 成果物アップロード → Homebrew Tap更新
+```
+
+---
+
+## 0. 配信コマンド（手元で実行する）
+
+### 0-1. `just publish`（手元から一括で配信する）
+
+`scripts/publish-release.sh` が次の3つを順に行います。
+
+1. `gh release create <VERSION>`（既にタグがあればそのまま使う）
+2. `release/upload-<VERSION>.sh` で成果物をアップロード
+3. `scripts/update-homebrew-tap.go` でTapの `Formula/gonako.rb` と `Casks/gonako-gui.rb` を
+   更新し、コミット＆プッシュ
+
+バージョン番号を省略すると `internal/version/version.go` の値が使われます。
+明示するときは `just publish 3.8.3` のように渡します。
+
+### 0-2. `just homebrew-update`（Tapだけ更新する）
+
+すでにGitHub Releasesへアップロード済みで、Tapの更新だけやり直したいときに使います。
+
+```bash
+just homebrew-update              # Formula/Caskを生成するだけ（コミットしない）
+just homebrew-update "-push"      # 生成してコミット＆プッシュまで行う
+just homebrew-update "3.8.3 -push"
+just homebrew-check               # Tapが現在のバージョンに追随しているか検査する
+```
+
+SHA-256は**GitHub Releasesにアップロード済みのZIPから算出**します。実際に配布される
+ファイルだけが正解であり、手元の `release/` を再ビルドするとハッシュがずれるためです。
+公開前に手元のZIPから算出したいときだけ `-local` を付けます。
+
+アップロード直後でGitHub側の反映が遅れているときは `-wait 20m` のように指定すると、
+成果物が取得できるまで30秒おきに待って再試行します。
+
+Tapの作業ディレクトリは既定で `./homebrew-nadesiko3`（`.gitignore` 対象）です。
+無ければ自動的にcloneします。`-tap <dir>` で変更できます。
+
 ---
 
 ## 1. 前提環境
@@ -87,7 +133,11 @@ shasum -a 256 \
 
 ---
 
-## 5. Homebrew Tap リポジトリの更新
+## 5. Homebrew Tap リポジトリの更新（手動でやる場合）
+
+> 通常は `just homebrew-update "-push"` で足ります。以下は中身の説明です。
+> Formula / Cask の内容は `scripts/update-homebrew-tap.go` のテンプレートが定義元なので、
+> 書式を変えるときはスクリプト側を直してください。
 
 ### 5-1. Tap リポジトリを作業ディレクトリに準備
 
@@ -156,12 +206,11 @@ cask "gonako-gui" do
   desc "日本語プログラミング言語 なでしこ3 GUIエディタ＆実行環境"
   homepage "https://github.com/kujirahand/nadesiko3go"
 
-  app "gonako-gui-#{version}-darwin-#{Hardware::CPU.arm? ? "arm64" : "amd64"}.app", target: "なでしこ3.app"
+  app "gonako-gui-#{version}-darwin-#{Hardware::CPU.arm? ? "arm64" : "amd64"}.app", target: "gonako-gui.app"
 
   # Gatekeeper の隔離属性を自動解除
-  postflight do
-    system_command "/usr/bin/xattr",
-                   args: ["-cr", "#{appdir}/なでしこ3.app"]
+  postflight_steps do
+    run "/usr/bin/xattr", args: ["-cr", "{{appdir}}/gonako-gui.app"]
   end
 
   zap trash: [
@@ -174,7 +223,7 @@ end
 
 ```bash
 git add Formula/gonako.rb Casks/gonako-gui.rb
-git commit -m "Release gonako and gonako-gui v${VERSION}"
+git commit -m "Update gonako/gonako-gui to v${VERSION}"
 git push origin main
 ```
 
@@ -192,9 +241,9 @@ brew tap kujirahand/nadesiko3
 brew install gonako
 gonako -e '「こんにちは」と表示'
 
-# GUI版のインストール（/Applications/なでしこ3.app に配置されます）
+# GUI版のインストール（/Applications/gonako-gui.app に配置されます）
 brew install --cask gonako-gui
-open /Applications/なでしこ3.app
+open /Applications/gonako-gui.app
 ```
 
 ### 更新確認
