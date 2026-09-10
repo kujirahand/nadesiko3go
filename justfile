@@ -85,3 +85,17 @@ gen-command-list:
 # 引数なしなら internal/version/version.go の現在値へ他ファイルを再同期する
 version-update *args:
     {{go}} run ./scripts/version-update.go {{args}}
+
+# Homebrew Tapを更新する（公開済みリリースのSHA-256からFormula/Caskを生成）
+# 例: just homebrew-update 3.8.4 / just homebrew-update "3.8.4 -push"
+homebrew-update *args:
+    {{go}} run ./scripts/update-homebrew-tap.go {{args}}
+
+# Homebrew Tapが現在のバージョンに追随しているか検査する（CI用）
+homebrew-check:
+    {{go}} run ./scripts/update-homebrew-tap.go -check
+
+# GitHubリリースの作成・成果物のアップロード・Homebrew Tapの更新まで一括で行う
+# 事前に `just version-update X.Y.Z` と `just release` を済ませておくこと
+publish version=version:
+    ./scripts/publish-release.sh "{{version}}"

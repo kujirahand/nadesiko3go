@@ -1,0 +1,71 @@
+name: Update Homebrew Tap
+
+# GitHub Releases を公開したら Homebrew Tap (kujirahand/homebrew-nadesiko3) の
+# Formula / Cask を自動更新する。手動実行 (workflow_dispatch) にも対応する。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "対象バージョン（例: 3.8.4。省略時はリリースタグ）"
+        required: false
+        type: string
+      dry_run:
+        description: "プッシュせず、生成結果の差分だけ確認する"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  update-tap:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Determine version
+        id: ver
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [ -z "$VERSION" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="$(go run ./scripts/print-version.go)"
+          fi
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "対象バージョン: $VERSION"
+
+      # Tapリポジトリへの push には別リポジトリを書けるトークンが要る。
+      # リポジトリの Secrets に HOMEBREW_TAP_TOKEN（contents:write 権限のPAT）を登録しておくこと。
+      - name: Check out Homebrew tap
+        uses: actions/checkout@v7
+        with:
+          repository: kujirahand/homebrew-nadesiko3
+          path: homebrew-nadesiko3
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Update formula and cask
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          git -C homebrew-nadesiko3 config user.name "github-actions[bot]"
+          git -C homebrew-nadesiko3 config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            go run ./scripts/update-homebrew-tap.go -version "$VERSION" -wait 20m
+            git -C homebrew-nadesiko3 --no-pager diff
+          else
+            go run ./scripts/update-homebrew-tap.go -version "$VERSION" -wait 20m -push
+          fi
