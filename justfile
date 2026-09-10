@@ -1,4 +1,7 @@
 go := env_var_or_default("GO", "go")
+# macOSだけWebKitの重複ライブラリ警告を抑制する
+set export
+CGO_LDFLAGS := if os() == "macos" { "-Wl,-no_warn_duplicate_libraries" } else { "" }
 # 空のままなら internal/version.Version（唯一の定義元）を build-release.go 側で使う
 version := env_var_or_default("VERSION", "")
 platforms := env_var_or_default("PLATFORMS", "darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64")
@@ -22,12 +25,6 @@ cui:
 # macOSはwebview_goのWebKitフレームワークとcgoランタイムがどちらも-lobjcをリンクするため、
 # Xcode 15以降のldが重複リンク警告を出す。実害はないが -no_warn_duplicate_libraries で抑制する。
 gui:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ "{{os()}}" = "macos" ]; then
-        export CGO_LDFLAGS="-Wl,-no_warn_duplicate_libraries"
-    fi
-    set -x
     {{go}} build -o bin/gonako-gui ./cmd/gonako-gui
 
 # gonako / gonako-cui を $GOPATH/bin にインストール
@@ -49,12 +46,6 @@ release-gui:
 
 # GUI版をビルドせずに実行
 run-gui:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if [ "{{os()}}" = "macos" ]; then
-        export CGO_LDFLAGS="-Wl,-no_warn_duplicate_libraries"
-    fi
-    set -x
     {{go}} run ./cmd/gonako-gui
 
 # ビルド成果物を削除
