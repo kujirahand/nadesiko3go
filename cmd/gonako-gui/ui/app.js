@@ -48,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItemOpen = document.getElementById('menu-item-open');
   const menuItemSave = document.getElementById('menu-item-save');
   const menuItemSaveAs = document.getElementById('menu-item-save-as');
+  const menuItemAIProject = document.getElementById('menu-item-ai-project');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
   const menuItemBuildApp = document.getElementById('menu-item-build-app');
@@ -530,6 +531,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   menuItemShortcuts.addEventListener('click', openShortcutsModal);
   menuItemAbout.addEventListener('click', openAboutModal);
+
+  // --- AI開発用プロジェクト作成 ---
+  async function createAIProjectFromCurrentFolder() {
+    closeHamburger();
+    if (typeof window.createAIProject !== 'function') {
+      await showAlertDialog('作成できません', 'この機能は gonako-gui 上でのみ使えます。');
+      return;
+    }
+
+    const name = await showPromptDialog(
+      'AI用の雛形を作成',
+      '現在のフォルダに新しいプロジェクトを作り、AGENTS.mdとCLAUDE.mdを配置します。\n\nプロジェクト名:',
+      'なでしこプロジェクト',
+      '作成'
+    );
+    if (!name) return;
+
+    const baseDir = currentDirPath || (currentFilePath ? pathDirName(currentFilePath) : '') || desktopDirPath || homeDirPath;
+    menuItemAIProject.disabled = true;
+    setStatus('AI用の雛形を作成中...');
+    try {
+      const res = await window.createAIProject(baseDir, name);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (!data.ok) {
+        setStatus(`作成エラー: ${data.error}`);
+        await showAlertDialog('作成エラー', data.error || 'AI用の雛形を作成できませんでした。');
+        return;
+      }
+
+      activateTab(tabBtnFile, tabContentFile);
+      toggleSidebar(false);
+      await loadDirectory(data.path);
+      const files = (data.files || ['AGENTS.md', 'CLAUDE.md']).join('\n');
+      setStatus(`AI用の雛形を作成しました: ${data.path}`);
+      await showAlertDialog('AI用の雛形を作成しました', `${data.path}\n\n作成したファイル:\n${files}`);
+    } catch (err) {
+      console.error('AI用ひな形作成エラー:', err);
+      setStatus(`作成エラー: ${err.message || err}`);
+      await showAlertDialog('作成エラー', `${err.message || err}`);
+    } finally {
+      menuItemAIProject.disabled = false;
+    }
+  }
+
+  menuItemAIProject.addEventListener('click', createAIProjectFromCurrentFolder);
 
   // --- フォルダを実行ファイルに変換 ---
   function pathDirName(p) {

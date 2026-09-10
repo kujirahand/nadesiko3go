@@ -37,10 +37,6 @@ var goBuildPlugins = []string{"nodelib", "csvlib", "mathlib", "sqlitelib", "offi
 // next to the running executable.
 const sourceRepoZipURL = "https://github.com/kujirahand/nadesiko3go/archive/refs/heads/master.zip"
 
-// zipURLOverride lets a test point downloadSource at a local server instead
-// of GitHub. Empty means use sourceRepoZipURL.
-var zipURLOverride string
-
 // GoBuildResult is the JSON structure returned to JavaScript.
 type GoBuildResult struct {
 	OK         bool   `json:"ok"`
@@ -171,11 +167,7 @@ func isValidSourceCheckout(dir string) bool {
 // downloadSource fetches this project's own source from GitHub and unpacks
 // it into destDir, so ビルドする側 needs nothing but network access and Go.
 func downloadSource(destDir string) error {
-	url := sourceRepoZipURL
-	if zipURLOverride != "" {
-		url = zipURLOverride
-	}
-	resp, err := http.Get(url)
+	resp, err := http.Get(sourceRepoZipURL)
 	if err != nil {
 		return err
 	}
@@ -183,7 +175,12 @@ func downloadSource(destDir string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %s", resp.Status)
 	}
+	return extractDownloadedSource(resp.Body, destDir)
+}
 
+// extractDownloadedSource はダウンロード済みのzipストリームを展開する。
+// HTTP通信と分離しておくことで、展開処理のテストに待受ポートを必要としない。
+func extractDownloadedSource(src io.Reader, destDir string) error {
 	tmp, err := os.CreateTemp("", "nadesiko3go-src-*.zip")
 	if err != nil {
 		return err
@@ -191,7 +188,7 @@ func downloadSource(destDir string) error {
 	defer os.Remove(tmp.Name())
 	defer tmp.Close()
 
-	if _, err := io.Copy(tmp, resp.Body); err != nil {
+	if _, err := io.Copy(tmp, src); err != nil {
 		return err
 	}
 

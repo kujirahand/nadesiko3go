@@ -3,8 +3,6 @@ package main
 import (
 	"archive/zip"
 	"bytes"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -93,7 +91,7 @@ func swapSourceDir(t *testing.T, fn func() (string, error)) func() {
 
 // TestDownloadSourceExtractsAndStripsTopDir checks the zip-handling logic
 // against a small in-memory zip shaped like a GitHub codeload archive
-// (everything under one "<repo>-<branch>/" folder) — no real network call.
+// (everything under one "<repo>-<branch>/" folder) — no network or listener.
 func TestDownloadSourceExtractsAndStripsTopDir(t *testing.T) {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
@@ -104,17 +102,9 @@ func TestDownloadSourceExtractsAndStripsTopDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write(buf.Bytes())
-	}))
-	defer server.Close()
-
-	restore := swapZipURL(t, server.URL)
-	defer restore()
-
 	dest := t.TempDir()
 	dest = filepath.Join(dest, "nadesiko3go") // まだ存在しないフォルダへ展開する
-	if err := downloadSource(dest); err != nil {
+	if err := extractDownloadedSource(bytes.NewReader(buf.Bytes()), dest); err != nil {
 		t.Fatal(err)
 	}
 
@@ -173,14 +163,4 @@ func writeZipFile(t *testing.T, zw *zip.Writer, name, content string) {
 	if _, err := w.Write([]byte(content)); err != nil {
 		t.Fatal(err)
 	}
-}
-
-// swapZipURL points sourceRepoZipURL at a local test server. Package-level
-// const cannot be reassigned, so downloadSource reads a variable instead in
-// tests via this indirection — see zipURLForTest below.
-func swapZipURL(t *testing.T, url string) func() {
-	t.Helper()
-	orig := zipURLOverride
-	zipURLOverride = url
-	return func() { zipURLOverride = orig }
 }

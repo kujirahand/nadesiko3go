@@ -673,6 +673,27 @@ func main() {
 		return string(b)
 	})
 
+	// Go ↔ JavaScript バインディング: AI開発用プロジェクト作成
+	_ = w.Bind("createAIProject", func(dirPath, name string) string {
+		projectPath, files, err := createAIProject(dirPath, name)
+		res := struct {
+			OK    bool     `json:"ok"`
+			Path  string   `json:"path,omitempty"`
+			Files []string `json:"files,omitempty"`
+			Error string   `json:"error,omitempty"`
+		}{
+			Path:  projectPath,
+			Files: aiProjectFileNames(files),
+		}
+		if err != nil {
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
 	// Go ↔ JavaScript バインディング: OSファイラーで表示 (Finder / Explorer)
 	_ = w.Bind("revealInFinder", func(targetPath string) string {
 		err := revealInFinder(targetPath)
