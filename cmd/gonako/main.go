@@ -43,6 +43,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako -e <プログラム> [引数...]  その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
+  gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako compat run [--cases DIR] [--out DIR]
   gonako compat commands [--source FILE]
@@ -56,6 +57,12 @@ build のオプション:
   --runtime PATH   土台にするランタイム (既定: 実行中のgonako)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
+
+doc のオプション:
+  --command, -c    命令一覧(JSON)から検索する (既定)
+  --web, -w        Webのマニュアル(https://nadesi.com/v3/doc/)も検索する
+  --json           結果をJSONで出力する (AI向け)
+  --limit N        表示する件数の上限 (既定: 20、0で全件)
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
@@ -464,6 +471,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return buildBundle(args[1:], stdout, stderr)
 	case "gengo":
 		return genGo(args[1:], stdout, stderr)
+	case "doc":
+		return searchDoc(args[1:], stdout, stderr)
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
 	}

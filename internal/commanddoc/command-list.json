@@ -3241,37 +3241,6 @@
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L177"
   },
   {
-    "name": "クリップボード取得",
-    "type": "func",
-    "josi": null,
-    "plugin": "plugin_node",
-    "category": "クリップボード",
-    "desc": "OSのクリップボードの文字列を取得する",
-    "template": "クリップボード取得",
-    "yomi": "くりっぷぼーどしゅとく",
-    "file": "internal/nodelib/clipboard.go",
-    "line": 51,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/clipboard.go#L51"
-  },
-  {
-    "name": "クリップボード変更",
-    "type": "func",
-    "josi": [
-      [
-        "へ",
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "クリップボード",
-    "desc": "文字列でOSのクリップボードを変更する",
-    "template": "【S】へクリップボード変更",
-    "yomi": "くりっぷぼーどへんこう",
-    "file": "internal/nodelib/clipboard.go",
-    "line": 37,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/clipboard.go#L37"
-  },
-  {
     "name": "グローバル関数一覧取得",
     "type": "func",
     "josi": null,
