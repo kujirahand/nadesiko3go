@@ -148,12 +148,12 @@ func TestDispatchDuringRunDoesNotBlock(t *testing.T) {
 // 取り込まなければならない。取りこぼすと二度と取り出せない。
 func TestBundledAsyncPageConsumesStreamedOperations(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
-	for _, want := range []string{"if(s.output)out+=s.output", "if(s.operations&&s.operations.length)", "apply(s.operations)"} {
-		if !strings.Contains(page, want) {
+	for _, want := range []string{"if (s.output) out += s.output", "if (s.operations && s.operations.length)", "apply(s.operations)"} {
+		if !pageHas(page, want) {
 			t.Fatalf("バンドル版ページが途中経過を取り込んでいない: %q が無い", want)
 		}
 	}
-	if strings.Contains(page, "apply(r.operations") {
+	if pageHas(page, "apply(r.operations") {
 		t.Fatal("完了時のResultから画面操作を読んではいけない（非同期実行では常に空）")
 	}
 }
@@ -161,7 +161,7 @@ func TestBundledAsyncPageConsumesStreamedOperations(t *testing.T) {
 func TestBundledAsyncProgramPageIncludesEventBridge(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
 	for _, required := range []string{"window.startNakoEvent(", "window.resolveNakoDialog(id,"} {
-		if !strings.Contains(page, required) {
+		if !pageHas(page, required) {
 			t.Fatalf("bundled page is missing %q", required)
 		}
 	}
@@ -408,13 +408,13 @@ func waitForAsyncDone(t *testing.T, c *asyncCollector) AsyncRunStatus {
 
 func TestBundledAsyncProgramPageUsesHTMLDialogs(t *testing.T) {
 	page := bundledAsyncProgramPage(7)
-	for _, want := range []string{"pollNakoRun", "resolveNakoDialog", `class="overlay"`, "runId=7"} {
+	for _, want := range []string{"pollNakoRun", "resolveNakoDialog", `class="overlay"`, `data-run-id="7"`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page does not contain %q", want)
 		}
 	}
 	for _, unwanted := range []string{"window.alert(", "window.prompt(", "window.confirm("} {
-		if strings.Contains(page, unwanted) {
+		if pageHas(page, unwanted) {
 			t.Errorf("page unexpectedly contains native dialog %q", unwanted)
 		}
 	}

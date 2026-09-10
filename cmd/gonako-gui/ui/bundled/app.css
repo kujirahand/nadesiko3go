@@ -1,0 +1,81 @@
+/* 梱包プログラムの実行画面のスタイル。bundled.go が app.html に埋め込む。 */
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #fff;
+  color: #222;
+}
+
+/* なでしこの『部品作成』が作った要素に付く目印 */
+.gonako-part {
+  box-sizing: border-box;
+  margin: 4px;
+}
+
+input {
+  padding: 7px 9px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
+}
+
+button {
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 5px;
+  background: #3b82f6;
+  color: #fff;
+  cursor: pointer;
+}
+
+form {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+form > button {
+  grid-column: 2;
+}
+
+/* 『言う』『尋ねる』のダイアログ。ネイティブのalert等は使わない（#59） */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: #0008;
+  z-index: 10;
+}
+
+.dialog {
+  width: min(420px, 85vw);
+  padding: 20px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 14px 40px #0005;
+}
+
+.dialog p {
+  white-space: pre-wrap;
+}
+
+.dialog input {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 18px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.secondary {
+  background: #777;
+}

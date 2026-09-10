@@ -31,7 +31,8 @@ nadesiko3go/
 │   ├── gonako/            CUI本体（フル機能）。実行・ビルド・fixture実行のサブコマンド
 │   ├── gonako-cui/        軽量CUI版。標準コア+SQLiteのみに絞った別バイナリ（8MB台）
 │   └── gonako-gui/        GUI版（webview_go）。段階8
-│       └── ui/            埋め込みエディタUI（//go:embed）。→ 9節・`docs/gonako-gui-editor.md`
+│       └── ui/            埋め込みUI（//go:embed）。→ 9節・`docs/gonako-gui-editor.md`
+│           └── bundled/    梱包アプリの実行画面（HTML/CSS/JS）。bundled.goが組み立てる
 ├── internal/
 │   ├── prepare/           前処理（全角記号の正規化など。nako_prepare 相当）
 │   ├── lexer/             字句解析（nako_lexer 相当）

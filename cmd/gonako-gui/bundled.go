@@ -14,12 +14,14 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html"
+	htmltemplate "html/template"
 	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
@@ -116,22 +118,57 @@ func runBundledProgram(packed *bundle.Bundle) {
 	w.Run()
 }
 
+// 実行画面のひな形の置き場。//go:embed でこのバイナリの中に入っている。
+const bundledAssetRoot = "ui/bundled"
+
+// bundledPage は ui/bundled/app.html にCSSとJSを埋め込むためのテンプレート。
+// WebViewのSetHtmlは単一のHTML文字列しか受け取れないので、外部ファイル参照
+// ではなく、実行時にひとつのHTMLへまとめてから渡す（#42）。
+var bundledPage = sync.OnceValues(func() (*bundledPageAssets, error) {
+	shell, err := fs.ReadFile(uiFS, bundledAssetRoot+"/app.html")
+	if err != nil {
+		return nil, err
+	}
+	style, err := fs.ReadFile(uiFS, bundledAssetRoot+"/app.css")
+	if err != nil {
+		return nil, err
+	}
+	script, err := fs.ReadFile(uiFS, bundledAssetRoot+"/app.js")
+	if err != nil {
+		return nil, err
+	}
+	// CSSとJSは自前のアセットなのでエスケープせずに素通しする。
+	tmpl, err := template.New("bundled-app").Parse(string(shell))
+	if err != nil {
+		return nil, err
+	}
+	return &bundledPageAssets{tmpl: tmpl, style: string(style), script: string(script)}, nil
+})
+
+// bundledPageAssets は組み立て済みの実行画面テンプレートと、そこへ差し込む
+// CSS・JSの中身を持つ。読み込みはプロセスに一度きり。
+type bundledPageAssets struct {
+	tmpl   *template.Template
+	style  string
+	script string
+}
+
+// bundledAsyncProgramPage は実行ID runID のプログラムを表示する画面を組み立てる。
 func bundledAsyncProgramPage(runID uint64) string {
-	return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
-		`<style>body{box-sizing:border-box;margin:0;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222}.gonako-part{box-sizing:border-box;margin:4px}input{padding:7px 9px;border:1px solid #aaa;border-radius:4px}button{padding:7px 14px;border:0;border-radius:5px;background:#3b82f6;color:#fff;cursor:pointer}form{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center}form>button{grid-column:2}.overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:10}.dialog{width:min(420px,85vw);padding:20px;border-radius:10px;background:#fff;box-shadow:0 14px 40px #0005}.dialog p{white-space:pre-wrap}.dialog input{box-sizing:border-box;width:100%;margin:8px 0 18px}.actions{display:flex;justify-content:flex-end;gap:8px}.secondary{background:#777}</style></head>` +
-		`<body><main id="gonako-screen"></main><pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre><div id="overlay" class="overlay"><div class="dialog"><h3 id="dialog-title"></h3><p id="dialog-message"></p><input id="dialog-input"><div class="actions"><button id="dialog-cancel" class="secondary">キャンセル</button><button id="dialog-ok">OK</button></div></div></div><script>` +
-		`const root=document.getElementById('gonako-screen'),runId=` + fmt.Sprint(runID) + `;let state={runId};` +
-		`function values(){const v={};root.querySelectorAll('[data-gonako-handle]').forEach(e=>{if(e.matches('input,textarea,select'))v[e.dataset.gonakoHandle]=e.value});return v}` +
-		// イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
-		// ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
-		// この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
-		`async function send(h,n){const err=document.getElementById('gonako-error');const raw=await window.startNakoEvent(state.runId,Number(h),n,values());const st=typeof raw==='string'?JSON.parse(raw):raw;if(st.error){err.textContent=st.error;return}const id=st.runId;for(;;){const p=await window.pollNakoRun(id),s=typeof p==='string'?JSON.parse(p):p;if(s.operations&&s.operations.length)apply(s.operations);if(s.dialog){const a=await ask(s.dialog);await window.resolveNakoDialog(id,s.dialog.id,a.text,a.accepted);continue}if(s.done){const r=s.result||{};if(r.error)err.textContent=r.error;return}await new Promise(x=>setTimeout(x,20))}}` +
-		`function apply(ops){ops.forEach(o=>{const q='[data-gonako-handle="'+o.handle+'"]';if(o.type==='create'){const p=o.parent?root.querySelector('[data-gonako-handle="'+o.parent+'"]'):root;if(!p)return;let e;if(o.tag==='submit'){e=document.createElement('button');e.type='submit'}else{e=document.createElement(o.tag||'div');if(o.tag==='input')e.type='text'}e.dataset.gonakoHandle=String(o.handle);e.classList.add('gonako-part');if(o.name)e.name=o.name;if(o.html)e.innerHTML=o.html;else if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||'';p.appendChild(e);return}const e=root.querySelector(q);if(!e)return;if(o.type==='text'){if(e.matches('input,textarea,select'))e.value=o.text||'';else e.textContent=o.text||''}else if(o.type==='html')e.innerHTML=o.html||'';else if(o.type==='styles')Object.entries(o.styles||{}).forEach(([k,v])=>e.style[k]=v);else if(o.type==='attributes')Object.entries(o.attributes||{}).forEach(([k,v])=>e.setAttribute(k,v));else if(o.type==='listen'&&!e.dataset['gonakoEvent'+o.event]){e.dataset['gonakoEvent'+o.event]='1';e.addEventListener(o.event,x=>{if(o.event==='submit')x.preventDefault();send(o.handle,o.event)})}else if(o.type==='focus')e.focus()})}` +
-		`function ask(d){return new Promise(resolve=>{const overlay=document.getElementById('overlay'),input=document.getElementById('dialog-input'),cancel=document.getElementById('dialog-cancel'),ok=document.getElementById('dialog-ok');let composing=false;document.getElementById('dialog-title').textContent=d.kind==='prompt'?'入力':d.kind==='confirm'?'確認':'メッセージ';document.getElementById('dialog-message').textContent=d.message||'';input.style.display=d.kind==='prompt'?'block':'none';input.value='';cancel.style.display=d.kind==='alert'?'none':'inline-block';overlay.style.display='flex';input.oncompositionstart=()=>{composing=true};input.oncompositionend=()=>{composing=false};const done=(accepted)=>{overlay.style.display='none';ok.onclick=null;cancel.onclick=null;input.onkeydown=null;input.oncompositionstart=null;input.oncompositionend=null;resolve({text:d.kind==='prompt'?input.value:'',accepted})};ok.onclick=()=>done(true);cancel.onclick=()=>done(false);input.onkeydown=e=>{if(e.isComposing||composing||e.keyCode===229)return;if(e.key==='Enter')done(true);else if(e.key==='Escape')done(false)};(d.kind==='prompt'?input:ok).focus()})}` +
-		// 出力と画面操作はポーリングのたびに届き、読まなければ消える。done を
-		// 見る前に必ず適用すること（→ AsyncRunStatus のコメント）。ウィンドウを
-		// 閉じてよいかの判定も、実行中に届いた分を数えた ops で行う。
-		`async function run(){let out='',ops=0;for(;;){const raw=await window.pollNakoRun(runId),s=typeof raw==='string'?JSON.parse(raw):raw;if(s.output)out+=s.output;if(s.operations&&s.operations.length){ops+=s.operations.length;apply(s.operations)}if(s.dialog){const a=await ask(s.dialog);await window.resolveNakoDialog(runId,s.dialog.id,a.text,a.accepted);continue}if(s.done){const r=s.result||{};state=r;if(r.error)document.getElementById('gonako-error').textContent=(out?out+'\n':'')+r.error;if(!r.error&&ops===0)await window.closeBundledWindow();return}await new Promise(x=>setTimeout(x,20))}}run();</script></body></html>`
+	a, err := bundledPage()
+	if err != nil {
+		return textPage("画面テンプレートを読み込めません: " + err.Error())
+	}
+	var buf bytes.Buffer
+	data := struct {
+		Style  string
+		Script string
+		RunID  uint64
+	}{a.style, a.script, runID}
+	if err := a.tmpl.Execute(&buf, data); err != nil {
+		return textPage("画面テンプレートを展開できません: " + err.Error())
+	}
+	return buf.String()
 }
 
 // newAppWindow opens the window a converted application runs in.
@@ -164,12 +201,27 @@ func showMessageWindow(title, message string) {
 
 // textPage wraps plain text so a WebView shows it as it was printed.
 func textPage(text string) string {
-	return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">` +
-		`<style>body{margin:0;padding:16px;background:#1e1e2e;color:#cdd6f4;` +
-		`font-family:"SF Mono","Consolas","Menlo",monospace;font-size:14px;line-height:1.6;}` +
-		`pre{margin:0;white-space:pre-wrap;word-break:break-word;}</style></head>` +
-		`<body><pre>` + html.EscapeString(text) + `</pre></body></html>`
+	tmpl, err := bundledTextTemplate()
+	if err != nil {
+		// テンプレートが壊れていても、伝えたい文面だけは見せる。
+		return "<pre>" + html.EscapeString(text) + "</pre>"
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct{ Text string }{text}); err != nil {
+		return "<pre>" + html.EscapeString(text) + "</pre>"
+	}
+	return buf.String()
 }
+
+// bundledTextTemplate は ui/bundled/text.html を読む。表示するのは利用者の
+// プログラムが出した文字列なので、html/template に任せてエスケープする。
+var bundledTextTemplate = sync.OnceValues(func() (*htmltemplate.Template, error) {
+	data, err := fs.ReadFile(uiFS, bundledAssetRoot+"/text.html")
+	if err != nil {
+		return nil, err
+	}
+	return htmltemplate.New("bundled-text").Parse(string(data))
+})
 
 // runtimePathForBuild names the executable a converted app is built on: this
 // one, so that packaging needs no Go toolchain. It is a variable so that a

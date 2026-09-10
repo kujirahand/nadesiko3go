@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+{{.Style}}
+</style>
+</head>
+<body data-run-id="{{.RunID}}">
+<main id="gonako-screen"></main>
+<pre id="gonako-error" style="color:#b91c1c;white-space:pre-wrap"></pre>
+<div id="overlay" class="overlay">
+  <div class="dialog">
+    <h3 id="dialog-title"></h3>
+    <p id="dialog-message"></p>
+    <input id="dialog-input">
+    <div class="actions">
+      <button id="dialog-cancel" class="secondary">キャンセル</button>
+      <button id="dialog-ok">OK</button>
+    </div>
+  </div>
+</div>
+<script>
+{{.Script}}
+</script>
+</body>
+</html>
