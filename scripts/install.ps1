@@ -7,7 +7,7 @@
 $ErrorActionPreference = "Stop"
 
 $repo = "kujirahand/nadesiko3go"
-$defaultVersion = "3.8.2"
+$defaultVersion = "3.8.3"
 
 # バージョンの決定
 $version = $env:GONAKO_VERSION

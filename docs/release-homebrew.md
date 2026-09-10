@@ -18,7 +18,7 @@
 更新します。インストーラースクリプトやREADME、このドキュメントの表記も自動的に揃います。
 
 ```bash
-just version-update 3.8.2
+just version-update 3.8.3
 ```
 
 続けて `just release` を実行します（`VERSION` を省略すると更新後の値が使われます）。
@@ -34,28 +34,28 @@ just release
 
 | ファイル名 | 対象 | 形式 |
 |---|---|---|
-| `gonako-3.8.2-darwin-arm64.zip` | macOS (Apple Silicon) | CLIバイナリzip |
-| `gonako-3.8.2-darwin-amd64.zip` | macOS (Intel) | CLIバイナリzip |
-| `gonako-3.8.2-linux-amd64.zip` | Linux (x86_64) | CLIバイナリzip |
-| `gonako-3.8.2-linux-arm64.zip` | Linux (aarch64) | CLIバイナリzip |
-| `gonako-3.8.2-windows-amd64.zip` | Windows (x86_64) | CLIバイナリzip（中身は`gonako.exe`） |
-| `gonako-gui-3.8.2-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle zip |
-| `gonako-gui-3.8.2-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
-| `gonako-gui-3.8.2-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
-| `gonako-gui-3.8.2-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイルzip |
-| `upload-3.8.2.sh` | - | GitHub Releasesアップロード用スクリプト（macOS/Linux用） |
-| `upload-3.8.2.bat` | - | GitHub Releasesアップロード用バッチ（Windows用） |
+| `gonako-3.8.3-darwin-arm64.zip` | macOS (Apple Silicon) | CLIバイナリzip |
+| `gonako-3.8.3-darwin-amd64.zip` | macOS (Intel) | CLIバイナリzip |
+| `gonako-3.8.3-linux-amd64.zip` | Linux (x86_64) | CLIバイナリzip |
+| `gonako-3.8.3-linux-arm64.zip` | Linux (aarch64) | CLIバイナリzip |
+| `gonako-3.8.3-windows-amd64.zip` | Windows (x86_64) | CLIバイナリzip（中身は`gonako.exe`） |
+| `gonako-gui-3.8.3-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle zip |
+| `gonako-gui-3.8.3-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle zip |
+| `gonako-gui-3.8.3-windows-amd64.zip` | Windows (x86_64) | GUI exe zip |
+| `gonako-gui-3.8.3-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイルzip |
+| `upload-3.8.3.sh` | - | GitHub Releasesアップロード用スクリプト（macOS/Linux用） |
+| `upload-3.8.3.bat` | - | GitHub Releasesアップロード用バッチ（Windows用） |
 
 ---
 
 ## 3. GitHub Releases へのアップロード
 
-生成した成果物を GitHub Releases の該当タグ（例: `3.8.2`）にアップロードします。
+生成した成果物を GitHub Releases の該当タグ（例: `3.8.3`）にアップロードします。
 タグ名は `install.sh` / `install.ps1` のダウンロードURLに合わせて
 `v` を付けないバージョン番号そのものにします。
 
 ```bash
-VERSION=3.8.2
+VERSION=3.8.3
 
 # リリースがまだない場合は作成
 gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
@@ -65,7 +65,7 @@ gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/d
 ./release/upload-${VERSION}.sh
 
 # Windows (コマンドプロンプトまたはPowerShell):
-.\release\upload-3.8.2.bat
+.\release\upload-3.8.3.bat
 ```
 
 ---
@@ -75,7 +75,7 @@ gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/d
 Formula および Cask に設定するための SHA-256 ハッシュ値を算出します。
 
 ```bash
-VERSION=3.8.2
+VERSION=3.8.3
 shasum -a 256 \
   "release/gonako-${VERSION}-darwin-arm64.zip" \
   "release/gonako-${VERSION}-darwin-amd64.zip" \
@@ -105,7 +105,7 @@ mkdir -p Formula Casks
 class Gonako < Formula
   desc "日本語プログラミング言語 なでしこ3 (Go言語版)"
   homepage "https://github.com/kujirahand/nadesiko3go"
-  version "3.8.2"
+  version "3.8.3"
 
   on_macos do
     if Hardware::CPU.arm?
@@ -142,7 +142,7 @@ end
 
 ```ruby
 cask "gonako-gui" do
-  version "3.8.2"
+  version "3.8.3"
 
   if Hardware::CPU.arm?
     url "https://github.com/kujirahand/nadesiko3go/releases/download/#{version}/gonako-gui-#{version}-darwin-arm64.app.zip"
