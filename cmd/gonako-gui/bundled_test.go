@@ -109,10 +109,49 @@ func TestBuildAppFromFolderProgram(t *testing.T) {
 	}
 }
 
+// 実行画面のJSは ui/bundled/app.js に外出ししてあり、読みやすさのために
+// 整形してある（#42）。字面の空白に振り回されないよう、空白を落として照合する。
+func pageHas(page, want string) bool {
+	return strings.Contains(dropSpaces(page), dropSpaces(want))
+}
+
+func dropSpaces(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch r {
+		case ' ', '\t', '\r', '\n':
+			return -1
+		}
+		return r
+	}, s)
+}
+
+// 実行画面のひな形が埋め込まれ、展開できることを確かめる。ここが壊れると
+// 梱包アプリは何も表示できないまま起動する。
+func TestBundledAssetsAreEmbeddedAndParse(t *testing.T) {
+	if _, err := bundledPage(); err != nil {
+		t.Fatalf("実行画面のひな形を読めない: %v", err)
+	}
+	if _, err := bundledTextTemplate(); err != nil {
+		t.Fatalf("テキスト表示のひな形を読めない: %v", err)
+	}
+	page := bundledAsyncProgramPage(1)
+	for _, required := range []string{"<!DOCTYPE html>", "<style>", "<script>", "gonako-screen"} {
+		if !strings.Contains(page, required) {
+			t.Errorf("CSSとJSが埋め込まれていない: %q が無い", required)
+		}
+	}
+	if strings.Contains(page, "{{") {
+		t.Error("テンプレートの差し込み口が残っている")
+	}
+	if got := textPage("<b>あ</b>"); !strings.Contains(got, "&lt;b&gt;") {
+		t.Errorf("テキスト表示がエスケープされていない: %q", got)
+	}
+}
+
 func TestBundledProgramPagesApplyHTMLAndFocusOperations(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
-	for _, required := range []string{"o.type==='html'", "e.innerHTML=o.html||''", "o.type==='focus'", "e.focus()"} {
-		if !strings.Contains(page, required) {
+	for _, required := range []string{"o.type === 'html'", "e.innerHTML = o.html || ''", "o.type === 'focus'", "e.focus()"} {
+		if !pageHas(page, required) {
 			t.Errorf("page is missing %q", required)
 		}
 	}
@@ -121,11 +160,11 @@ func TestBundledProgramPagesApplyHTMLAndFocusOperations(t *testing.T) {
 func TestBundledPromptDialogIgnoresIMEEnter(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
 	for _, required := range []string{
-		"input.oncompositionstart=()=>{composing=true}",
-		"input.oncompositionend=()=>{composing=false}",
-		"e.isComposing||composing||e.keyCode===229",
+		"input.oncompositionstart = () => { composing = true; }",
+		"input.oncompositionend = () => { composing = false; }",
+		"e.isComposing || composing || e.keyCode === 229",
 	} {
-		if !strings.Contains(page, required) {
+		if !pageHas(page, required) {
 			t.Fatalf("bundled dialog is missing IME guard %q", required)
 		}
 	}
