@@ -253,6 +253,7 @@ func commands() map[string]command {
 	}}
 
 	osCommands(m)
+	clipboardCommands(m)
 	cryptoCommands(m)
 	netCommands(m)
 	zipCommands(m)

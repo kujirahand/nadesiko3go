@@ -69,6 +69,7 @@ var goOnlyGroup = map[string]string{
 	"internal/pdflib/pdflib.go":       "PDF",
 	"internal/imagelib/imagelib.go":   "画像",
 	"internal/guilib/guilib.go":       "GUI",
+	"internal/nodelib/clipboard.go":   "クリップボード",
 	"internal/nodelib/os.go":          "Nodeプロセス",
 	"internal/nodelib/file.go":        "ファイル入出力",
 	"internal/stdlib/string.go":       "文字列処理",
