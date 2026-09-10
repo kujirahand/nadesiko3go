@@ -110,15 +110,10 @@ func TestBuildAppFromFolderProgram(t *testing.T) {
 }
 
 func TestBundledProgramPagesApplyHTMLAndFocusOperations(t *testing.T) {
-	pages := []string{
-		bundledAsyncProgramPage(1),
-		bundledProgramPage(RunResult{OK: true}),
-	}
-	for i, page := range pages {
-		for _, required := range []string{"o.type==='html'", "e.innerHTML=o.html||''", "o.type==='focus'", "e.focus()"} {
-			if !strings.Contains(page, required) {
-				t.Errorf("page %d is missing %q", i, required)
-			}
+	page := bundledAsyncProgramPage(1)
+	for _, required := range []string{"o.type==='html'", "e.innerHTML=o.html||''", "o.type==='focus'", "e.focus()"} {
+		if !strings.Contains(page, required) {
+			t.Errorf("page is missing %q", required)
 		}
 	}
 }

@@ -1605,21 +1605,46 @@ document.addEventListener('DOMContentLoaded', () => {
     output.className = 'output has-content';
   }
 
+  function reportGUIEventError(message) {
+    appendGUIOutput(`\n${message}\n`);
+    execStatus.textContent = 'イベントエラー';
+    execStatus.className = 'status-indicator error';
+    setStatus(`イベントエラー: ${message}`);
+  }
+
+  // イベント処理はGo側で非同期に走る。同期実行だとハンドラ内の『言う』が
+  // ダイアログの応答を待ち、その応答を返すこの関数はイベントの終了を
+  // 待っている、という行き詰まりでウィンドウが固まっていた（#59）。
   async function sendGUIEvent(handle, eventName) {
-    if (!activeGUIRunID || typeof window.dispatchNakoEvent !== 'function') return;
+    if (!activeGUIRunID || typeof window.startNakoEvent !== 'function') return;
     try {
-      const raw = await window.dispatchNakoEvent(
+      const started = parseBoundJSON(await window.startNakoEvent(
         activeGUIRunID, Number(handle), eventName, collectGUIValues()
-      );
-      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      // イベントは画面からしか来ない＝ウィンドウモード。『表示』は画面
-      // プレビュー側に描かれるので、出力欄には出さない（二重表示になる）。
-      applyGUIOperations(data.operations || []);
-      if (data.error) {
-        appendGUIOutput(`\n${data.error}\n`);
-        execStatus.textContent = 'イベントエラー';
-        execStatus.className = 'status-indicator error';
-        setStatus(`イベントエラー: ${data.error}`);
+      ));
+      if (started.error) {
+        reportGUIEventError(started.error);
+        return;
+      }
+      const eventRunID = started.runId;
+      for (;;) {
+        const status = parseBoundJSON(await window.pollNakoRun(eventRunID));
+        // イベントは画面からしか来ない＝ウィンドウモード。『表示』は画面
+        // プレビュー側に描かれるので、出力欄には出さない（二重表示になる）。
+        // ポーリングで取り出した画面操作は、読まないと二度と出てこない。
+        if (status.operations && status.operations.length > 0) {
+          applyGUIOperations(status.operations);
+        }
+        if (status.dialog) {
+          const answer = await showNakoDialog(status.dialog);
+          await window.resolveNakoDialog(eventRunID, status.dialog.id, answer.text, answer.accepted);
+          continue;
+        }
+        if (status.done) {
+          const result = status.result || {};
+          if (result.error) reportGUIEventError(result.error);
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 20));
       }
     } catch (err) {
       appendGUIOutput(`\n[イベントエラー] ${err.message || err}\n`);
