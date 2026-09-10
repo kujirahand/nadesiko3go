@@ -11,8 +11,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
@@ -383,7 +385,7 @@ func main() {
 	goSrc := scanGoSources("internal")
 
 	reg := stdlib.NewRegistry(
-		nodelib.New(), sqlitelib.New(),
+		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
 		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
 	)
 	list := reg.FuncList()
@@ -451,17 +453,25 @@ func main() {
 		return allDocs[i].Name < allDocs[j].Name
 	})
 
-	outPath := "cmd/gonako-gui/ui/command-list.json"
+	// 同じ一覧を2か所へ書き出す。GUIエディタはui/以下をfetchで読み、
+	// CUIの `gonako doc` は internal/commanddoc の埋め込み（//go:embed）を読む。
+	outPaths := []string{
+		"cmd/gonako-gui/ui/command-list.json",
+		"internal/commanddoc/command-list.json",
+	}
 	b, err := json.MarshalIndent(allDocs, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "JSONエンコードエラー: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(outPath, b, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "ファイル出力エラー: %v\n", err)
-		os.Exit(1)
+	for _, outPath := range outPaths {
+		if err := os.WriteFile(outPath, b, 0o644); err != nil {
+			fmt.Fprintf(os.Stderr, "ファイル出力エラー: %v\n", err)
+			os.Exit(1)
+		}
 	}
+	outPath := strings.Join(outPaths, ", ")
 
 	withYomi := 0
 	withLoc := 0

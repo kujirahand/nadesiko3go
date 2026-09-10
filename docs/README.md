@@ -7,6 +7,7 @@
 - [bundle-resources.md](bundle-resources.md): プログラムとリソースの単一ファイル梱包（バンドル）手順・運用ガイド
 - [compat.md](compat.md): 公式TypeScript版との互換性（差分fixture・文字列・エラー・本家側対応）
 - [differences.md](differences.md): なでしこ3（公式TypeScript版）との差異一覧
+- [doc-search.md](doc-search.md): 命令・マニュアルの検索（`gonako doc`）の仕組み
 - [doctest.md](doctest.md): DocTestの仕様と実行手順
 - [func_by_go.md](func_by_go.md): Go言語による命令実装ガイド
 - [gogen.md](gogen.md): Goコード生成バックエンド（gogen）の使い方・仕組み

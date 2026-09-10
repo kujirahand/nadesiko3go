@@ -61,6 +61,7 @@ nadesiko3go/
 │   ├── guilib/            GUI版向け。WebViewウィンドウを開く命令（`ウィンドウ作成`）
 │   ├── bundle/            単一ファイル梱包。リソースの仮想ファイルシステム。→ 8節・`docs/package.md`
 │   ├── gogen/             Goソース生成バックエンド（段階10・→ 10節・`docs/gogen.md`）。実装済み
+│   ├── commanddoc/        命令一覧の埋め込みと検索（`gonako doc`）。→ `docs/doc-search.md`
 │   ├── compat/            差分fixtureの実行と結果出力
 │   └── doctest/           本家マニュアルのdoctestブロックを実行して結果を照合
 ├── pkg/
