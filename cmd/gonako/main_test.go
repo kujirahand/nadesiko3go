@@ -103,6 +103,74 @@ func TestRunFileWithShebang(t *testing.T) {
 	}
 }
 
+// TestRunRequiresLocalFile pins that `!「file」を取込` loads a local .nako3
+// file and makes its functions callable from the requiring file (#58).
+func TestRunRequiresLocalFile(t *testing.T) {
+	dir := t.TempDir()
+	lib := "●（Aを）二倍表示とは\n    (A*2)を表示\nここまで"
+	if err := os.WriteFile(filepath.Join(dir, "lib.nako3"), []byte(lib), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	main := "!「lib.nako3」を取込。\n21を二倍表示。"
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"run", path}, &out, &errOut); err != nil {
+		t.Fatalf("run: %v; stderr=%s", err, errOut.String())
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "42" {
+		t.Errorf("出力 = %q, want \"42\"", got)
+	}
+}
+
+// TestRunRequiresDedupesAndAllowsCircular pins that the same file required
+// twice (directly, or via a cycle) is only loaded once, matching
+// NakoRequireLoader's global include guard in the TypeScript version.
+func TestRunRequiresDedupesAndAllowsCircular(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"a.nako3": "!「b.nako3」を取込。\n●A命令とは\n    「A」と表示\n    B命令\nここまで",
+		"b.nako3": "!「a.nako3」を取込。\n●B命令とは\n    「B」と表示\nここまで",
+	}
+	for name, code := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(code), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	main := "!「a.nako3」を取込。\n!「a.nako3」を取込。\nA命令。"
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"run", path}, &out, &errOut); err != nil {
+		t.Fatalf("run: %v; stderr=%s", err, errOut.String())
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "A\nB" {
+		t.Errorf("出力 = %q, want \"A\\nB\"", got)
+	}
+}
+
+// TestRunRequiresMissingFileReportsError pins that a missing dependency fails
+// with a nadesiko-style error rather than a raw Go panic/error.
+func TestRunRequiresMissingFileReportsError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte("!「no_such_file.nako3」を取込。"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	err := run([]string{"run", path}, &out, &errOut)
+	if err == nil {
+		t.Fatal("存在しないファイルの取込でエラーになりませんでした")
+	}
+	if !strings.Contains(err.Error(), "no_such_file.nako3") {
+		t.Errorf("エラー = %v, ファイル名を含んでいません", err)
+	}
+}
+
 func TestRunVersion(t *testing.T) {
 	for _, flag := range []string{"version", "-v", "--version"} {
 		var out, errOut bytes.Buffer

@@ -21,6 +21,12 @@ func ParseSource(code, filename string, funcList lexer.FuncList) (*ast.Node, err
 	if err != nil {
 		return nil, err
 	}
+	var modNames []string
+	raw, err = resolveRequires(raw, filename, map[string]bool{}, &modNames)
+	if err != nil {
+		return nil, err
+	}
+	lx.ModList = append(lx.ModList, modNames...)
 	tokens, err := lx.ReplaceTokens(raw, true, filename)
 	if err != nil {
 		return nil, err
