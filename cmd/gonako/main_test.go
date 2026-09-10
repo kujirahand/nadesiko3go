@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,8 +104,8 @@ func TestRunFileWithShebang(t *testing.T) {
 	}
 }
 
-// TestRunRequiresLocalFile pins that `!「file」を取込` loads a local .nako3
-// file and makes its functions callable from the requiring file (#58).
+// TestRunRequiresLocalFile は、`!「file」を取込` でローカルの.nako3ファイル
+// を読み込み、取り込んだ関数を呼び出せることを確認する (#58)。
 func TestRunRequiresLocalFile(t *testing.T) {
 	dir := t.TempDir()
 	lib := "●（Aを）二倍表示とは\n    (A*2)を表示\nここまで"
@@ -125,9 +126,10 @@ func TestRunRequiresLocalFile(t *testing.T) {
 	}
 }
 
-// TestRunRequiresDedupesAndAllowsCircular pins that the same file required
-// twice (directly, or via a cycle) is only loaded once, matching
-// NakoRequireLoader's global include guard in the TypeScript version.
+// TestRunRequiresDedupesAndAllowsCircular は、同じファイルを（直接2回、
+// または循環取込を通じて）何度取り込んでも一度しか読み込まれないことを
+// 確認する。本家TypeScript版のNakoRequireLoaderのグローバルなinclude
+// guardと同じ挙動。
 func TestRunRequiresDedupesAndAllowsCircular(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
@@ -153,8 +155,8 @@ func TestRunRequiresDedupesAndAllowsCircular(t *testing.T) {
 	}
 }
 
-// TestRunRequiresMissingFileReportsError pins that a missing dependency fails
-// with a nadesiko-style error rather than a raw Go panic/error.
+// TestRunRequiresMissingFileReportsError は、存在しない取込先ファイルが
+// Goのエラーそのままではなくなでしこのエラーとして報告されることを確認する。
 func TestRunRequiresMissingFileReportsError(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "main.nako3")
@@ -168,6 +170,29 @@ func TestRunRequiresMissingFileReportsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "no_such_file.nako3") {
 		t.Errorf("エラー = %v, ファイル名を含んでいません", err)
+	}
+}
+
+// TestRunRequiresDedupesRelativeAndAbsolutePaths は、同じファイルを相対パス
+// と絶対パスの両方で取込しても一度しか読み込まれないことを確認する
+// (PR #61 レビュー指摘の回帰テスト)。
+func TestRunRequiresDedupesRelativeAndAbsolutePaths(t *testing.T) {
+	dir := t.TempDir()
+	side := filepath.Join(dir, "side.nako3")
+	if err := os.WriteFile(side, []byte("「LOAD」と表示"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	main := fmt.Sprintf("!「side.nako3」を取込。\n!「%s」を取込。\n", side)
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"run", path}, &out, &errOut); err != nil {
+		t.Fatalf("run: %v; stderr=%s", err, errOut.String())
+	}
+	if got := strings.TrimRight(out.String(), "\n"); got != "LOAD" {
+		t.Errorf("出力 = %q, want \"LOAD\"（相対パスと絶対パスの取込は同一ファイルとして1回だけ実行されるべき）", got)
 	}
 }
 

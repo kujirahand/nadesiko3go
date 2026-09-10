@@ -12,23 +12,22 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/prepare"
 )
 
-// resolveRequires expands `!「file」を取込` statements found in tok.
+// resolveRequires は tok に含まれる `!「file」を取込` 文を展開する。
 //
-// A required file is read relative to the directory of the file that
-// requires it, tokenized and indent-converted on its own (mirroring
-// NakoTokenizer.rawtokenize / nako_require.mts in the TypeScript version),
-// then spliced in place of the three-token require statement, wrapped in a
-// namespace scope (『modName』に名前空間設定;『modName』にプラグイン名設定;
-// ... ;名前空間ポップ;) so that the existing namespace machinery in
-// replaceWord (lexer) and the プラグイン名設定/名前空間ポップ handling in
-// the parser resolve cross-file function calls correctly.
+// 取り込むファイルは、取り込む側のファイルのディレクトリからの相対パスで
+// 読み込み、単独で字句解析・インデント変換してから（本家TypeScript版の
+// NakoTokenizer.rawtokenize / nako_require.mts と同じ方式）、取込文3トー
+// クンの位置に、名前空間スコープ（『modName』に名前空間設定;『modName』
+// にプラグイン名設定; ... ;名前空間ポップ;）で包んで差し込む。こうすると
+// lexerのreplaceWordとparserのプラグイン名設定/名前空間ポップの処理
+// （どちらも既存実装）が正しくファイルをまたいだ関数呼び出しを解決できる。
 //
-// Each file is loaded at most once no matter how many times, or from where,
-// it is required; guard tracks every file path already spliced in, matching
-// NakoRequireLoader.replaceRequireStatements's global include guard (this
-// also prevents infinite recursion on circular requires). modNames collects
-// every module loaded this way so the caller can seed Lexer.ModList before
-// running the rest of the token replacement passes.
+// 同じファイルは、どこから何度取り込まれても一度しか読み込まない。guard
+// にはこれまでに差し込んだファイルの絶対パスを入れておき、
+// NakoRequireLoader.replaceRequireStatements のグローバルなinclude guard
+// と同じ挙動にする（循環取込の無限再帰も同時に防げる）。modNames には、
+// こうして読み込んだモジュール名を集めておき、呼び出し元が残りのトークン
+// 置換パスを実行する前に Lexer.ModList にまとめて設定できるようにする。
 func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, modNames *[]string) ([]lexer.Token, error) {
 	out := make([]lexer.Token, 0, len(tok))
 	for i := 0; i < len(tok); i++ {
@@ -42,7 +41,7 @@ func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, 
 		if err != nil {
 			return nil, err
 		}
-		i += 2 // consume the not/string/取込 span
+		i += 2 // not/string/取込の3トークン分を読み進める
 		if guard[filePath] {
 			continue // 同じファイルは一度だけ取り込む
 		}
@@ -63,7 +62,7 @@ func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, 
 	return out, nil
 }
 
-// isRequireStatement reports whether tok[i:i+3] is `not (string|string_ex) 取込`.
+// isRequireStatement は tok[i:i+3] が `not (string|string_ex) 取込` かどうかを返す。
 func isRequireStatement(tok []lexer.Token, i int) bool {
 	if i+2 >= len(tok) {
 		return false
@@ -97,7 +96,12 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 		}
 		full = filepath.Join(dir, name)
 	}
-	full = filepath.Clean(full)
+	// 相対パスと絶対パスで同じファイルを指定しても取込ガードのキーが
+	// 一致するように、必ず絶対パスへ正規化する（同一ファイルの二重取込を防ぐ）
+	full, err := filepath.Abs(full)
+	if err != nil {
+		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』のパスを解決できません。%s", name, err))
+	}
 	info, err := os.Stat(full)
 	if err != nil || info.IsDir() {
 		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』が見つかりません。", name))
@@ -117,9 +121,9 @@ func loadRequireFile(filePath string, tok lexer.Token) ([]lexer.Token, error) {
 	return indent.ConvertSyntax(raw)
 }
 
-// wrapNamespace brackets children in a namespace scope, matching the literal
-// source `『modName』に名前空間設定;『modName』にプラグイン名設定;` + code +
-// `;名前空間ポップ;` built in nako_require.mts.
+// wrapNamespace は children を名前空間スコープで包む。nako_require.mts が
+// 組み立てるソース文字列 `『modName』に名前空間設定;『modName』にプラグイン
+// 名設定;` + code + `;名前空間ポップ;` と同じ構造をトークン列で再現する。
 func wrapNamespace(modName string, children []lexer.Token, at lexer.Token) []lexer.Token {
 	word := func(v string) lexer.Token {
 		return lexer.Token{Type: lexer.TypeWord, Value: v, Line: at.Line, File: at.File, Indent: -1}
