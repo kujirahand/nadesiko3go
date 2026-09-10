@@ -238,12 +238,7 @@ func runCommand(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	if line == "" {
 		return value.String(""), nil
 	}
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", line)
-	} else {
-		cmd = exec.Command("sh", "-c", line)
-	}
+	cmd := shellCommand(line)
 	out, err := cmd.CombinedOutput()
 	text := decodeCommandOutput(out)
 	if err != nil {
@@ -270,12 +265,7 @@ func runCommandAsync(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	if line == "" {
 		return value.Undefined(), nil
 	}
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.Command("cmd", "/c", line)
-	} else {
-		cmd = exec.Command("sh", "-c", line)
-	}
+	cmd := shellCommand(line)
 	if err := cmd.Start(); err != nil {
 		return value.Undefined(), errors.New("コマンド『" + line + "』の起動に失敗しました。" + err.Error())
 	}
