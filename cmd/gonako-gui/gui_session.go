@@ -452,12 +452,6 @@ type EventStart struct {
 // ウィンドウごと固まってしまう。通常実行と同じポーリング経路に載せれば、
 // 画面はダイアログを見つけて resolveDialog を返せる。
 func (s *guiSession) startEvent(runID uint64, handle int, event string, values map[string]string) EventStart {
-	s.mu.Lock()
-	exec := s.active
-	s.mu.Unlock()
-	if exec == nil || exec.id != runID {
-		return EventStart{Error: "この画面は古い実行結果です。もう一度実行してください。"}
-	}
 	// 実行中のイベントは、少しだけ待って取れなければ断る。無制限に待つと、
 	// WebViewのバインド呼び出しはUIスレッド上で処理されるため、長く走る
 	// プログラムの間ウィンドウごと固まってしまう。画面部品は実行中にも
@@ -466,6 +460,15 @@ func (s *guiSession) startEvent(runID uint64, handle int, event string, values m
 	// 押されたクリックを、実行中だと誤って断らないため。
 	if !s.lockExecWithin(dispatchLockGrace) {
 		return EventStart{Error: "プログラムの実行中はイベントを処理できません。"}
+	}
+	// 実行対象を見るのはロックを取った後。待っている間に別の実行が始まると
+	// 差し替わるので、先に見ておくと古いVMへイベントを送ってしまう。
+	s.mu.Lock()
+	exec := s.active
+	s.mu.Unlock()
+	if exec == nil || exec.id != runID {
+		s.execMu.Unlock()
+		return EventStart{Error: "この画面は古い実行結果です。もう一度実行してください。"}
 	}
 	eventID, state := s.reserveRun(true)
 	state.isEvent = true

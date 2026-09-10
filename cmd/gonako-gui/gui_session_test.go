@@ -303,6 +303,39 @@ func TestEventHandlerDialogDoesNotDeadlock(t *testing.T) {
 	}
 }
 
+// ロック待ちの間に別の実行へ切り替わったら、古いVMへイベントを送らないこと。
+// 実行対象の確認をロック取得より前に済ませてしまうと、待っている50msの間に
+// 差し替わった分を見落とし、前の画面の状態を書き換えてしまう。
+func TestEventRejectedWhenRunSwitchesWhileWaitingForLock(t *testing.T) {
+	session := &guiSession{}
+	first := session.run("「前」のボタン作成", "gui.nako3", true, nil, nil)
+	if !first.OK {
+		t.Fatalf("initial result = %#v", first)
+	}
+
+	// 実行中に相当する状態を作り、イベントをロック待ちに入らせる。
+	session.execMu.Lock()
+	started := make(chan EventStart, 1)
+	go func() { started <- session.startEvent(first.RunID, 1, "click", nil) }()
+
+	// 待っている間に、別の実行が始まったことにして実行対象を差し替える。
+	time.Sleep(5 * time.Millisecond)
+	session.mu.Lock()
+	session.active = &guiExecution{id: first.RunID + 1}
+	session.mu.Unlock()
+	session.execMu.Unlock()
+
+	got := <-started
+	if !strings.Contains(got.Error, "古い実行結果") {
+		t.Fatalf("差し替わった実行にイベントを送っている: %#v", got)
+	}
+	// 断ったイベントはexecMuを握ったままにしない。
+	if !session.lockExecWithin(time.Second) {
+		t.Fatal("断ったイベントがexecMuを解放していない")
+	}
+	session.execMu.Unlock()
+}
+
 // dispatchEvent は画面と同じ手順でイベントを最後まで進め、届いた出力と
 // 画面操作をまとめて返す。非同期実行なので、ポーリングでしか受け取れない。
 func dispatchEvent(t *testing.T, session *guiSession, runID uint64, handle int, event string, values map[string]string) RunResult {
