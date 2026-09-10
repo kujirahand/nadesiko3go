@@ -581,9 +581,9 @@ func main() {
 	})
 
 	// Go ↔ JavaScript バインディング: ファイル判定と読み込み。
-	// UTF-8でないファイルは、HTML側で利用者の確認を取ってから再度読み込む。
-	_ = w.Bind("readFile", func(path string, allowNonUTF8 bool) string {
-		res := readEditorFile(path, allowNonUTF8)
+	// バイナリは読み取り専用、Shift_JIS/EUC-JPは確認なしでUTF-8へ変換して返す。
+	_ = w.Bind("readFile", func(path string) string {
+		res := readEditorFile(path)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
