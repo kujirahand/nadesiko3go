@@ -1719,6 +1719,8 @@ document.addEventListener('DOMContentLoaded', () => {
         el.dataset.gonakoHandle = String(op.handle);
         el.classList.add('gonako-part');
         if (op.name) el.name = op.name;
+        Object.entries(op.attributes || {}).forEach(([key, value]) => el.setAttribute(key, value));
+        Object.entries(op.styles || {}).forEach(([key, value]) => { el.style[key] = value; });
         if (op.html) {
           el.innerHTML = op.html;
         } else if (el.matches('input, textarea, select')) {
@@ -1732,7 +1734,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const el = windowPreview.querySelector(selector);
       if (!el) return;
-      if (op.type === 'text') {
+      if (op.type === 'clear') {
+        el.replaceChildren();
+      } else if (op.type === 'text') {
         if (el.matches('input, textarea, select')) el.value = op.text || '';
         else el.textContent = op.text || '';
       } else if (op.type === 'html') {

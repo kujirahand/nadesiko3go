@@ -18,9 +18,12 @@ func TestGuilibPlugin(t *testing.T) {
 	}
 	for _, name := range []string{
 		"ファイル選択", "保存ファイル選択", "フォルダ選択",
-		"DOM親要素設定", "DOM親部品設定", "DOM部品作成",
+		"DOM親要素設定", "DOM親部品設定", "DOM部品作成", "DOMスキン設定",
 		"DOM要素取得", "DOM要素ID取得", "DOM要素全取得",
 		"DOMテキスト取得", "DOMテキスト変更", "HTML取得", "HTML変更", "DOM注目",
+		"テキストエリア作成", "キャンバス作成", "画像作成", "改行作成",
+		"チェックボックス作成", "セレクトボックス作成", "セレクトボックスアイテム設定",
+		"色選択ボックス作成", "日付選択ボックス作成", "パスワード入力エディタ作成", "値指定バー作成",
 	} {
 		if _, ok := funcs[name]; !ok {
 			t.Fatalf("%s command not found in guilib", name)
@@ -29,10 +32,24 @@ func TestGuilibPlugin(t *testing.T) {
 	if parent := funcs["DOM親要素"]; parent == nil || parent.Type != "const" || parent.Value != 0 {
 		t.Fatalf("DOM親要素 = %#v", parent)
 	}
+	for _, name := range []string{"DOMスキン", "DOMスキン辞書", "DOM部品オプション"} {
+		if item := funcs[name]; item == nil || item.Type != "const" {
+			t.Fatalf("%s = %#v", name, item)
+		}
+	}
 
 	reg := stdlib.NewRegistry(New())
 	if reg.FuncList()["ウィンドウ作成"] == nil {
 		t.Errorf("failed to register ウィンドウ作成 in stdlib.Registry")
+	}
+	optionsValue, ok := reg.Const("DOM部品オプション")
+	options, isDict := optionsValue.Dict()
+	if !ok || !isDict || options == nil {
+		t.Fatalf("DOM部品オプション = %#v", optionsValue)
+	}
+	autoBreak, found := options.Get("自動改行")
+	if !found || value.ToBool(autoBreak) {
+		t.Fatalf("DOM部品オプション[自動改行] = %#v", autoBreak)
 	}
 
 	// Test parseWindowConfig
@@ -47,6 +64,194 @@ func TestGuilibPlugin(t *testing.T) {
 	}
 	if cfg.width != 800 || cfg.height != 600 {
 		t.Errorf("expected size 800x600, got %dx%d", cfg.width, cfg.height)
+	}
+}
+
+func TestAdditionalDOMPartCommands(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	code := `「<div id="parts"></div>」をHTML表示
+「#parts」にDOM親要素設定
+メモ=「初期メモ」のテキストエリア作成
+絵=[320,180]のキャンバス作成
+画像=「https://example.com/a.png」から画像作成
+改行=改行作成
+同意=「同意する」のチェックボックス作成
+同意に{"name":"agree"}をDOM属性一括設定
+選択=["赤","青"]のセレクトボックス作成
+["緑","黄"]を選択にセレクトボックスアイテム設定
+色=色選択ボックス作成
+日付=日付選択ボックス作成
+秘密=「abc」のパスワード入力エディタ作成
+バー=[10,20]の値指定バー作成
+選択を変更した時には
+　選択のテキスト取得を表示
+ここまで`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+
+	checks := []struct {
+		handle int
+		tag    string
+		typeOf string
+		text   string
+	}{
+		{3, "textarea", "", "初期メモ"},
+		{4, "canvas", "", ""},
+		{5, "img", "", ""},
+		{6, "br", "", ""},
+		{8, "input", "checkbox", "on"},
+		{10, "select", "", "緑"},
+		{15, "input", "color", "#000000"},
+		{16, "input", "date", ""},
+		{17, "input", "password", "abc"},
+		{18, "input", "range", "5"},
+	}
+	for _, check := range checks {
+		node := screen.nodes[check.handle]
+		if node == nil || node.tag != check.tag || node.attributes["type"] != check.typeOf || node.text != check.text {
+			t.Fatalf("handle %d = %#v", check.handle, node)
+		}
+		if node.parent != 2 && check.handle != 8 {
+			t.Fatalf("handle %d parent = %d, want 2", check.handle, node.parent)
+		}
+	}
+	if got := screen.nodes[4].attributes; got["width"] != "320" || got["height"] != "180" {
+		t.Fatalf("canvas attributes = %#v", got)
+	}
+	if got := screen.nodes[4].styles; got["width"] != "320" || got["height"] != "180" {
+		t.Fatalf("canvas styles = %#v", got)
+	}
+	if got := screen.nodes[5].attributes["src"]; got != "https://example.com/a.png" {
+		t.Fatalf("image src = %q", got)
+	}
+	checkbox := screen.nodes[8]
+	label := screen.nodes[9]
+	if checkbox.parent != 7 || screen.nodes[7].tag != "span" || label.parent != 7 || label.attributes["for"] != checkbox.attributes["id"] {
+		t.Fatalf("checkbox=%#v label=%#v wrapper=%#v", checkbox, label, screen.nodes[7])
+	}
+	if checkbox.attributes["name"] != "agree" {
+		t.Fatalf("checkbox name = %q", checkbox.attributes["name"])
+	}
+	if screen.nodes[11] != nil || screen.nodes[12] != nil {
+		t.Fatal("差し替え前のoptionがGo側モデルに残っています")
+	}
+	for handle, want := range map[int]string{13: "緑", 14: "黄"} {
+		node := screen.nodes[handle]
+		if node == nil || node.tag != "option" || node.parent != 10 || node.text != want || node.attributes["value"] != want {
+			t.Fatalf("option %d = %#v", handle, node)
+		}
+	}
+	if got := screen.nodes[18].attributes; got["min"] != "10" || got["max"] != "20" {
+		t.Fatalf("range attributes = %#v", got)
+	}
+	if err := screen.DispatchEvent(10, "change", map[string]string{"10": "黄", "17": "xyz"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "黄" {
+		t.Fatalf("change output = %q", got)
+	}
+	if got, _ := screen.text(17); got != "xyz" {
+		t.Fatalf("password value = %q", got)
+	}
+}
+
+func TestDOMSkinAndAutoBreakFollowConfiguredParent(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `「<div id="left"></div><div id="right"></div>」をHTML表示
+枠スキン=関数(タグ,部品)
+　部品に{"data-skin":タグ}をDOM属性一括設定
+ここまで
+DOMスキン辞書["枠"]=枠スキン
+「枠」にDOMスキン設定
+DOM部品オプション["自動改行"]=オン
+「#left」にDOM親要素設定
+ボタン=「実行」のボタン作成
+「#right」にDOM親要素設定
+ラベル=「結果」のラベル作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+
+	// HTML表示のラッパーが1、leftが2、rightが3。その後は部品とbrが交互に並ぶ。
+	ops := screen.DrainOperations()
+	if len(ops) != 7 {
+		t.Fatalf("operations = %#v", ops)
+	}
+	wants := []struct {
+		index, handle, parent int
+		tag                   string
+	}{
+		{1, 4, 2, "button"},
+		{3, 5, 2, "br"},
+		{4, 6, 3, "span"},
+		{6, 7, 3, "br"},
+	}
+	for _, want := range wants {
+		got := ops[want.index]
+		if got.Type != "create" || got.Handle != want.handle || got.Parent != want.parent || got.Tag != want.tag {
+			t.Fatalf("operation[%d] = %#v", want.index, got)
+		}
+	}
+	for handle, wantTag := range map[int]string{4: "button", 6: "span"} {
+		if got := screen.nodes[handle].attributes["data-skin"]; got != wantTag {
+			t.Fatalf("handle %d skin tag = %q, want %q", handle, got, wantTag)
+		}
+	}
+	if _, ok := screen.nodes[5].attributes["data-skin"]; ok {
+		t.Fatal("自動改行のbrへスキンを適用してはいけない")
+	}
+}
+
+func TestDOMSkinAndAutoBreakDefaultToDisabled(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	if err := vm.RunWithHostAndRegistry(`「実行」のボタン作成`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if len(ops) != 1 || ops[0].Tag != "button" {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
+func TestFormAppliesSkinAndAutoBreakOnlyToOuterPart(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `スキン=関数(タグ,部品)
+　部品に{"data-skin":タグ}をDOM属性一括設定
+ここまで
+DOMスキン辞書["フォーム"]=スキン
+「フォーム」にDOMスキン設定
+DOM部品オプション["自動改行"]=オン
+{}で「名前=太郎」をフォーム作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if len(ops) != 8 {
+		t.Fatalf("operations = %#v", ops)
+	}
+	if got := ops[0]; got.Type != "create" || got.Handle != 1 || got.Tag != "form" || got.Parent != 0 {
+		t.Fatalf("form operation = %#v", got)
+	}
+	if got := ops[2]; got.Type != "create" || got.Handle != 2 || got.Tag != "br" || got.Parent != 0 {
+		t.Fatalf("auto break operation = %#v", got)
+	}
+	for handle := 3; handle <= 5; handle++ {
+		if got := screen.nodes[handle].parent; got != 1 {
+			t.Fatalf("form child %d parent = %d, want 1", handle, got)
+		}
+		if _, skinned := screen.nodes[handle].attributes["data-skin"]; skinned {
+			t.Fatalf("フォーム内部の部品 %d へスキンを適用してはいけない", handle)
+		}
 	}
 }
 

@@ -69,6 +69,8 @@ function apply(ops) {
       e.dataset.gonakoHandle = String(o.handle);
       e.classList.add('gonako-part');
       if (o.name) e.name = o.name;
+      Object.entries(o.attributes || {}).forEach(([k, v]) => e.setAttribute(k, v));
+      Object.entries(o.styles || {}).forEach(([k, v]) => e.style[k] = v);
       if (o.html) e.innerHTML = o.html;
       else if (e.matches('input,textarea,select')) e.value = o.text || '';
       else e.textContent = o.text || '';
@@ -77,7 +79,9 @@ function apply(ops) {
     }
     const e = root.querySelector(q);
     if (!e) return;
-    if (o.type === 'text') {
+    if (o.type === 'clear') {
+      e.replaceChildren();
+    } else if (o.type === 'text') {
       if (e.matches('input,textarea,select')) e.value = o.text || '';
       else e.textContent = o.text || '';
     } else if (o.type === 'html') {

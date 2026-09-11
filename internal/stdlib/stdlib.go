@@ -149,6 +149,8 @@ func NewRegistry(plugins ...Plugin) *Registry {
 // constValue converts a constant from the signature table into a runtime value.
 func constValue(v any) value.Value {
 	switch x := v.(type) {
+	case value.Value:
+		return x
 	case nil, undefinedConst:
 		return value.Undefined()
 	case nullConst:
