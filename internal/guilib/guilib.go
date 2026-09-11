@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"unicode"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -17,6 +19,11 @@ import (
 type Plugin struct {
 	dialogs fileDialogs
 	screen  *Screen
+
+	// システム変数『DOM親要素』が使えるかどうかの判定結果。→ domParentVarUsable
+	domParentMu     sync.Mutex
+	domParentProbed bool
+	domParentUsable bool
 }
 
 // New creates a new guilib plugin instance.
@@ -43,6 +50,7 @@ type command struct {
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
+	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,
@@ -74,6 +82,18 @@ func (p *Plugin) commands() map[string]command {
 		"二択": {
 			josi: [][]string{{"で", "の", "と", "を"}},
 			fn:   p.cmdConfirm,
+		},
+		"DOM親要素設定": { // @DOM部品を追加する親要素を指定して、その要素を返す // @DOMおやようそせってい
+			josi: [][]string{{"に", "へ"}},
+			fn:   p.cmdSetDOMParent,
+		},
+		"DOM親部品設定": { // @DOM親要素設定と同じ // @DOMおやぶひんせってい
+			josi: [][]string{{"に", "へ"}},
+			fn:   p.cmdSetDOMParentAlias,
+		},
+		"DOM部品作成": { // @タグ名のDOM部品を現在の親要素へ追加してハンドルを返す // @DOMぶひんさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateDOMPart,
 		},
 		"ラベル作成": {
 			josi: [][]string{{"の"}},
@@ -227,28 +247,152 @@ func (p *Plugin) cmdDisplayHTML(_ stdlib.Context, args []value.Value) (value.Val
 	return value.Undefined(), nil
 }
 
-func (p *Plugin) cmdCreateLabel(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("span", value.ToString(arg(args, 0)), "", "", 0)
+// domParentVar は追加先の親要素を保持するシステム変数名。本家と同じく、
+// この変数が唯一の正であり、Screen側には親要素の控えを持たない。
+const domParentVar = "DOM親要素"
+
+func (p *Plugin) cmdSetDOMParent(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.setDOMParent(ctx, args, "DOM親要素設定")
+}
+
+func (p *Plugin) cmdSetDOMParentAlias(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.setDOMParent(ctx, args, "DOM親部品設定")
+}
+
+func (p *Plugin) setDOMParent(ctx stdlib.Context, args []value.Value, command string) (value.Value, error) {
+	handle, err := p.resolveDOMParent(arg(args, 0), command)
+	if err != nil {
+		return value.Null(), err
+	}
+	p.screen.setParent(handle)
+	ctx.SetSysVar(domParentVar, value.Number(float64(handle)))
+	return value.Number(float64(handle)), nil
+}
+
+// currentParent は部品の追加先ハンドルを返す。『DOM親要素』へ直接代入された
+// 値も追随したいので、システム変数が使えるならそちらを正とし、使えないときだけ
+// Screen側の控えを使う。
+func (p *Plugin) currentParent(ctx stdlib.Context, command string) (int, error) {
+	if !p.domParentVarUsable(ctx) {
+		return p.screen.parent(), nil
+	}
+	target := ctx.SysVar(domParentVar)
+	switch target.Kind() {
+	case value.KindUndefined, value.KindNull:
+		return 0, nil
+	}
+	handle, err := p.resolveDOMParent(target, command)
+	if err != nil {
+		return 0, err
+	}
+	p.screen.setParent(handle)
+	return handle, nil
+}
+
+// domParentVarUsable は『DOM親要素』への代入がVMに届くかを一度だけ調べる。
+// VMはプログラム中に名前が現れない変数に記憶領域を割り当てないため、
+// SetSysVarが黙って捨てられることがある。書いて読み直すことでそれを見分ける。
+// 調べたあとは元の値へ必ず戻す。
+func (p *Plugin) domParentVarUsable(ctx stdlib.Context) bool {
+	p.domParentMu.Lock()
+	defer p.domParentMu.Unlock()
+	if p.domParentProbed {
+		return p.domParentUsable
+	}
+	p.domParentProbed = true
+	saved := ctx.SysVar(domParentVar)
+	const probe = -12345
+	ctx.SetSysVar(domParentVar, value.Number(probe))
+	if n, ok := ctx.SysVar(domParentVar).Number(); ok && n == probe {
+		p.domParentUsable = true
+	}
+	ctx.SetSysVar(domParentVar, saved)
+	return p.domParentUsable
+}
+
+func (p *Plugin) resolveDOMParent(target value.Value, command string) (int, error) {
+	if selector, ok := target.String(); ok {
+		if selector == "" {
+			return 0, nil
+		}
+		if handle, found := p.screen.query(selector); found {
+			return handle, nil
+		}
+		if handle, found := p.screen.queryByID(selector); found {
+			return handle, nil
+		}
+		return 0, fmt.Errorf("『%s』で要素『%s』が見つかりません。", command, selector)
+	}
+	if number, ok := target.Number(); ok && number == 0 {
+		return 0, nil
+	}
+	handle, err := handleValue(target)
+	if err != nil {
+		return 0, err
+	}
+	if !p.screen.hasNode(handle) {
+		return 0, fmt.Errorf("『%s』で画面部品ハンドル『%d』が見つかりません。", command, handle)
+	}
+	return handle, nil
+}
+
+func validDOMTag(tag string) bool {
+	if tag == "" {
+		return false
+	}
+	for i, r := range tag {
+		if i == 0 {
+			if !unicode.IsLetter(r) {
+				return false
+			}
+			continue
+		}
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func (p *Plugin) createPart(ctx stdlib.Context, command, tag, text, html, name string) (value.Value, error) {
+	parent, err := p.currentParent(ctx, command)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	h := p.screen.create(tag, text, html, name, parent)
 	return value.Number(float64(h)), nil
 }
 
-func (p *Plugin) cmdCreateEditor(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("input", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+func (p *Plugin) cmdCreateDOMPart(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	tag := strings.TrimSpace(value.ToString(arg(args, 0)))
+	if !validDOMTag(tag) {
+		return value.Undefined(), fmt.Errorf("『DOM部品作成』のタグ名『%s』が不正です。", tag)
+	}
+	return p.createPart(ctx, "DOM部品作成", strings.ToLower(tag), "", "", "")
 }
 
-func (p *Plugin) cmdCreateButton(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("button", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+func (p *Plugin) cmdCreateLabel(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "ラベル作成", "span", value.ToString(arg(args, 0)), "", "")
 }
 
-func (p *Plugin) cmdCreateSubmit(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	h := p.screen.create("submit", value.ToString(arg(args, 0)), "", "", 0)
-	return value.Number(float64(h)), nil
+func (p *Plugin) cmdCreateEditor(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "エディタ作成", "input", value.ToString(arg(args, 0)), "", "")
 }
 
-func (p *Plugin) cmdCreateForm(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	form := p.screen.create("form", "", "", "", 0)
+func (p *Plugin) cmdCreateButton(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "ボタン作成", "button", value.ToString(arg(args, 0)), "", "")
+}
+
+func (p *Plugin) cmdCreateSubmit(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "送信ボタン作成", "submit", value.ToString(arg(args, 0)), "", "")
+}
+
+func (p *Plugin) cmdCreateForm(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	parent, err := p.currentParent(ctx, "フォーム作成")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	form := p.screen.create("form", "", "", "", parent)
 	if attrs, ok := arg(args, 0).Dict(); ok && attrs != nil {
 		values, err := stringMap(arg(args, 0))
 		if err == nil {
