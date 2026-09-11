@@ -98,6 +98,7 @@ fi
 # ----------------------------------------------------
 # 2. GUI版 (gonako-gui / なでしこ3.app) のインストール
 # ----------------------------------------------------
+APP_DEST=""
 download_gui() {
   local ver="$1"
   local gui_zip="gonako-gui-${ver}-darwin-${ARCH}.app.zip"
@@ -111,24 +112,24 @@ download_gui() {
     app_src=$(find "$tmp_dir" -name "*.app" -maxdepth 2 | head -n 1)
 
     if [ -n "$app_src" ] && [ -d "$app_src" ]; then
-      local app_dest="/Applications/gonako-gui.app"
+      APP_DEST="/Applications/gonako-gui.app"
       if [ ! -w "/Applications" ]; then
         mkdir -p "$HOME/Applications"
-        app_dest="$HOME/Applications/gonako-gui.app"
+        APP_DEST="$HOME/Applications/gonako-gui.app"
       fi
 
-      rm -rf "$app_dest"
-      cp -R "$app_src" "$app_dest"
+      rm -rf "$APP_DEST"
+      cp -R "$app_src" "$APP_DEST"
 
       # Gatekeeper の隔離属性（quarantine）を解除
-      xattr -cr "$app_dest" 2>/dev/null || true
+      xattr -cr "$APP_DEST" 2>/dev/null || true
 
       # コマンドラインからも呼び出せるようにシンボリックリンクを作成
-      if [ -f "$app_dest/Contents/MacOS/gonako-gui" ]; then
-        ln -sf "$app_dest/Contents/MacOS/gonako-gui" "$INSTALL_DIR/gonako-gui"
+      if [ -f "$APP_DEST/Contents/MacOS/gonako-gui" ]; then
+        ln -sf "$APP_DEST/Contents/MacOS/gonako-gui" "$INSTALL_DIR/gonako-gui"
       fi
 
-      echo "  -> アプリケーションを配置しました: $app_dest"
+      echo "  -> アプリケーションを配置しました: $APP_DEST"
       echo "  -> コマンドラインリンクを作成: $INSTALL_DIR/gonako-gui"
       rm -rf "$tmp_zip" "$tmp_dir"
       return 0
