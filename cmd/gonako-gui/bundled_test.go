@@ -157,6 +157,24 @@ func TestBundledProgramPagesApplyHTMLAndFocusOperations(t *testing.T) {
 	}
 }
 
+func TestBundledProgramPagesApplyDOMLifecycleOperations(t *testing.T) {
+	page := bundledAsyncProgramPage(1)
+	for _, required := range []string{
+		"const elements = new Map()",
+		"elements.set(Number(o.handle), e)",
+		"if (!o.detached)",
+		"o.type === 'append'",
+		"p.appendChild(e)",
+		"o.type === 'remove'",
+		"elements.delete(handle)",
+		"e.remove()",
+	} {
+		if !pageHas(page, required) {
+			t.Fatalf("bundled page is missing DOM lifecycle operation %q", required)
+		}
+	}
+}
+
 func TestBundledPromptDialogIgnoresIMEEnter(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
 	for _, required := range []string{

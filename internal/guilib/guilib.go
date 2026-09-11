@@ -119,6 +119,15 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdSetDOMSkin,
 		},
+		"DOM要素作成": { // @画面へ未接続のTAG要素を作成してハンドルを返す // @DOMようそさくせい
+			josi: [][]string{{"の", "を"}},
+			fn:   p.cmdCreateDOMElement,
+		},
+		"DOM部品削除": { // @指定したDOM部品と子要素を削除する // @DOMぶひんさくじょ
+			josi:       [][]string{{"の", "を"}},
+			returnNone: true,
+			fn:         p.cmdRemoveDOMPart,
+		},
 		"ラベル作成": {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdCreateLabel,
@@ -525,11 +534,66 @@ func (p *Plugin) createPart(ctx stdlib.Context, command, tag, text, html, name s
 }
 
 func (p *Plugin) cmdCreateDOMPart(ctx stdlib.Context, args []value.Value) (value.Value, error) {
-	tag := strings.TrimSpace(value.ToString(arg(args, 0)))
+	target := arg(args, 0)
+	if _, isString := target.String(); !isString {
+		handle, err := handleValue(target)
+		if err != nil {
+			return value.Undefined(), err
+		}
+		parent, err := p.currentParent(ctx, "DOM部品作成")
+		if err != nil {
+			return value.Undefined(), err
+		}
+		if err := p.screen.append(handle, parent, "DOM部品作成"); err != nil {
+			return value.Undefined(), err
+		}
+		return value.Number(float64(handle)), nil
+	}
+	tag := strings.TrimSpace(value.ToString(target))
 	if !validDOMTag(tag) {
 		return value.Undefined(), fmt.Errorf("『DOM部品作成』のタグ名『%s』が不正です。", tag)
 	}
 	return p.createPart(ctx, "DOM部品作成", strings.ToLower(tag), "", "", "")
+}
+
+func (p *Plugin) cmdCreateDOMElement(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	tag := strings.TrimSpace(value.ToString(arg(args, 0)))
+	if !validDOMTag(tag) {
+		return value.Undefined(), fmt.Errorf("『DOM要素作成』のタグ名『%s』が不正です。", tag)
+	}
+	handle := p.screen.createDetached(strings.ToLower(tag))
+	return value.Number(float64(handle)), nil
+}
+
+func (p *Plugin) cmdRemoveDOMPart(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	target := arg(args, 0)
+	handle := 0
+	if selector, ok := target.String(); ok {
+		var found bool
+		handle, found = p.screen.query(selector)
+		if !found {
+			handle, found = p.screen.queryByID(selector)
+		}
+		if !found {
+			return value.Undefined(), fmt.Errorf("『DOM部品削除』で要素『%s』が見つかりません。", selector)
+		}
+	} else {
+		var err error
+		handle, err = handleValue(target)
+		if err != nil {
+			return value.Undefined(), err
+		}
+	}
+	current, _ := p.currentParent(ctx, "DOM部品削除")
+	removed, err := p.screen.remove(handle, "DOM部品削除")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	if _, ok := removed[current]; ok {
+		p.screen.setParent(0)
+		ctx.SetSysVar(domParentVar, value.Number(0))
+	}
+	return value.Undefined(), nil
 }
 
 func (p *Plugin) cmdCreateLabel(ctx stdlib.Context, args []value.Value) (value.Value, error) {

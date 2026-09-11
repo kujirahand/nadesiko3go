@@ -11,6 +11,8 @@
 const root = document.getElementById('gonako-screen');
 const runId = Number(document.body.dataset.runId);
 let state = { runId };
+// documentへ未接続の要素も、追加されるまでハンドルで保持する。
+const elements = new Map();
 
 // 入力欄の現在値を、なでしこ側のハンドル番号をキーにして集める。
 function values() {
@@ -53,11 +55,16 @@ async function send(h, n) {
 
 // なでしこ側から届いた画面操作を1つずつDOMに反映する。
 function apply(ops) {
+  const find = h => {
+    const key = Number(h);
+    const cached = elements.get(key);
+    if (cached) return cached;
+    const found = root.querySelector('[data-gonako-handle="' + h + '"]');
+    if (found) elements.set(key, found);
+    return found;
+  };
   ops.forEach(o => {
-    const q = '[data-gonako-handle="' + o.handle + '"]';
     if (o.type === 'create') {
-      const p = o.parent ? root.querySelector('[data-gonako-handle="' + o.parent + '"]') : root;
-      if (!p) return;
       let e;
       if (o.tag === 'submit') {
         e = document.createElement('button');
@@ -67,6 +74,7 @@ function apply(ops) {
         if (o.tag === 'input') e.type = 'text';
       }
       e.dataset.gonakoHandle = String(o.handle);
+      elements.set(Number(o.handle), e);
       e.classList.add('gonako-part');
       if (o.name) e.name = o.name;
       Object.entries(o.attributes || {}).forEach(([k, v]) => e.setAttribute(k, v));
@@ -74,13 +82,24 @@ function apply(ops) {
       if (o.html) e.innerHTML = o.html;
       else if (e.matches('input,textarea,select')) e.value = o.text || '';
       else e.textContent = o.text || '';
-      p.appendChild(e);
+      if (!o.detached) {
+        const p = o.parent ? find(o.parent) : root;
+        if (p) p.appendChild(e);
+      }
       return;
     }
-    const e = root.querySelector(q);
+    const e = find(o.handle);
     if (!e) return;
     if (o.type === 'clear') {
       e.replaceChildren();
+    } else if (o.type === 'append') {
+      const p = o.parent ? find(o.parent) : root;
+      if (p) p.appendChild(e);
+    } else if (o.type === 'remove') {
+      for (const [handle, candidate] of elements) {
+        if (candidate === e || e.contains(candidate)) elements.delete(handle);
+      }
+      e.remove();
     } else if (o.type === 'text') {
       if (e.matches('input,textarea,select')) e.value = o.text || '';
       else e.textContent = o.text || '';

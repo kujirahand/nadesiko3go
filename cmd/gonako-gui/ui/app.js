@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const versionInfo = document.getElementById('version-info');
   const activeFileName = document.getElementById('active-file-name');
   let activeGUIRunID = 0;
+  // 未接続要素もDOM部品作成まで保持できるよう、画面内検索とは別に管理する。
+  const guiElements = new Map();
   // 実行中かどうか。F5/Ctrl+R/Ctrl+Enterは実行ボタンのdisabledを見ないので、
   // これが無いと前の実行のポーリングが生きたまま次の実行が始まり、
   // 出力欄に両方の出力が混ざる。
@@ -1620,6 +1622,7 @@ document.addEventListener('DOMContentLoaded', () => {
     output.textContent = '';
     output.className = 'output';
     windowPreview.innerHTML = '';
+    guiElements.clear();
     windowPreview.style.display = 'none';
     execStatus.textContent = '待機中';
     execStatus.className = 'status-indicator';
@@ -1701,13 +1704,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function applyGUIOperations(operations) {
+    const findElement = handle => {
+      const key = Number(handle);
+      const cached = guiElements.get(key);
+      if (cached) return cached;
+      const found = windowPreview.querySelector(`[data-gonako-handle="${handle}"]`);
+      if (found) guiElements.set(key, found);
+      return found;
+    };
     operations.forEach(op => {
-      const selector = `[data-gonako-handle="${op.handle}"]`;
       if (op.type === 'create') {
-        const parent = op.parent
-          ? windowPreview.querySelector(`[data-gonako-handle="${op.parent}"]`)
-          : windowPreview;
-        if (!parent) return;
         let el;
         if (op.tag === 'submit') {
           el = document.createElement('button');
@@ -1717,6 +1723,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (op.tag === 'input') el.type = 'text';
         }
         el.dataset.gonakoHandle = String(op.handle);
+        guiElements.set(Number(op.handle), el);
         el.classList.add('gonako-part');
         if (op.name) el.name = op.name;
         Object.entries(op.attributes || {}).forEach(([key, value]) => el.setAttribute(key, value));
@@ -1728,14 +1735,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           el.textContent = op.text || '';
         }
-        parent.appendChild(el);
+        if (!op.detached) {
+          const parent = op.parent ? findElement(op.parent) : windowPreview;
+          if (parent) parent.appendChild(el);
+        }
         return;
       }
 
-      const el = windowPreview.querySelector(selector);
+      const el = findElement(op.handle);
       if (!el) return;
       if (op.type === 'clear') {
         el.replaceChildren();
+      } else if (op.type === 'append') {
+        const parent = op.parent ? findElement(op.parent) : windowPreview;
+        if (parent) parent.appendChild(el);
+      } else if (op.type === 'remove') {
+        for (const [handle, candidate] of guiElements) {
+          if (candidate === el || el.contains(candidate)) guiElements.delete(handle);
+        }
+        el.remove();
       } else if (op.type === 'text') {
         if (el.matches('input, textarea, select')) el.value = op.text || '';
         else el.textContent = op.text || '';
@@ -1804,6 +1822,7 @@ document.addEventListener('DOMContentLoaded', () => {
     output.textContent = '';
     output.className = 'output';
     windowPreview.innerHTML = '';
+    guiElements.clear();
     windowPreview.style.display = 'none';
     activeGUIRunID = 0;
 
