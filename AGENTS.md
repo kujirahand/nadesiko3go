@@ -141,7 +141,7 @@ goroutineの実行順を仕様にせず、専用のイベントキュー（`inte
 
 → 詳細は [`docs/package.md`](docs/package.md)（運用手順は `docs/bundle-resources.md`）
 
-### GUI版（webview_go）とエディタ
+### GUI版（webview_go）と開発用のデフォルトエディタ
 
 日本語入力（IME）が死活問題なので、OSネイティブのWebView（macOS: WKWebView,
 Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用して

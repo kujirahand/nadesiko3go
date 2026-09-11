@@ -8,7 +8,7 @@ set -euo pipefail
 #   curl -fsSL https://raw.githubusercontent.com/kujirahand/nadesiko3go/master/scripts/install.sh | bash
 
 REPO="kujirahand/nadesiko3go"
-DEFAULT_VERSION="3.8.3"
+DEFAULT_VERSION="3.8.4"
 
 # バージョンの決定
 if [ -n "${GONAKO_VERSION:-}" ]; then
