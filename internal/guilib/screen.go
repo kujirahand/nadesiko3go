@@ -66,6 +66,10 @@ func NewScreen() *Screen {
 }
 
 func (s *Screen) create(tag, text, html, name string, parent int) int {
+	return s.createWithAttributes(tag, text, html, name, parent, nil)
+}
+
+func (s *Screen) createWithAttributes(tag, text, html, name string, parent int, attrs map[string]string) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nextHandle++
@@ -74,10 +78,50 @@ func (s *Screen) create(tag, text, html, name string, parent int) int {
 		handle: h, tag: tag, text: text, html: html, name: name, parent: parent,
 		styles: map[string]string{}, attributes: map[string]string{},
 	}
+	for key, item := range attrs {
+		s.nodes[h].attributes[key] = item
+	}
 	s.operations = append(s.operations, Operation{
-		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name,
+		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name, Attributes: attrs,
 	})
 	return h
+}
+
+func (s *Screen) appendOptions(parent int, options []string) {
+	s.mu.Lock()
+	if selectNode := s.nodes[parent]; selectNode != nil && selectNode.tag == "select" {
+		selectNode.text = ""
+		if len(options) > 0 {
+			selectNode.text = options[0]
+		}
+	}
+	s.mu.Unlock()
+	for _, item := range options {
+		s.createWithAttributes("option", item, "", "", parent, map[string]string{"value": item})
+	}
+}
+
+func (s *Screen) replaceOptions(handle int, options []string) error {
+	s.mu.Lock()
+	node, err := s.node(handle, "セレクトボックスアイテム設定")
+	if err != nil {
+		s.mu.Unlock()
+		return err
+	}
+	if node.tag != "select" {
+		s.mu.Unlock()
+		return errors.New("『セレクトボックスアイテム設定』にはselect要素を指定してください。")
+	}
+	for childHandle, child := range s.nodes {
+		if child.parent == handle {
+			delete(s.nodes, childHandle)
+			delete(s.events, childHandle)
+		}
+	}
+	s.operations = append(s.operations, Operation{Type: "clear", Handle: handle})
+	s.mu.Unlock()
+	s.appendOptions(handle, options)
+	return nil
 }
 
 // DisplayText appends escaped text to the screen. Escaping is performed by

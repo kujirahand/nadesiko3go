@@ -193,7 +193,7 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 		t.Fatalf("sample failed: %s", result.Error)
 	}
 
-	wantTypes := []string{"create", "text", "html", "focus", "create", "text", "listen"}
+	wantTypes := []string{"create", "text", "html", "focus", "create", "styles", "create", "text", "listen"}
 	if len(result.Operations) != len(wantTypes) {
 		t.Fatalf("operations = %#v", result.Operations)
 	}
@@ -204,6 +204,12 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 	}
 	if op := result.Operations[4]; op.Tag != "aside" || op.Parent != 2 {
 		t.Fatalf("DOM部品作成 operation = %#v", op)
+	}
+	if op := result.Operations[5]; op.Type != "styles" || op.Handle != 8 || op.Styles["border"] == "" {
+		t.Fatalf("DOMスキン operation = %#v", op)
+	}
+	if op := result.Operations[6]; op.Type != "create" || op.Tag != "br" || op.Parent != 2 || op.Handle != 9 {
+		t.Fatalf("自動改行 operation = %#v", op)
 	}
 
 	clicked := dispatchEvent(t, session, result.RunID, 6, "click", map[string]string{"5": "花子"})
@@ -225,6 +231,78 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("DOM sample was not listed as a template")
+	}
+}
+
+func TestAdditionalDOMPartsSampleCompilesAndHandlesChange(t *testing.T) {
+	const samplePath = "ui/samples/13_追加DOM部品.nako3"
+	code, err := uiFS.ReadFile(samplePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session := &guiSession{}
+	result := session.run(string(code), samplePath, true, nil, nil)
+	if !result.OK {
+		t.Fatalf("sample failed: %s", result.Error)
+	}
+
+	created := map[int]guilib.Operation{}
+	attributes := map[int]map[string]string{}
+	for _, op := range result.Operations {
+		if op.Type == "create" {
+			created[op.Handle] = op
+		}
+		if len(op.Attributes) > 0 {
+			if attributes[op.Handle] == nil {
+				attributes[op.Handle] = map[string]string{}
+			}
+			for key, item := range op.Attributes {
+				attributes[op.Handle][key] = item
+			}
+		}
+	}
+	checks := []struct {
+		handle int
+		tag    string
+		parent int
+	}{
+		{5, "textarea", 2},
+		{6, "span", 2},
+		{7, "input", 6},
+		{9, "select", 2},
+		{13, "input", 2},
+	}
+	for _, check := range checks {
+		op, ok := created[check.handle]
+		if !ok || op.Tag != check.tag || op.Parent != check.parent {
+			t.Fatalf("created[%d] = %#v", check.handle, op)
+		}
+	}
+	if attributes[7]["type"] != "checkbox" || attributes[13]["type"] != "range" {
+		t.Fatalf("input attributes: checkbox=%#v range=%#v", attributes[7], attributes[13])
+	}
+
+	changed := dispatchEvent(t, session, result.RunID, 9, "change", map[string]string{
+		"5": "更新したメモ", "7": "on", "9": "青", "13": "60",
+	})
+	if !changed.OK {
+		t.Fatalf("change failed: %s", changed.Error)
+	}
+	if len(changed.Operations) != 1 || changed.Operations[0].Type != "text" || changed.Operations[0].Handle != 14 || changed.Operations[0].Text != "選択した色: 青" {
+		t.Fatalf("change operations = %#v", changed.Operations)
+	}
+
+	found := false
+	for _, item := range getTemplateList() {
+		if item.ID == "13_追加DOM部品" {
+			found = true
+			if item.Category != "GUI" || item.Title != "追加DOM部品" {
+				t.Fatalf("template = %#v", item)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("additional DOM sample was not listed as a template")
 	}
 }
 

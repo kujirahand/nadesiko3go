@@ -64,6 +64,17 @@ func TestGUIEventBridgeIsWired(t *testing.T) {
 	}
 }
 
+func TestGUIOperationBridgeSupportsPartAttributesAndSelectReplacement(t *testing.T) {
+	for _, asset := range []string{"app.js", "bundled/app.js"} {
+		source := readUIAsset(t, asset)
+		for _, required := range []string{".attributes || {}", ".styles || {}", "replaceChildren()"} {
+			if !strings.Contains(source, required) {
+				t.Fatalf("%s is missing GUI part operation support %q", asset, required)
+			}
+		}
+	}
+}
+
 func TestFileDialogCommandsInsertStringLiterals(t *testing.T) {
 	want := map[string]string{
 		"ファイル選択":   "『S』のファイル選択",

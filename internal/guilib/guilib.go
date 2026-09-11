@@ -2,6 +2,7 @@ package guilib
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +20,14 @@ import (
 type Plugin struct {
 	dialogs fileDialogs
 	screen  *Screen
+
+	// DOMスキン設定だけを使うプログラムでは、VMが『DOMスキン』用の
+	// 記憶領域を作らないことがあるため、選択中の名前を控えておく。
+	domSkinMu sync.Mutex
+	domSkin   string
+	// システム変数『DOMスキン』が使えるかどうかの判定結果。
+	domSkinProbed bool
+	domSkinUsable bool
 
 	// システム変数『DOM親要素』が使えるかどうかの判定結果。→ domParentVarUsable
 	domParentMu     sync.Mutex
@@ -51,6 +60,16 @@ func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
 	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
+	list["DOMスキン"] = &lexer.FuncItem{Name: "DOMスキン", Type: "const", Value: ""}
+	list["DOMスキン辞書"] = &lexer.FuncItem{Name: "DOMスキン辞書", Type: "const", Value: value.DictValue(value.NewDict())}
+	domOptions := value.NewDict()
+	domOptions.Set("自動改行", value.Bool(false))
+	domOptions.Set("テーブルヘッダ", value.Bool(true))
+	domOptions.Set("テーブル背景色", value.ArrayValue(value.NewArray(
+		value.String("#AA4040"), value.String("#ffffff"), value.String("#fff0f0"),
+	)))
+	domOptions.Set("テーブル数値右寄せ", value.Bool(true))
+	list["DOM部品オプション"] = &lexer.FuncItem{Name: "DOM部品オプション", Type: "const", Value: value.DictValue(domOptions)}
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,
@@ -95,6 +114,11 @@ func (p *Plugin) commands() map[string]command {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdCreateDOMPart,
 		},
+		"DOMスキン設定": { // @「ボタン作成」「エディタ作成」などで適用するスキンを指定する // @DOMすきんせってい
+			josi:       [][]string{{"を", "に", "の"}},
+			returnNone: true,
+			fn:         p.cmdSetDOMSkin,
+		},
 		"ラベル作成": {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdCreateLabel,
@@ -102,6 +126,10 @@ func (p *Plugin) commands() map[string]command {
 		"エディタ作成": {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdCreateEditor,
+		},
+		"テキストエリア作成": { // @テキストの値を持つtextarea要素を追加してハンドルを返す // @てきすとえりあさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateTextArea,
 		},
 		"ボタン作成": {
 			josi: [][]string{{"の"}},
@@ -114,6 +142,47 @@ func (p *Plugin) commands() map[string]command {
 		"フォーム作成": {
 			josi: [][]string{{"で", "の"}, {"を"}},
 			fn:   p.cmdCreateForm,
+		},
+		"キャンバス作成": { // @大きさ[幅,高さ]のcanvas要素を追加してハンドルを返す // @きゃんばすさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateCanvas,
+		},
+		"画像作成": { // @URLを指定したimg要素を追加してハンドルを返す // @がぞうさくせい
+			josi: [][]string{{"の", "から"}},
+			fn:   p.cmdCreateImage,
+		},
+		"改行作成": { // @br要素を追加してハンドルを返す // @かいぎょうさくせい
+			josi: [][]string{},
+			fn:   p.cmdCreateBreak,
+		},
+		"チェックボックス作成": { // @ラベル付きチェックボックスを追加してinput要素のハンドルを返す // @ちぇっくぼっくすさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateCheckbox,
+		},
+		"セレクトボックス作成": { // @配列の選択肢を持つselect要素を追加してハンドルを返す // @せれくとぼっくすさくせい
+			josi: [][]string{{"の"}},
+			fn:   p.cmdCreateSelect,
+		},
+		"セレクトボックスアイテム設定": { // @select要素の選択肢を配列の内容へ差し替える // @せれくとぼっくすあいてむせってい
+			josi:       [][]string{{"を"}, {"へ", "に"}},
+			returnNone: true,
+			fn:         p.cmdSetSelectItems,
+		},
+		"色選択ボックス作成": { // @input[type=color]要素を追加してハンドルを返す // @いろせんたくぼっくすさくせい
+			josi: [][]string{},
+			fn:   p.cmdCreateColorInput,
+		},
+		"日付選択ボックス作成": { // @input[type=date]要素を追加してハンドルを返す // @ひづけせんたくぼっくすさくせい
+			josi: [][]string{},
+			fn:   p.cmdCreateDateInput,
+		},
+		"パスワード入力エディタ作成": { // @初期値を持つinput[type=password]要素を追加してハンドルを返す // @ぱすわーどにゅうりょくえでぃたさくせい
+			josi: [][]string{{"の", "で"}},
+			fn:   p.cmdCreatePasswordInput,
+		},
+		"値指定バー作成": { // @範囲[最小,最大,値]のinput[type=range]要素を追加してハンドルを返す // @あたいしていばーさくせい
+			josi: [][]string{{"の", "で"}},
+			fn:   p.cmdCreateRangeInput,
 		},
 		"テキスト設定": {
 			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
@@ -354,12 +423,104 @@ func validDOMTag(tag string) bool {
 	return true
 }
 
-func (p *Plugin) createPart(ctx stdlib.Context, command, tag, text, html, name string) (value.Value, error) {
+func (p *Plugin) cmdSetDOMSkin(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	skin := value.ToString(arg(args, 0))
+	usable := p.domSkinVarUsable(ctx)
+	p.domSkinMu.Lock()
+	p.domSkin = skin
+	p.domSkinMu.Unlock()
+	if usable {
+		ctx.SetSysVar("DOMスキン", value.String(skin))
+	}
+	return value.Undefined(), nil
+}
+
+func (p *Plugin) currentDOMSkin(ctx stdlib.Context) string {
+	if p.domSkinVarUsable(ctx) {
+		skin, _ := ctx.SysVar("DOMスキン").String()
+		return skin
+	}
+	p.domSkinMu.Lock()
+	defer p.domSkinMu.Unlock()
+	return p.domSkin
+}
+
+// domSkinVarUsable は『DOMスキン』への代入がVMに届くかを一度だけ調べる。
+// DOMスキン設定だけを使うソースでは定数の初期値は読めても書き込み先がない。
+func (p *Plugin) domSkinVarUsable(ctx stdlib.Context) bool {
+	p.domSkinMu.Lock()
+	defer p.domSkinMu.Unlock()
+	if p.domSkinProbed {
+		return p.domSkinUsable
+	}
+	p.domSkinProbed = true
+	saved := ctx.SysVar("DOMスキン")
+	probe := value.String("\x00gonako-dom-skin-probe")
+	ctx.SetSysVar("DOMスキン", probe)
+	if got, ok := ctx.SysVar("DOMスキン").String(); ok && got == "\x00gonako-dom-skin-probe" {
+		p.domSkinUsable = true
+	}
+	ctx.SetSysVar("DOMスキン", saved)
+	return p.domSkinUsable
+}
+
+// applyDOMSkin は本家と同じく、選択名に対応する関数がある場合だけ呼ぶ。
+// コールバックには元のタグ名と、作成した部品の数値ハンドルを渡す。
+func (p *Plugin) applyDOMSkin(ctx stdlib.Context, tag string, handle int) error {
+	dict, ok := ctx.SysVar("DOMスキン辞書").Dict()
+	if !ok || dict == nil {
+		return nil
+	}
+	item, found := dict.Get(p.currentDOMSkin(ctx))
+	if !found {
+		return nil
+	}
+	fn, ok := item.Func()
+	if !ok || fn == nil {
+		return nil
+	}
+	_, err := ctx.CallFunc(fn, []value.Value{value.String(tag), value.Number(float64(handle))})
+	return err
+}
+
+func (p *Plugin) autoBreakEnabled(ctx stdlib.Context) bool {
+	options, ok := ctx.SysVar("DOM部品オプション").Dict()
+	if !ok || options == nil {
+		return false
+	}
+	enabled, found := options.Get("自動改行")
+	return found && value.ToBool(enabled)
+}
+
+func (p *Plugin) createPartHandle(ctx stdlib.Context, command, tag, text, html, name string) (int, error) {
 	parent, err := p.currentParent(ctx, command)
+	if err != nil {
+		return 0, err
+	}
+	h := p.screen.create(tag, text, html, name, parent)
+	if err := p.finishPart(ctx, tag, h, parent); err != nil {
+		return 0, err
+	}
+	return h, nil
+}
+
+func (p *Plugin) finishPart(ctx stdlib.Context, tag string, handle, parent int) error {
+	if err := p.applyDOMSkin(ctx, tag, handle); err != nil {
+		return err
+	}
+	// 自動改行はスキンを適用せず、作成した部品と同じ親へ追加する。
+	// brにもハンドルを割り当て、Go側モデルとWebView側の要素を一致させる。
+	if p.autoBreakEnabled(ctx) {
+		p.screen.create("br", "", "", "", parent)
+	}
+	return nil
+}
+
+func (p *Plugin) createPart(ctx stdlib.Context, command, tag, text, html, name string) (value.Value, error) {
+	h, err := p.createPartHandle(ctx, command, tag, text, html, name)
 	if err != nil {
 		return value.Undefined(), err
 	}
-	h := p.screen.create(tag, text, html, name, parent)
 	return value.Number(float64(h)), nil
 }
 
@@ -379,6 +540,10 @@ func (p *Plugin) cmdCreateEditor(ctx stdlib.Context, args []value.Value) (value.
 	return p.createPart(ctx, "エディタ作成", "input", value.ToString(arg(args, 0)), "", "")
 }
 
+func (p *Plugin) cmdCreateTextArea(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "テキストエリア作成", "textarea", value.ToString(arg(args, 0)), "", "")
+}
+
 func (p *Plugin) cmdCreateButton(ctx stdlib.Context, args []value.Value) (value.Value, error) {
 	return p.createPart(ctx, "ボタン作成", "button", value.ToString(arg(args, 0)), "", "")
 }
@@ -388,11 +553,10 @@ func (p *Plugin) cmdCreateSubmit(ctx stdlib.Context, args []value.Value) (value.
 }
 
 func (p *Plugin) cmdCreateForm(ctx stdlib.Context, args []value.Value) (value.Value, error) {
-	parent, err := p.currentParent(ctx, "フォーム作成")
+	form, err := p.createPartHandle(ctx, "フォーム作成", "form", "", "", "")
 	if err != nil {
 		return value.Undefined(), err
 	}
-	form := p.screen.create("form", "", "", "", parent)
 	if attrs, ok := arg(args, 0).Dict(); ok && attrs != nil {
 		values, err := stringMap(arg(args, 0))
 		if err == nil {
@@ -406,6 +570,134 @@ func (p *Plugin) cmdCreateForm(ctx stdlib.Context, args []value.Value) (value.Va
 	}
 	p.screen.create("submit", "送信", "", "", form)
 	return value.Number(float64(form)), nil
+}
+
+func (p *Plugin) cmdCreateCanvas(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := p.createPartHandle(ctx, "キャンバス作成", "canvas", "", "", "")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	width, height := value.Undefined(), value.Undefined()
+	if size, ok := arg(args, 0).Array(); ok && size != nil {
+		width, height = size.Get(0), size.Get(1)
+	}
+	dimensions := map[string]string{"width": value.ToString(width), "height": value.ToString(height)}
+	if err := p.screen.setAttributes(h, dimensions); err != nil {
+		return value.Undefined(), err
+	}
+	if err := p.screen.setStyles(h, dimensions); err != nil {
+		return value.Undefined(), err
+	}
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateImage(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createAttributedPart(ctx, "画像作成", "img", "", map[string]string{"src": value.ToString(arg(args, 0))})
+}
+
+func (p *Plugin) cmdCreateBreak(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+	return p.createPart(ctx, "改行作成", "br", "", "", "")
+}
+
+func (p *Plugin) cmdCreateCheckbox(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	parent, err := p.currentParent(ctx, "チェックボックス作成")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	wrapper := p.screen.create("span", "", "", "", parent)
+	inputID := fmt.Sprintf("nadesi-dom-%d", wrapper)
+	input := p.screen.createWithAttributes("input", "on", "", "", wrapper, map[string]string{
+		"type": "checkbox", "id": inputID,
+	})
+	p.screen.createWithAttributes("label", value.ToString(arg(args, 0)), "", "", wrapper, map[string]string{"for": inputID})
+	if err := p.finishPart(ctx, "span", wrapper, parent); err != nil {
+		return value.Undefined(), err
+	}
+	return value.Number(float64(input)), nil
+}
+
+func valuesFromArray(v value.Value) []string {
+	array, ok := v.Array()
+	if !ok || array == nil {
+		return nil
+	}
+	items := make([]string, array.Len())
+	for i := range items {
+		items[i] = value.ToString(array.Get(i))
+	}
+	return items
+}
+
+func (p *Plugin) cmdCreateSelect(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	parent, err := p.currentParent(ctx, "セレクトボックス作成")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	h := p.screen.create("select", "", "", "", parent)
+	p.screen.appendOptions(h, valuesFromArray(arg(args, 0)))
+	if err := p.finishPart(ctx, "select", h, parent); err != nil {
+		return value.Undefined(), err
+	}
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdSetSelectItems(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	target := arg(args, 1)
+	var handle int
+	if selector, ok := target.String(); ok {
+		var found bool
+		handle, found = p.screen.query(selector)
+		if !found {
+			return value.Undefined(), fmt.Errorf("『セレクトボックスアイテム設定』で要素『%s』が見つかりません。", selector)
+		}
+	} else {
+		var err error
+		handle, err = handleValue(target)
+		if err != nil {
+			return value.Undefined(), err
+		}
+	}
+	return value.Undefined(), p.screen.replaceOptions(handle, valuesFromArray(arg(args, 0)))
+}
+
+func (p *Plugin) createAttributedPart(ctx stdlib.Context, command, tag, text string, attrs map[string]string) (value.Value, error) {
+	h, err := p.createPartHandle(ctx, command, tag, text, "", "")
+	if err != nil {
+		return value.Undefined(), err
+	}
+	if len(attrs) > 0 {
+		if err := p.screen.setAttributes(h, attrs); err != nil {
+			return value.Undefined(), err
+		}
+	}
+	return value.Number(float64(h)), nil
+}
+
+func (p *Plugin) cmdCreateColorInput(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+	return p.createAttributedPart(ctx, "色選択ボックス作成", "input", "#000000", map[string]string{"type": "color"})
+}
+
+func (p *Plugin) cmdCreateDateInput(ctx stdlib.Context, _ []value.Value) (value.Value, error) {
+	return p.createAttributedPart(ctx, "日付選択ボックス作成", "input", "", map[string]string{"type": "date"})
+}
+
+func (p *Plugin) cmdCreatePasswordInput(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.createAttributedPart(ctx, "パスワード入力エディタ作成", "input", value.ToString(arg(args, 0)), map[string]string{"type": "password"})
+}
+
+func (p *Plugin) cmdCreateRangeInput(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	minimum, maximum, initial := value.Number(0), value.Number(100), value.Number(50)
+	if ranges, ok := arg(args, 0).Array(); ok && ranges != nil && ranges.Len() >= 2 {
+		minimum, maximum = ranges.Get(0), ranges.Get(1)
+		if ranges.Len() >= 3 {
+			initial = ranges.Get(2)
+		} else {
+			initial = value.Number(math.Floor((value.ToNumber(maximum) - value.ToNumber(minimum)) / 2))
+		}
+	}
+	return p.createAttributedPart(ctx, "値指定バー作成", "input", value.ToString(initial), map[string]string{
+		"type": "range", "min": value.ToString(minimum), "max": value.ToString(maximum),
+	})
 }
 
 func (p *Plugin) cmdSetText(_ stdlib.Context, args []value.Value) (value.Value, error) {
