@@ -7,8 +7,10 @@
 
 ```bash
 just version-update 3.8.4   # バージョン番号を一括更新
-just release                # 全プラットフォームの成果物をビルド
-just publish                # GitHubリリース作成 → 成果物アップロード → Homebrew Tap更新
+just test                   # テスト
+just release                # 全プラットフォームの成果物をビルド確認
+# Git コミット & PR作成・マージ（masterを最新化）
+just publish                # ドラフト作成 → 成果物アップロード → 正式公開 → Homebrew Tap更新
 ```
 
 ---
@@ -17,12 +19,13 @@ just publish                # GitHubリリース作成 → 成果物アップロ
 
 ### 0-1. `just publish`（手元から一括で配信する）
 
-`scripts/publish-release.sh` が次の3つを順に行います。
+`scripts/publish-release.sh` が次の処理を順に行います。
 
-1. `gh release create <VERSION>`（既にタグがあればそのまま使う）
-2. `release/upload-<VERSION>.sh` で成果物をアップロード
-3. `scripts/update-homebrew-tap.go` でTapの `Formula/gonako.rb` と `Casks/gonako-gui.rb` を
-   更新し、コミット＆プッシュ
+1. `gh release create <VERSION> --draft`（未公開の下書きとして作成）
+2. `release/upload-<VERSION>.sh` で全成果物をアップロード
+3. `gh release edit <VERSION> --draft=false --latest` で正式公開
+   ※ 全成果物のアップロードが完了するまで一般ユーザーや `/releases/latest` API には露出しないため、アップロード途中の 404 Not Found ダウンロードエラーを防ぎます。
+4. `scripts/update-homebrew-tap.go -local -push` で手元の成果物から SHA-256 を算出し、Tapの `Formula/gonako.rb` と `Casks/gonako-gui.rb` を更新してコミット＆プッシュ
 
 バージョン番号を省略すると `internal/version/version.go` の値が使われます。
 明示するときは `just publish 3.8.4` のように渡します。
@@ -103,15 +106,18 @@ just release
 ```bash
 VERSION=3.8.4
 
-# リリースがまだない場合は作成
-gh release create "$VERSION" --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
+# 1. ドラフト（下書き）としてリリースを作成（アップロード中の404を防ぐ）
+gh release create "$VERSION" --draft --title "v$VERSION" --notes "Release $VERSION" 2>/dev/null || true
 
-# 成果物をアップロード（just release が生成したスクリプトを使う）
+# 2. 成果物をアップロード（just release が生成したスクリプトを使う）
 # macOS / Linux:
 ./release/upload-${VERSION}.sh
 
 # Windows (コマンドプロンプトまたはPowerShell):
 .\release\upload-3.8.4.bat
+
+# 3. アップロード完了後にドラフトを解除して公開
+gh release edit "$VERSION" --draft=false --latest
 ```
 
 ---

@@ -127,7 +127,7 @@ func writeUploadScripts(cfg config) error {
 	var sb strings.Builder
 	sb.WriteString("#!/bin/sh\n")
 	sb.WriteString(fmt.Sprintf("# なでしこ3 (gonako) v%s のZIPをGitHubリリースへアップロードする\n", cfg.version))
-	sb.WriteString("# 事前に `gh release create " + cfg.version + "` 等でリリース自体を作成しておくこと\n")
+	sb.WriteString("# 事前に `gh release create " + cfg.version + " --draft` 等でドラフトリリースを作成しておくこと\n")
 	sb.WriteString("# タグ名はダウンロードURL (install.sh/install.ps1) と合わせて v なしのバージョン番号そのもの\n")
 	sb.WriteString("set -eu\n\n")
 	sb.WriteString(fmt.Sprintf("TAG=\"%s\"\n\n", cfg.version))
@@ -149,7 +149,7 @@ func writeUploadScripts(cfg config) error {
 	var bat strings.Builder
 	bat.WriteString("@echo off\r\n")
 	bat.WriteString(fmt.Sprintf("rem なでしこ3 (gonako) v%s のZIPをGitHubリリースへアップロードする\r\n", cfg.version))
-	bat.WriteString("rem 事前に `gh release create " + cfg.version + "` 等でリリース自体を作成しておくこと\r\n")
+	bat.WriteString("rem 事前に `gh release create " + cfg.version + " --draft` 等でドラフトリリースを作成しておくこと\r\n")
 	bat.WriteString("rem タグ名はダウンロードURL (install.sh/install.ps1) と合わせて v なしのバージョン番号そのもの\r\n")
 	bat.WriteString("setlocal\r\n")
 	bat.WriteString(fmt.Sprintf("set TAG=%s\r\n\r\n", cfg.version))
