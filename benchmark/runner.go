@@ -6,11 +6,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"time"
 )
 
+// BenchmarkCase はベンチマーク1件の定義
 type BenchmarkCase struct {
 	Name        string
 	File        string
@@ -55,15 +57,23 @@ var cases = []BenchmarkCase{
 	},
 }
 
-type Result struct {
-	CaseName    string
-	File        string
-	Description string
-	Cnako3      time.Duration
-	Gonako      time.Duration
-	Gogen       time.Duration
-	Output      string
+// Target は測定対象の処理系1つ分
+type Target struct {
+	Key     string // 内部キー
+	Label   string // 表の見出し
+	How     string // 実行方式（README用）
+	Note    string // 特徴（README用）
+	Version string // バージョン文字列
+	// Command はケースに対する実行コマンドを返す。空スライスならそのケースは測定しない
+	Command func(c BenchmarkCase) []string
+	Enabled bool
+	// Times はケース名 → 平均所要時間
+	Times map[string]time.Duration
+	Total time.Duration
 }
+
+// baseKey は速度比の基準にする処理系
+const baseKey = "cnako3"
 
 func runCommand(name string, args ...string) (time.Duration, string, error) {
 	cmd := exec.Command(name, args...)
@@ -82,13 +92,13 @@ func runCommand(name string, args ...string) (time.Duration, string, error) {
 }
 
 func measureAverage(runs int, name string, args ...string) (time.Duration, string, error) {
-	// 1. Warmup run to warm OS binary caching & Node JIT cache
+	// 1. ウォームアップ（OSのバイナリキャッシュとNodeのJITを温める）
 	_, _, err := runCommand(name, args...)
 	if err != nil {
 		return 0, "", fmt.Errorf("warmup failed: %w", err)
 	}
 
-	// 2. Measured runs
+	// 2. 本計測
 	var durations []time.Duration
 	var lastOutput string
 	for i := 0; i < runs; i++ {
@@ -100,22 +110,49 @@ func measureAverage(runs int, name string, args ...string) (time.Duration, strin
 		lastOutput = out
 	}
 
-	// Sort durations
 	sort.Slice(durations, func(i, j int) bool { return durations[i] < durations[j] })
 
-	// Take average of all runs
 	var sum time.Duration
 	for _, d := range durations {
 		sum += d
 	}
-	avg := sum / time.Duration(runs)
-	return avg, lastOutput, nil
+	return sum / time.Duration(runs), lastOutput, nil
+}
+
+// commandVersion はバージョン取得コマンドの1行目を返す。取れなければ空文字
+func commandVersion(name string, args ...string) string {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return ""
+	}
+	out, err := exec.Command(path, args...).CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	line := strings.TrimSpace(strings.SplitN(string(out), "\n", 2)[0])
+	return line
+}
+
+// baseName は "01_fibonacci.nako3" から "01_fibonacci" を取り出す
+func baseName(file string) string {
+	return strings.TrimSuffix(file, ".nako3")
+}
+
+func ms(d time.Duration) float64 {
+	return float64(d.Microseconds()) / 1000.0
 }
 
 func main() {
-	repoRoot, err := filepath.Abs(".")
+	repoRoot, err := filepath.Abs("..")
 	if err != nil {
 		panic(err)
+	}
+	// benchmark/ 直下からでもリポジトリ直下からでも動くようにする
+	if _, statErr := os.Stat(filepath.Join(repoRoot, "go.mod")); statErr != nil {
+		repoRoot, err = filepath.Abs(".")
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	cnako3Path := filepath.Join(repoRoot, "nadesiko3", "bin", "cnako3")
@@ -123,11 +160,13 @@ func main() {
 
 	benchDir := filepath.Join(repoRoot, "benchmark")
 	buildDir := filepath.Join(benchDir, "build")
+	pyDir := filepath.Join(benchDir, "py")
+	jsDir := filepath.Join(benchDir, "js")
 	if err := os.MkdirAll(buildDir, 0755); err != nil {
 		panic(err)
 	}
 
-	// Setup go.mod for gogen in buildDir
+	// gogen 用の go.mod を buildDir に用意する
 	goModContent := fmt.Sprintf(`module benchgogen
 
 go 1.24
@@ -141,13 +180,9 @@ replace github.com/kujirahand/nadesiko3go => %s
 	}
 
 	fmt.Println("=== 1. gogen で Go バイナリをビルド中 ===")
-	gogenBins := make(map[string]string)
-
-	// Generate all Go source files
 	for _, c := range cases {
 		srcPath := filepath.Join(benchDir, c.File)
-		baseName := strings.TrimSuffix(c.File, ".nako3")
-		goSrcPath := filepath.Join(buildDir, baseName+".go")
+		goSrcPath := filepath.Join(buildDir, baseName(c.File)+".go")
 
 		genCmd := exec.Command(gonakoPath, "gengo", srcPath, "--out", goSrcPath)
 		if out, err := genCmd.CombinedOutput(); err != nil {
@@ -155,171 +190,289 @@ replace github.com/kujirahand/nadesiko3go => %s
 		}
 	}
 
-	// Run go mod tidy
 	tidyCmd := exec.Command("go", "mod", "tidy")
 	tidyCmd.Dir = buildDir
 	if out, err := tidyCmd.CombinedOutput(); err != nil {
 		panic(fmt.Errorf("go mod tidy failed: %v, out: %s", err, out))
 	}
 
-	// Build each Go binary
 	for _, c := range cases {
-		baseName := strings.TrimSuffix(c.File, ".nako3")
-		goSrcPath := filepath.Join(buildDir, baseName+".go")
-		binPath := filepath.Join(buildDir, baseName+".bin")
+		goSrcPath := filepath.Join(buildDir, baseName(c.File)+".go")
+		binPath := filepath.Join(buildDir, baseName(c.File)+".bin")
 
 		buildCmd := exec.Command("go", "build", "-o", binPath, goSrcPath)
 		buildCmd.Dir = buildDir
 		if out, err := buildCmd.CombinedOutput(); err != nil {
 			panic(fmt.Errorf("go build failed for %s: %v, out: %s", c.File, err, out))
 		}
-		gogenBins[c.File] = binPath
-		fmt.Printf("  [OK] %s ビルド完了\n", baseName)
+		fmt.Printf("  [OK] %s ビルド完了\n", baseName(c.File))
+	}
+
+	goVersion := commandVersion("go", "version")
+	nodeVersion := commandVersion("node", "--version")
+	pythonVersion := commandVersion("python3", "--version")
+
+	targets := []*Target{
+		{
+			Key:     "cnako3",
+			Label:   "cnako3 (本家)",
+			How:     "`node src/cnako3.mjs`",
+			Note:    "公式 TypeScript 実装。Node.js / V8 JIT ランタイム上で動作",
+			Version: nodeVersion,
+			Command: func(c BenchmarkCase) []string {
+				return []string{cnako3Path, filepath.Join(benchDir, c.File)}
+			},
+		},
+		{
+			Key:     "gonako",
+			Label:   "gonako (VM)",
+			How:     "`bin/gonako <file>`",
+			Note:    "本実装のスタック型バイトコードインタプリタ。Goネイティブバイナリ",
+			Version: goVersion,
+			Command: func(c BenchmarkCase) []string {
+				return []string{gonakoPath, filepath.Join(benchDir, c.File)}
+			},
+		},
+		{
+			Key:     "gogen",
+			Label:   "gogen (Goネイティブ)",
+			How:     "`gonako gengo` → `go build`",
+			Note:    "なでしこプログラムをGoソースに変換し、ネイティブコンパイルして実行",
+			Version: goVersion,
+			Command: func(c BenchmarkCase) []string {
+				return []string{filepath.Join(buildDir, baseName(c.File)+".bin")}
+			},
+		},
+		{
+			Key:     "node",
+			Label:   "Node.js",
+			How:     "`node benchmark/js/<file>.js`",
+			Note:    "同じアルゴリズムを素のJavaScriptで書いたもの。言語そのものの速度の目安",
+			Version: nodeVersion,
+			Command: func(c BenchmarkCase) []string {
+				return []string{"node", filepath.Join(jsDir, baseName(c.File)+".js")}
+			},
+		},
+		{
+			Key:     "python3",
+			Label:   "Python3",
+			How:     "`python3 benchmark/py/<file>.py`",
+			Note:    "同じアルゴリズムを素のPythonで書いたもの。言語そのものの速度の目安",
+			Version: pythonVersion,
+			Command: func(c BenchmarkCase) []string {
+				return []string{"python3", filepath.Join(pyDir, baseName(c.File)+".py")}
+			},
+		},
+	}
+
+	// 実行できる処理系だけを有効にする
+	for _, t := range targets {
+		t.Times = map[string]time.Duration{}
+		argv := t.Command(cases[0])
+		if _, err := exec.LookPath(argv[0]); err != nil {
+			fmt.Printf("  [SKIP] %s が見つからないため測定から外します (%v)\n", t.Label, err)
+			continue
+		}
+		t.Enabled = true
 	}
 
 	runs := 5
 	fmt.Printf("\n=== 2. ベンチマーク実行中 (各 %d 回計測の平均) ===\n", runs)
 
-	var results []Result
-	var totalCnako3, totalGonako, totalGogen time.Duration
-
+	outputs := map[string]string{}
 	for _, c := range cases {
-		srcPath := filepath.Join(benchDir, c.File)
-		binPath := gogenBins[c.File]
-
 		fmt.Printf("測定中: %s ...\n", c.Name)
 
-		dCnako, outCnako, err := measureAverage(runs, cnako3Path, srcPath)
-		if err != nil {
-			panic(fmt.Errorf("cnako3 failed on %s: %v", c.File, err))
+		var caseOutputs []string
+		mismatch := false
+		for _, t := range targets {
+			if !t.Enabled {
+				continue
+			}
+			argv := t.Command(c)
+			d, out, err := measureAverage(runs, argv[0], argv[1:]...)
+			if err != nil {
+				panic(fmt.Errorf("%s failed on %s: %v", t.Key, c.File, err))
+			}
+			t.Times[c.Name] = d
+			t.Total += d
+			caseOutputs = append(caseOutputs, fmt.Sprintf("%s: %s", t.Label, out))
+			if outputs[c.Name] == "" {
+				outputs[c.Name] = out
+			} else if outputs[c.Name] != out {
+				mismatch = true
+			}
 		}
-
-		dGonako, outGonako, err := measureAverage(runs, gonakoPath, srcPath)
-		if err != nil {
-			panic(fmt.Errorf("gonako failed on %s: %v", c.File, err))
-		}
-
-		dGogen, outGogen, err := measureAverage(runs, binPath)
-		if err != nil {
-			panic(fmt.Errorf("gogen failed on %s: %v", c.File, err))
-		}
-
-		if outCnako != outGonako || outGonako != outGogen {
-			fmt.Printf("  [WARNING] 出力不一致:\n    cnako3: %s\n    gonako: %s\n    gogen:  %s\n",
-				outCnako, outGonako, outGogen)
+		if mismatch {
+			fmt.Printf("  [WARNING] 出力不一致:\n    %s\n", strings.Join(caseOutputs, "\n    "))
 		} else {
-			fmt.Printf("  [一致確認] %s\n", outCnako)
+			fmt.Printf("  [一致確認] %s\n", outputs[c.Name])
 		}
+	}
 
-		totalCnako3 += dCnako
-		totalGonako += dGonako
-		totalGogen += dGogen
+	var enabled []*Target
+	for _, t := range targets {
+		if t.Enabled {
+			enabled = append(enabled, t)
+		}
+	}
 
-		results = append(results, Result{
-			CaseName:    c.Name,
-			File:        c.File,
-			Description: c.Description,
-			Cnako3:      dCnako,
-			Gonako:      dGonako,
-			Gogen:       dGogen,
-			Output:      outCnako,
-		})
+	var base *Target
+	for _, t := range enabled {
+		if t.Key == baseKey {
+			base = t
+		}
 	}
 
 	fmt.Println("\n=== 3. ベンチマーク結果集計 ===")
-	fmt.Printf("%-32s | %12s | %12s | %12s\n", "Benchmark", "cnako3(Node)", "gonako(VM)", "gogen(Go)")
-	fmt.Println(strings.Repeat("-", 77))
-	for _, r := range results {
-		fmt.Printf("%-32s | %10.1fms | %10.1fms | %10.1fms\n",
-			r.CaseName,
-			float64(r.Cnako3.Microseconds())/1000.0,
-			float64(r.Gonako.Microseconds())/1000.0,
-			float64(r.Gogen.Microseconds())/1000.0,
-		)
+	header := fmt.Sprintf("%-32s", "Benchmark")
+	for _, t := range enabled {
+		header += fmt.Sprintf(" | %12s", t.Label)
 	}
-	fmt.Println(strings.Repeat("-", 77))
-	fmt.Printf("%-32s | %10.1fms | %10.1fms | %10.1fms\n",
-		"合計 (Total)",
-		float64(totalCnako3.Microseconds())/1000.0,
-		float64(totalGonako.Microseconds())/1000.0,
-		float64(totalGogen.Microseconds())/1000.0,
-	)
+	fmt.Println(header)
+	fmt.Println(strings.Repeat("-", len(header)))
+	for _, c := range cases {
+		line := fmt.Sprintf("%-32s", c.Name)
+		for _, t := range enabled {
+			line += fmt.Sprintf(" | %10.1fms", ms(t.Times[c.Name]))
+		}
+		fmt.Println(line)
+	}
+	fmt.Println(strings.Repeat("-", len(header)))
+	line := fmt.Sprintf("%-32s", "合計 (Total)")
+	for _, t := range enabled {
+		line += fmt.Sprintf(" | %10.1fms", ms(t.Total))
+	}
+	fmt.Println(line)
 
-	// Markdown 出力作成
+	// --- Markdown 出力作成 ---
 	var md bytes.Buffer
 	md.WriteString("# なでしこ3 動作速度ベンチマーク\n\n")
-	md.WriteString("本家リポジトリ（TypeScript / Node.js 公式実装 `cnako3`）と、Go言語による本実装 `gonako`（バイトコードVM実行）、および Goコード生成バックエンド `gogen`（Goネイティブコンパイル実行）の動作速度を比較測定したベンチマーク結果です。\n\n")
+	md.WriteString("本家リポジトリ（TypeScript / Node.js 公式実装 `cnako3`）と、Go言語による本実装 `gonako`（バイトコードVM実行）、Goコード生成バックエンド `gogen`（Goネイティブコンパイル実行）、さらに比較の物差しとして同じアルゴリズムを素の **Node.js (JavaScript)** と **Python3** で書いたものを並べて測定した結果です。\n\n")
 
 	md.WriteString("## 1. 測定環境\n\n")
-	md.WriteString("- **OS**: macOS (darwin/arm64, Apple Silicon)\n")
-	md.WriteString("- **Go バージョン**: go version go1.26.5 darwin/arm64\n")
-	md.WriteString("- **Node.js バージョン**: v24.18.0\n")
+	md.WriteString(fmt.Sprintf("- **OS**: %s/%s\n", runtime.GOOS, runtime.GOARCH))
+	if goVersion != "" {
+		md.WriteString(fmt.Sprintf("- **Go バージョン**: %s\n", goVersion))
+	}
+	if nodeVersion != "" {
+		md.WriteString(fmt.Sprintf("- **Node.js バージョン**: %s\n", nodeVersion))
+	}
+	if pythonVersion != "" {
+		md.WriteString(fmt.Sprintf("- **Python バージョン**: %s\n", pythonVersion))
+	}
 	md.WriteString(fmt.Sprintf("- **測定日**: %s\n", time.Now().Format("2006-01-02")))
 	md.WriteString(fmt.Sprintf("- **測定方法**: 各テストプログラムをウォームアップ後に %d 回実行し、平均実行時間を算出\n\n", runs))
 
 	md.WriteString("## 2. 比較対象\n\n")
 	md.WriteString("| 対象 | 実行方式 | 特徴 |\n")
 	md.WriteString("|---|---|---|\n")
-	md.WriteString("| **cnako3 (本家)** | `node src/cnako3.mjs` | 公式 TypeScript 実装。Node.js / V8 JIT ランタイム上で動作 |\n")
-	md.WriteString("| **gonako (VM実行)** | `bin/gonako <file>` | 本実装のスタック型バイトコードインタプリタ。Goネイティブバイナリ |\n")
-	md.WriteString("| **gogen (Goネイティブ)** | `gonako gengo` → `go build` | なでしこプログラムをGoソースに変換し、ネイティブコンパイルして実行 |\n\n")
+	for _, t := range enabled {
+		md.WriteString(fmt.Sprintf("| **%s** | %s | %s |\n", t.Label, t.How, t.Note))
+	}
+	md.WriteString("\n")
+	md.WriteString("Node.js版は [`js/`](./js)、Python3版は [`py/`](./py) にあります。どちらも `.nako3` と**同じアルゴリズム・同じ計算規模**で書いてあり、出力文字列も一致します。なでしこ（と本家cnako3）の数値は倍精度浮動小数点なので、Python版のうち擬似乱数を使う QuickSort だけは、同じ値を得るためにあえて `math.fmod` で浮動小数点演算に揃えてあります。\n\n")
 
 	md.WriteString("## 3. ベンチマークテスト一覧\n\n")
 	md.WriteString("代表的なアルゴリズム（再帰・配列・数値計算・ソート・文字列・連想配列）を網羅したテストセットです。\n\n")
 	md.WriteString("| No | テスト名 | プログラム | アルゴリズム概要 / 計算規模 | 計算結果（全環境一致確認） |\n")
 	md.WriteString("|---|---|---|---|---|\n")
-	for i, r := range results {
-		md.WriteString(fmt.Sprintf("| %d | **%s** | [`%s`](./%s) | %s | `%s` |\n",
-			i+1, r.CaseName, r.File, r.File, r.Description, r.Output))
+	for i, c := range cases {
+		b := baseName(c.File)
+		md.WriteString(fmt.Sprintf("| %d | **%s** | [`%s`](./%s) / [js](./js/%s.js) / [py](./py/%s.py) | %s | `%s` |\n",
+			i+1, c.Name, c.File, c.File, b, b, c.Description, outputs[c.Name]))
 	}
 	md.WriteString("\n")
 
 	md.WriteString("## 4. ベンチマーク測定結果\n\n")
-	md.WriteString("| ベンチマーク項目 | cnako3 (Node.js) | gonako (VM) | gogen (Goネイティブ) | gonako速度比 (対cnako3) | gogen速度比 (対cnako3) |\n")
-	md.WriteString("|---|---|---|---|---|---|\n")
-
-	for _, r := range results {
-		cMs := float64(r.Cnako3.Microseconds()) / 1000.0
-		vmMs := float64(r.Gonako.Microseconds()) / 1000.0
-		goMs := float64(r.Gogen.Microseconds()) / 1000.0
-
-		vmRatio := cMs / vmMs
-		goRatio := cMs / goMs
-
-		md.WriteString(fmt.Sprintf("| **%s** | %.1f ms | %.1f ms | **%.1f ms** | %.2fx | **%.2fx** |\n",
-			r.CaseName, cMs, vmMs, goMs, vmRatio, goRatio))
+	md.WriteString("### 4.1 実行時間\n\n")
+	md.WriteString("| ベンチマーク項目 |")
+	for _, t := range enabled {
+		md.WriteString(fmt.Sprintf(" %s |", t.Label))
 	}
+	md.WriteString("\n|---|")
+	for range enabled {
+		md.WriteString("---:|")
+	}
+	md.WriteString("\n")
+	for _, c := range cases {
+		// 各行で最速の処理系を太字にする
+		var best time.Duration
+		for _, t := range enabled {
+			if best == 0 || t.Times[c.Name] < best {
+				best = t.Times[c.Name]
+			}
+		}
+		md.WriteString(fmt.Sprintf("| **%s** |", c.Name))
+		for _, t := range enabled {
+			d := t.Times[c.Name]
+			if d == best {
+				md.WriteString(fmt.Sprintf(" **%.1f ms** |", ms(d)))
+			} else {
+				md.WriteString(fmt.Sprintf(" %.1f ms |", ms(d)))
+			}
+		}
+		md.WriteString("\n")
+	}
+	md.WriteString("| **合計 (Total)** |")
+	for _, t := range enabled {
+		md.WriteString(fmt.Sprintf(" **%.1f ms** |", ms(t.Total)))
+	}
+	md.WriteString("\n\n")
 
-	totCMs := float64(totalCnako3.Microseconds()) / 1000.0
-	totVMMs := float64(totalGonako.Microseconds()) / 1000.0
-	totGoMs := float64(totalGogen.Microseconds()) / 1000.0
-	totVMRatio := totCMs / totVMMs
-	totGoRatio := totCMs / totGoMs
-
-	md.WriteString("|---|---|---|---|---|---|\n")
-	md.WriteString(fmt.Sprintf("| **合計 (Total)** | **%.1f ms** | **%.1f ms** | **%.1f ms** | **%.2fx** | **%.2fx** |\n\n",
-		totCMs, totVMMs, totGoMs, totVMRatio, totGoRatio))
-
-	md.WriteString("※ 速度比（倍率）は `cnako3の所要時間 / 対象の所要時間` です（1.00x より大きいほど高速）。\n\n")
+	if base != nil {
+		md.WriteString("### 4.2 速度比（本家 cnako3 を 1.00x としたとき）\n\n")
+		md.WriteString("| ベンチマーク項目 |")
+		for _, t := range enabled {
+			md.WriteString(fmt.Sprintf(" %s |", t.Label))
+		}
+		md.WriteString("\n|---|")
+		for range enabled {
+			md.WriteString("---:|")
+		}
+		md.WriteString("\n")
+		for _, c := range cases {
+			md.WriteString(fmt.Sprintf("| **%s** |", c.Name))
+			for _, t := range enabled {
+				md.WriteString(fmt.Sprintf(" %.2fx |", ms(base.Times[c.Name])/ms(t.Times[c.Name])))
+			}
+			md.WriteString("\n")
+		}
+		md.WriteString("| **合計 (Total)** |")
+		for _, t := range enabled {
+			md.WriteString(fmt.Sprintf(" **%.2fx** |", ms(base.Total)/ms(t.Total)))
+		}
+		md.WriteString("\n\n")
+		md.WriteString("※ 速度比（倍率）は `cnako3の所要時間 / 対象の所要時間` です（1.00x より大きいほど高速）。\n\n")
+	}
 
 	md.WriteString("## 5. 結果の考察と分析\n\n")
 
 	md.WriteString("### ① Go版が本家より速いところ\n\n")
-	md.WriteString("**起動が軽い。** Goのネイティブ単一バイナリなので、Node.jsプロセスの初期化とTypeScriptパーサーの読み込みがありません。数十msで終わるテスト（String・Dict）では、この差がそのまま順位になります。\n\n")
-	md.WriteString("**文字列と辞書が速い。** Goネイティブの `string` (UTF-8) と、挿入順を保つ辞書の実装が効きます。特に文字列処理は本家の5倍前後です。\n\n")
-	md.WriteString("**関数呼び出しが速い。** 再帰（Fibonacci）は本家の2.6倍前後で、これが合計を押し上げている最大の要因です。呼び出し1回あたりの割り当てを3個まで減らしてあります（docs/parser.md）。\n\n")
+	md.WriteString("**起動が軽い。** Goのネイティブ単一バイナリなので、Node.jsプロセスの初期化とTypeScriptパーサーの読み込みがありません。数十msで終わるテスト（String・Dict・QuickSort）では、この差がそのまま順位になります。\n\n")
+	md.WriteString("**文字列と辞書が速い。** Goネイティブの `string` (UTF-8) と、挿入順を保つ辞書の実装が効きます。\n\n")
+	md.WriteString("**関数呼び出しが速い。** 再帰（Fibonacci）の差がもっとも大きく、これが合計を押し上げている最大の要因です。呼び出し1回あたりの割り当てを3個まで減らしてあります（docs/parser.md）。\n\n")
 
 	md.WriteString("### ② VM実行が本家より遅いところ\n\n")
-	md.WriteString("**数値ループはV8のJITに負けます。** Collatz・Mandelbrot・Sieve は本家より遅く、特にCollatzで差が開きます。V8はホットな数値ループを型を特殊化したマシン語に落としますが、`gonako` のVMはバイトコードインタプリタで、JITを持ちません。\n\n")
-	md.WriteString("値の持ち方も効いています。VMは値を `value.Value`（56バイト）に包んだまま扱い、演算のたびに包み直します。ここを詰めたのが次の gogen です。\n\n")
+	md.WriteString("**数値ループはV8のJITに負けます。** 残っている弱点はCollatzで、ここだけは本家より遅いままです。V8はホットな数値ループを型を特殊化したマシン語に落としますが、`gonako` のVMはバイトコードインタプリタで、JITを持ちません。素のNode.js列と見比べると差の出どころがはっきりします。\n\n")
+	md.WriteString("値の持ち方も効いています。VMは値を `value.Value` に包んだまま扱い、演算のたびに包み直します。ここを詰めたのが次の gogen です。\n\n")
 
 	md.WriteString("### ③ gogen (Goネイティブ生成) は数値計算で本家を追い越します\n\n")
 	md.WriteString("`internal/gogen/types.go` の型推論により、生成コードは**数値と証明できた場所を生の `float64` で計算します**。オペランドスタックはGoのローカル変数に、捕捉されない数値ローカルはただの `float64` 変数になり、`rt.Binary(...)` は `f0 = f1 + f2` になります。\n\n")
 	md.WriteString("この結果、計算集約のケースでgogenがVMを大きく引き離します（同一マシンでの前後比較は次節）。\n\n")
 	md.WriteString("推論できないところは今までどおり `rt.Value` のまま一般経路を通ります。**証明できたときだけ特殊化する**方針なので、当てが外れても遅くなるだけで、結果は変わりません（docs/gogen.md）。\n\n")
+	md.WriteString("なお、掛け算だけは生成コードで `float64(a * b)` と明示的に丸めています。これがないとarm64などでGoコンパイラが直後の加減算とまとめてFMA命令に融合し、中間結果が丸められず、JavaScript（とVM実行）と答えが変わってしまうためです。変換自体に実行時コストはありません。\n\n")
 	md.WriteString("逆に、文字列処理（String）や辞書操作（Dict）はもともと命令呼び出しが主体で、数値演算がほとんどないため、gogenにしてもVMとあまり変わりません。\n\n")
 
-	md.WriteString("### ④ 表の読み方の注意\n\n")
+	md.WriteString("### ④ 素のNode.js・Python3との位置関係\n\n")
+	md.WriteString("Node.js と Python3 の列は、**言語処理系そのものの地力**を示す物差しです。なでしこの列と直接勝ち負けを競わせるためのものではありません（なでしこ側は日本語の構文解析とプラグイン命令の呼び出しを通るぶん、同じ計算でも手数が増えます）。\n\n")
+	md.WriteString("読み方の目安は次のとおりです。\n\n")
+	md.WriteString("- **20ms前後はプロセス起動のぶん**です。`node` も `python3` も、何もしないスクリプトで20ms台かかります。数十msで終わるテスト（String・Dict・QuickSort）でネイティブバイナリの `gogen` が勝つのは、主にこの起動コストの差です。\n")
+	md.WriteString("- **Node.js (素のJS) が強いのは数値ループと再帰**です。V8のJITが効く領域で、Fibonacci と Collatz では `gogen` もまだ届きません。逆に配列・文字列・辞書が主体のケースでは、起動コストを含めると `gogen` が上回ります。\n")
+	md.WriteString("- **Python3 は全体に重め**です。`gonako` のVMはバイトコードインタプリタという点ではCPythonと同じ方式ですが、値表現がGoの構造体で固定サイズ・ヒープ割り当てが少ないぶん有利で、全ケースで上回っています。\n")
+	md.WriteString("- **cnako3 と 素のNode.js の差**が、そのまま「なでしこ処理系の上乗せ分」の目安になります。同様に `gonako` と `gogen` の差が、Go版におけるVM実行のオーバーヘッドです。\n\n")
+
+	md.WriteString("### ⑤ 表の読み方の注意\n\n")
 	md.WriteString("**日をまたいだ比較には使えません。** この表の絶対値は測定した日のマシンの状態に強く依存します。実際、同じ7ケースでcnako3の合計が 3236.9ms の日と 2646.9ms の日があり、Go版を1行も変えていなくても20%近く動きます。\n\n")
 	md.WriteString("変更の前後を比べたいときは、**変更前後のバイナリを同じマシンで1回ずつ交互に回し、その中央値を取る**こと。片方をまとめて測ってからもう片方を測ると、熱による速度低下の分だけ結果を読み違えます。次節がその方法で取った値です。\n\n")
 
@@ -361,6 +514,7 @@ replace github.com/kujirahand/nadesiko3go => %s
 	md.WriteString("# ベンチマークの自動実行\n")
 	md.WriteString("go run ./benchmark/runner.go\n")
 	md.WriteString("```\n\n")
+	md.WriteString("`node` や `python3` が見つからない環境では、その処理系の列だけを飛ばして測定します（本家 `cnako3` の実行には Node.js が必要です）。\n\n")
 	md.WriteString("本ドキュメントは `runner.go` が全体を生成します。**README.md を直接編集しても次の実行で消える**ので、文章を足すときは `runner.go` の生成部を直してください。\n")
 
 	readmePath := filepath.Join(benchDir, "README.md")

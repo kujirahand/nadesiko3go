@@ -931,7 +931,11 @@ func floatExpr(op ir.BinaryOp, a, b string) (string, bool) {
 	case ir.BinSub:
 		return a + " - " + b, true
 	case ir.BinMul:
-		return a + " * " + b, true
+		// float64(...) で明示的に丸める。これがないと、arm64などで
+		// Goコンパイラが直後の加減算とまとめてFMA命令に融合してしまい、
+		// 中間結果が丸められずJavaScript(とVM実行)と違う値になる。
+		// 変換自体は実行時コストを持たない（融合を禁じるだけ）。
+		return "float64(" + a + " * " + b + ")", true
 	case ir.BinDiv:
 		return a + " / " + b, true
 	case ir.BinMod:
