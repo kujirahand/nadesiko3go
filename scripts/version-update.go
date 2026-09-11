@@ -90,16 +90,22 @@ func main() {
 	}
 
 	// 3. 同じ数値が何度も出てくるドキュメント
-	ok, wasChanged, err := syncAllOccurrences("docs/release-homebrew.md", newVersion, *checkFlag)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "エラー:", err)
-		os.Exit(1)
+	docFiles := []string{
+		"docs/release-homebrew.md",
+		"docs/release-scripts.md",
 	}
-	if !ok {
-		mismatched = true
-	}
-	if wasChanged {
-		changed = true
+	for _, doc := range docFiles {
+		ok, wasChanged, err := syncAllOccurrences(doc, newVersion, *checkFlag)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "エラー:", err)
+			os.Exit(1)
+		}
+		if !ok {
+			mismatched = true
+		}
+		if wasChanged {
+			changed = true
+		}
 	}
 
 	if *checkFlag {

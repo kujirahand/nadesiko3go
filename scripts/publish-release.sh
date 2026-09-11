@@ -26,11 +26,12 @@ if ! command -v gh >/dev/null 2>&1; then
 fi
 
 # 1. リリース（タグ）の作成。タグ名は install.sh のURLに合わせて v を付けない。
+# 成果物アップロード中の404エラーを防ぐため、ドラフト（下書き）として作成する。
 if gh release view "$VERSION" >/dev/null 2>&1; then
   echo "--- [1/3] リリース ${VERSION} は既にあります"
 else
-  echo "--- [1/3] リリース ${VERSION} を作成します"
-  gh release create "$VERSION" --title "v${VERSION}" --notes "Release ${VERSION}"
+  echo "--- [1/3] リリース ${VERSION} をドラフトとして作成します"
+  gh release create "$VERSION" --draft --title "v${VERSION}" --notes "Release ${VERSION}"
 fi
 
 # 2. 成果物のアップロード（just release が生成したスクリプトを使う）
@@ -42,8 +43,12 @@ fi
 echo "--- [2/3] 成果物をアップロードします"
 sh "$UPLOAD"
 
-# 3. Homebrew Tap の更新（公開済みZIPのSHA-256から生成してプッシュ）
+# 全ファイルのアップロード完了後にドラフトを解除し、正式に最新版として公開する
+echo "--- [2/3+] リリース ${VERSION} を公開します"
+gh release edit "$VERSION" --draft=false --latest
+
+# 3. Homebrew Tap の更新（手元の release/ 配下のZIPからSHA-256を算出してプッシュ）
 echo "--- [3/3] Homebrew Tap を更新します"
-go run ./scripts/update-homebrew-tap.go -version "$VERSION" -push
+go run ./scripts/update-homebrew-tap.go -version "$VERSION" -local -push
 
 echo "===> 配信完了: https://github.com/kujirahand/nadesiko3go/releases/tag/${VERSION}"
