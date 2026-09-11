@@ -190,31 +190,26 @@ func (s *Screen) node(handle int, command string) (*screenNode, error) {
 	return n, nil
 }
 
-func (s *Screen) hasNode(handle int) bool {
+// setParent は追加先の控えを更新する。正はシステム変数『DOM親要素』だが、
+// VMがその変数に記憶領域を割り当てない場合（プログラム中に名前が現れない場合）に
+// 備えて、Screen側にも保持する。ハンドルの存在確認は呼び出し側で済ませておく。
+func (s *Screen) setParent(handle int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	_, ok := s.nodes[handle]
-	return ok
-}
-
-func (s *Screen) setParent(handle int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if handle == 0 {
-		s.domParent = 0
-		return nil
-	}
-	if _, err := s.node(handle, "DOM親要素設定"); err != nil {
-		return err
-	}
 	s.domParent = handle
-	return nil
 }
 
 func (s *Screen) parent() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.domParent
+}
+
+func (s *Screen) hasNode(handle int) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.nodes[handle]
+	return ok
 }
 
 func (s *Screen) setText(handle int, text string) error {
@@ -278,10 +273,19 @@ func (s *Screen) focus(handle int) error {
 }
 
 func (s *Screen) queryByID(id string) (int, bool) {
+	if id == "" {
+		return 0, false
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for handle := 1; handle <= s.nextHandle; handle++ {
-		if n := s.nodes[handle]; n != nil && n.attributes["id"] == id {
+		n := s.nodes[handle]
+		if n == nil {
+			continue
+		}
+		// id属性を持たないノードは対象外。map[string]stringの零値""と
+		// 突き合わせると、id無しのノード全部に一致してしまう。
+		if got, ok := n.attributes["id"]; ok && got == id {
 			return handle, true
 		}
 	}

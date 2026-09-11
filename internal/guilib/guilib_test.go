@@ -149,6 +149,84 @@ func TestExistingCreateCommandsUseConfiguredParent(t *testing.T) {
 	}
 }
 
+func TestDOMParentSysVarAssignmentIsHonored(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	// 『DOM親要素』へ直接代入しても、実際の追加先が追随すること。
+	code := `「<div id="main"></div>」をHTML表示
+2をDOM親要素に代入
+「p」のDOM部品作成
+0をDOM親要素に代入
+「footer」のDOM部品作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if len(ops) != 3 || ops[1].Parent != 2 || ops[2].Parent != 0 {
+		t.Fatalf("operations = %#v", ops)
+	}
+}
+
+func TestDOMParentSysVarAssignmentWinsOverSetCommand(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	// 設定命令のあとに代入した場合も、あとから代入した値が優先されること。
+	code := `「<div id="main"><span id="sub"></span></div>」をHTML表示
+「#main」にDOM親要素設定
+3をDOM親要素に代入
+「p」のDOM部品作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if got := ops[len(ops)-1]; got.Parent != 3 {
+		t.Fatalf("operation = %#v", got)
+	}
+}
+
+func TestDOMParentSysVarRejectsUnknownHandle(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	err := vm.RunWithHostAndRegistry("99をDOM親要素に代入\n「p」のDOM部品作成", "gui.nako3", registry, host)
+	if err == nil || !strings.Contains(err.Error(), "DOM部品作成") || !strings.Contains(err.Error(), "見つかりません") {
+		t.Fatalf("error = %v", err)
+	}
+	_ = screen
+}
+
+func TestDOMParentAliasReportsOwnName(t *testing.T) {
+	registry := stdlib.NewRegistry(NewWithScreen(NewScreen()))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	err := vm.RunWithHostAndRegistry(`「#missing」にDOM親部品設定`, "gui.nako3", registry, host)
+	if err == nil || !strings.Contains(err.Error(), "『DOM親部品設定』") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDOMElementIDLookupIgnoresEmptyID(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	// 空文字はid無しのノードに一致してはいけない。
+	code := `「<div id="main"></div>」をHTML表示
+S=「」
+SにDOM親要素設定
+「p」のDOM部品作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	ops := screen.DrainOperations()
+	if got := ops[len(ops)-1]; got.Parent != 0 {
+		t.Fatalf("operation = %#v", got)
+	}
+	if handle, found := screen.queryByID(""); found {
+		t.Fatalf("queryByID(\"\") = %d, want not found", handle)
+	}
+}
+
 func TestDOMPartCreateRejectsInvalidTargets(t *testing.T) {
 	for _, tc := range []struct {
 		name string
