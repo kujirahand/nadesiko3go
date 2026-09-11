@@ -306,6 +306,30 @@ func TestAdditionalDOMPartsSampleCompilesAndHandlesChange(t *testing.T) {
 	}
 }
 
+func TestDOMLifecycleOperationsReachGUISession(t *testing.T) {
+	const samplePath = "ui/samples/14_DOM要素ライフサイクル.nako3"
+	code, err := uiFS.ReadFile(samplePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := (&guiSession{}).run(string(code), samplePath, true, nil, nil)
+	if !result.OK {
+		t.Fatalf("lifecycle program failed: %s", result.Error)
+	}
+	wantTypes := []string{"create", "create", "text", "attributes", "append", "append", "create", "text", "append", "remove"}
+	if len(result.Operations) != len(wantTypes) {
+		t.Fatalf("operations = %#v", result.Operations)
+	}
+	for i, want := range wantTypes {
+		if got := result.Operations[i].Type; got != want {
+			t.Fatalf("operation[%d].Type = %q, want %q", i, got, want)
+		}
+	}
+	if !result.Operations[1].Detached || result.Operations[4].Parent != 2 || result.Operations[5].Parent != 4 || !result.Operations[6].Detached {
+		t.Fatalf("lifecycle operations = %#v", result.Operations)
+	}
+}
+
 func TestGUIAsyncDialogs(t *testing.T) {
 	session := &guiSession{}
 	runID := session.start(`

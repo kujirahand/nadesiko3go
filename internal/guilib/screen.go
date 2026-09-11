@@ -27,6 +27,7 @@ type Operation struct {
 	Event      string            `json:"event,omitempty"`
 	Styles     map[string]string `json:"styles,omitempty"`
 	Attributes map[string]string `json:"attributes,omitempty"`
+	Detached   bool              `json:"detached,omitempty"`
 }
 
 type screenNode struct {
@@ -66,10 +67,18 @@ func NewScreen() *Screen {
 }
 
 func (s *Screen) create(tag, text, html, name string, parent int) int {
-	return s.createWithAttributes(tag, text, html, name, parent, nil)
+	return s.createNode(tag, text, html, name, parent, nil, false)
 }
 
 func (s *Screen) createWithAttributes(tag, text, html, name string, parent int, attrs map[string]string) int {
+	return s.createNode(tag, text, html, name, parent, attrs, false)
+}
+
+func (s *Screen) createDetached(tag string) int {
+	return s.createNode(tag, "", "", "", -1, nil, true)
+}
+
+func (s *Screen) createNode(tag, text, html, name string, parent int, attrs map[string]string, detached bool) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nextHandle++
@@ -82,7 +91,8 @@ func (s *Screen) createWithAttributes(tag, text, html, name string, parent int, 
 		s.nodes[h].attributes[key] = item
 	}
 	s.operations = append(s.operations, Operation{
-		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name, Attributes: attrs,
+		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name,
+		Attributes: attrs, Detached: detached,
 	})
 	return h
 }
@@ -256,6 +266,74 @@ func (s *Screen) hasNode(handle int) bool {
 	return ok
 }
 
+func (s *Screen) connected(handle int) bool {
+	for handle > 0 {
+		n := s.nodes[handle]
+		if n == nil || n.parent < 0 {
+			return false
+		}
+		handle = n.parent
+	}
+	return handle == 0
+}
+
+func (s *Screen) append(handle, parent int, command string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n, err := s.node(handle, command)
+	if err != nil {
+		return err
+	}
+	if parent > 0 {
+		if _, err := s.node(parent, command); err != nil {
+			return err
+		}
+	}
+	for ancestor := parent; ancestor > 0; {
+		if ancestor == handle {
+			return fmt.Errorf("『%s』で循環する親子関係は作成できません。", command)
+		}
+		parentNode := s.nodes[ancestor]
+		if parentNode == nil {
+			break
+		}
+		ancestor = parentNode.parent
+	}
+	n.parent = parent
+	s.operations = append(s.operations, Operation{Type: "append", Handle: handle, Parent: parent})
+	return nil
+}
+
+func (s *Screen) remove(handle int, command string) (map[int]struct{}, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, err := s.node(handle, command); err != nil {
+		return nil, err
+	}
+	removed := map[int]struct{}{handle: {}}
+	for changed := true; changed; {
+		changed = false
+		for child, n := range s.nodes {
+			if _, ok := removed[child]; ok {
+				continue
+			}
+			if _, ok := removed[n.parent]; ok {
+				removed[child] = struct{}{}
+				changed = true
+			}
+		}
+	}
+	for removedHandle := range removed {
+		delete(s.nodes, removedHandle)
+		delete(s.events, removedHandle)
+	}
+	if _, ok := removed[s.domParent]; ok {
+		s.domParent = 0
+	}
+	s.operations = append(s.operations, Operation{Type: "remove", Handle: handle})
+	return removed, nil
+}
+
 func (s *Screen) setText(handle int, text string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -324,7 +402,7 @@ func (s *Screen) queryByID(id string) (int, bool) {
 	defer s.mu.Unlock()
 	for handle := 1; handle <= s.nextHandle; handle++ {
 		n := s.nodes[handle]
-		if n == nil {
+		if n == nil || !s.connected(handle) {
 			continue
 		}
 		// id属性を持たないノードは対象外。map[string]stringの零値""と
@@ -340,7 +418,7 @@ func (s *Screen) query(selector string) (int, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for handle := 1; handle <= s.nextHandle; handle++ {
-		if n := s.nodes[handle]; n != nil && matchesSelector(n, selector) {
+		if n := s.nodes[handle]; n != nil && s.connected(handle) && matchesSelector(n, selector) {
 			return handle, true
 		}
 	}
@@ -352,7 +430,7 @@ func (s *Screen) queryAll(selector string) []int {
 	defer s.mu.Unlock()
 	handles := make([]int, 0)
 	for handle := 1; handle <= s.nextHandle; handle++ {
-		if n := s.nodes[handle]; n != nil && matchesSelector(n, selector) {
+		if n := s.nodes[handle]; n != nil && s.connected(handle) && matchesSelector(n, selector) {
 			handles = append(handles, handle)
 		}
 	}

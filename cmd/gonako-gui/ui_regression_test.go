@@ -267,6 +267,24 @@ func TestDOMHTMLAndFocusOperationsAreApplied(t *testing.T) {
 	}
 }
 
+func TestDOMLifecycleOperationsAreApplied(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"const guiElements = new Map()",
+		"guiElements.set(Number(op.handle), el)",
+		"if (!op.detached)",
+		"op.type === 'append'",
+		"parent.appendChild(el)",
+		"op.type === 'remove'",
+		"guiElements.delete(handle)",
+		"el.remove()",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing DOM lifecycle operation %q", required)
+		}
+	}
+}
+
 func TestPromptDialogIgnoresIMEEnter(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{

@@ -19,6 +19,7 @@ func TestGuilibPlugin(t *testing.T) {
 	for _, name := range []string{
 		"ファイル選択", "保存ファイル選択", "フォルダ選択",
 		"DOM親要素設定", "DOM親部品設定", "DOM部品作成", "DOMスキン設定",
+		"DOM要素作成", "DOM部品削除",
 		"DOM要素取得", "DOM要素ID取得", "DOM要素全取得",
 		"DOMテキスト取得", "DOMテキスト変更", "HTML取得", "HTML変更", "DOM注目",
 		"テキストエリア作成", "キャンバス作成", "画像作成", "改行作成",
@@ -325,6 +326,102 @@ func TestDOMPartCreateDefaultsToRoot(t *testing.T) {
 	}
 }
 
+func TestDOMDetachedElementCanBeConfiguredMovedAndRemoved(t *testing.T) {
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	registry := stdlib.NewRegistry(p)
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `「<div id="left"></div><div id="right"></div>」をHTML表示
+部品=「article」のDOM要素作成
+部品に「準備済み」をDOMテキスト設定
+部品の「class」に「card」をDOM属性設定
+「#left」にDOM親要素設定
+部品のDOM部品作成
+「#right」にDOM親要素設定
+部品のDOM部品作成
+「#right」をDOM部品削除
+「footer」のDOM部品作成`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+
+	ops := screen.DrainOperations()
+	wantTypes := []string{"create", "create", "text", "attributes", "append", "append", "remove", "create"}
+	if len(ops) != len(wantTypes) {
+		t.Fatalf("operations = %#v", ops)
+	}
+	for i, want := range wantTypes {
+		if ops[i].Type != want {
+			t.Fatalf("operation[%d].Type = %q, want %q", i, ops[i].Type, want)
+		}
+	}
+	if !ops[1].Detached || ops[1].Handle != 4 || ops[4].Parent != 2 || ops[5].Parent != 3 {
+		t.Fatalf("detached/move operations = %#v", ops)
+	}
+	if ops[7].Parent != 0 {
+		t.Fatalf("削除したDOM親要素が残っている: %#v", ops[7])
+	}
+	if screen.hasNode(3) || screen.hasNode(4) {
+		t.Fatal("削除した親と子がGo側モデルに残っている")
+	}
+	if _, ok := screen.query(".card"); ok {
+		t.Fatal("削除した子がDOM検索対象に残っている")
+	}
+}
+
+func TestScreenRejectsCyclesAndCleansDescendantsAndEvents(t *testing.T) {
+	screen := NewScreen()
+	parent := screen.createDetached("section")
+	child := screen.createDetached("button")
+	if err := screen.setAttributes(child, map[string]string{"id": "child"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := screen.append(child, parent, "DOM部品作成"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := screen.query("#child"); ok {
+		t.Fatal("未接続要素の子がDOM検索に現れている")
+	}
+	if err := screen.append(parent, 0, "DOM部品作成"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := screen.query("#child"); !ok {
+		t.Fatal("接続後の子要素をDOM検索できない")
+	}
+	if err := screen.append(parent, child, "DOM部品作成"); err == nil || !strings.Contains(err.Error(), "循環") {
+		t.Fatalf("cycle error = %v", err)
+	}
+	screen.events[child] = map[string]eventBinding{"click": {}}
+	removed, err := screen.remove(parent, "DOM部品削除")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(removed) != 2 || screen.hasNode(parent) || screen.hasNode(child) || screen.events[child] != nil {
+		t.Fatalf("removed=%v nodes=%v events=%v", removed, screen.nodes, screen.events)
+	}
+	if _, err := screen.remove(parent, "DOM部品削除"); err == nil || !strings.Contains(err.Error(), "見つかりません") {
+		t.Fatalf("deleted handle error = %v", err)
+	}
+}
+
+func TestDOMPartRemoveDiscardsRegisteredEvent(t *testing.T) {
+	screen := NewScreen()
+	registry := stdlib.NewRegistry(NewWithScreen(screen))
+	host := vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil)
+	code := `部品=「button」のDOM要素作成
+部品をクリックした時には
+　「呼ばれない」を表示
+ここまで
+部品のDOM部品作成
+部品をDOM部品削除`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if err := screen.DispatchEvent(1, "click", nil); err == nil || !strings.Contains(err.Error(), "登録されていません") {
+		t.Fatalf("deleted event error = %v", err)
+	}
+}
+
 func TestExistingCreateCommandsUseConfiguredParent(t *testing.T) {
 	screen := NewScreen()
 	registry := stdlib.NewRegistry(NewWithScreen(screen))
@@ -440,6 +537,9 @@ func TestDOMPartCreateRejectsInvalidTargets(t *testing.T) {
 	}{
 		{name: "missing parent", code: `「#missing」にDOM親要素設定`, want: "見つかりません"},
 		{name: "invalid tag", code: `「div script」のDOM部品作成`, want: "タグ名"},
+		{name: "invalid detached tag", code: `「div script」のDOM要素作成`, want: "タグ名"},
+		{name: "missing remove selector", code: `「#missing」をDOM部品削除`, want: "見つかりません"},
+		{name: "deleted handle", code: "部品=「div」のDOM要素作成\n部品をDOM部品削除\n部品のDOM部品作成", want: "見つかりません"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			screen := NewScreen()
