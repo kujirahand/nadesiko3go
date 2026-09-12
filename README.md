@@ -33,6 +33,8 @@ brew tap kujirahand/nadesiko3 && brew trust kujirahand/nadesiko3
 brew install gonako && brew install --cask gonako-gui
 ```
 
+※ Linuxで `gonako-gui` を実行するには、[ソースコードからビルド](#go言語でソースコードからインストール)して利用してください。
+
 ----------------------------
 
 ## インストールした後は？
