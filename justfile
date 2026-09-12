@@ -60,6 +60,10 @@ benchmark: cmd
 test:
     {{go}} test ./...
 
+# Go言語コードの行数・文字数・ファイル数を集計・分析する
+analyze-gocode *args:
+    {{go}} run ./scripts/analyze-gocode.go {{args}}
+
 # マニュアルと固定サンプルを実行して、書かれている表示結果と一致するか確かめる
 # 対象を絞るときは: just doctest testdata/doctest/core/plugin_system.txt
 doctest *args:
