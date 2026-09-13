@@ -21,3 +21,4 @@
 - [release-scripts.md](release-scripts.md): リリース作業手順書（配信スクリプトの使い方）
 - [todo-plugin_node.md](todo-plugin_node.md): plugin_node 命令実装状況とTODO
 - [vm.md](vm.md): VMおよびバイトコードIRの設計仕様
+- [wasm.md](wasm.md): WebAssembly版（ブラウザでコア機能を動かす）のビルドとJavaScript API
