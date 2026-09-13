@@ -67,6 +67,7 @@ analyze-gocode *args:
 # マニュアルと固定サンプルを実行して、書かれている表示結果と一致するか確かめる
 # 対象を絞るときは: just doctest testdata/doctest/core/plugin_system.txt
 doctest *args:
+    @if [ ! -d manual ]; then echo '[警告] manualフォルダ(nadesiko3doc/data)を./manualとしてシンボリックリンクを作成してください'; fi
     {{go}} run ./cmd/gonako doctest {{args}}
 
 # 本家(nadesiko3)から差分fixtureをGo側へ同期する
