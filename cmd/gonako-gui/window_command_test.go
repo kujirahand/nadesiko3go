@@ -45,3 +45,22 @@ func TestWindowCommandsRunThroughVM(t *testing.T) {
 		t.Fatalf("母艦の設定がコントローラーへ渡されていません: handle=%d settings=%#v", controller.handle, controller.settings)
 	}
 }
+
+func TestVisibleWindowStatePrioritizesMinimized(t *testing.T) {
+	tests := []struct {
+		minimized  bool
+		fullscreen bool
+		maximized  bool
+		want       string
+	}{
+		{minimized: true, fullscreen: true, want: "最小化"},
+		{fullscreen: true, maximized: true, want: "全画面"},
+		{maximized: true, want: "最大化"},
+		{want: "通常"},
+	}
+	for _, test := range tests {
+		if got := visibleWindowState(test.minimized, test.fullscreen, test.maximized); got != test.want {
+			t.Errorf("状態=%q, want %q", got, test.want)
+		}
+	}
+}

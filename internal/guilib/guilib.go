@@ -329,8 +329,8 @@ func (p *Plugin) commands() map[string]command {
 
 func windowHandle(v value.Value) (int, error) {
 	number, ok := v.Number()
-	if !ok || number != math.Trunc(number) {
-		return 0, errors.New("ウィンドウには数値ハンドルを指定してください")
+	if !ok || math.IsNaN(number) || math.IsInf(number, 0) || number < 0 || number > maxNativeWindowInt || number != math.Trunc(number) {
+		return 0, fmt.Errorf("ウィンドウには0から%dまでの整数ハンドルを指定してください", maxNativeWindowInt)
 	}
 	return int(number), nil
 }

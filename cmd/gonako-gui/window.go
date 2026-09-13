@@ -37,6 +37,21 @@ func checkMotherWindowHandle(handle int) error {
 	return nil
 }
 
+// visibleWindowState は同時に残り得るOS側フラグから利用者向けの状態を選ぶ。
+// 最小化中は画面に表示されていないため、保存中の全画面状態より優先する。
+func visibleWindowState(minimized, fullscreen, maximized bool) string {
+	if minimized {
+		return "最小化"
+	}
+	if fullscreen {
+		return "全画面"
+	}
+	if maximized {
+		return "最大化"
+	}
+	return "通常"
+}
+
 func (c *nativeWindowController) Change(handle int, settings guilib.WindowSettings) error {
 	if err := checkMotherWindowHandle(handle); err != nil {
 		return err

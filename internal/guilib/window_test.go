@@ -94,8 +94,12 @@ func TestDecodeWindowSettings(t *testing.T) {
 func TestDecodeWindowSettingsRejectsInvalidValues(t *testing.T) {
 	for _, source := range []string{
 		`{"サイズ":[0,480]}`,
+		`{"サイズ":[2147483648,480]}`,
 		`{"位置":"右上"}`,
+		`{"位置":[-2147483649,0]}`,
 		`{"状態":"閉じる"}`,
+		`{"サイズ変更可":"false"}`,
+		`{"サイズ変更可":1}`,
 	} {
 		if _, err := DecodeWindowSettings([]byte(source)); err == nil {
 			t.Fatalf("不正な設定を受理しました: %s", source)
@@ -108,5 +112,26 @@ func TestDecodeWindowSettingsRejectsInvalidValues(t *testing.T) {
 	_, err := plugin.Impls()["ウィンドウ変更"](nil, []value.Value{value.DictValue(dict), value.Number(0)})
 	if err == nil || !strings.Contains(err.Error(), "gonako-gui") {
 		t.Fatalf("ウィンドウ未接続時のエラーが違います: %v", err)
+	}
+}
+
+func TestDecodeWindowSettingsAcceptsNativeIntegerLimits(t *testing.T) {
+	settings, err := DecodeWindowSettings([]byte(`{
+		"サイズ":[2147483647,1],
+		"位置":[-2147483648,2147483647],
+		"サイズ変更可":true
+	}`))
+	if err != nil {
+		t.Fatalf("ネイティブ整数の境界値を受理できません: %v", err)
+	}
+	if settings.Width != maxNativeWindowInt || settings.X != minNativeWindowInt || settings.Y != maxNativeWindowInt {
+		t.Fatalf("境界値が変わっています: %#v", settings)
+	}
+}
+
+func TestWindowCommandsRejectOutOfRangeHandle(t *testing.T) {
+	plugin := NewWithScreenAndWindow(NewScreen(), &fakeWindowController{})
+	if _, err := plugin.Impls()["ウィンドウ取得"](nil, []value.Value{value.Number(2147483648)}); err == nil {
+		t.Fatal("32ビット範囲外のウィンドウハンドルを受理しました")
 	}
 }

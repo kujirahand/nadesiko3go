@@ -105,6 +105,8 @@ func platformApplyWindowSettings(window unsafe.Pointer, settings guilib.WindowSe
 		case "最小化":
 			showWindow.Call(hwnd, swMinimize)
 		case "全画面":
+			// 最小化中のウィンドウは、スタイル変更だけでは表示されない。
+			showWindow.Call(hwnd, swRestore)
 			setWindowsFullscreen(hwnd)
 		}
 	}
@@ -149,14 +151,10 @@ func platformWindowInfo(window unsafe.Pointer) (guilib.WindowInfo, error) {
 	if ok, _, _ := getWindowRect.Call(hwnd, uintptr(unsafe.Pointer(&rect))); ok == 0 {
 		return guilib.WindowInfo{}, fmt.Errorf("ウィンドウ情報を取得できません")
 	}
-	state := "通常"
-	if _, fullscreen := fullscreenWindows.Load(hwnd); fullscreen {
-		state = "全画面"
-	} else if yes, _, _ := isIconic.Call(hwnd); yes != 0 {
-		state = "最小化"
-	} else if yes, _, _ := isZoomed.Call(hwnd); yes != 0 {
-		state = "最大化"
-	}
+	_, fullscreen := fullscreenWindows.Load(hwnd)
+	iconic, _, _ := isIconic.Call(hwnd)
+	zoomed, _, _ := isZoomed.Call(hwnd)
+	state := visibleWindowState(iconic != 0, fullscreen, zoomed != 0)
 	style, _, _ := getWindowLongW.Call(hwnd, gwlStyle)
 	titleBuffer := make([]uint16, 1024)
 	length, _, _ := getWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&titleBuffer[0])), uintptr(len(titleBuffer)))

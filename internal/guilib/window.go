@@ -10,6 +10,11 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
+const (
+	minNativeWindowInt = -1 << 31
+	maxNativeWindowInt = 1<<31 - 1
+)
+
 // MotherWindowHandle は、実行中のgonako-gui本体のウィンドウを表す。
 // OSのポインタをなでしこの値として公開しないため、論理ハンドル0を使う。
 const MotherWindowHandle = 0
@@ -61,15 +66,15 @@ func normalizeWindowState(state string) (string, error) {
 }
 
 func positiveWindowDimension(number float64, name string) (int, error) {
-	if math.IsNaN(number) || math.IsInf(number, 0) || number <= 0 || number != math.Trunc(number) {
-		return 0, fmt.Errorf("ウィンドウの%sには正の整数を指定してください", name)
+	if math.IsNaN(number) || math.IsInf(number, 0) || number <= 0 || number > maxNativeWindowInt || number != math.Trunc(number) {
+		return 0, fmt.Errorf("ウィンドウの%sには1から%dまでの整数を指定してください", name, maxNativeWindowInt)
 	}
 	return int(number), nil
 }
 
 func integerWindowCoordinate(number float64, name string) (int, error) {
-	if math.IsNaN(number) || math.IsInf(number, 0) || number != math.Trunc(number) {
-		return 0, fmt.Errorf("ウィンドウの%sには整数を指定してください", name)
+	if math.IsNaN(number) || math.IsInf(number, 0) || number < minNativeWindowInt || number > maxNativeWindowInt || number != math.Trunc(number) {
+		return 0, fmt.Errorf("ウィンドウの%sには%dから%dまでの整数を指定してください", name, minNativeWindowInt, maxNativeWindowInt)
 	}
 	return int(number), nil
 }
@@ -152,8 +157,12 @@ func ParseWindowSettings(v value.Value) (WindowSettings, error) {
 		settings.Title = value.ToString(item)
 	}
 	if item, ok := getWindowSetting(dict, "サイズ変更可", "resizable"); ok {
+		resizable, ok := item.Bool()
+		if !ok {
+			return WindowSettings{}, errors.New("ウィンドウの『サイズ変更可』には真偽値を指定してください")
+		}
 		settings.HasResizable = true
-		settings.Resizable = value.ToBool(item)
+		settings.Resizable = resizable
 	}
 	return settings, nil
 }
