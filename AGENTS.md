@@ -71,6 +71,8 @@ nadesiko3go/
 │   └── compat/            本家からコピーした cases/ と expected/、コピー元のSOURCE
 ├── scripts/
 │   └── sync-compat-fixtures.sh
+├── manual/
+│   └── gonako/*.txt     gonakoの命令マニュアル (別リポジトリで管理) KonaWiki3形式のテキスト
 └── docs/
 ```
 
@@ -89,6 +91,8 @@ GoのポインタをValueとして公開しません。
 （パターンのコンパイル・マッチ・置換と、RE2 / regexp2 の切り替え）だけを持ち、
 `stdlib/regexp.go` は**なでしこの命令**（`正規表現マッチ` など、JS形式の
 `/pattern/flags` 文字列の解釈と戻り値の形）を持ちます。前者は互換保証の対象外、後者は対象です。
+
+`manual/gonako/*.txt`に、gonakoの命令マニュアルを配置します。新しい命令を作ったら、ここにマニュアルを追加します。DocTestの対象です。
 
 ---
 
