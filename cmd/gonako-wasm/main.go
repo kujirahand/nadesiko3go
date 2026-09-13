@@ -80,7 +80,17 @@ func worker() {
 			return
 		}
 		j := queue[0]
+		// スライスの先頭を進めるだけでは、取り出し済みの要素への参照が
+		// 下層配列に残ってしまう(Goのスライスは下層配列を共有するので、GCは
+		// 確保されたブロック全体を1つの生存オブジェクトとして扱う)。
+		// job.options/resolve は js.Value なのでJS側のコールバックや値も
+		// 一緒に生き続けてしまい、長時間ページを開いたままだと解放されない。
+		// 明示的にゼロ値を書き戻し、空になったら下層配列ごと手放す。
+		queue[0] = job{}
 		queue = queue[1:]
+		if len(queue) == 0 {
+			queue = nil
+		}
 		queueMu.Unlock()
 
 		j.resolve.Invoke(js.ValueOf(execute(j.code, j.options)))
