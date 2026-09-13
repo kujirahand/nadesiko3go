@@ -1,6 +1,7 @@
 package guilib
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -20,6 +21,7 @@ import (
 type Plugin struct {
 	dialogs fileDialogs
 	screen  *Screen
+	windows WindowController
 
 	// DOMスキン設定だけを使うプログラムでは、VMが『DOMスキン』用の
 	// 記憶領域を作らないことがあるため、選択中の名前を控えておく。
@@ -48,6 +50,14 @@ func NewWithScreen(screen *Screen) *Plugin {
 	return &Plugin{dialogs: nativeFileDialogs(), screen: screen}
 }
 
+// NewWithScreenAndWindow は画面モデルとネイティブウィンドウを接続したプラグインを返す。
+// WindowControllerを差し替え可能にして、テストでは実ウィンドウを開かない。
+func NewWithScreenAndWindow(screen *Screen, windows WindowController) *Plugin {
+	plugin := NewWithScreen(screen)
+	plugin.windows = windows
+	return plugin
+}
+
 type command struct {
 	josi       [][]string
 	returnNone bool
@@ -70,6 +80,7 @@ func (p *Plugin) FuncList() lexer.FuncList {
 	)))
 	domOptions.Set("テーブル数値右寄せ", value.Bool(true))
 	list["DOM部品オプション"] = &lexer.FuncItem{Name: "DOM部品オプション", Type: "const", Value: value.DictValue(domOptions)}
+	list["母艦"] = &lexer.FuncItem{Name: "母艦", Type: "const", Value: MotherWindowHandle}
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,
@@ -304,7 +315,54 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdCreateWindow,
 		},
+		"ウィンドウ変更": { // @設定辞書で指定したウィンドウのサイズ・位置・状態などを変更する // @うぃんどうへんこう
+			josi:       [][]string{{"で", "に"}, {"の", "を"}},
+			returnNone: true,
+			fn:         p.cmdChangeWindow,
+		},
+		"ウィンドウ取得": { // @指定したウィンドウのサイズ・位置・状態などを辞書で返す // @うぃんどうしゅとく
+			josi: [][]string{{"の", "を", "から"}},
+			fn:   p.cmdGetWindow,
+		},
 	}
+}
+
+func windowHandle(v value.Value) (int, error) {
+	number, ok := v.Number()
+	if !ok || number != math.Trunc(number) {
+		return 0, errors.New("ウィンドウには数値ハンドルを指定してください")
+	}
+	return int(number), nil
+}
+
+func (p *Plugin) cmdChangeWindow(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	if p.windows == nil {
+		return value.Undefined(), errors.New("『ウィンドウ変更』はgonako-guiのウィンドウ内でのみ使えます")
+	}
+	settings, err := ParseWindowSettings(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	handle, err := windowHandle(arg(args, 1))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.windows.Change(handle, settings)
+}
+
+func (p *Plugin) cmdGetWindow(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	if p.windows == nil {
+		return value.Undefined(), errors.New("『ウィンドウ取得』はgonako-guiのウィンドウ内でのみ使えます")
+	}
+	handle, err := windowHandle(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	info, err := p.windows.Info(handle)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return windowInfoValue(info), nil
 }
 
 func (p *Plugin) cmdConfirm(ctx stdlib.Context, args []value.Value) (value.Value, error) {

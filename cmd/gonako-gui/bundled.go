@@ -25,6 +25,7 @@ import (
 	"text/template"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 	"github.com/webview/webview_go"
 )
@@ -80,7 +81,12 @@ func runBundledHTML(packed *bundle.Bundle) {
 	port := listener.Addr().(*net.TCPAddr).Port
 	url := fmt.Sprintf("http://127.0.0.1:%d/%s", port, packed.Entry)
 
-	w := newAppWindow(packed.Title)
+	settings, err := bundledWindowSettings(packed)
+	if err != nil {
+		showMessageWindow(packed.Title, err.Error())
+		return
+	}
+	w := newAppWindow(settings)
 	if w == nil {
 		return
 	}
@@ -93,12 +99,17 @@ func runBundledHTML(packed *bundle.Bundle) {
 // printed. A program that opened its own window with 『ウィンドウ作成』 prints
 // nothing, and then there is no second window to show.
 func runBundledProgram(packed *bundle.Bundle) {
-	session := &guiSession{}
-	w := newAppWindow(packed.Title)
+	settings, err := bundledWindowSettings(packed)
+	if err != nil {
+		showMessageWindow(packed.Title, err.Error())
+		return
+	}
+	w := newAppWindow(settings)
 	if w == nil {
 		return
 	}
 	defer w.Destroy()
+	session := &guiSession{window: newNativeWindowController(w)}
 	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
@@ -171,25 +182,42 @@ func bundledAsyncProgramPage(runID uint64) string {
 	return buf.String()
 }
 
-// newAppWindow opens the window a converted application runs in.
-func newAppWindow(title string) webview.WebView {
+// bundledWindowSettings はmanifestのタイトルへ、梱包されたindex.jsonを重ねる。
+func bundledWindowSettings(packed *bundle.Bundle) (guilib.WindowSettings, error) {
+	settings := defaultWindowSettings(packed.Title, 960, 640)
+	fromFile, found, err := loadBundledWindowSettings(packed)
+	if err != nil {
+		return guilib.WindowSettings{}, err
+	}
+	if found {
+		settings = mergeWindowSettings(settings, fromFile)
+	}
+	return settings, nil
+}
+
+// newAppWindow は変換済みアプリを実行するウィンドウを開く。
+func newAppWindow(settings guilib.WindowSettings) webview.WebView {
 	w := webview.New(os.Getenv("GONAKO_DEBUG") == "1")
 	if w == nil {
 		fmt.Fprintln(os.Stderr, "WebViewの初期化に失敗しました。")
 		return nil
 	}
-	if title == "" {
-		title = "なでしこ3"
+	if !settings.HasTitle || settings.Title == "" {
+		settings.HasTitle = true
+		settings.Title = "なでしこ3"
 	}
-	w.SetTitle(title)
-	w.SetSize(960, 640, webview.HintNone)
+	if err := applyWindowSettings(w, settings, false); err != nil {
+		fmt.Fprintf(os.Stderr, "ウィンドウ設定を適用できません: %v\n", err)
+		w.Destroy()
+		return nil
+	}
 	return w
 }
 
 // showMessageWindow reports a startup failure where a GUI application can
 // actually be read: in a window, since there is no terminal attached.
 func showMessageWindow(title, message string) {
-	w := newAppWindow(title)
+	w := newAppWindow(defaultWindowSettings(title, 520, 220))
 	if w == nil {
 		fmt.Fprintln(os.Stderr, message)
 		return
