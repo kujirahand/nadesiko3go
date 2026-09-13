@@ -50,8 +50,10 @@ func TestCreateAIProject(t *testing.T) {
 		}
 		text := string(data)
 		for _, required := range []string{
-			"必ず日本語で応答", "文法メモ", "gonako doc キーワード --json",
-			"gonako doc キーワード --web", "gonako run main.nako3", "命令名や助詞を推測",
+			"必ず日本語で応答", "日本語プログラミング言語", "https://nadesi.com/",
+			"基本文法", "自由な自然言語ではありません", "命令、助詞、連文", "ここまで",
+			"gonako doc キーワード --json", "gonako doc キーワード --web",
+			"gonako run main.nako3", "命令名や助詞を推測",
 		} {
 			if !strings.Contains(text, required) {
 				t.Errorf("%sに%qがありません", name, required)
