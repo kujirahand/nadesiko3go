@@ -39,4 +39,20 @@ await check("言う(ダイアログ無し)", "「やあ」と言う。", { ok: t
 await check("エラー", "「a」を表示。\n存在しない命令。", { ok: false, line: 2 });
 await check("nodelibは無し", "「.」のファイル名一覧取得して表示。", { ok: false });
 
+// 同時に呼んでも、呼び出した順に1本ずつ実行されることを確かめる (#89 レビュー指摘)。
+// Aは待機ありで先に呼び、Bは待機無しで後から呼ぶ。goroutineの生成順や
+// mutexの取得順に頼っていると、待機の無いBが先に終わってしまう。
+{
+  const order = [];
+  const pA = gonako.run("「A」を表示。\n0.2秒待機。").then(() => order.push("A"));
+  const pB = gonako.run("「B」を表示。").then(() => order.push("B"));
+  await Promise.all([pA, pB]);
+  if (order.join(",") === "A,B") {
+    console.log("OK 呼び出し順を保つ");
+  } else {
+    failed++;
+    console.log("NG 呼び出し順を保つ:", order);
+  }
+}
+
 process.exit(failed ? 1 : 0);

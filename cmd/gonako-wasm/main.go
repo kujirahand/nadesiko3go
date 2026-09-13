@@ -33,9 +33,59 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/wasmrt"
 )
 
-// runMu は同時に複数のプログラムが走らないようにする。
-// 出力の混線を避けるため、run の呼び出し順に1本ずつ実行する。
-var runMu sync.Mutex
+// job は gonako.run の1回分の呼び出しを表す。
+type job struct {
+	code    string
+	options js.Value
+	resolve js.Value
+}
+
+// queue と workerRunning は、run の呼び出し順に1本ずつ実行するためのFIFOキュー。
+//
+// 以前は呼び出しごとに goroutine を作って mutex を取り合わせていたが、Goの
+// スケジューラは新しい goroutine を先に走らせることがある（`go`文で作った
+// goroutineは実行キューの `runnext` に入り、さらに次の goroutine が来ると
+// そちらに追い出される）ため、mutexの取得順は呼び出し順と一致しなかった。
+// ここでは、JSからの呼び出し自体は必ず1本ずつ（JSはシングルスレッド）である
+// ことを使い、Promiseのexecutor内（goroutineを作る前の同期区間）でキューに
+// 積むことで、追加順=呼び出し順を保証する。
+var (
+	queueMu       sync.Mutex
+	queue         []job
+	workerRunning bool
+)
+
+// submit はジョブをキューの末尾に積む。呼び出し自体はブロックしない。
+// キューが空だった（＝ワーカーが止まっていた）ときだけワーカーを起こす。
+func submit(j job) {
+	queueMu.Lock()
+	queue = append(queue, j)
+	start := !workerRunning
+	if start {
+		workerRunning = true
+	}
+	queueMu.Unlock()
+	if start {
+		go worker()
+	}
+}
+
+// worker はキューが空になるまで、先頭から1本ずつ実行する。
+func worker() {
+	for {
+		queueMu.Lock()
+		if len(queue) == 0 {
+			workerRunning = false
+			queueMu.Unlock()
+			return
+		}
+		j := queue[0]
+		queue = queue[1:]
+		queueMu.Unlock()
+
+		j.resolve.Invoke(js.ValueOf(execute(j.code, j.options)))
+	}
+}
 
 func main() {
 	api := js.Global().Get("Object").New()
@@ -63,10 +113,8 @@ func run(_ js.Value, args []js.Value) any {
 	}
 
 	executor := js.FuncOf(func(_ js.Value, p []js.Value) any {
-		resolve := p[0]
-		go func() {
-			resolve.Invoke(js.ValueOf(execute(code, options)))
-		}()
+		// ここは同期で呼ばれる区間なので、積む順序がJSの呼び出し順と一致する
+		submit(job{code: code, options: options, resolve: p[0]})
 		return nil
 	})
 	// Promiseのexecutorは生成時に同期で呼ばれるので、生成後に解放してよい
@@ -75,10 +123,8 @@ func run(_ js.Value, args []js.Value) any {
 }
 
 // execute はプログラムを実行し、JSへ渡す結果オブジェクトを作る。
+// worker が1本ずつ呼ぶので、複数の実行が同時に動くことはない。
 func execute(code string, options js.Value) (result map[string]any) {
-	runMu.Lock()
-	defer runMu.Unlock()
-
 	h := &wasmrt.Host{Dialog: browserDialog}
 	filename := wasmrt.DefaultFilename
 	if options.Type() == js.TypeObject {
