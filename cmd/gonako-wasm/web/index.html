@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>gonako WebAssembly版</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 50rem; margin: 0 auto; padding: 1rem; }
+  textarea, pre { box-sizing: border-box; width: 100%; font: 15px/1.5 ui-monospace, monospace; }
+  textarea { height: 14rem; padding: .5rem; }
+  pre { min-height: 8rem; padding: .5rem; border: 1px solid #8884; white-space: pre-wrap; }
+  .error { color: #d33; }
+  button { font-size: 1rem; padding: .3rem 1.2rem; }
+</style>
+</head>
+<body>
+<h1>gonako <small id="version">(読み込み中…)</small></h1>
+<textarea id="code">「こんにちは、なでしこ！」を表示。
+Aは[1,2,3,4,5]。
+Aの合計を表示。
+0.5秒待機。
+「今日は{今日}です」を表示。
+</textarea>
+<p><button id="run" disabled>実行</button></p>
+<pre id="output"></pre>
+
+<script src="wasm_exec.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+// gonako.wasm の main が準備を終えると呼ばれる
+globalThis.gonakoReady = (gonako) => {
+  $("version").textContent = "v" + gonako.version;
+  $("run").disabled = false;
+};
+
+$("run").onclick = async () => {
+  const out = $("output");
+  out.textContent = "";
+  $("run").disabled = true;
+  const result = await gonako.run($("code").value, {
+    onPrint: (line) => { out.append(line + "\n"); },
+    onWrite: (s) => { out.append(s); },
+  });
+  if (!result.ok) {
+    const err = document.createElement("span");
+    err.className = "error";
+    err.textContent = result.error.message + "\n";
+    out.append(err);
+  }
+  $("run").disabled = false;
+};
+
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("gonako.wasm"), go.importObject)
+  .then(({ instance }) => go.run(instance))
+  .catch((e) => { $("version").textContent = "(読み込み失敗: " + e + ")"; });
+</script>
+</body>
+</html>

@@ -27,6 +27,24 @@ cui:
 gui:
     {{go}} build -o bin/gonako-gui ./cmd/gonako-gui
 
+# ブラウザ向けWebAssembly版（コア機能のみ）を bin/wasm にビルド
+# gonako.wasm と、Go付属の wasm_exec.js、サンプルページ index.html を出力する
+wasm:
+    mkdir -p bin/wasm
+    GOOS=js GOARCH=wasm {{go}} build -trimpath -ldflags="-s -w" -o bin/wasm/gonako.wasm ./cmd/gonako-wasm
+    cp "$({{go}} env GOROOT)/lib/wasm/wasm_exec.js" bin/wasm/
+    cp cmd/gonako-wasm/web/index.html bin/wasm/
+    gzip -9 -k -f bin/wasm/gonako.wasm
+    command -v brotli >/dev/null 2>&1 && brotli -q 11 -f bin/wasm/gonako.wasm -o bin/wasm/gonako.wasm.br || true
+
+# WebAssembly版をNode.jsで動かして確かめる
+wasm-test: wasm
+    node scripts/wasm-smoke.mjs bin/wasm
+
+# WebAssembly版のサンプルページをローカルで開く（http://localhost:8080/）
+wasm-serve: wasm
+    python3 -m http.server 8080 -d bin/wasm
+
 # gonako / gonako-cui を $GOPATH/bin にインストール
 install:
     {{go}} install ./cmd/gonako

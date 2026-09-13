@@ -1,3 +1,8 @@
+//go:build !(js && wasm)
+
+// ブラウザ(js/wasm)向けにはCUI用のHostと既定プラグイン(nodelib・bundle など)を
+// 取り込まない。コア機能だけで動かす経路は internal/wasmrt を参照。
+
 package vm
 
 import (
@@ -148,28 +153,6 @@ func RunWithHost(code, filename string, h Host) error {
 	// setTimeoutの完了までは待たない。同じ境界で表示ログを比較する。
 	options.DrainPendingCallbacks = false
 	return New(prog, registry, h, options).Run()
-}
-
-// RunWithHostAndRegistry compiles and runs a program with a custom registry.
-func RunWithHostAndRegistry(code, filename string, registry *stdlib.Registry, h Host) error {
-	prog, err := CompileWithRegistry(code, filename, registry)
-	if err != nil {
-		return err
-	}
-	options := DefaultOptions()
-	options.RealSleep = true
-	return New(prog, registry, h, options).Run()
-}
-
-// CompileWithRegistry compiles source with an explicitly supplied command
-// registry. Interactive GUI sessions use it to retain the resulting VM after
-// main has returned, so browser events can call registered closures later.
-func CompileWithRegistry(code, filename string, registry *stdlib.Registry) (*ir.Program, error) {
-	tree, err := parser.ParseSource(code, filename, registry.FuncList())
-	if err != nil {
-		return nil, err
-	}
-	return compiler.Compile(tree, filename, registry)
 }
 
 var defaultPlugins = []stdlib.Plugin{

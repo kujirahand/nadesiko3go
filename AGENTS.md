@@ -30,6 +30,7 @@ nadesiko3go/
 ├── cmd/
 │   ├── gonako/            CUI本体（フル機能）。実行・ビルド・fixture実行のサブコマンド
 │   ├── gonako-cui/        軽量CUI版。標準コア+SQLiteのみに絞った別バイナリ（8MB台）
+│   ├── gonako-wasm/       ブラウザ向けWebAssembly版（コア機能のみ）。→ `docs/wasm.md`
 │   └── gonako-gui/        GUI版（webview_go）。段階8
 │       └── ui/            埋め込みUI（//go:embed）。→ 9節・`docs/gonako-gui-editor.md`
 │           └── bundled/    梱包アプリの実行画面（HTML/CSS/JS）。bundled.goが組み立てる
@@ -63,6 +64,7 @@ nadesiko3go/
 │   ├── bundle/            単一ファイル梱包。リソースの仮想ファイルシステム。→ 8節・`docs/package.md`
 │   ├── gogen/             Goソース生成バックエンド（段階10・→ 10節・`docs/gogen.md`）。実装済み
 │   ├── commanddoc/        命令一覧の埋め込みと検索（`gonako doc`）。→ `docs/doc-search.md`
+│   ├── wasmrt/            WebAssembly版の実行環境（Host実装とコア命令の組み合わせ）
 │   ├── compat/            差分fixtureの実行と結果出力
 │   └── doctest/           本家マニュアルのdoctestブロックを実行して結果を照合
 ├── pkg/
