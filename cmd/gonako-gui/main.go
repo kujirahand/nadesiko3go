@@ -382,6 +382,8 @@ func main() {
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
+	explicitFlags := map[string]bool{}
+	flags.Visit(func(item *flag.Flag) { explicitFlags[item.Name] = true })
 
 	initialWorkingDir, _ := os.Getwd()
 	targetDir := *dirFlag
@@ -418,6 +420,28 @@ func main() {
 				}
 			}
 		}
+	}
+
+	windowSettings := defaultWindowSettings(*titleFlag, *widthFlag, *heightFlag)
+	if targetDir != "" {
+		fromFile, found, err := loadWindowSettingsFromDir(targetDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if found {
+			windowSettings = mergeWindowSettings(windowSettings, fromFile)
+		}
+	}
+	// 明示したコマンドラインオプションはindex.jsonより優先する。
+	if explicitFlags["title"] {
+		windowSettings.HasTitle, windowSettings.Title = true, *titleFlag
+	}
+	if explicitFlags["width"] {
+		windowSettings.HasSize, windowSettings.Width = true, *widthFlag
+	}
+	if explicitFlags["height"] {
+		windowSettings.HasSize, windowSettings.Height = true, *heightFlag
 	}
 
 	var handler http.Handler
@@ -465,14 +489,17 @@ func main() {
 	}
 	defer w.Destroy()
 
-	w.SetTitle(*titleFlag)
-	w.SetSize(*widthFlag, *heightFlag, webview.HintNone)
+	if err := applyWindowSettings(w, windowSettings, false); err != nil {
+		fmt.Fprintf(os.Stderr, "ウィンドウ設定を適用できません: %v\n", err)
+		os.Exit(1)
+	}
 
-	guiRuntime := &guiSession{}
+	guiRuntime := &guiSession{window: newNativeWindowController(w)}
+	directWindow := newDirectNativeWindowController(w)
 
 	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
 	_ = w.Bind("runNakoCode", func(code string) string {
-		result := guiRuntime.run(code, "gui.nako3", false, nil, nil)
+		result := guiRuntime.runWithWindow(code, "gui.nako3", false, nil, nil, directWindow)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
@@ -498,7 +525,7 @@ func main() {
 			runFile = "gui.nako3"
 		}
 
-		result := guiRuntime.run(code, runFile, windowMode, nil, nil)
+		result := guiRuntime.runWithWindow(code, runFile, windowMode, nil, nil, directWindow)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})

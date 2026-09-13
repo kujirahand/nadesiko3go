@@ -105,6 +105,11 @@ type guiSession struct {
 	nextID uint64
 	active *guiExecution
 	async  map[uint64]*guiAsyncRun
+	window guilib.WindowController
+}
+
+func (s *guiSession) pluginForScreen(screen *guilib.Screen) *guilib.Plugin {
+	return guilib.NewWithScreenAndWindow(screen, s.window)
 }
 
 type DialogRequest struct {
@@ -241,11 +246,15 @@ func (s *guiSession) reserveRun(async bool) (uint64, *guiAsyncRun) {
 }
 
 func (s *guiSession) run(code, filename string, windowMode bool, args []string, packed *bundle.Bundle) RunResult {
+	return s.runWithWindow(code, filename, windowMode, args, packed, s.window)
+}
+
+func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) RunResult {
 	s.execMu.Lock()
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
 	screen := guilib.NewScreen()
-	plugin := guilib.NewWithScreen(screen)
+	plugin := guilib.NewWithScreenAndWindow(screen, windows)
 	registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 	host := newGUIHost(screen, windowMode, args, packed)
 
@@ -263,7 +272,7 @@ func (s *guiSession) runCompiled(prog *ir.Program, args []string, packed *bundle
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
 	screen := guilib.NewScreen()
-	plugin := guilib.NewWithScreen(screen)
+	plugin := s.pluginForScreen(screen)
 	registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 	host := newGUIHost(screen, true, args, packed)
 	result := RunResult{OK: false, RunID: id}
@@ -307,7 +316,7 @@ func (s *guiSession) start(code, filename string, windowMode bool, args []string
 		}()
 
 		screen := guilib.NewScreen()
-		plugin := guilib.NewWithScreen(screen)
+		plugin := s.pluginForScreen(screen)
 		registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 		host := newGUIHost(screen, windowMode, args, packed)
 		host.dialog = state.showDialog
@@ -329,7 +338,7 @@ func (s *guiSession) startCompiled(prog *ir.Program, args []string, packed *bund
 		s.execMu.Lock()
 		defer s.execMu.Unlock()
 		screen := guilib.NewScreen()
-		plugin := guilib.NewWithScreen(screen)
+		plugin := s.pluginForScreen(screen)
 		registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 		host := newGUIHost(screen, true, args, packed)
 		host.dialog = state.showDialog

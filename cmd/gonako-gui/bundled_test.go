@@ -59,6 +59,7 @@ func TestBuildAppFromFolderProgram(t *testing.T) {
 	folder := filepath.Join(dir, "myapp")
 	result := filepath.Join(dir, "result.txt")
 	writeFile(t, filepath.Join(folder, "data", "greeting.txt"), "こんにちは同梱データ")
+	writeFile(t, filepath.Join(folder, "index.json"), `{"サイズ":[640,480],"位置":"中央"}`)
 	writeFile(t, filepath.Join(folder, "main.nako3"),
 		"S=「data/greeting.txt」を開く\nSを「"+result+"」へ保存\n")
 	// 隠しフォルダは梱包しない
@@ -91,6 +92,10 @@ func TestBuildAppFromFolderProgram(t *testing.T) {
 	}
 	if _, ok := packed.ReadResource(".git/config"); ok {
 		t.Fatal("隠しフォルダが梱包されている")
+	}
+	settings, found, err := loadBundledWindowSettings(packed)
+	if err != nil || !found || settings.Width != 640 || settings.Height != 480 || !settings.Center {
+		t.Fatalf("梱包したindex.jsonをウィンドウ設定として読めない: found=%v settings=%#v err=%v", found, settings, err)
 	}
 
 	if !real {
@@ -198,6 +203,7 @@ func TestBuildAppFromFolderHTML(t *testing.T) {
 		`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">`+
 			`<link rel="stylesheet" href="css/style.css"></head><body><h1>やあ</h1></body></html>`)
 	writeFile(t, filepath.Join(folder, "css", "style.css"), "body{color:red}")
+	writeFile(t, filepath.Join(folder, "index.json"), `{"サイズ":[800,600],"タイトル":"HTML見本"}`)
 
 	out := filepath.Join(dir, "SiteApp")
 	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "サイト")
@@ -225,7 +231,7 @@ func TestBuildAppFromFolderHTML(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"index.html", "css/style.css"} {
+	for _, name := range []string{"index.html", "index.json", "css/style.css"} {
 		f, err := fsys.Open(name)
 		if err != nil {
 			t.Fatalf("%s を配信できない: %v", name, err)
