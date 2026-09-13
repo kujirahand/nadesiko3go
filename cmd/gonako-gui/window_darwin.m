@@ -60,9 +60,9 @@ void gonakoApplyWindowSettings(void *windowPtr, int hasPosition, int center, int
         if (center) {
             [window center];
         } else {
-            NSScreen *screen = gonakoWindowScreen(window);
+            NSScreen *screen = [NSScreen mainScreen];
             NSRect visible = screen.visibleFrame;
-            NSPoint topLeft = NSMakePoint(NSMinX(visible) + x, NSMaxY(visible) - y);
+            NSPoint topLeft = NSMakePoint(x, NSMaxY(visible) - y);
             [window setFrameTopLeftPoint:topLeft];
         }
     }
@@ -100,11 +100,11 @@ gonakoWindowInfo gonakoGetWindowInfo(void *windowPtr) {
     }
 
     NSRect frame = window.frame;
-    NSScreen *screen = gonakoWindowScreen(window);
+    NSScreen *screen = [NSScreen mainScreen];
     NSRect visible = screen.visibleFrame;
     result.width = (int)llround(frame.size.width);
     result.height = (int)llround(frame.size.height);
-    result.x = (int)llround(NSMinX(frame) - NSMinX(visible));
+    result.x = (int)llround(NSMinX(frame));
     result.y = (int)llround(NSMaxY(visible) - NSMaxY(frame));
     result.resizable = (window.styleMask & NSWindowStyleMaskResizable) != 0;
     if (window.isMiniaturized) {
