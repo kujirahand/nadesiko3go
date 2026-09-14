@@ -205,10 +205,12 @@ document.addEventListener('DOMContentLoaded', () => {
   //   window     : インライン    --- エディタ内蔵の画面プレビューで実行する
   //   newwindow  : ウィンドウ(GUI) --- 別プロセス・別ウィンドウを起動して実行する
   //   cli        : コマンドライン(CLI) --- エディタ下部の出力欄に結果を表示する
-  const runModeLabels = { window: 'インライン', newwindow: 'ウィンドウ(GUI)', cli: 'コマンドライン(CLI)' };
+  //   wnako3     : ブラウザ(wnako3) --- 別ウィンドウでブラウザ版なでしこ(タートル付き)として実行する(#63)
+  const runModeLabels = { window: 'インライン', newwindow: 'ウィンドウ(GUI)', cli: 'コマンドライン(CLI)', wnako3: 'ブラウザ(wnako3)' };
   const runModeColors = {
     window: ['var(--accent-pink)', 'rgba(243, 139, 168, 0.15)'],
     newwindow: ['var(--accent-mauve, var(--accent-pink))', 'rgba(203, 166, 247, 0.15)'],
+    wnako3: ['var(--accent-peach, var(--accent-pink))', 'rgba(250, 179, 135, 0.15)'],
     cli: ['var(--accent-teal)', 'rgba(148, 226, 213, 0.12)']
   };
   selectAppType.addEventListener('change', () => {
@@ -1826,6 +1828,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const runMode = selectAppType.value;
     const isWindowMode = runMode === 'window';
     const isNewWindowMode = runMode === 'newwindow';
+    const isWNako3Mode = runMode === 'wnako3';
     execStatus.textContent = '実行中...';
     execStatus.className = 'status-indicator running';
     btnRun.disabled = true;
@@ -1841,9 +1844,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「ウィンドウ(GUI)」は別プロセス・別ウィンドウで動くので、エディタ側は
     // 起動を依頼するだけでポーリングも画面プレビューも行わない(#97)。
-    if (isNewWindowMode) {
+    // 「ブラウザ(wnako3)」も同じく別プロセス・別ウィンドウで動く(#63)。
+    if (isNewWindowMode || isWNako3Mode) {
       try {
-        const raw = await window.runNakoInNewWindow(code, currentFilePath || '');
+        const raw = isWNako3Mode
+          ? await window.runNakoInWNako3(code, currentFilePath || '')
+          : await window.runNakoInNewWindow(code, currentFilePath || '');
         const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (data.error) {
           output.textContent = data.error;

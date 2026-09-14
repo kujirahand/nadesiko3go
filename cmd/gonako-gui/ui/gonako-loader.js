@@ -111,6 +111,8 @@
     run,
     version: config.gonakoVersion || '',
     wnako3Version: config.wnako3Version || '',
+    // wnako3 を自前で動かすページ（ui/wnako3run.html）が、実行前に確実に登録するため
+    registerWNako3Plugin: () => registerPlugin(),
   };
 
   // wnako3 へ登録するプラグイン

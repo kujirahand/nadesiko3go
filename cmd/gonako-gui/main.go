@@ -386,6 +386,9 @@ func main() {
 	runWindowFlag := flags.String("run-window", "", "")
 	runWindowTitleFlag := flags.String("run-window-title", "", "")
 	runWindowNameFlag := flags.String("run-window-name", "", "")
+	// エディタの「ブラウザ(wnako3)」実行モード用の内部専用フラグ（#63）。
+	// タイトルと元のファイル名は -run-window-title / -run-window-name を共用する。
+	runWNako3Flag := flags.String("run-wnako3", "", "")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
@@ -395,6 +398,10 @@ func main() {
 
 	if *runWindowFlag != "" {
 		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag, *runWindowNameFlag)
+		return
+	}
+	if *runWNako3Flag != "" {
+		runWNako3Window(*runWNako3Flag, *runWindowTitleFlag, *runWindowNameFlag)
 		return
 	}
 
@@ -579,6 +586,14 @@ func main() {
 	// 新しいウィンドウ自身に効き、エディタのウィンドウには影響しない。
 	_ = w.Bind("runNakoInNewWindow", func(code string, filePath string) string {
 		result := launchNakoWindowProcess(code, filePath)
+		b, _ := json.Marshal(result)
+		return string(b)
+	})
+
+	// 「ブラウザ(wnako3)」実行モード。別プロセス・別ウィンドウで、
+	// プログラムをブラウザ版なでしこ（タートル付き）として動かす（#63）。
+	_ = w.Bind("runNakoInWNako3", func(code string, filePath string) string {
+		result := launchWNako3WindowProcess(code, filePath)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
