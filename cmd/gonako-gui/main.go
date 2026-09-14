@@ -75,6 +75,8 @@ type AppInfo struct {
 	HomeDir     string `json:"homeDir"`
 	DesktopDir  string `json:"desktopDir"`
 	InitialFile string `json:"initialFile,omitempty"`
+	// WNako3Version は同梱したブラウザ版なでしこ（wnako3.js）の版（#63）。
+	WNako3Version string `json:"wnako3Version,omitempty"`
 }
 
 // CommandItem describes a nadesiko command for the command palette/list.
@@ -462,7 +464,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "パスの解決に失敗しました: %v\n", err)
 			os.Exit(1)
 		}
-		handler = http.FileServer(http.Dir(absDir))
+		handler = newSiteHandler(os.DirFS(absDir))
 	} else if targetURL == "" {
 		// 組み込みUIファイルをHTTPサーバーで配信
 		subFS, err := fs.Sub(uiFS, "ui")
@@ -470,7 +472,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "UIアセットの読み込みに失敗しました: %v\n", err)
 			os.Exit(1)
 		}
-		handler = http.FileServer(http.FS(subFS))
+		handler = newSiteHandler(subFS)
 	}
 
 	var finalURL string
@@ -507,6 +509,18 @@ func main() {
 
 	guiRuntime := &guiSession{window: newNativeWindowController(w)}
 	directWindow := newDirectNativeWindowController(w)
+
+	// wnako3（ブラウザ版なでしこ）のローダーとGo命令ブリッジ（#63）。
+	// 外部URLのページには注入しない。
+	if targetURL == "" {
+		forceWNako3 := false
+		if targetDir != "" {
+			if data, err := os.ReadFile(filepath.Join(targetDir, windowConfigFile)); err == nil {
+				forceWNako3 = wnako3ConfigFromIndexJSON(data)
+			}
+		}
+		installWNako3(w, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
+	}
 
 	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
 	_ = w.Bind("runNakoCode", func(code string) string {
@@ -603,6 +617,8 @@ func main() {
 			HomeDir:     home,
 			DesktopDir:  getDesktopDir(),
 			InitialFile: initialFile,
+
+			WNako3Version: readWNako3Info().Version,
 		}
 		b, _ := json.Marshal(info)
 		return string(b)

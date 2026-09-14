@@ -914,6 +914,22 @@ func (m *VM) CallCommand(name string, args []value.Value) (value.Value, error) {
 	return entry.Fn(m, args)
 }
 
+// InvokeCommand はVMの外（gonako-guiのwnako3ブリッジなど）から命令を呼ぶ。
+// 命令の中で起きたなでしこのエラーを、panicではなく通常のerrorとして返す。
+func (m *VM) InvokeCommand(name string, args []value.Value) (result value.Value, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			np, ok := r.(nakoPanic)
+			if !ok {
+				result, err = value.Undefined(), fmt.Errorf("命令『%s』の実行中にエラーが発生しました: %v", name, r)
+				return
+			}
+			result, err = value.Undefined(), np.err
+		}
+	}()
+	return m.CallCommand(name, args)
+}
+
 func (m *VM) CommandState(name string) value.Value { return m.commandState[name] }
 
 func (m *VM) SetCommandState(name string, v value.Value) { m.commandState[name] = v }

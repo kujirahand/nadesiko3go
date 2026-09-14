@@ -88,6 +88,13 @@ func dictImpls(m map[string]Impl) {
 	}
 }
 
+// EncodeJSON はなでしこの値をJSON.stringifyと同じ規則でJSON文字列にする。
+// gonako-gui のwnako3ブリッジなど、パッケージの外から値を受け渡すために公開する。
+func EncodeJSON(v value.Value) (string, error) { return encodeJSON(v) }
+
+// DecodeJSON はJSON文字列をキーの順序を保ったままなでしこの値にする。
+func DecodeJSON(s string) (value.Value, error) { return decodeJSON(s) }
+
 // encodeJSON renders a value the way JSON.stringify does: keys in insertion
 // order, no HTML escaping, and undefined dropped.
 func encodeJSON(v value.Value) (string, error) {

@@ -75,7 +75,7 @@ func runBundledHTML(packed *bundle.Bundle) {
 	}
 	defer listener.Close()
 
-	server := &http.Server{Handler: http.FileServer(http.FS(resources))}
+	server := &http.Server{Handler: newSiteHandler(resources)}
 	go func() { _ = server.Serve(listener) }()
 
 	port := listener.Addr().(*net.TCPAddr).Port
@@ -91,6 +91,25 @@ func runBundledHTML(packed *bundle.Bundle) {
 		return
 	}
 	defer w.Destroy()
+
+	// 梱包したHTMLからも window.gonako とwnako3が使えるようにする（#63）。
+	session := &guiSession{window: newNativeWindowController(w)}
+	_ = w.Bind("startNakoCode", func(code string) uint64 {
+		return session.start(code, "gui.nako3", false, os.Args[1:], packed)
+	})
+	_ = w.Bind("pollNakoRun", func(runID uint64) string {
+		b, _ := json.Marshal(session.poll(runID))
+		return string(b)
+	})
+	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
+		return session.resolveDialog(runID, dialogID, text, accepted)
+	})
+	forceWNako3 := false
+	if data, ok := packed.ReadResource(windowConfigFile); ok {
+		forceWNako3 = wnako3ConfigFromIndexJSON(data)
+	}
+	installWNako3(w, newWNako3PageConfig(forceWNako3), session.window, packed)
+
 	w.Navigate(url)
 	w.Run()
 }
