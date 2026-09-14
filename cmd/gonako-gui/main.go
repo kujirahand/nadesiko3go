@@ -494,7 +494,7 @@ func main() {
 		defer listener.Close()
 
 		port := listener.Addr().(*net.TCPAddr).Port
-		server := &http.Server{Handler: handler}
+		server := &http.Server{Handler: loopbackOnly(handler)}
 		go func() {
 			_ = server.Serve(listener)
 		}()

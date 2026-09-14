@@ -168,8 +168,15 @@
       return;
     }
     if (scripts().some(s => /(^|\/)wnako3\.js([?#&]|$)/.test(s.src))) {
-      // async などで遅れて読み込まれる場合
-      window.addEventListener('load', registerPlugin);
+      // async などで DOMContentLoaded より後に読み込まれる場合。wnako3 は読み込まれた
+      // 時点で DOMContentLoaded リスナーを登録するので、自動実行（wnako3.js?run）は
+      // 起きない。ここで登録し、ページが自動実行を求めていれば一度だけ実行する。
+      // DOMContentLoaded の時点で navigator.nako3 が無かったので、二重実行にはならない。
+      window.addEventListener('load', () => {
+        if (!navigator.nako3) return;
+        registerPlugin();
+        if (navigator.nako3.checkScriptTagParam()) navigator.nako3.runNakoScript();
+      }, { once: true });
       return;
     }
     if (!config.wnako3 && !scripts().some(s => nakoScriptType.test(s.type))) return;

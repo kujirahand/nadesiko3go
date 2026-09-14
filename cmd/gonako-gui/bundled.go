@@ -75,7 +75,7 @@ func runBundledHTML(packed *bundle.Bundle) {
 	}
 	defer listener.Close()
 
-	server := &http.Server{Handler: newSiteHandler(resources)}
+	server := &http.Server{Handler: loopbackOnly(newSiteHandler(resources))}
 	go func() { _ = server.Serve(listener) }()
 
 	port := listener.Addr().(*net.TCPAddr).Port

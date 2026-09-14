@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io/fs"
+	"net"
 	"net/http"
 	"path"
 	"strings"
@@ -107,6 +108,27 @@ func newSiteHandler(site fs.FS) http.Handler {
 			}
 		}
 		files.ServeHTTP(w, r)
+	})
+}
+
+// loopbackOnly はHostヘッダーがループバック（127.0.0.1 / localhost / ::1）の
+// 要求だけを通す。WebViewは常に http://127.0.0.1:<port>/ で開くので影響しない。
+// ふつうのブラウザで開いた悪意あるサイトが、DNS rebindingで自分のドメインを
+// 127.0.0.1 に向けてフォルダのファイルを読み出すのを防ぐ（その要求のHostは
+// 攻撃者のドメインになる）。
+func loopbackOnly(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		host = strings.Trim(host, "[]")
+		switch host {
+		case "127.0.0.1", "localhost", "::1":
+			next.ServeHTTP(w, r)
+		default:
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		}
 	})
 }
 

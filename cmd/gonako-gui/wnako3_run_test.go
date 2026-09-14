@@ -63,3 +63,32 @@ func TestEditorHasWNako3RunMode(t *testing.T) {
 		}
 	}
 }
+
+// 完了した通常実行も、doneを読んだ時点でセッションから捨てる（#63）。
+// window.gonako.run を繰り返しても実行状態が溜まり続けないこと。
+func TestPollForgetsFinishedRun(t *testing.T) {
+	session := &guiSession{window: newVirtualWindowController()}
+	for i := 0; i < 3; i++ {
+		id := session.start("「こんにちは」を表示", "gui.nako3", false, nil, nil)
+		var output string
+		for {
+			status := session.poll(id)
+			output += status.Output
+			if status.Done {
+				if status.Result == nil || !status.Result.OK {
+					t.Fatalf("実行に失敗しました: %+v", status.Result)
+				}
+				break
+			}
+		}
+		if output != "こんにちは\n" {
+			t.Fatalf("出力が違う: %q", output)
+		}
+	}
+	session.mu.Lock()
+	remaining := len(session.async)
+	session.mu.Unlock()
+	if remaining != 0 {
+		t.Fatalf("完了した実行状態が残っている: %d件", remaining)
+	}
+}

@@ -58,6 +58,44 @@ func TestSiteHandlerServesWNako3(t *testing.T) {
 	}
 }
 
+// DNS rebinding対策: ループバック以外のHostを名乗る要求は断る。
+func TestLoopbackOnlyRejectsForeignHost(t *testing.T) {
+	handler := loopbackOnly(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, "secret")
+	}))
+	for host, want := range map[string]int{
+		"127.0.0.1:54321":      http.StatusOK,
+		"localhost:54321":      http.StatusOK,
+		"[::1]:54321":          http.StatusOK,
+		"127.0.0.1":            http.StatusOK,
+		"attacker.example:80":  http.StatusForbidden,
+		"attacker.example":     http.StatusForbidden,
+		"127.0.0.1.nip.io:123": http.StatusForbidden,
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/data.txt", nil)
+		req.Host = host
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != want {
+			t.Fatalf("Host %s の応答が違う: got %d want %d", host, rec.Code, want)
+		}
+	}
+}
+
+// async で遅れて読み込まれたwnako3でも、?run があれば一度だけ実行する。
+func TestLoaderRunsLateLoadedWNako3(t *testing.T) {
+	loader := readUIAsset(t, "gonako-loader.js")
+	for _, required := range []string{
+		"window.addEventListener('load', () => {",
+		"if (navigator.nako3.checkScriptTagParam()) navigator.nako3.runNakoScript();",
+		"}, { once: true });",
+	} {
+		if !strings.Contains(loader, required) {
+			t.Fatalf("ローダーに %q が無い", required)
+		}
+	}
+}
+
 func TestWNako3ConfigFromIndexJSON(t *testing.T) {
 	if !wnako3ConfigFromIndexJSON([]byte(`{"タイトル":"見本","wnako3":true}`)) {
 		t.Fatal(`"wnako3": true を読めない`)

@@ -108,7 +108,7 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 	}
 	defer listener.Close()
 	program := wnako3RunProgram{Name: filepath.Base(sourceName), Code: string(data)}
-	server := &http.Server{Handler: newWNako3RunHandler(os.DirFS(workDir), program)}
+	server := &http.Server{Handler: loopbackOnly(newWNako3RunHandler(os.DirFS(workDir), program))}
 	go func() { _ = server.Serve(listener) }()
 
 	w := newAppWindow(defaultWindowSettings(title, 960, 640))
