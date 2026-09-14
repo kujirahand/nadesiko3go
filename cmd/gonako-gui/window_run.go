@@ -47,9 +47,11 @@ func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
 	}
 
 	title := "なでしこ3"
+	sourceName := "gui.nako3"
 	workDir := ""
 	if filePath != "" {
 		title = filepath.Base(filePath)
+		sourceName = filePath
 		if dir := filepath.Dir(filePath); dir != "." {
 			if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
 				workDir = dir
@@ -57,7 +59,7 @@ func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
 		}
 	}
 
-	cmd := exec.Command(self, "--run-window", tmpPath, "--run-window-title", title)
+	cmd := exec.Command(self, "--run-window", tmpPath, "--run-window-title", title, "--run-window-name", sourceName)
 	cmd.Dir = workDir
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)
@@ -73,8 +75,11 @@ func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
 // runStandaloneWindow is the child-process entry point launched by
 // launchNakoWindowProcess. It reads the program from sourcePath, opens a
 // fresh native window for it, and runs it there — that window, not the
-// editor's, is what 『母艦のウィンドウ変更』 controls.
-func runStandaloneWindow(sourcePath, title string) {
+// editor's, is what 『母艦のウィンドウ変更』 controls. sourceName is the
+// original .nako3 path (or a fallback), used only so compile/runtime errors
+// point at the file the user actually edited instead of the temp file that
+// carried the source text across processes.
+func runStandaloneWindow(sourcePath, title, sourceName string) {
 	data, err := os.ReadFile(sourcePath)
 	if err != nil {
 		showMessageWindow(title, fmt.Sprintf("プログラムを読み込めません: %v", err))
@@ -84,6 +89,9 @@ func runStandaloneWindow(sourcePath, title string) {
 
 	if title == "" {
 		title = "なでしこ3"
+	}
+	if sourceName == "" {
+		sourceName = "gui.nako3"
 	}
 	w := newAppWindow(defaultWindowSettings(title, 960, 640))
 	if w == nil {
@@ -107,7 +115,7 @@ func runStandaloneWindow(sourcePath, title string) {
 		w.Terminate()
 	})
 
-	runID := session.start(string(data), "main.nako3", true, nil, nil)
+	runID := session.start(string(data), sourceName, true, nil, nil)
 	w.SetHtml(bundledAsyncProgramPage(runID))
 	w.Run()
 }

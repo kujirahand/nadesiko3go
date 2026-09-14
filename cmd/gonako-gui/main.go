@@ -383,6 +383,7 @@ func main() {
 	// 起動するための内部専用フラグ。利用者が直接使うものではない（#97）。
 	runWindowFlag := flags.String("run-window", "", "")
 	runWindowTitleFlag := flags.String("run-window-title", "", "")
+	runWindowNameFlag := flags.String("run-window-name", "", "")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
@@ -391,7 +392,7 @@ func main() {
 	flags.Visit(func(item *flag.Flag) { explicitFlags[item.Name] = true })
 
 	if *runWindowFlag != "" {
-		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag)
+		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag, *runWindowNameFlag)
 		return
 	}
 

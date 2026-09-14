@@ -161,9 +161,12 @@ GitHubの最新masterを自動でダウンロードして展開します**
 モードを使ってください。
 
 「ウィンドウ(GUI)」モードは、エディタのコードを一時ファイルへ書き出し、
-`gonako-gui --run-window <一時ファイル> --run-window-title <タイトル>`
+`gonako-gui --run-window <一時ファイル> --run-window-title <タイトル> --run-window-name <元のファイル名>`
 （内部専用フラグ、利用者が直接使うものではない）で自分自身を子プロセスとして
-起動します（`cmd/gonako-gui/window_run.go`）。子プロセスの実行画面は、
+起動します（`cmd/gonako-gui/window_run.go`）。`--run-window-name` は
+エラーメッセージ・ソース位置に使うファイル名で、未保存のときは
+`gui.nako3` にフォールバックします（一時ファイルのパスをそのまま使うと、
+エラーが元のファイル名と食い違ってしまうため）。子プロセスの実行画面は、
 「フォルダを実行ファイルに変換」（4節）で使うのと同じ `ui/bundled/` の
 資材（`bundledAsyncProgramPage`）を使い回しています。
 
