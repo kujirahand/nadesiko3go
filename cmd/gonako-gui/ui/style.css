@@ -836,6 +836,10 @@ body {
   border-radius: 6px;
   padding: 12px;
   min-height: 150px;
+  /* 表示内容が多いと、フレックスの縮小でこの箱の高さが内容より小さくなり、
+     はみ出した白い内容が後続の.output（黒背景）に隠れて見えなくなる(#99)。
+     自前でスクロールさせ、はみ出しを箱の外に出さないようにする。 */
+  overflow-y: auto;
   border: 1px solid var(--border-color);
   user-select: text;
 }
