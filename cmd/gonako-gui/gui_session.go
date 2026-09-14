@@ -300,6 +300,10 @@ func (s *guiSession) runCompiledNow(prog *ir.Program, registry *stdlib.Registry,
 }
 
 func (s *guiSession) start(code, filename string, windowMode bool, args []string, packed *bundle.Bundle) uint64 {
+	return s.startWithWindow(code, filename, windowMode, args, packed, s.window)
+}
+
+func (s *guiSession) startWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) uint64 {
 	id, state := s.reserveRun(true)
 	workDir, _ := os.Getwd()
 	go func() {
@@ -316,7 +320,7 @@ func (s *guiSession) start(code, filename string, windowMode bool, args []string
 		}()
 
 		screen := guilib.NewScreen()
-		plugin := s.pluginForScreen(screen)
+		plugin := guilib.NewWithScreenAndWindow(screen, windows)
 		registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 		host := newGUIHost(screen, windowMode, args, packed)
 		host.dialog = state.showDialog

@@ -6,7 +6,7 @@
 //   pollNakoRun(runId)                          途中経過を取り出す
 //   startNakoEvent(runId, handle, name, values) イベントハンドラを起動する
 //   resolveNakoDialog(runId, id, text, ok)      ダイアログの応答を返す
-//   closeBundledWindow()                        画面を使わずに終わったら閉じる
+//   closeBundledWindow()                        利用者がウィンドウを閉じる操作に使う
 
 const root = document.getElementById('gonako-screen');
 const runId = Number(document.body.dataset.runId);
@@ -162,17 +162,14 @@ function ask(d) {
 }
 
 // 出力と画面操作はポーリングのたびに届き、読まなければ消える。done を
-// 見る前に必ず適用すること（→ AsyncRunStatus のコメント）。ウィンドウを
-// 閉じてよいかの判定も、実行中に届いた分を数えた ops で行う。
+// 見る前に必ず適用すること（→ AsyncRunStatus のコメント）。
 async function run() {
   let out = '';
-  let ops = 0;
   for (;;) {
     const raw = await window.pollNakoRun(runId);
     const s = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (s.output) out += s.output;
     if (s.operations && s.operations.length) {
-      ops += s.operations.length;
       apply(s.operations);
     }
     if (s.dialog) {
@@ -186,8 +183,9 @@ async function run() {
       if (r.error) {
         document.getElementById('gonako-error').textContent = (out ? out + '\n' : '') + r.error;
       }
-      // 画面を一度も使っていないプログラムは、見せる物がないので閉じる
-      if (!r.error && ops === 0) await window.closeBundledWindow();
+      // 表示や画面部品が無くても、ウィンドウは空のまま表示し続ける（#97）。
+      // 起動直後に閉じてしまうと、意図した通りに動いているのか
+      // 利用者に判別できないため。
       return;
     }
     await new Promise(x => setTimeout(x, 20));

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -35,6 +36,62 @@ func checkMotherWindowHandle(handle int) error {
 		return fmt.Errorf("ウィンドウハンドル%dは見つかりません", handle)
 	}
 	return nil
+}
+
+// virtualWindowController は、エディタ内蔵実行（インライン・コマンドライン）
+// の「母艦のウィンドウ」を扱う。実際に触れるとエディタ自身のウィンドウが
+// 動いてしまう（#97）ため、実ウィンドウには触れず疑似的な状態だけを
+// メモリ上に保持する。「ウィンドウ(GUI)」モードだけが別プロセスの実ウィンドウ
+// （nativeWindowController）を母艦として使う。
+type virtualWindowController struct {
+	mu    sync.Mutex
+	state guilib.WindowInfo
+}
+
+func newVirtualWindowController() *virtualWindowController {
+	return &virtualWindowController{state: guilib.WindowInfo{
+		Width: 1080, Height: 720, State: "通常", Title: "なでしこ3", Resizable: true,
+	}}
+}
+
+func (c *virtualWindowController) Change(handle int, settings guilib.WindowSettings) error {
+	if err := checkMotherWindowHandle(handle); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if settings.HasSize {
+		c.state.Width = settings.Width
+		c.state.Height = settings.Height
+	}
+	if settings.HasPosition {
+		if settings.Center {
+			c.state.X = 0
+			c.state.Y = 0
+		} else {
+			c.state.X = settings.X
+			c.state.Y = settings.Y
+		}
+	}
+	if settings.HasState {
+		c.state.State = settings.State
+	}
+	if settings.HasTitle {
+		c.state.Title = settings.Title
+	}
+	if settings.HasResizable {
+		c.state.Resizable = settings.Resizable
+	}
+	return nil
+}
+
+func (c *virtualWindowController) Info(handle int) (guilib.WindowInfo, error) {
+	if err := checkMotherWindowHandle(handle); err != nil {
+		return guilib.WindowInfo{}, err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.state, nil
 }
 
 // visibleWindowState は同時に残り得るOS側フラグから利用者向けの状態を選ぶ。

@@ -200,13 +200,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // --- アプリ種類選択 ---
+  // --- 実行モード選択 ---
+  // 3つの実行モードがある(#97)。
+  //   window     : インライン    --- エディタ内蔵の画面プレビューで実行する
+  //   newwindow  : ウィンドウ(GUI) --- 別プロセス・別ウィンドウを起動して実行する
+  //   cli        : コマンドライン(CLI) --- エディタ下部の出力欄に結果を表示する
+  const runModeLabels = { window: 'インライン', newwindow: 'ウィンドウ(GUI)', cli: 'コマンドライン(CLI)' };
+  const runModeColors = {
+    window: ['var(--accent-pink)', 'rgba(243, 139, 168, 0.15)'],
+    newwindow: ['var(--accent-mauve, var(--accent-pink))', 'rgba(203, 166, 247, 0.15)'],
+    cli: ['var(--accent-teal)', 'rgba(148, 226, 213, 0.12)']
+  };
   selectAppType.addEventListener('change', () => {
-    const isWindow = selectAppType.value === 'window';
-    modeBadge.textContent = isWindow ? 'ウィンドウ' : 'コマンドライン';
-    modeBadge.style.color = isWindow ? 'var(--accent-pink)' : 'var(--accent-teal)';
-    modeBadge.style.background = isWindow ? 'rgba(243, 139, 168, 0.15)' : 'rgba(148, 226, 213, 0.12)';
-    setStatus(`アプリ種類を「${isWindow ? 'ウィンドウ' : 'コマンドライン'}」に変更しました`);
+    const mode = selectAppType.value;
+    const [color, background] = runModeColors[mode] || runModeColors.window;
+    modeBadge.textContent = runModeLabels[mode] || mode;
+    modeBadge.style.color = color;
+    modeBadge.style.background = background;
+    setStatus(`実行モードを「${runModeLabels[mode] || mode}」に変更しました`);
   });
 
   // --- 汎用ダイアログ関数 (WebView対応) ---
@@ -1812,11 +1823,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     runInFlight = true;
 
-    const isWindowMode = selectAppType.value === 'window';
+    const runMode = selectAppType.value;
+    const isWindowMode = runMode === 'window';
+    const isNewWindowMode = runMode === 'newwindow';
     execStatus.textContent = '実行中...';
     execStatus.className = 'status-indicator running';
     btnRun.disabled = true;
-    setStatus(`実行中 (${isWindowMode ? 'ウィンドウ' : 'コマンドライン'})...`);
+    setStatus(`実行中 (${runModeLabels[runMode] || runMode})...`);
 
     // 前回の実行結果を消し、途中経過をこの実行の分だけ積み上げていく。
     output.textContent = '';
@@ -1825,6 +1838,36 @@ document.addEventListener('DOMContentLoaded', () => {
     guiElements.clear();
     windowPreview.style.display = 'none';
     activeGUIRunID = 0;
+
+    // 「ウィンドウ(GUI)」は別プロセス・別ウィンドウで動くので、エディタ側は
+    // 起動を依頼するだけでポーリングも画面プレビューも行わない(#97)。
+    if (isNewWindowMode) {
+      try {
+        const raw = await window.runNakoInNewWindow(code, currentFilePath || '');
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (data.error) {
+          output.textContent = data.error;
+          output.className = 'output has-error';
+          execStatus.textContent = 'エラー';
+          execStatus.className = 'status-indicator error';
+          setStatus('新しいウィンドウを起動できませんでした');
+        } else {
+          execStatus.textContent = '起動しました';
+          execStatus.className = 'status-indicator success';
+          setStatus('新しいウィンドウで実行を開始しました');
+        }
+      } catch (err) {
+        output.textContent = `[システムエラー] ${err.message || err}`;
+        output.className = 'output has-error';
+        execStatus.textContent = 'エラー';
+        execStatus.className = 'status-indicator error';
+        setStatus(`システムエラー: ${err}`);
+      } finally {
+        runInFlight = false;
+        btnRun.disabled = false;
+      }
+      return;
+    }
 
     const startTime = performance.now();
 
