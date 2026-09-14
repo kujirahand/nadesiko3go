@@ -379,12 +379,21 @@ func main() {
 	widthFlag := flags.Int("width", 1080, "ウィンドウの幅")
 	heightFlag := flags.Int("height", 720, "ウィンドウの高さ")
 	debugFlag := flags.Bool("debug", os.Getenv("GONAKO_DEBUG") == "1", "デバッグモード有効化")
+	// エディタの「ウィンドウ(GUI)」実行モードが自分自身を子プロセスとして
+	// 起動するための内部専用フラグ。利用者が直接使うものではない（#97）。
+	runWindowFlag := flags.String("run-window", "", "")
+	runWindowTitleFlag := flags.String("run-window-title", "", "")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
 	explicitFlags := map[string]bool{}
 	flags.Visit(func(item *flag.Flag) { explicitFlags[item.Name] = true })
+
+	if *runWindowFlag != "" {
+		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag)
+		return
+	}
 
 	initialWorkingDir, _ := os.Getwd()
 	targetDir := *dirFlag
@@ -526,7 +535,9 @@ func main() {
 			runFile = "gui.nako3"
 		}
 
-		result := guiRuntime.runWithWindow(code, runFile, windowMode, nil, nil, directWindow)
+		// 「母艦」はエディタ内蔵実行（インライン・コマンドライン）では実際の
+		// エディタウィンドウを動かさない疑似コントローラーを使う（#97）。
+		result := guiRuntime.runWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController())
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
@@ -545,7 +556,16 @@ func main() {
 		} else {
 			runFile = "gui.nako3"
 		}
-		return guiRuntime.start(code, runFile, windowMode, nil, nil)
+		return guiRuntime.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController())
+	})
+
+	// 「ウィンドウ(GUI)」実行モード。エディタとは別プロセス・別ウィンドウで
+	// プログラムを動かす（#97）。これにより『母艦のウィンドウ変更』は
+	// 新しいウィンドウ自身に効き、エディタのウィンドウには影響しない。
+	_ = w.Bind("runNakoInNewWindow", func(code string, filePath string) string {
+		result := launchNakoWindowProcess(code, filePath)
+		b, _ := json.Marshal(result)
+		return string(b)
 	})
 
 	_ = w.Bind("pollNakoRun", func(runID uint64) string {
