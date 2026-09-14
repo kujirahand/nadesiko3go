@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
@@ -235,7 +236,7 @@ func commands() map[string]command {
 		return value.String(dir), nil
 	}}
 	m["デスクトップ"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
-		return value.String(desktopDir()), nil
+		return value.String(deskutil.Dir()), nil
 	}}
 	m["マイドキュメント"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
 		dir, _ := os.UserHomeDir()
