@@ -38,7 +38,7 @@ func StackDelta(inst Inst) (needs int, delta int) {
 		return 1, -1
 	case OpDup:
 		return 1, +1
-	case OpUnary, OpIterKeys, OpLen:
+	case OpUnary, OpIterKeys, OpLen, OpEnsureArray:
 		return 1, 0
 	case OpBinary:
 		return 2, -1

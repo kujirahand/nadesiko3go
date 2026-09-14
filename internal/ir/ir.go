@@ -7,7 +7,8 @@ package ir
 // int32 に縮小した (40B→20B)。バージョン4で OpBinaryAtStoreLocal が加わった。
 // バージョン5で OpJumpIfBinaryAt / OpJumpIfNotBinaryAt が加わった。
 // バージョン6で OpBinaryStoreLocal / OpBinaryStoreGlobal が加わった。
-const CurrentVersion = 6
+// バージョン7で OpEnsureArray が加わった。
+const CurrentVersion = 7
 
 type Program struct {
 	Version int     `json:"version"`

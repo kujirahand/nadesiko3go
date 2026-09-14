@@ -149,6 +149,10 @@ const (
 	OpEndTry
 	// OpThrow raises the value on the stack as a runtime error.
 	OpThrow
+
+	// OpEnsureArray は配列をそのまま残し、それ以外の値を一要素配列に包む。
+	// 新しい命令は既存IRの番号を保つため末尾へ追加する。
+	OpEnsureArray
 )
 
 // BinaryOp identifies the operator an OpBinary instruction applies. The names
@@ -358,6 +362,7 @@ var opNames = map[Op]string{
 	OpJump:     "Jump", OpJumpIfFalse: "JumpIfFalse", OpJumpIfTrue: "JumpIfTrue",
 	OpJumpIfBinaryAt: "JumpIfBinaryAt", OpJumpIfNotBinaryAt: "JumpIfNotBinaryAt",
 	OpTry: "Try", OpEndTry: "EndTry", OpThrow: "Throw",
+	OpEnsureArray: "EnsureArray",
 }
 
 func (o Op) String() string {

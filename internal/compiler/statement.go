@@ -142,6 +142,8 @@ func (c *Compiler) compileStatement(n *ast.Node) {
 // compileDefVarList compiles 『変数[A,B]=[1,2]』.
 func (c *Compiler) compileDefVarList(n *ast.Node) {
 	c.compileExpr(n.Block(0))
+	// 本家と同じく、配列でない右辺は一要素の配列として扱う。
+	c.emit(ir.OpEnsureArray, 0, 0, n)
 	for i, name := range n.Names {
 		if i < len(n.Names)-1 {
 			c.emit(ir.OpDup, 0, 0, n)

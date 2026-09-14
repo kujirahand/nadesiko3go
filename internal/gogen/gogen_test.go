@@ -142,6 +142,18 @@ D["c"]=3
 D["c"]を表示
 `)
 
+	assertMatchesVM(t, "multiple_declaration_with_non_array", `
+変数[A,B]=1
+Aを表示
+Bを表示
+変数[C,D]=「abc」
+Cを表示
+Dを表示
+変数[E,F]={「x」:2}
+E[「x」]を表示
+Fを表示
+`)
+
 	assertMatchesVM(t, "user_function_recursion", `
 ●(Nの)階乗とは
 もしN<=1ならば1で戻る

@@ -66,6 +66,9 @@ func TestVariableDeclarationForms(t *testing.T) {
 		{"複数変数", "変数[F,G,H]=[5,6,7];Fを表示;Gを表示;Hを表示", "5\n6\n7"},
 		{"定数", "定数のIは8;Iを表示", "8"},
 		{"複数定数", "定数[J,K,L]=[9,10,11];Jを表示;Kを表示;Lを表示", "9\n10\n11"},
+		{"複数変数へ数値", "変数[M,N]=12;Mを表示;Nを表示", "12\nundefined"},
+		{"複数変数へ文字列", "変数[O,P]=「abc」;Oを表示;Pを表示", "abc\nundefined"},
+		{"複数変数へ辞書", "変数[Q,R]={「x」:13};Q[「x」]を表示;Rを表示", "13\nundefined"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
