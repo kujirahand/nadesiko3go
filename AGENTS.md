@@ -33,7 +33,8 @@ nadesiko3go/
 │   ├── gonako-wasm/       ブラウザ向けWebAssembly版（コア機能のみ）。→ `docs/wasm.md`
 │   └── gonako-gui/        GUI版（webview_go）。段階8
 │       └── ui/            埋め込みUI（//go:embed）。→ 9節・`docs/gonako-gui-editor.md`
-│           └── bundled/    梱包アプリの実行画面（HTML/CSS/JS）。bundled.goが組み立てる
+│           ├── bundled/    梱包アプリの実行画面（HTML/CSS/JS）。bundled.goが組み立てる
+│           └── wnako3/     本家ブラウザ版(wnako3.js等)。copy-nadesiko3.shで取り込む。→ `docs/wnako3-bridge.md`
 ├── internal/
 │   ├── prepare/           前処理（全角記号の正規化など。nako_prepare 相当）
 │   ├── lexer/             字句解析（nako_lexer 相当）
@@ -72,7 +73,8 @@ nadesiko3go/
 ├── testdata/
 │   └── compat/            本家からコピーした cases/ と expected/、コピー元のSOURCE
 ├── scripts/
-│   └── sync-compat-fixtures.sh
+│   ├── sync-compat-fixtures.sh
+│   └── copy-nadesiko3.sh   本家のrelease/*.js（無ければjsDelivr）をgonako-guiへ取り込む
 ├── manual/
 │   └── gonako/*.txt     gonakoの命令マニュアル (別リポジトリで管理) KonaWiki3形式のテキスト
 └── docs/
@@ -158,6 +160,12 @@ Windows: WebView2, Linux: WebKitGTK）を使う軽量な `webview_go` を採用�
 「Go言語でビルド」（gogen連携）の設計は次を参照してください。
 
 → 詳細は [`docs/gonako-gui-editor.md`](docs/gonako-gui-editor.md)（使い方は `docs/gonako-gui.md`）
+
+本家のブラウザ版なでしこ（`wnako3.js`）とタートル（`plugin_turtle.js`）を同梱し、
+既存の webview Bind でwnako3からGo側の命令を呼べるようにしています。
+`ui/wnako3/` は `just copy-nadesiko3` で更新します。
+
+→ 詳細は [`docs/wnako3-bridge.md`](docs/wnako3-bridge.md)
 
 ### Goコード生成バックエンド（gogen）
 

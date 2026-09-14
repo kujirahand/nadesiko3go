@@ -15,6 +15,7 @@
 - [gonako-gui.md](gonako-gui.md): gonako-gui（軽量WebView版GUI）の使い方・独自HTML指定ガイド
 - [window-size.md](window-size.md): 母艦ウィンドウの実行時操作とindex.jsonによる初期設定
 - [gonako-gui-editor.md](gonako-gui-editor.md): gonako-guiの内蔵エディタと変換機能（色分け・実行ファイル変換・Go言語でビルド）の設計
+- [wnako3-bridge.md](wnako3-bridge.md): 本家ブラウザ版(wnako3.js)の同梱・自動インポート・Go命令ブリッジとタートル
 - [package.md](package.md): 単一ファイル梱包の設計（ペイロード形式・署名まわり）
 - [parser.md](parser.md): AST・IR・パーサーの設計
 - [release-homebrew.md](release-homebrew.md): Homebrew Tapへのリリース・登録手順
