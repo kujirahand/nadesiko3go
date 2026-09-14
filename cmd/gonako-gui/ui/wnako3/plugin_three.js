@@ -1,0 +1,2 @@
+"use strict";(()=>{var n=class r{static isDisporsal(e){return"dispose"in e&&typeof e.dispose=="function"}static isMesh(e){return"isMesh"in e&&e.isMesh===!0}static disposeChildObject(e){for(;e.children.length>0;)this.disposeChildObject(e.children[0]),e.remove(e.children[0]);if(r.isMesh(e)&&(e.geometry&&e.geometry.dispose(),e.material)){for(let o of Object.keys(e.material)){let t=e.material[o];r.isDisporsal(t)&&t.dispose()}e.material.dispose()}}};})();
+//# sourceMappingURL=plugin_three.js.map

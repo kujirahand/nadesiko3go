@@ -92,6 +92,11 @@ doctest *args:
 sync-compat:
     ./scripts/sync-compat-fixtures.sh
 
+# 本家のブラウザ版(wnako3.jsとプラグイン)をgonako-guiへ取り込む
+# ./nadesiko3/release が無ければjsDelivrから取得する
+copy-nadesiko3 *args:
+    ./scripts/copy-nadesiko3.sh {{args}}
+
 # 差分fixtureの全ケースを実行してout/へ出力する
 compat-run:
     {{go}} run ./cmd/gonako compat run --cases ./testdata/compat/cases --out ./out
