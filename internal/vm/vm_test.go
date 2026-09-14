@@ -56,6 +56,26 @@ func TestMultipleVariableAssignment(t *testing.T) {
 	}
 }
 
+func TestVariableDeclarationForms(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{"とは変数", "Aとは変数=1;Aを表示", "1"},
+		{"空白区切り", "変数 B＝2;Bを表示", "2"},
+		{"助詞の", "変数のC＝3;Cを表示", "3"},
+		{"宣言のみ", "変数 D;Dを表示", ""},
+		{"関数内", "hoge;●hogeとは;変数のE=4;Eを表示;ここまで", "4"},
+		{"複数変数", "変数[F,G,H]=[5,6,7];Fを表示;Gを表示;Hを表示", "5\n6\n7"},
+		{"定数", "定数のIは8;Iを表示", "8"},
+		{"複数定数", "定数[J,K,L]=[9,10,11];Jを表示;Kを表示;Lを表示", "9\n10\n11"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%q = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestOperators(t *testing.T) {
 	tests := []struct{ code, want string }{
 		{"(1+2)を表示", "3"},
@@ -231,6 +251,11 @@ func TestGlobalsAreIndexed(t *testing.T) {
 // these are syntax errors rather than runtime ones.
 func TestConstantsRefuseAssignment(t *testing.T) {
 	tests := []struct{ name, code, want string }{
+		{
+			name: "定数宣言から代入",
+			code: "定数のA=1\nA=2",
+			want: "[文法エラー]main.nako3(2行目): 定数『A』は既に定義済みなので、値を代入することはできません。",
+		},
 		{
 			name: "代入",
 			code: "Aとは定数=1\nA=2",
