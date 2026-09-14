@@ -19,6 +19,7 @@ import (
 	"golang.design/x/clipboard"
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
+	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
@@ -233,13 +234,13 @@ func getTemplateList() []TemplateItem {
 }
 
 func getDesktopDir() string {
+	desktop := deskutil.Dir()
+	if fi, err := os.Stat(desktop); err == nil && fi.IsDir() {
+		return desktop
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "."
-	}
-	desktop := filepath.Join(home, "Desktop")
-	if fi, err := os.Stat(desktop); err == nil && fi.IsDir() {
-		return desktop
 	}
 	return home
 }
