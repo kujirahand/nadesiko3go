@@ -13,6 +13,9 @@ import (
 // OneDriveのバックアップ機能などでデスクトップがユーザーフォルダ外へ
 // 移動されている場合があるため、レジストリの User Shell Folders から
 // 実際のパスを取得する。取得できない場合のみ既定パスへフォールバックする。
+// ホームディレクトリも取得できない場合は空文字列を返す
+// （カレントディレクトリ相対の "Desktop" を誤って有効なパスとして
+// 扱わせないため）。
 func Dir() string {
 	k, err := registry.OpenKey(registry.CURRENT_USER,
 		`Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders`, registry.QUERY_VALUE)
@@ -24,6 +27,9 @@ func Dir() string {
 			}
 		}
 	}
-	dir, _ := os.UserHomeDir()
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
 	return filepath.Join(dir, "Desktop")
 }
