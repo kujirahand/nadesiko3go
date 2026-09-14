@@ -235,8 +235,7 @@ func commands() map[string]command {
 		return value.String(dir), nil
 	}}
 	m["デスクトップ"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
-		dir, _ := os.UserHomeDir()
-		return value.String(filepath.Join(dir, "Desktop")), nil
+		return value.String(desktopDir()), nil
 	}}
 	m["マイドキュメント"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
 		dir, _ := os.UserHomeDir()
