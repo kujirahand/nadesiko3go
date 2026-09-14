@@ -79,7 +79,101 @@ func (p *Parser) yLet() *ast.Node {
 		end := p.peekSourceMap(nil)
 		return &ast.Node{Type: ast.DefLocalVar, Name: name, VarType: string(vtype.Type), IsExport: isExport, Blocks: []*ast.Node{value}, SourceMap: m, End: &end}
 	}
+
+	// 『変数 名前=値』『定数の名前=値』および複数宣言。
+	// 先頭の予約語が持つ助詞（『の』など）はトークン型に影響しないため、
+	// 空白区切りの書式と同じ規則で扱える。
+	if p.checkTypes([]lexer.TokenType{"変数", "定数"}) {
+		return p.yPrefixedDeclaration(m)
+	}
 	return nil
+}
+
+// yPrefixedDeclaration は『変数 A=1』『変数のA=1』と、
+// 『変数[A,B]=[1,2]』『定数[A,B]=[1,2]』を読む。
+func (p *Parser) yPrefixedDeclaration(m ast.SourceMap) *ast.Node {
+	saved := p.index
+	vtype := p.get()
+	if vtype == nil {
+		return nil
+	}
+	isConst := vtype.Type == "定数"
+
+	if p.check("[") {
+		return p.yPrefixedVarList(m, vtype, isConst)
+	}
+	if !p.check(lexer.TypeWord) {
+		return nil
+	}
+	wordTok := p.get()
+	hasAttribute := p.check2([][]lexer.TokenType{{"{"}, {lexer.TypeWord}, {"}"}})
+	isExport := p.readVarAttribute(p.isExportDefault, string(vtype.Type))
+	hasValue := p.check("eq")
+	if (isConst || hasAttribute) && !hasValue {
+		p.index = saved
+		return nil
+	}
+	name := p.createVar(wordTok, wordTok.StringValue(), isConst, isExport)
+	value := p.yNop()
+	if hasValue {
+		p.get()
+		value = p.yCalc()
+		if value == nil || value.Type == ast.EOL {
+			p.failToken("『"+wordTok.StringValue()+"』への代入文で右辺の値がありません。", wordTok)
+		}
+	}
+	if p.check(lexer.TypeComma) {
+		p.get()
+	}
+	end := p.peekSourceMap(nil)
+	return &ast.Node{
+		Type: ast.DefLocalVar, Name: name, VarType: string(vtype.Type), IsExport: isExport,
+		Blocks: []*ast.Node{value}, SourceMap: m, End: &end,
+	}
+}
+
+func (p *Parser) yPrefixedVarList(m ast.SourceMap, vtype *lexer.Token, isConst bool) *ast.Node {
+	p.get() // skip '['
+	var words []*lexer.Token
+	for !p.isEOF() && !p.check("]") {
+		if !p.check(lexer.TypeWord) {
+			label := "複数変数"
+			if isConst {
+				label = "複数定数"
+			}
+			p.failToken(label+"の代入文でエラー。『"+string(vtype.Type)+"[A,B,C]=[1,2,3]』の書式で記述してください。", vtype)
+		}
+		words = append(words, p.get())
+		if !p.check(lexer.TypeComma) {
+			break
+		}
+		p.get()
+	}
+	if !p.check("]") {
+		p.failToken("複数変数の宣言が『]』で閉じられていません。", vtype)
+	}
+	p.get()
+	if !p.check("eq") {
+		p.failToken("『"+string(vtype.Type)+"[A,B,C]=[1,2,3]』の書式で記述してください。", vtype)
+	}
+	p.get()
+	names := make([]*ast.Node, 0, len(words))
+	for _, word := range words {
+		name := p.createVar(word, word.StringValue(), isConst, p.isExportDefault)
+		node := p.wordNode(word)
+		node.Value = name
+		names = append(names, node)
+	}
+	rhs := p.yCalc()
+	if rhs == nil || rhs.Type == ast.EOL {
+		p.failToken("複数変数への代入文で右辺の値がありません。", vtype)
+	}
+
+	end := p.peekSourceMap(nil)
+	return &ast.Node{
+		Type: ast.DefLocalVarList, Names: names, VarType: string(vtype.Type),
+		Blocks: []*ast.Node{rhs}, SourceMap: m, End: &end,
+	}
 }
 
 func (p *Parser) yLetVarList(m ast.SourceMap) *ast.Node {

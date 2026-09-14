@@ -30,6 +30,7 @@ func TestStackDelta(t *testing.T) {
 		{ir.Inst{Op: ir.OpPop}, 1, -1},
 		{ir.Inst{Op: ir.OpDup}, 1, +1},
 		{ir.Inst{Op: ir.OpBinary}, 2, -1},
+		{ir.Inst{Op: ir.OpEnsureArray}, 1, 0},
 		{ir.Inst{Op: ir.OpMakeArray, B: 3}, 3, -2},
 		{ir.Inst{Op: ir.OpMakeDict, B: 2}, 4, -3},
 		// container と添字を取って値を1つ積む

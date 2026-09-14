@@ -67,6 +67,14 @@ func (m *VM) MakeArray(items []value.Value) value.Value {
 	return value.ArrayValue(value.NewArray(items...))
 }
 
+// EnsureArray は配列をそのまま返し、それ以外の値を一要素配列に包む。
+func (m *VM) EnsureArray(v value.Value) value.Value {
+	if _, ok := v.Array(); ok {
+		return v
+	}
+	return value.ArrayValue(value.NewArray(v))
+}
+
 // MakeDict is OpMakeDict. items alternates key, value, key, value…
 func (m *VM) MakeDict(items []value.Value) value.Value {
 	d := value.NewDict()

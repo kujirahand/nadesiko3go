@@ -217,6 +217,9 @@ dispatch:
 			case ir.OpMakeArray:
 				f.push(value.ArrayValue(value.NewArray(f.popN(int(inst.B))...)))
 
+			case ir.OpEnsureArray:
+				f.push(m.EnsureArray(f.pop()))
+
 			case ir.OpMakeDict:
 				items := f.popN(int(inst.B) * 2)
 				d := value.NewDict()

@@ -732,6 +732,10 @@ func (e *fnEmit) emitInst(inst ir.Inst, pc int) {
 		live = setValue(after(int(inst.B)), d-int(inst.B),
 			fmt.Sprintf("m.MakeArray(%s)", e.argSlice(st, d, int(inst.B))))
 
+	case ir.OpEnsureArray:
+		live = setValue(after(1), top(0),
+			fmt.Sprintf("m.EnsureArray(%s)", e.slotValue(st, top(0))))
+
 	case ir.OpMakeDict:
 		n := int(inst.B) * 2
 		live = setValue(after(n), d-n,
