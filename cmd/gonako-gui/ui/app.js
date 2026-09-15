@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const paneEditor = document.querySelector('.pane-editor');
   const mainPane = document.querySelector('.main-pane');
   const selectAppType = document.getElementById('select-app-type');
+  const btnRunModeHelp = document.getElementById('btn-run-mode-help');
   const modeBadge = document.getElementById('mode-badge');
   const charCount = document.getElementById('char-count');
   const cursorPos = document.getElementById('cursor-pos');
@@ -205,12 +206,45 @@ document.addEventListener('DOMContentLoaded', () => {
   //   window     : インライン    --- エディタ内蔵の画面プレビューで実行する
   //   newwindow  : ウィンドウ(GUI) --- 別プロセス・別ウィンドウを起動して実行する
   //   cli        : コマンドライン(CLI) --- エディタ下部の出力欄に結果を表示する
-  const runModeLabels = { window: 'インライン', newwindow: 'ウィンドウ(GUI)', cli: 'コマンドライン(CLI)' };
+  //   wnako3     : ブラウザ(wnako3) --- 別ウィンドウでブラウザ版なでしこ(タートル付き)として実行する(#63)
+  const runModeLabels = { window: 'インライン', newwindow: 'ウィンドウ(GUI)', cli: 'コマンドライン(CLI)', wnako3: 'ブラウザ(wnako3)' };
   const runModeColors = {
     window: ['var(--accent-pink)', 'rgba(243, 139, 168, 0.15)'],
     newwindow: ['var(--accent-mauve, var(--accent-pink))', 'rgba(203, 166, 247, 0.15)'],
+    wnako3: ['var(--accent-peach, var(--accent-pink))', 'rgba(250, 179, 135, 0.15)'],
     cli: ['var(--accent-teal)', 'rgba(148, 226, 213, 0.12)']
   };
+  // [?]ボタン(#104)で表示する、各実行モードの説明。上のコメントと対応させる。
+  const runModeDescriptions = {
+    window: 'エディタ内蔵の画面プレビューで実行します。画面部品やGUIダイアログもエディタの中に表示され、母艦(ウィンドウ変更等)はエディタ自身のウィンドウに影響しません。',
+    newwindow: 'gonako-gui自身を別プロセスとして起動し、新しいネイティブウィンドウで実行します。母艦のウィンドウ変更は、その新しいウィンドウ自身に効きます。',
+    cli: '画面部品を使わず、エディタ下部の出力欄に表示結果だけを表示します。母艦はインラインと同じくエディタに影響しない疑似ウィンドウです。',
+    wnako3: '別プロセス・別ウィンドウで、本家のブラウザ版なでしこ(wnako3)としてタートルグラフィックス付きで実行します。GONAKO関数実行/GONAKO実行でGo側(gonako)の命令も呼び出せます。'
+  };
+  function openRunModeHelpModal() {
+    closeHamburger();
+    modalTitle.textContent = '実行モードの説明';
+    modalBody.innerHTML = `
+      <table class="shortcuts-table">
+        <thead>
+          <tr>
+            <th>種類</th>
+            <th>説明</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${Object.keys(runModeLabels).map(mode => `
+            <tr>
+              <td>${runModeLabels[mode]}</td>
+              <td>${runModeDescriptions[mode] || ''}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    modalOverlay.style.display = 'flex';
+  }
+  btnRunModeHelp.addEventListener('click', openRunModeHelpModal);
   selectAppType.addEventListener('change', () => {
     const mode = selectAppType.value;
     const [color, background] = runModeColors[mode] || runModeColors.window;
@@ -1826,6 +1860,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const runMode = selectAppType.value;
     const isWindowMode = runMode === 'window';
     const isNewWindowMode = runMode === 'newwindow';
+    const isWNako3Mode = runMode === 'wnako3';
     execStatus.textContent = '実行中...';
     execStatus.className = 'status-indicator running';
     btnRun.disabled = true;
@@ -1841,9 +1876,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「ウィンドウ(GUI)」は別プロセス・別ウィンドウで動くので、エディタ側は
     // 起動を依頼するだけでポーリングも画面プレビューも行わない(#97)。
-    if (isNewWindowMode) {
+    // 「ブラウザ(wnako3)」も同じく別プロセス・別ウィンドウで動く(#63)。
+    if (isNewWindowMode || isWNako3Mode) {
       try {
-        const raw = await window.runNakoInNewWindow(code, currentFilePath || '');
+        const raw = isWNako3Mode
+          ? await window.runNakoInWNako3(code, currentFilePath || '')
+          : await window.runNakoInNewWindow(code, currentFilePath || '');
         const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
         if (data.error) {
           output.textContent = data.error;

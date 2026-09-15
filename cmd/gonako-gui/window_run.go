@@ -26,6 +26,13 @@ type NewWindowRunResult struct {
 // its own window, separate from the editor's. It returns as soon as the
 // process has started; it does not wait for the program to finish.
 func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
+	return launchChildRunProcess(code, filePath, "--run-window")
+}
+
+// launchChildRunProcess は gonako-gui 自身を子プロセスとして起動し、
+// 一時ファイルに書いたプログラムを runFlag で指定した実行モードで動かす。
+// 「ウィンドウ(GUI)」（--run-window）と「ブラウザ(wnako3)」（--run-wnako3）で共用する。
+func launchChildRunProcess(code, filePath, runFlag string) NewWindowRunResult {
 	self, err := os.Executable()
 	if err != nil {
 		return NewWindowRunResult{Error: fmt.Sprintf("自分自身の実行ファイルを取得できません: %v", err)}
@@ -59,7 +66,7 @@ func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
 		}
 	}
 
-	cmd := exec.Command(self, "--run-window", tmpPath, "--run-window-title", title, "--run-window-name", sourceName)
+	cmd := exec.Command(self, runFlag, tmpPath, "--run-window-title", title, "--run-window-name", sourceName)
 	cmd.Dir = workDir
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)

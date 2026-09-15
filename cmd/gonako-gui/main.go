@@ -75,6 +75,8 @@ type AppInfo struct {
 	HomeDir     string `json:"homeDir"`
 	DesktopDir  string `json:"desktopDir"`
 	InitialFile string `json:"initialFile,omitempty"`
+	// WNako3Version は同梱したブラウザ版なでしこ（wnako3.js）の版（#63）。
+	WNako3Version string `json:"wnako3Version,omitempty"`
 }
 
 // CommandItem describes a nadesiko command for the command palette/list.
@@ -384,6 +386,9 @@ func main() {
 	runWindowFlag := flags.String("run-window", "", "")
 	runWindowTitleFlag := flags.String("run-window-title", "", "")
 	runWindowNameFlag := flags.String("run-window-name", "", "")
+	// エディタの「ブラウザ(wnako3)」実行モード用の内部専用フラグ（#63）。
+	// タイトルと元のファイル名は -run-window-title / -run-window-name を共用する。
+	runWNako3Flag := flags.String("run-wnako3", "", "")
 
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
@@ -393,6 +398,10 @@ func main() {
 
 	if *runWindowFlag != "" {
 		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag, *runWindowNameFlag)
+		return
+	}
+	if *runWNako3Flag != "" {
+		runWNako3Window(*runWNako3Flag, *runWindowTitleFlag, *runWindowNameFlag)
 		return
 	}
 
@@ -462,7 +471,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "パスの解決に失敗しました: %v\n", err)
 			os.Exit(1)
 		}
-		handler = http.FileServer(http.Dir(absDir))
+		handler = newSiteHandler(os.DirFS(absDir))
 	} else if targetURL == "" {
 		// 組み込みUIファイルをHTTPサーバーで配信
 		subFS, err := fs.Sub(uiFS, "ui")
@@ -470,7 +479,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "UIアセットの読み込みに失敗しました: %v\n", err)
 			os.Exit(1)
 		}
-		handler = http.FileServer(http.FS(subFS))
+		handler = newSiteHandler(subFS)
 	}
 
 	var finalURL string
@@ -485,7 +494,7 @@ func main() {
 		defer listener.Close()
 
 		port := listener.Addr().(*net.TCPAddr).Port
-		server := &http.Server{Handler: handler}
+		server := &http.Server{Handler: loopbackOnly(handler)}
 		go func() {
 			_ = server.Serve(listener)
 		}()
@@ -507,6 +516,18 @@ func main() {
 
 	guiRuntime := &guiSession{window: newNativeWindowController(w)}
 	directWindow := newDirectNativeWindowController(w)
+
+	// wnako3（ブラウザ版なでしこ）のローダーとGo命令ブリッジ（#63）。
+	// 外部URLのページには注入しない。
+	if targetURL == "" {
+		forceWNako3 := false
+		if targetDir != "" {
+			if data, err := os.ReadFile(filepath.Join(targetDir, windowConfigFile)); err == nil {
+				forceWNako3 = wnako3ConfigFromIndexJSON(data)
+			}
+		}
+		installWNako3(w, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
+	}
 
 	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
 	_ = w.Bind("runNakoCode", func(code string) string {
@@ -569,6 +590,14 @@ func main() {
 		return string(b)
 	})
 
+	// 「ブラウザ(wnako3)」実行モード。別プロセス・別ウィンドウで、
+	// プログラムをブラウザ版なでしこ（タートル付き）として動かす（#63）。
+	_ = w.Bind("runNakoInWNako3", func(code string, filePath string) string {
+		result := launchWNako3WindowProcess(code, filePath)
+		b, _ := json.Marshal(result)
+		return string(b)
+	})
+
 	_ = w.Bind("pollNakoRun", func(runID uint64) string {
 		status := guiRuntime.poll(runID)
 		b, _ := json.Marshal(status)
@@ -603,6 +632,8 @@ func main() {
 			HomeDir:     home,
 			DesktopDir:  getDesktopDir(),
 			InitialFile: initialFile,
+
+			WNako3Version: readWNako3Info().Version,
 		}
 		b, _ := json.Marshal(info)
 		return string(b)

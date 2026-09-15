@@ -283,6 +283,28 @@ const info = JSON.parse(infoJson);
 console.log(`Version: ${info.version}, OS: ${info.os}, Arch: ${info.arch}`);
 ```
 
+### ブラウザ版なでしこ（wnako3）とタートル
+
+gonako-gui は本家のブラウザ版なでしこ（`wnako3.js`）とタートル（`plugin_turtle.js`）を
+同梱しています。HTMLに `<script type="なでしこ">` を書くだけで、wnako3が自動で読み込まれて
+実行されます（`index.json` に `"wnako3": true` と書いても読み込めます）。
+
+```html
+<canvas id="turtle_cv" width="640" height="400"></canvas>
+<script type="なでしこ">
+!「plugin_turtle.js」を取り込む
+カメ作成
+100だけカメ進む
+N=「文字数」を[「あいう」]でGONAKO関数実行
+「Go側で数えた文字数: {N}」を表示
+</script>
+```
+
+wnako3からは `GONAKO関数実行` / `GONAKO実行` でGo側の命令（ファイル・SQLiteなど）を、
+JavaScriptからは `gonako.call(命令名, ...引数)` / `gonako.run(code)` を使えます。
+内蔵エディタでは種類を「ブラウザ(wnako3)」にすると、タートル付きのwnako3で実行します。
+詳しくは [`wnako3-bridge.md`](wnako3-bridge.md) を参照してください。
+
 ---
 
 ## 5. なでしこから画面部品を操作する

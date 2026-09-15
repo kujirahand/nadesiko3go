@@ -414,9 +414,11 @@ func (s *guiSession) poll(runID uint64) AsyncRunStatus {
 		return AsyncRunStatus{Done: true, Result: &RunResult{OK: false, RunID: runID, Error: "実行結果が見つかりません。"}}
 	}
 	status := state.status()
-	// イベントの実行状態は、画面が done を読んだ時点で用済み。クリックのたびに
-	// 増え続けないよう、ここで捨てる。
-	if status.Done && state.isEvent {
+	// 実行状態は、画面が done を読んだ時点で用済み。イベントはクリックのたびに、
+	// 通常実行は window.gonako.run などで繰り返し作られるので、増え続けないよう
+	// ここで捨てる（#63）。done を読んだ後はどの画面ももうポーリングしない。
+	// 実行後のイベントが使うVMは s.active が持っているので、捨てても影響しない。
+	if status.Done {
 		s.mu.Lock()
 		delete(s.async, runID)
 		s.mu.Unlock()

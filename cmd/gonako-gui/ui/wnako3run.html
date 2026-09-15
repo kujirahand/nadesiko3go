@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>なでしこ3 (wnako3)</title>
+<!-- エディタの「ブラウザ(wnako3)」実行モードの実行画面（#63）。wnako3_run.go が配信する。 -->
+<style>
+  body {
+    margin: 0;
+    padding: 12px 16px;
+    font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: #fff;
+    color: #222;
+  }
+  #turtle_cv {
+    display: block;
+    max-width: 100%;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+  }
+  #output {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  #output .error {
+    color: #c62828;
+  }
+</style>
+<script src="/__gonako/wnako3/wnako3.js"></script>
+<script src="/__gonako/wnako3/plugin_turtle.js"></script>
+</head>
+<body>
+<canvas id="turtle_cv" width="640" height="400" hidden></canvas>
+<pre id="output"></pre>
+<script>
+  window.addEventListener('DOMContentLoaded', async () => {
+    const output = document.getElementById('output');
+    const canvas = document.getElementById('turtle_cv');
+    const nako3 = navigator.nako3;
+
+    function append(text, className) {
+      const line = document.createElement('div');
+      if (className) line.className = className;
+      line.textContent = text;
+      output.appendChild(line);
+    }
+
+    if (!nako3) {
+      append('wnako3.js を読み込めませんでした。', 'error');
+      return;
+    }
+    if (window.gonako && window.gonako.registerWNako3Plugin) {
+      window.gonako.registerWNako3Plugin();
+    }
+
+    try {
+      const res = await fetch('/__gonako-program.json', { cache: 'no-store' });
+      const program = await res.json();
+      document.title = `${program.name} - なでしこ3 (wnako3)`;
+      // タートルを使うプログラムだけ描画先を見せる
+      if (/カメ|ゾウ|パンダ/.test(program.code)) canvas.hidden = false;
+
+      nako3.getLogger().addListener('stdout', data => append(data.noColor));
+      await nako3.loadDependencies(program.code, program.name);
+      await nako3.runAsync(program.code, program.name);
+    } catch (err) {
+      append(err && err.message ? err.message : String(err), 'error');
+    }
+  });
+</script>
+</body>
+</html>
