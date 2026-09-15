@@ -267,39 +267,6 @@ func updateVersionGoFile(newVersion, newNadesiko string) error {
 	return os.WriteFile(path, []byte(text), 0o644)
 }
 
-// syncSingleOccurrence は pattern がちょうど1回マッチする前提で、そのキャプチャ
-// グループを newVersion に揃える。マッチが0件・2件以上なら対象追加漏れ／曖昧化
-// としてエラーにする。戻り値の ok は「事前に一致していたか（checkモード用）」。
-func syncSingleOccurrence(s singleOccurrence, newVersion string, checkOnly bool) (ok bool, changed bool, err error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		return false, false, err
-	}
-	text := string(data)
-
-	matches := s.pattern.FindAllStringSubmatchIndex(text, -1)
-	if len(matches) != 1 {
-		return false, false, fmt.Errorf("%s: パターンが%d件マッチしました（1件である必要があります）", s.path, len(matches))
-	}
-
-	m := matches[0]
-	current := text[m[2]:m[3]]
-	if current == newVersion {
-		return true, false, nil
-	}
-	if checkOnly {
-		fmt.Printf("[ズレ] %s: %s -> %s\n", s.path, current, newVersion)
-		return false, false, nil
-	}
-
-	updated := text[:m[2]] + newVersion + text[m[3]:]
-	if err := os.WriteFile(s.path, []byte(updated), 0o644); err != nil {
-		return false, false, err
-	}
-	fmt.Printf("[更新] %s: %s -> %s\n", s.path, current, newVersion)
-	return true, true, nil
-}
-
 // semverTokenRe はファイル中に登場する「X.Y.Z」形式の数値をすべて拾う。
 // docs/release-homebrew.md はバージョン番号の例示以外にこの形式の数値を
 // 含まないことを確認済みなので、見つかった値はすべてリリース版番号とみなせる。
