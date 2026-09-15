@@ -142,29 +142,44 @@ func (b *commandBridge) showDialog(kind, message string) (string, bool, error) {
 	case result := <-answer:
 		return result.text, result.accepted, nil
 	case <-timer.C:
-		b.dialogMu.Lock()
-		delete(b.dialogAnswers, id)
-		b.dialogMu.Unlock()
+		if result, ok := b.abandonDialog(id, answer); ok {
+			// タイムアウトと同時に応答が届いていた。応答を優先する。
+			return result.text, result.accepted, nil
+		}
 		return "", false, fmt.Errorf("ダイアログの応答がありません（%v以内に応答がなく、ページの移動などで打ち切られた可能性があります）", bridgeDialogTimeout)
 	}
 }
 
 // resolveDialog はresolveGonakoDialog（Bind）から呼ばれ、showDialogの
 // 待ちを解く。該当する呼び出しがなければ（二重応答など）falseを返す。
+//
+// 登録の削除と応答の送信はdialogMuを握ったまま行う。こうするとabandonDialog
+// から見て「登録が残っている＝未応答」「登録が消えている＝応答が送信済み」の
+// どちらかに必ず定まり、タイムアウトと応答が競合しても応答が失われない。
+// チャネルは容量1で、登録を消した者だけが送るので、送信がブロックすることはない。
 func (b *commandBridge) resolveDialog(id uint64, text string, accepted bool) bool {
 	b.dialogMu.Lock()
+	defer b.dialogMu.Unlock()
 	answer := b.dialogAnswers[id]
-	delete(b.dialogAnswers, id)
-	b.dialogMu.Unlock()
 	if answer == nil {
 		return false
 	}
-	select {
-	case answer <- dialogAnswer{text: text, accepted: accepted}:
-		return true
-	default:
-		return false
+	delete(b.dialogAnswers, id)
+	answer <- dialogAnswer{text: text, accepted: accepted}
+	return true
+}
+
+// abandonDialog はタイムアウトしたshowDialogが呼ぶ。登録がまだ残っていれば
+// 削除して諦める（falseを返す）。既にresolveDialogが登録を取っていれば、
+// 応答はチャネルへ送信済みなので、それを受け取って返す（trueを返す）。
+func (b *commandBridge) abandonDialog(id uint64, answer chan dialogAnswer) (dialogAnswer, bool) {
+	b.dialogMu.Lock()
+	defer b.dialogMu.Unlock()
+	if b.dialogAnswers[id] == answer {
+		delete(b.dialogAnswers, id)
+		return dialogAnswer{}, false
 	}
+	return <-answer, true
 }
 
 // start は命令をバックグラウンドで実行し、呼び出しIDをすぐ返す。

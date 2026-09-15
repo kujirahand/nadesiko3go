@@ -211,23 +211,26 @@ func TestCommandBridgeStartReportsThroughEval(t *testing.T) {
 // commandBridge.showDialogがJS側へEvalで届け、resolveDialogが
 // resolveGonakoDialog（Bind）経由の応答で待ちを解くこと（#63）。
 func TestCommandBridgeShowDialogRoundTrips(t *testing.T) {
-	var evaluated []string
+	// Evalは命令を実行するgoroutineから呼ばれるので、チャネルで受け渡す。
+	evaluated := make(chan string, 4)
 	bridge := newCommandBridge(newVirtualWindowController(), nil, func(js string) {
-		evaluated = append(evaluated, js)
+		evaluated <- js
 	})
 
 	done := make(chan BridgeResult, 1)
 	go func() { done <- bridge.call("言", `["こんにちは"]`) }()
 
-	deadline := time.Now().Add(2 * time.Second)
-	for len(evaluated) == 0 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
+	var js string
+	select {
+	case js = <-evaluated:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ダイアログ表示のEvalが呼ばれていない")
 	}
-	if len(evaluated) != 1 || !strings.Contains(evaluated[0], "__gonakoBridgeDialog") {
-		t.Fatalf("ダイアログ表示のEvalが呼ばれていない: %v", evaluated)
+	if !strings.Contains(js, "__gonakoBridgeDialog") {
+		t.Fatalf("ダイアログ表示のEvalではない: %s", js)
 	}
-	if !strings.Contains(evaluated[0], `"alert"`) || !strings.Contains(evaluated[0], "こんにちは") {
-		t.Fatalf("ダイアログの種類/メッセージが違う: %s", evaluated[0])
+	if !strings.Contains(js, `"alert"`) || !strings.Contains(js, "こんにちは") {
+		t.Fatalf("ダイアログの種類/メッセージが違う: %s", js)
 	}
 
 	if !bridge.resolveDialog(1, "", true) {
@@ -277,5 +280,29 @@ func TestCommandBridgeShowDialogTimesOut(t *testing.T) {
 	// タイムアウト後に遅れて届いた応答は、該当なしとして無視されること。
 	if bridge.resolveDialog(1, "遅延応答", true) {
 		t.Fatal("タイムアウト済みのダイアログへの遅延応答がtrueになっている")
+	}
+}
+
+// タイムアウトと応答が競合したとき（resolveDialogが登録を取った直後に
+// タイマー側が進んだとき）、応答が捨てられずに返ること。
+func TestCommandBridgeAbandonDialogKeepsRacingAnswer(t *testing.T) {
+	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
+	answer := make(chan dialogAnswer, 1)
+	bridge.dialogAnswers = map[uint64]chan dialogAnswer{1: answer, 2: make(chan dialogAnswer, 1)}
+
+	if !bridge.resolveDialog(1, "OK応答", true) {
+		t.Fatal("登録済みのダイアログへの応答がfalseになっている")
+	}
+	result, ok := bridge.abandonDialog(1, answer)
+	if !ok || result.text != "OK応答" || !result.accepted {
+		t.Fatalf("競合した応答が失われている: ok=%v result=%+v", ok, result)
+	}
+
+	// 未応答のものは登録を消して諦めること。
+	if _, ok := bridge.abandonDialog(2, bridge.dialogAnswers[2]); ok {
+		t.Fatal("未応答のダイアログが応答ありとして扱われている")
+	}
+	if _, exists := bridge.dialogAnswers[2]; exists {
+		t.Fatal("諦めたダイアログの登録が残っている")
 	}
 }
