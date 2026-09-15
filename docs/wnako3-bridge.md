@@ -90,6 +90,13 @@ N=「文字数」を[「あいう」]でGONAKO呼出
 「保存」を[「こんにちは」,「hello.txt」]でGONAKO呼出
 ```
 
+### サンプル
+
+- `ui/samples/15_タートル(wnako3).nako3`: タートルグラフィックスと`GONAKO呼出`
+- `ui/samples/16_ブラウザからGONAKOへアクセス(wnako3).nako3`: `GONAKO呼出`と`GONAKO実行`の
+  紹介に絞ったサンプル。`システム時間`・`ファイル列挙`をwnako3から呼び出し、
+  複数行のなでしこコードをまとめて`GONAKO実行`で動かし、ファイルの保存・読み出しも行う
+
 ## 4. エディタの「ブラウザ(wnako3)」実行モード
 
 `docs/gonako-gui-editor.md` の6節を参照してください。子プロセスが

@@ -92,3 +92,30 @@ func TestPollForgetsFinishedRun(t *testing.T) {
 		t.Fatalf("完了した実行状態が残っている: %d件", remaining)
 	}
 }
+
+// GONAKO呼出/GONAKO実行の紹介サンプルが、実際にブリッジ経由で
+// Go側の命令を呼び出せること（#63）。
+func TestSampleWNako3BridgeDemoRunsThroughBridge(t *testing.T) {
+	code, err := uiFS.ReadFile("ui/samples/16_ブラウザからGONAKOへアクセス(wnako3).nako3")
+	if err != nil {
+		t.Fatalf("サンプルを読み込めません: %v", err)
+	}
+	if !strings.Contains(string(code), "GONAKO呼出") || !strings.Contains(string(code), "GONAKO実行") {
+		t.Fatal("サンプルはGONAKO呼出とGONAKO実行の両方を紹介すること")
+	}
+
+	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
+	if r := bridge.call("システム時間", `[]`); !r.OK {
+		t.Fatalf("システム時間の呼び出しに失敗: %+v", r)
+	}
+	if r := bridge.call("ファイル列挙", `["."]`); !r.OK {
+		t.Fatalf("ファイル列挙の呼び出しに失敗: %+v", r)
+	}
+	if r := bridge.call("保存", `["テスト内容","gonako-bridge-demo-test.txt"]`); !r.OK {
+		t.Fatalf("保存の呼び出しに失敗: %+v", r)
+	}
+	defer bridge.call("ファイル削除", `["gonako-bridge-demo-test.txt"]`)
+	if r := bridge.call("開", `["gonako-bridge-demo-test.txt"]`); !r.OK || string(r.Value) != `"テスト内容"` {
+		t.Fatalf("保存したファイルを読み戻せない: %+v", r)
+	}
+}
