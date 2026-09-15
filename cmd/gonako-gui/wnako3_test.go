@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func TestWNako3IsEmbedded(t *testing.T) {
@@ -126,6 +127,30 @@ func TestWNako3InitScriptCarriesConfig(t *testing.T) {
 	}
 }
 
+// macOSのWKWebViewはalert/confirm/promptを実装していないため、wnako3の
+// 『言』『尋』『文字尋』『二択』(window.alert等を直接呼ぶ)は動かない。
+// PluginGonakoが同名で上書きし、Go側(gonako)を呼ぶことを確かめる（#63）。
+func TestLoaderOverridesBrowserDialogCommands(t *testing.T) {
+	loader := readUIAsset(t, "gonako-loader.js")
+	for _, required := range []string{
+		"'言': {",
+		"'尋': {",
+		"'文字尋': {",
+		"'二択': {",
+		"await call('言', s);",
+		"return call('尋', s);",
+		"return call('文字尋', s);",
+		"return call('二択', s);",
+		"function showGonakoDialog(",
+		"window.__gonakoBridgeDialog = async function",
+		"window.resolveGonakoDialog",
+	} {
+		if !strings.Contains(loader, required) {
+			t.Fatalf("ローダーに %q が無い", required)
+		}
+	}
+}
+
 func TestCommandBridgeCallsGoCommand(t *testing.T) {
 	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
 
@@ -167,5 +192,46 @@ func TestCommandBridgeStartReportsThroughEval(t *testing.T) {
 	var result BridgeResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil || !result.OK || string(result.Value) != "3" {
 		t.Fatalf("結果が違う: %s (%v)", raw, err)
+	}
+}
+
+// 『言』『尋』『二択』はダイアログを出すためctx.ShowDialogを呼ぶ。
+// commandBridge.showDialogがJS側へEvalで届け、resolveDialogが
+// resolveGonakoDialog（Bind）経由の応答で待ちを解くこと（#63）。
+func TestCommandBridgeShowDialogRoundTrips(t *testing.T) {
+	var evaluated []string
+	bridge := newCommandBridge(newVirtualWindowController(), nil, func(js string) {
+		evaluated = append(evaluated, js)
+	})
+
+	done := make(chan BridgeResult, 1)
+	go func() { done <- bridge.call("言", `["こんにちは"]`) }()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for len(evaluated) == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if len(evaluated) != 1 || !strings.Contains(evaluated[0], "__gonakoBridgeDialog") {
+		t.Fatalf("ダイアログ表示のEvalが呼ばれていない: %v", evaluated)
+	}
+	if !strings.Contains(evaluated[0], `"alert"`) || !strings.Contains(evaluated[0], "こんにちは") {
+		t.Fatalf("ダイアログの種類/メッセージが違う: %s", evaluated[0])
+	}
+
+	if !bridge.resolveDialog(1, "", true) {
+		t.Fatal("resolveDialogが応答できない")
+	}
+	select {
+	case result := <-done:
+		if !result.OK {
+			t.Fatalf("言の呼び出しが失敗: %+v", result)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ダイアログ応答後もcallが完了しない")
+	}
+
+	// 存在しないIDへの応答はfalseになること（二重応答対策）。
+	if bridge.resolveDialog(999, "", true) {
+		t.Fatal("存在しないダイアログIDへの応答がtrueになっている")
 	}
 }

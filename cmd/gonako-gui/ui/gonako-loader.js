@@ -5,6 +5,13 @@
 // - <script type="なでしこ"> があるページでは wnako3.js を読み込んで実行する
 // - wnako3 には PluginGonako（GONAKO関数実行 / GONAKO実行 / GONAKOバージョン）を登録する
 //
+// macOSのWKWebViewはJavaScriptのalert/confirm/promptを実装していない
+// （WKUIDelegateがrunJavaScript*Panel系メソッドを持たない）ため、
+// wnako3自身の『言』『尋』『文字尋』『二択』（window.alert等を直接呼ぶ）は
+// 何も表示せず素通りしてしまう。ここで自前のダイアログ（showGonakoDialog）を
+// 実装し、PluginGonakoで同名の命令を上書きしてGo側（gonako）の同名命令を
+// 呼び出すようにする（Go側もこのダイアログを介して応答する。bridge.goを参照）。
+//
 // 直前に gonako-gui が window.__gonakoConfig を設定している。
 (function () {
   'use strict';
@@ -67,20 +74,89 @@
     });
   }
 
+  // ネイティブのalert/confirm/promptに頼らない自前のダイアログ。
+  // macOSのWKWebViewはこれらを実装していないため、呼んでも何も起きない。
+  // kind: 'alert' | 'confirm' | 'prompt'。戻り値は{text, accepted}。
+  // 呼び出しは内部でキューに並べ、常に1つずつ表示する（同時に2つ出さない）。
+  let dialogQueue = Promise.resolve();
+  function showGonakoDialog(kind, message) {
+    const task = dialogQueue.then(() => showGonakoDialogNow(kind, message));
+    // 1つの失敗が後続の表示を止めないよう、キュー自体は握りつぶして繋ぐ。
+    dialogQueue = task.catch(() => {});
+    return task;
+  }
+  function showGonakoDialogNow(kind, message) {
+    return new Promise(resolve => {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;'
+        + 'background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;'
+        + 'font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;';
+      const box = document.createElement('div');
+      box.style.cssText = 'background:#fff;color:#222;min-width:280px;max-width:420px;'
+        + 'padding:20px;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+      const text = document.createElement('div');
+      text.textContent = message;
+      text.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin-bottom:14px;font-size:14px;line-height:1.5;';
+      box.appendChild(text);
+
+      let input = null;
+      if (kind === 'prompt') {
+        input = document.createElement('input');
+        input.type = 'text';
+        input.style.cssText = 'width:100%;box-sizing:border-box;padding:6px 8px;font-size:14px;'
+          + 'border:1px solid #ccc;border-radius:4px;margin-bottom:14px;';
+        box.appendChild(input);
+      }
+
+      const buttons = document.createElement('div');
+      buttons.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+      function makeButton(label, primary) {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = 'padding:6px 14px;font-size:13px;border-radius:4px;cursor:pointer;'
+          + (primary ? 'background:#e64553;color:#fff;border:none;' : 'background:#f0f0f0;color:#222;border:1px solid #ccc;');
+        return btn;
+      }
+
+      function finish(accepted) {
+        document.removeEventListener('keydown', onKeyDown, true);
+        overlay.remove();
+        resolve({ text: input ? input.value : '', accepted });
+      }
+      function onKeyDown(e) {
+        if (e.key === 'Enter' && (kind !== 'prompt' || document.activeElement === input)) {
+          e.preventDefault();
+          finish(true);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          finish(kind === 'alert');
+        }
+      }
+
+      if (kind !== 'alert') {
+        buttons.appendChild(makeButton('キャンセル', false)).addEventListener('click', () => finish(false));
+      }
+      buttons.appendChild(makeButton('OK', true)).addEventListener('click', () => finish(true));
+      box.appendChild(buttons);
+      overlay.appendChild(box);
+      (document.body || document.documentElement).appendChild(overlay);
+      document.addEventListener('keydown', onKeyDown, true);
+      (input || overlay.querySelector('button:last-of-type')).focus();
+    });
+  }
+
+  // Go側のVM（window.gonako.run経由）が出したダイアログに応答する。
   async function answerDialog(runID, dialog) {
-    let text = '';
-    let accepted = true;
-    if (dialog.kind === 'prompt') {
-      const answer = window.prompt(dialog.message, '');
-      accepted = answer !== null;
-      text = answer || '';
-    } else if (dialog.kind === 'confirm') {
-      accepted = window.confirm(dialog.message);
-    } else {
-      window.alert(dialog.message);
-    }
+    const { text, accepted } = await showGonakoDialog(dialog.kind, dialog.message);
     await window.resolveNakoDialog(runID, dialog.id, text, accepted);
   }
+
+  // GONAKO関数実行のブリッジVM（bridge.go）が出したダイアログに応答する。
+  // 『言』『尋』『文字尋』『二択』をwnako3から上書きするための実装。
+  window.__gonakoBridgeDialog = async function (id, kind, message) {
+    const { text, accepted } = await showGonakoDialog(kind, message);
+    if (window.resolveGonakoDialog) await window.resolveGonakoDialog(id, text, accepted);
+  };
 
   // Go側でなでしこのプログラムを実行し、表示された文字列を返す
   async function run(code) {
@@ -145,6 +221,48 @@
       asyncFn: true,
       fn: async function (code, sys) {
         return run(code);
+      },
+    },
+    // 以下は本家(plugin_browser)の『言』『尋』『文字尋』『二択』を上書きする。
+    // wnako3自身の実装はwindow.alert/prompt/confirmを直接呼ぶが、
+    // macOSのWKWebViewはこれらを実装しておらず何も表示されない。
+    // gonako（Go側）の同名命令をGONAKO関数実行で呼び出し、応答は
+    // showGonakoDialog（自前のダイアログ）で受け取る。
+    '言': { // @メッセージダイアログにSを表示 // @いう
+      type: 'func',
+      josi: [['と', 'を']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        await call('言', s);
+      },
+      return_none: true,
+    },
+    '尋': { // @メッセージSと入力ボックスを出して尋ねる // @たずねる
+      type: 'func',
+      josi: [['と', 'を']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        return call('尋', s);
+      },
+    },
+    '文字尋': { // @メッセージSと入力ボックスを出して尋ねる。返り値は常に文字列 // @もじたずねる
+      type: 'func',
+      josi: [['と', 'を']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        return call('文字尋', s);
+      },
+    },
+    '二択': { // @メッセージSと[OK][キャンセル]のダイアログを出して尋ねる // @にたく
+      type: 'func',
+      josi: [['で', 'の', 'と', 'を']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        return call('二択', s);
       },
     },
   };

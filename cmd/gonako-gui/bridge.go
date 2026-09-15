@@ -9,6 +9,14 @@ package main
 //
 // 命令は1つの常駐VMで実行する。SQLiteのハンドルなど命令の状態が
 // 呼び出しをまたいで保たれるようにするため。
+//
+// 『言』『尋』『文字尋』『二択』はダイアログを出すためctx.ShowDialogを呼ぶ。
+// これに応えるため、host.dialogをshowDialogに向けている。macOSのWKWebView
+// はJavaScriptのalert/confirm/promptを実装しておらず（WKUIDelegateが
+// runJavaScript*Panelメソッドを持たない）、wnako3自身の同名命令
+// （window.alert等を直接呼ぶ）は何も表示せず素通りしてしまう（#63関連）。
+// このブリッジ経由の実装をwnako3側から上書きすることで、これらの命令を
+// 動くようにする（gonako-loader.jsのpluginGonakoを参照）。
 
 import (
 	"encoding/json"
@@ -43,6 +51,10 @@ type commandBridge struct {
 	packed  *bundle.Bundle
 	eval    func(js string)
 	nextID  atomic.Uint64
+
+	dialogMu      sync.Mutex
+	nextDialogID  uint64
+	dialogAnswers map[uint64]chan dialogAnswer
 }
 
 func newCommandBridge(windows guilib.WindowController, packed *bundle.Bundle, eval func(js string)) *commandBridge {
@@ -54,6 +66,7 @@ func (b *commandBridge) prepare() {
 	screen := guilib.NewScreen()
 	registry := stdlib.NewRegistry(guiPluginsWith(guilib.NewWithScreenAndWindow(screen, b.windows))...)
 	host := newGUIHost(screen, false, nil, b.packed)
+	host.dialog = b.showDialog
 	prog, err := vm.CompileWithRegistry("", "gonako-bridge.nako3", registry)
 	if err != nil {
 		b.initErr = err
@@ -91,6 +104,48 @@ func (b *commandBridge) call(name, argsJSON string) BridgeResult {
 		return BridgeResult{Output: output, Error: fmt.Sprintf("命令『%s』の戻り値をJSONにできません: %v", name, err)}
 	}
 	return BridgeResult{OK: true, Value: json.RawMessage(text), Output: output}
+}
+
+// showDialog は『言』『尋』『文字尋』『二択』が呼ぶ。JavaScript側に
+// __gonakoBridgeDialog(id, kind, message) をEvalで届け、そこでダイアログを
+// 表示させる。応答はresolveDialogがresolveGonakoDialog（Bind）経由で運ぶ。
+// bridge.callはこの呼び出しの間ずっとb.muを握ったままになる（guiSessionの
+// execMuと同じ考え方）ので、常駐VMは1度に1つのダイアログしか出さない。
+func (b *commandBridge) showDialog(kind, message string) (string, bool, error) {
+	b.dialogMu.Lock()
+	b.nextDialogID++
+	id := b.nextDialogID
+	answer := make(chan dialogAnswer, 1)
+	if b.dialogAnswers == nil {
+		b.dialogAnswers = map[uint64]chan dialogAnswer{}
+	}
+	b.dialogAnswers[id] = answer
+	b.dialogMu.Unlock()
+
+	kindJSON, _ := json.Marshal(kind)
+	messageJSON, _ := json.Marshal(message)
+	b.eval(fmt.Sprintf("window.__gonakoBridgeDialog && window.__gonakoBridgeDialog(%d, %s, %s)", id, kindJSON, messageJSON))
+
+	result := <-answer
+	return result.text, result.accepted, nil
+}
+
+// resolveDialog はresolveGonakoDialog（Bind）から呼ばれ、showDialogの
+// 待ちを解く。該当する呼び出しがなければ（二重応答など）falseを返す。
+func (b *commandBridge) resolveDialog(id uint64, text string, accepted bool) bool {
+	b.dialogMu.Lock()
+	answer := b.dialogAnswers[id]
+	delete(b.dialogAnswers, id)
+	b.dialogMu.Unlock()
+	if answer == nil {
+		return false
+	}
+	select {
+	case answer <- dialogAnswer{text: text, accepted: accepted}:
+		return true
+	default:
+		return false
+	}
 }
 
 // start は命令をバックグラウンドで実行し、呼び出しIDをすぐ返す。

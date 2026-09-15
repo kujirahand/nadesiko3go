@@ -181,5 +181,6 @@ func installWNako3(w webview.WebView, cfg wnako3PageConfig, windows guilib.Windo
 		w.Dispatch(func() { w.Eval(js) })
 	})
 	_ = w.Bind("startNakoCommand", bridge.start)
+	_ = w.Bind("resolveGonakoDialog", bridge.resolveDialog)
 	return bridge
 }

@@ -115,7 +115,26 @@ N=「文字数」を[「あいう」]でGONAKO関数実行
   悪意あるサイトが、自分のドメインを127.0.0.1へ向け直してフォルダのファイルを読むのを防ぐ。
   別オリジンからの直接の `fetch` は、CORSヘッダーを返さないので中身を読めない
 
-## 6. 制約
+## 6. ダイアログ（言・尋・文字尋・二択）
+
+macOSのWKWebViewは`WKUIDelegate`に`runJavaScriptAlertPanelWithMessage`等の
+実装を持たないため、`window.alert`/`prompt`/`confirm`は何も表示せず
+素通りしてしまう。本家の`plugin_browser`が定義する`言`/`尋`/`文字尋`/`二択`
+はこれらを直接呼ぶため、macOSでは動かない。
+
+`gonako-loader.js`はこの4命令を`PluginGonako`で**同名のまま上書き**し、
+`GONAKO関数実行`と同じ経路でGo側の同名命令を呼ぶようにしている
+（wnako3のプラグイン登録は後勝ちなので、`PluginGonako`が
+`plugin_browser`より後に登録される限り上書きされる）。Go側の`言`等は
+`ctx.ShowDialog`を呼ぶが、これに応えるダイアログ表示も、ネイティブの
+alert/prompt/confirmではなく、`gonako-loader.js`が自前で描画するHTML製の
+モーダル（`showGonakoDialog`）で行う。応答は新しいBind
+`resolveGonakoDialog`でGo側（`commandBridge.showDialog`、`bridge.go`）へ返す。
+
+`window.gonako.run(code)`（Go側VMを直接動かす経路）のダイアログ応答も、
+同じ理由で同じ自前モーダルを使うよう修正済み。
+
+## 7. 制約
 
 - wnako3で動くのは本家のブラウザ版の言語処理系で、gonakoの互換保証（`plugin_system`）の対象外
 - wnako3からGo側の関数値（コールバック）は渡せない。JSONにできる値だけを受け渡す

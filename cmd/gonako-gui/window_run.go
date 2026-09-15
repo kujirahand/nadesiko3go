@@ -66,7 +66,7 @@ func launchChildRunProcess(code, filePath, runFlag string) NewWindowRunResult {
 		}
 	}
 
-	cmd := exec.Command(self, runFlag, tmpPath,"--run-window-title", title, "--run-window-name", sourceName)
+	cmd := exec.Command(self, runFlag, tmpPath, "--run-window-title", title, "--run-window-name", sourceName)
 	cmd.Dir = workDir
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)
