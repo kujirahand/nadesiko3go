@@ -60,6 +60,60 @@ func checkInstallersAgree() error {
 	return nil
 }
 
+// switchInstallers は全インストーラーのフォールバック版を newVersion へ切り替える。
+// 片方だけ書き換わった中間状態を残さないよう、先に全ファイルを読んで検証し、
+// 更新後の内容をメモリ上で作ってから書き込む。書き込みが途中で失敗したら、
+// 書き込み済みのファイルを元の内容へ戻す。
+func switchInstallers(newVersion string) error {
+	type pending struct {
+		path, current, original, updated string
+		mode                             os.FileMode
+	}
+	var plans []pending
+	for _, s := range installers {
+		info, err := os.Stat(s.path)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(s.path)
+		if err != nil {
+			return err
+		}
+		text := string(data)
+		matches := s.pattern.FindAllStringSubmatchIndex(text, -1)
+		if len(matches) != 1 {
+			return fmt.Errorf("%s: パターンが%d件マッチしました（1件である必要があります）", s.path, len(matches))
+		}
+		m := matches[0]
+		if text[m[2]:m[3]] == newVersion {
+			continue
+		}
+		plans = append(plans, pending{
+			path:     s.path,
+			current:  text[m[2]:m[3]],
+			original: text,
+			updated:  text[:m[2]] + newVersion + text[m[3]:],
+			mode:     info.Mode().Perm(),
+		})
+	}
+
+	for i, p := range plans {
+		if err := os.WriteFile(p.path, []byte(p.updated), p.mode); err != nil {
+			// 書き込み済みのファイルを元へ戻す（戻せなければその旨も伝える）
+			for _, done := range plans[:i] {
+				if rerr := os.WriteFile(done.path, []byte(done.original), done.mode); rerr != nil {
+					return fmt.Errorf("%s の書き込みに失敗し（%v）、%s を元に戻せませんでした: %v", p.path, err, done.path, rerr)
+				}
+			}
+			return fmt.Errorf("%s の書き込みに失敗したため、変更を取り消しました: %v", p.path, err)
+		}
+	}
+	for _, p := range plans {
+		fmt.Printf("[更新] %s: %s -> %s\n", p.path, p.current, newVersion)
+	}
+	return nil
+}
+
 func main() {
 	checkFlag := flag.Bool("check", false, "書き換えず、バージョン番号のズレを検査するだけ")
 	nadesikoFlag := flag.String("nadesiko", "", "ナデシコ言語バージョンも合わせて変更する場合に指定")
@@ -73,11 +127,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "エラー: --stable の形式が不正です: %q (例: 3.8.2)\n", *stableFlag)
 			os.Exit(1)
 		}
-		for _, s := range installers {
-			if _, _, err := syncSingleOccurrence(s, *stableFlag, false); err != nil {
-				fmt.Fprintln(os.Stderr, "エラー:", err)
-				os.Exit(1)
-			}
+		if err := switchInstallers(*stableFlag); err != nil {
+			fmt.Fprintln(os.Stderr, "エラー:", err)
+			os.Exit(1)
 		}
 		return
 	}
