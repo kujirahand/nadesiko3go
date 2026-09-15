@@ -109,3 +109,50 @@ func TestParseWebResultsWithoutResultBlock(t *testing.T) {
 		t.Fatalf("結果欄が無ければ空のはずです: %#v", got)
 	}
 }
+
+// wnakoの命令一覧も埋め込まれていて、マニュアルへのリンクが張れること（#101）。
+func TestWNakoCommandsLoadsEmbeddedList(t *testing.T) {
+	list, err := WNakoCommands()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(list) < 500 {
+		t.Fatalf("wnakoの命令一覧が少なすぎます: %d件", len(list))
+	}
+	var hyouji Command
+	for _, cmd := range list {
+		if cmd.Name == "" {
+			t.Fatal("名前のない命令があります")
+		}
+		if cmd.DocURL == "" {
+			t.Fatalf("『%s』のマニュアルURLがありません", cmd.Name)
+		}
+		if cmd.Name == "表示" {
+			hyouji = cmd
+		}
+	}
+	if hyouji.Name == "" {
+		t.Fatal("wnakoの命令一覧に『表示』がありません")
+	}
+	if hyouji.Plugin != "plugin_system" {
+		t.Fatalf("『表示』のプラグインが違います: %q", hyouji.Plugin)
+	}
+	if hyouji.Template != "【S】を表示" {
+		t.Fatalf("『表示』の書式が違います: %q", hyouji.Template)
+	}
+	// wnakoの命令だけを検索できること。
+	if found := Search(list, []string{"カメ"}); len(found) == 0 {
+		t.Fatal("wnakoの命令一覧からタートル系の命令が見つかりません")
+	}
+}
+
+func TestWNakoDocURL(t *testing.T) {
+	got := WNakoDocURL("plugin_system", "表示")
+	want := "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E8%A1%A8%E7%A4%BA"
+	if got != want {
+		t.Fatalf("URLが違います: %s", got)
+	}
+	if got := WNakoDocURL("", "表示"); !strings.HasSuffix(got, "%E8%A1%A8%E7%A4%BA") {
+		t.Fatalf("プラグイン名が無い場合のURLが違います: %s", got)
+	}
+}

@@ -74,3 +74,46 @@ func TestRunDocWithoutKeyword(t *testing.T) {
 		t.Fatal("キーワード無しはエラーになるはずです")
 	}
 }
+
+// --wnako で本家ブラウザ版(wnako3)の命令一覧を検索できること（#101）。
+func TestRunDocWNako(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"doc", "カメ作成", "--wnako", "--limit", "1"}, &stdout, &stderr); err != nil {
+		t.Fatalf("doc --wnako: %v; stderr=%s", err, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"(wnako)", "■ カメ作成", "plugin_turtle"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("出力に%qがありません:\n%s", want, out)
+		}
+	}
+
+	// --wnako を付けなければGo版(gonako)の一覧を引くこと。
+	stdout.Reset()
+	if err := run([]string{"doc", "カメ作成"}, &stdout, &stderr); err != nil {
+		t.Fatalf("doc: %v; stderr=%s", err, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "(wnako)") {
+		t.Errorf("既定でwnakoの一覧を引いています:\n%s", stdout.String())
+	}
+}
+
+func TestRunDocWNakoJSON(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"doc", "--wnako", "--json", "--limit", "1", "表示"}, &stdout, &stderr); err != nil {
+		t.Fatalf("doc --wnako --json: %v; stderr=%s", err, stderr.String())
+	}
+	var result docResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("JSONとして読めません: %v\n%s", err, stdout.String())
+	}
+	if result.Target != "wnako" {
+		t.Errorf("targetが違います: %q", result.Target)
+	}
+	if len(result.Commands) == 0 || result.Commands[0].Name != "表示" {
+		t.Fatalf("命令が見つかりません: %#v", result.Commands)
+	}
+	if !strings.Contains(result.Commands[0].DocURL, "plugin_system") {
+		t.Errorf("マニュアルURLが違います: %s", result.Commands[0].DocURL)
+	}
+}

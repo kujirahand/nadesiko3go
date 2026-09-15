@@ -109,6 +109,11 @@ compat-check:
 gen-command-list:
     {{go}} run ./scripts/gen-command-list.go
 
+# wnako(本家ブラウザ版)の命令一覧を生成する（GUIエディタの[wnako]表示用 / #101）
+# 入力は just copy-nadesiko3 が取り込む ui/wnako3/command.json.js
+gen-wnako-command-list:
+    {{go}} run ./scripts/gen-wnako-command-list.go
+
 # バージョン番号を一括更新する（例: just version-update 3.8.2）
 # 引数なしなら internal/version/version.go の現在値へ他ファイルを再同期する
 version-update *args:

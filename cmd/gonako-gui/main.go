@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -85,10 +86,16 @@ type CommandItem struct {
 	Type       string     `json:"type"`
 	Josi       [][]string `json:"josi"`
 	ReturnNone bool       `json:"returnNone,omitempty"`
+	Plugin     string     `json:"plugin,omitempty"`
 	Category   string     `json:"category,omitempty"`
 	Desc       string     `json:"desc,omitempty"`
 	Template   string     `json:"template,omitempty"`
 	Yomi       string     `json:"yomi,omitempty"`
+	File       string     `json:"file,omitempty"`
+	Line       int        `json:"line,omitempty"`
+	URL        string     `json:"url,omitempty"`
+	// DocURL はマニュアルの解説ページ。wnakoの命令一覧で使う（#101）。
+	DocURL string `json:"docUrl,omitempty"`
 }
 
 // TemplateItem describes a sample nadesiko3 script file.
@@ -169,6 +176,35 @@ func getCommandList() []CommandItem {
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
 	})
+	return items
+}
+
+// wnakoDocURL は本家の命令のマニュアルページのURLを作る。
+// マニュアルのページ名は「プラグイン名/命令名」である（#101）。
+// internal/commanddoc と同じ計算だが、命令一覧JSONを二重にバイナリへ
+// 埋め込まないよう、ここでは依存せずに組み立てる。
+func wnakoDocURL(plugin, name string) string {
+	page := name
+	if plugin != "" {
+		page = plugin + "/" + name
+	}
+	return "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(page)
+}
+
+// getWNakoCommandList は本家ブラウザ版(wnako3)の命令一覧を返す（#101）。
+// 一覧は `just copy-nadesiko3`（gen-wnako-command-list.go）が生成する。
+func getWNakoCommandList() []CommandItem {
+	data, err := fs.ReadFile(uiFS, "ui/command-list-wnako.json")
+	if err != nil {
+		return []CommandItem{}
+	}
+	var items []CommandItem
+	if err := json.Unmarshal(data, &items); err != nil {
+		return []CommandItem{}
+	}
+	for i := range items {
+		items[i].DocURL = wnakoDocURL(items[i].Plugin, items[i].Name)
+	}
 	return items
 }
 
@@ -642,6 +678,13 @@ func main() {
 	// Go ↔ JavaScript バインディング: 命令一覧取得
 	_ = w.Bind("getCommandList", func() string {
 		items := getCommandList()
+		b, _ := json.Marshal(items)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: wnako(本家ブラウザ版)の命令一覧取得(#101)
+	_ = w.Bind("getWNakoCommandList", func() string {
+		items := getWNakoCommandList()
 		b, _ := json.Marshal(items)
 		return string(b)
 	})

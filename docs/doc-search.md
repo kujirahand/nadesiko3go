@@ -8,6 +8,7 @@ gonako doc 秒待               # 命令一覧から検索する（既定）
 gonako doc ファイル 読む       # 複数キーワードのAND検索
 gonako doc 秒待 --web         # Webのマニュアルも検索する
 gonako doc 秒待 --json        # 結果をJSONで出力する
+gonako doc カメ作成 --wnako    # 本家ブラウザ版(wnako3)の命令から検索する
 gonako doc 文字列 --limit 0   # 全件表示する
 ```
 
@@ -16,6 +17,7 @@ gonako doc 文字列 --limit 0   # 全件表示する
 | `--command`, `-c` | 命令一覧(JSON)から検索する（既定の動作なので、普段は省略できる） |
 | `--web`, `-w` | Webのマニュアル（<https://nadesi.com/v3/doc/>）も検索する |
 | `--json` | 結果をJSONで出力する |
+| `--wnako` | 本家ブラウザ版(wnako3)の命令一覧から検索する（#101） |
 | `--limit N` | 表示する件数の上限（既定: 20、`0`で全件） |
 
 ## 命令一覧はどこから来るのか
@@ -30,6 +32,20 @@ GUIエディタが読む `cmd/gonako-gui/ui/command-list.json` と同じ内容�
 `just gen-command-list` を実行して、この一覧を更新してください。
 
 軽量CUI版（`gonako-cui`）はバイナリサイズを優先しているため、`doc` を持ちません。
+
+## wnako（本家ブラウザ版）の命令一覧
+
+`--wnako` で引く一覧は `internal/commanddoc/command-list-wnako.json` です。
+`just copy-nadesiko3` が取り込む `cmd/gonako-gui/ui/wnako3/command.json.js`
+（本家が配布している命令表）から `scripts/gen-wnako-command-list.go` が変換し、
+GUIエディタが読む `cmd/gonako-gui/ui/command-list-wnako.json` と同じ内容を
+2か所へ書き出します。単独で作り直すときは `just gen-wnako-command-list` です。
+
+Go版の命令一覧と形は同じですが、定義ファイル（`file` / `line` / `url`）は
+持たず、マニュアルのリンク先が本家のページ名
+（`プラグイン名/命令名`。例: `plugin_system/表示`）になります。
+GUIエディタでは命令タブの `[gonako] [wnako]` スイッチが同じ一覧を表示します
+（→ `docs/gonako-gui-editor.md`）。
 
 ## 一致度の付け方
 

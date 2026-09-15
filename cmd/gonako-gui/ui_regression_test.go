@@ -301,3 +301,50 @@ func TestPromptDialogIgnoresIMEEnter(t *testing.T) {
 		t.Fatalf("IME dialog guard count = %d, want 2", got)
 	}
 }
+
+// 命令一覧をgonako/wnakoで切り替えられること（#101）。
+func TestCommandListSourceSwitch(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+	for _, required := range []string{
+		`id="cmd-source-gonako"`,
+		`id="cmd-source-wnako"`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html に命令一覧の切り替えボタン %s がありません", required)
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"const commandCache = { gonako: null, wnako: null }",
+		"bind: 'getWNakoCommandList'",
+		"json: 'command-list-wnako.json'",
+		"localStorage.setItem('gonako-cmd-source', source)",
+		"cmdSourceWnakoBtn.addEventListener('click', () => setCmdSource('wnako'))",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js に命令一覧の切り替え処理 %q がありません", required)
+		}
+	}
+}
+
+// wnakoの命令一覧が同梱され、マニュアルへのリンクが付くこと（#101）。
+func TestWNakoCommandListIsEmbedded(t *testing.T) {
+	items := getWNakoCommandList()
+	if len(items) < 500 {
+		t.Fatalf("wnakoの命令一覧が少なすぎます: %d件", len(items))
+	}
+	for _, item := range items {
+		if item.Name != "表示" {
+			continue
+		}
+		if item.DocURL == "" {
+			t.Fatal("『表示』のマニュアルURLがありません")
+		}
+		if item.Template != "【S】を表示" {
+			t.Fatalf("『表示』の書式が違います: %q", item.Template)
+		}
+		return
+	}
+	t.Fatal("wnakoの命令一覧に『表示』がありません")
+}
