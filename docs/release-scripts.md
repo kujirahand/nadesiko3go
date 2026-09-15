@@ -8,7 +8,8 @@
 
 ### 1-1. バージョン番号の一元管理
 - **バージョン番号の唯一の定義元は `internal/version/version.go` です。**
-- リリース時は直接ファイルを編集せず、必ず `just version-update <VERSION>` コマンドを使用します。インストーラーや各ドキュメントの表記が一括で自動同期されます。
+- リリース時は直接ファイルを編集せず、必ず `just version-update <VERSION>` コマンドを使用します。各ドキュメントの表記が一括で自動同期されます。
+- インストーラー（`scripts/install.sh` / `scripts/install.ps1`）のフォールバック版は「公開済みの安定版」を表すため、`version-update` では変更せず、`just publish` がRelease公開後に切り替えます。公開前に切り替えると、最新版APIの取得に失敗したときに未公開版を取りに行って404になるためです。
 
 ### 1-2. コマンド間ラグの防止（アトミック公開）
 - GitHub Releases に空のリリースを作った直後に成果物を順次アップロードすると、アップロード完了までの間、ワンライナーインストーラー（`curl ... | bash` / `irm ... | iex`）が 404 Not Found エラーになる問題（Issue #81）がありました。
@@ -114,6 +115,7 @@ just publish
 2. **成果物のアップロード**: `release/upload-<VERSION>.sh` を実行し、全ZIPをアップロード。
 3. **アトミック公開**: `gh release edit <VERSION> --draft=false --latest` で正式公開に切り替え。
 4. **Homebrew Tap 更新**: `scripts/update-homebrew-tap.go -local -push` を実行し、手元のZIPから算出した SHA-256 を用いて `Formula/gonako.rb` および `Casks/gonako-gui.rb` を更新・コミット・プッシュ。
+5. **インストーラーのフォールバック版切り替え**: `scripts/version-update.go --stable <VERSION>` で `scripts/install.sh` / `scripts/install.ps1` を公開済みの版へ更新。変更はコミットしてmasterへ反映してください。
 
 ---
 
@@ -121,10 +123,9 @@ just publish
 
 ### `just version-update [VERSION]` (`scripts/version-update.go`)
 - `internal/version/version.go`（唯一の定義元）
-- `scripts/install.sh`（macOS/Linux インストーラーの `DEFAULT_VERSION`）
-- `scripts/install.ps1`（Windows インストーラーの `$defaultVersion`）
 - `docs/release-homebrew.md`, `docs/release-scripts.md`（ドキュメント内のバージョン表記）
 のバージョンを一括同期します。`--check` を付けると、ズレがないか検査します（CI用）。
+- インストーラーのフォールバック版（`install.sh` の `DEFAULT_VERSION` / `install.ps1` の `$defaultVersion`）は同期対象外です。`--stable <VERSION>` を付けたときだけ、この2箇所を切り替えます（`just publish` が公開後に実行）。
 
 ### `just release` (`scripts/build-release.go`)
 - 全プラットフォーム向けの CLI/GUI バイナリをクロスコンパイルして ZIP 圧縮します。
@@ -173,6 +174,9 @@ gh release edit "$VERSION" --draft=false --latest
 
 # 4. Homebrew Tap を更新
 go run ./scripts/update-homebrew-tap.go -version "$VERSION" -local -push
+
+# 5. インストーラーのフォールバック版を公開済みの版へ切り替えてコミット
+go run ./scripts/version-update.go --stable "$VERSION"
 ```
 
 ### Q. ドラフトリリースが残ってしまった

@@ -51,4 +51,12 @@ gh release edit "$VERSION" --draft=false --latest
 echo "--- [3/3] Homebrew Tap を更新します"
 go run ./scripts/update-homebrew-tap.go -version "$VERSION" -local -push
 
+# 4. インストーラーのフォールバック版（公開済み安定版）を切り替える。
+# 公開前に切り替えると、最新版APIの取得失敗時に未公開版を取りに行って404になる。
+echo "--- [4/4] インストーラーのフォールバック版を ${VERSION} に切り替えます"
+go run ./scripts/version-update.go --stable "$VERSION"
+
 echo "===> 配信完了: https://github.com/kujirahand/nadesiko3go/releases/tag/${VERSION}"
+if ! git diff --quiet -- scripts/install.sh scripts/install.ps1; then
+  echo "注意: scripts/install.sh と scripts/install.ps1 が更新されました。コミットしてmasterへ反映してください"
+fi

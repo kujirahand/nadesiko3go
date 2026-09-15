@@ -8,7 +8,7 @@
 - **文字列はGoネイティブ（UTF-8 / rune基準）**。UTF-16互換層は作らない
 - GUIを提供するgonako-guiでは、WebViewとgonakoをシームレスに連携して、gonakoからWebViewを操作する
 - **バージョン番号の定義元は `internal/version/version.go` の1箇所のみ**。更新は必ず
-  `just version-update X.Y.Z` で行う（インストーラー・README・リリース手順書も自動で揃う）
+  `just version-update X.Y.Z` で行う（リリース手順書も自動で揃う。インストーラーのフォールバック版は `just publish` が公開後に切り替える）
 
 ---
 
