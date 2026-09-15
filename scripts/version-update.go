@@ -43,6 +43,15 @@ func main() {
 			os.Exit(1)
 		}
 	}
+
+	// バージョンを更新するときは、古いバージョンのビルド成果物が release/ に
+	// 混ざったまま残らないよう、実行のたびに中身を空にする（--check時は不変）。
+	if !*checkFlag {
+		if err := clearReleaseDir(); err != nil {
+			fmt.Fprintln(os.Stderr, "エラー:", err)
+			os.Exit(1)
+		}
+	}
 	newNadesiko := version.Nadesiko
 	if *nadesikoFlag != "" {
 		if !semverRe.MatchString(*nadesikoFlag) {
@@ -122,6 +131,27 @@ func main() {
 	} else {
 		fmt.Println("変更はありません（すでに", newVersion, "です）")
 	}
+}
+
+// clearReleaseDir は release/ ディレクトリの中身を空にする。ディレクトリ自体が
+// 無ければ何もしない（`just release` 未実行の環境で余計なディレクトリを
+// 作らないため）。
+func clearReleaseDir() error {
+	const dir = "release"
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if err := os.RemoveAll(dir + "/" + e.Name()); err != nil {
+			return err
+		}
+		fmt.Printf("[削除] %s/%s\n", dir, e.Name())
+	}
+	return nil
 }
 
 func updateVersionGoFile(newVersion, newNadesiko string) error {
