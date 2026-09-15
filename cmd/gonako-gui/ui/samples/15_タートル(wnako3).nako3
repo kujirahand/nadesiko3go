@@ -14,7 +14,7 @@
 
 「星を描きました」を表示
 
-// Go側(gonako)の命令も『GONAKO呼出』で呼び出せる
-N=「文字数」を[「タートル」]でGONAKO呼出
+// Go側(gonako)の命令も『GONAKO関数実行』で呼び出せる
+N=「文字数」を[「タートル」]でGONAKO関数実行
 「Go側で数えた文字数: {N}」を表示
 「GONAKO {GONAKOバージョン} / WNAKO {WNAKOバージョン}」を表示

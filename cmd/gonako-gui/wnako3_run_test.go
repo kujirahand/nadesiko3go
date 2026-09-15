@@ -93,15 +93,15 @@ func TestPollForgetsFinishedRun(t *testing.T) {
 	}
 }
 
-// GONAKO呼出/GONAKO実行の紹介サンプルが、実際にブリッジ経由で
+// GONAKO関数実行/GONAKO実行の紹介サンプルが、実際にブリッジ経由で
 // Go側の命令を呼び出せること（#63）。
 func TestSampleWNako3BridgeDemoRunsThroughBridge(t *testing.T) {
 	code, err := uiFS.ReadFile("ui/samples/16_ブラウザからGONAKOへアクセス(wnako3).nako3")
 	if err != nil {
 		t.Fatalf("サンプルを読み込めません: %v", err)
 	}
-	if !strings.Contains(string(code), "GONAKO呼出") || !strings.Contains(string(code), "GONAKO実行") {
-		t.Fatal("サンプルはGONAKO呼出とGONAKO実行の両方を紹介すること")
+	if !strings.Contains(string(code), "GONAKO関数実行") || !strings.Contains(string(code), "GONAKO実行") {
+		t.Fatal("サンプルはGONAKO関数実行とGONAKO実行の両方を紹介すること")
 	}
 
 	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})

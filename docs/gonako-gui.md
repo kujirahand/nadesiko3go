@@ -295,12 +295,12 @@ gonako-gui は本家のブラウザ版なでしこ（`wnako3.js`）とタート�
 !「plugin_turtle.js」を取り込む
 カメ作成
 100だけカメ進む
-N=「文字数」を[「あいう」]でGONAKO呼出
+N=「文字数」を[「あいう」]でGONAKO関数実行
 「Go側で数えた文字数: {N}」を表示
 </script>
 ```
 
-wnako3からは `GONAKO呼出` / `GONAKO実行` でGo側の命令（ファイル・SQLiteなど）を、
+wnako3からは `GONAKO関数実行` / `GONAKO実行` でGo側の命令（ファイル・SQLiteなど）を、
 JavaScriptからは `gonako.call(命令名, ...引数)` / `gonako.run(code)` を使えます。
 内蔵エディタでは種類を「ブラウザ(wnako3)」にすると、タートル付きのwnako3で実行します。
 詳しくは [`wnako3-bridge.md`](wnako3-bridge.md) を参照してください。

@@ -3,7 +3,7 @@
 // - window.gonako.call(命令名, ...引数) で Go 側の命令を呼ぶ
 // - window.gonako.run(code) で Go 側のなでしこを実行し、表示内容を受け取る
 // - <script type="なでしこ"> があるページでは wnako3.js を読み込んで実行する
-// - wnako3 には PluginGonako（GONAKO呼出 / GONAKO実行 / GONAKOバージョン）を登録する
+// - wnako3 には PluginGonako（GONAKO関数実行 / GONAKO実行 / GONAKOバージョン）を登録する
 //
 // 直前に gonako-gui が window.__gonakoConfig を設定している。
 (function () {
@@ -128,7 +128,7 @@
       },
     },
     'GONAKOバージョン': { type: 'const', value: config.gonakoVersion || '' }, // @GONAKOばーじょん
-    'GONAKO呼出': { // @Go側(gonako)の命令CMDを引数ARGS(配列)で呼び出して結果を返す // @GONAKOよびだし
+    'GONAKO関数実行': { // @Go側(gonako)の命令CMDを引数ARGS(配列)で呼び出して結果を返す // @GONAKOかんすうじっこう
       type: 'func',
       josi: [['を', 'の'], ['で']],
       pure: true,

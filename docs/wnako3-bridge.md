@@ -81,19 +81,19 @@ console.log(gonako.version, gonako.wnako3Version);
 
 | 命令 | 書式 | 説明 |
 | --- | --- | --- |
-| `GONAKO呼出` | `「命令名」を[引数…]でGONAKO呼出` | Go側の命令を呼んで戻り値を返す |
+| `GONAKO関数実行` | `「命令名」を[引数…]でGONAKO関数実行` | Go側の命令を呼んで戻り値を返す |
 | `GONAKO実行` | `「コード」をGONAKO実行` | Go側でなでしこを実行し、表示内容を返す |
 | `GONAKOバージョン` | 定数 | gonakoのバージョン |
 
 ```nako3
-N=「文字数」を[「あいう」]でGONAKO呼出
-「保存」を[「こんにちは」,「hello.txt」]でGONAKO呼出
+N=「文字数」を[「あいう」]でGONAKO関数実行
+「保存」を[「こんにちは」,「hello.txt」]でGONAKO関数実行
 ```
 
 ### サンプル
 
-- `ui/samples/15_タートル(wnako3).nako3`: タートルグラフィックスと`GONAKO呼出`
-- `ui/samples/16_ブラウザからGONAKOへアクセス(wnako3).nako3`: `GONAKO呼出`と`GONAKO実行`の
+- `ui/samples/15_タートル(wnako3).nako3`: タートルグラフィックスと`GONAKO関数実行`
+- `ui/samples/16_ブラウザからGONAKOへアクセス(wnako3).nako3`: `GONAKO関数実行`と`GONAKO実行`の
   紹介に絞ったサンプル。`システム時間`・`ファイル列挙`をwnako3から呼び出し、
   複数行のなでしこコードをまとめて`GONAKO実行`で動かし、ファイルの保存・読み出しも行う
 

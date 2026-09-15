@@ -115,7 +115,7 @@ func TestWNako3InitScriptCarriesConfig(t *testing.T) {
 		"window.__gonakoCommandDone",
 		"window.startNakoCommand(",
 		"addPluginObject('PluginGonako'",
-		"'GONAKO呼出'",
+		"'GONAKO関数実行'",
 		"'GONAKO実行'",
 		"navigator.nako3.runNakoScript()",
 		"/__gonako/wnako3/",
