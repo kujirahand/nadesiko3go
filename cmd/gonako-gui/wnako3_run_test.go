@@ -119,3 +119,28 @@ func TestSampleWNako3BridgeDemoRunsThroughBridge(t *testing.T) {
 		t.Fatalf("保存したファイルを読み戻せない: %+v", r)
 	}
 }
+
+// エディタに実行モードの説明を表示する[?]ボタンがあること（#104）。
+func TestEditorHasRunModeHelpButton(t *testing.T) {
+	index := readUIAsset(t, "index.html")
+	if !strings.Contains(index, `<button id="btn-run-mode-help"`) {
+		t.Fatal("index.html に実行モードの[?]ボタンが無い")
+	}
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"const btnRunModeHelp = document.getElementById('btn-run-mode-help');",
+		"function openRunModeHelpModal()",
+		"btnRunModeHelp.addEventListener('click', openRunModeHelpModal);",
+		"const runModeDescriptions = {",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js に %q が無い", required)
+		}
+	}
+	// 実行モードのセレクタにある種類は、すべて説明も持つこと。
+	for _, mode := range []string{"window", "newwindow", "cli", "wnako3"} {
+		if !strings.Contains(app, mode+": '") {
+			t.Fatalf("実行モード %q の説明が無い可能性がある", mode)
+		}
+	}
+}
