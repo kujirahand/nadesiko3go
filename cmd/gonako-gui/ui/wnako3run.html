@@ -66,7 +66,7 @@
 
       nako3.getLogger().addListener('stdout', data => append(data.noColor));
       await nako3.loadDependencies(program.code, program.name);
-      await nako3.runAsync("カメ描画先=「#nako3_canvas」")
+      await nako3.runAsync("カメ描画先=「#nako3_canvas」", program.name);
       await nako3.runAsync(program.code, program.name);
     } catch (err) {
       append(err && err.message ? err.message : String(err), 'error');
