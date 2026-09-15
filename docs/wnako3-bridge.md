@@ -134,6 +134,13 @@ alert/prompt/confirmではなく、`gonako-loader.js`が自前で描画するHTM
 `window.gonako.run(code)`（Go側VMを直接動かす経路）のダイアログ応答も、
 同じ理由で同じ自前モーダルを使うよう修正済み。
 
+自前モーダルの入力欄は、日本語IME変換確定のEnterで誤って閉じないよう
+`compositionstart`/`compositionend`と`keyCode === 229`を併用する
+（`app.js`の同種対策と同じ）。また`commandBridge.showDialog`は
+応答を待つ間`b.mu`（常駐VM全体のロック）を握ったままなので、ページの
+移動やリロードで応答が二度と来なくなった場合に備えて
+`bridgeDialogTimeout`（既定30分）でタイムアウトし、ロックを解放する。
+
 ## 7. 制約
 
 - wnako3で動くのは本家のブラウザ版の言語処理系で、gonakoの互換保証（`plugin_system`）の対象外

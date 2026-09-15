@@ -151,6 +151,18 @@ func TestLoaderOverridesBrowserDialogCommands(t *testing.T) {
 	}
 }
 
+// IME変換確定のEnterでダイアログを閉じてしまわないこと（Devinレビュー指摘への対応）。
+func TestLoaderDialogGuardsIMEComposition(t *testing.T) {
+	loader := readUIAsset(t, "gonako-loader.js")
+	for _, required := range []string{
+		"compositionstart", "compositionend", "isIMEKeyEvent", "keyCode === 229", "if (isIMEKeyEvent(e)) return;",
+	} {
+		if !strings.Contains(loader, required) {
+			t.Fatalf("ローダーに %q が無い", required)
+		}
+	}
+}
+
 func TestCommandBridgeCallsGoCommand(t *testing.T) {
 	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
 
@@ -233,5 +245,37 @@ func TestCommandBridgeShowDialogRoundTrips(t *testing.T) {
 	// 存在しないIDへの応答はfalseになること（二重応答対策）。
 	if bridge.resolveDialog(999, "", true) {
 		t.Fatal("存在しないダイアログIDへの応答がtrueになっている")
+	}
+}
+
+// ページ遷移などで応答が二度と来ない場合でも、タイムアウトでb.muを解放し、
+// 以後の呼び出しが永久に止まらないこと（Devinレビュー指摘への対応）。
+func TestCommandBridgeShowDialogTimesOut(t *testing.T) {
+	orig := bridgeDialogTimeout
+	bridgeDialogTimeout = 20 * time.Millisecond
+	defer func() { bridgeDialogTimeout = orig }()
+
+	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
+
+	result := bridge.call("言", `["応答が来ない想定"]`)
+	if result.OK || !strings.Contains(result.Error, "ダイアログの応答がありません") {
+		t.Fatalf("タイムアウトがエラーになっていない: %+v", result)
+	}
+
+	// 待っていた呼び出しがb.muを解放しているので、次の呼び出しはすぐ通ること。
+	done := make(chan BridgeResult, 1)
+	go func() { done <- bridge.call("文字数", `["abc"]`) }()
+	select {
+	case next := <-done:
+		if !next.OK || string(next.Value) != "3" {
+			t.Fatalf("タイムアウト後の呼び出し結果が違う: %+v", next)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("タイムアウト後もb.muが解放されず、次の呼び出しが進まない")
+	}
+
+	// タイムアウト後に遅れて届いた応答は、該当なしとして無視されること。
+	if bridge.resolveDialog(1, "遅延応答", true) {
+		t.Fatal("タイムアウト済みのダイアログへの遅延応答がtrueになっている")
 	}
 }

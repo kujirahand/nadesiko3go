@@ -100,12 +100,21 @@
       box.appendChild(text);
 
       let input = null;
+      // IME変換中のEnterで確定してしまわないよう、compositionイベントの
+      // 状態とkeyCode=229も併用する（WKWebViewではcomposition中でも
+      // isComposingが取れない場合があるため。app.jsの同種対策と同じ）。
+      let imeComposing = false;
       if (kind === 'prompt') {
         input = document.createElement('input');
         input.type = 'text';
         input.style.cssText = 'width:100%;box-sizing:border-box;padding:6px 8px;font-size:14px;'
           + 'border:1px solid #ccc;border-radius:4px;margin-bottom:14px;';
+        input.addEventListener('compositionstart', () => { imeComposing = true; });
+        input.addEventListener('compositionend', () => { imeComposing = false; });
         box.appendChild(input);
+      }
+      function isIMEKeyEvent(e) {
+        return e.isComposing || imeComposing || e.keyCode === 229;
       }
 
       const buttons = document.createElement('div');
@@ -124,6 +133,7 @@
         resolve({ text: input ? input.value : '', accepted });
       }
       function onKeyDown(e) {
+        if (isIMEKeyEvent(e)) return;
         if (e.key === 'Enter' && (kind !== 'prompt' || document.activeElement === input)) {
           e.preventDefault();
           finish(true);

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -106,6 +107,15 @@ func (b *commandBridge) call(name, argsJSON string) BridgeResult {
 	return BridgeResult{OK: true, Value: json.RawMessage(text), Output: output}
 }
 
+// bridgeDialogTimeout はshowDialogが応答を待つ上限。ページの移動や
+// リロードでJavaScript側のコンテキストが消えると、resolveGonakoDialogは
+// 二度と呼ばれない。応答がここまで来なければ諦めて呼び出し元へエラーを返し、
+// b.mu（常駐VM全体のロック）を解放する。solveDialogがresolveGonakoDialog
+// より先にこのタイムアウトで諦めても、後から届いた応答はresolveDialogが
+// 「該当なし」としてfalseを返すだけで安全に無視される。
+// テストが短縮できるよう変数にしてある。
+var bridgeDialogTimeout = 30 * time.Minute
+
 // showDialog は『言』『尋』『文字尋』『二択』が呼ぶ。JavaScript側に
 // __gonakoBridgeDialog(id, kind, message) をEvalで届け、そこでダイアログを
 // 表示させる。応答はresolveDialogがresolveGonakoDialog（Bind）経由で運ぶ。
@@ -126,8 +136,17 @@ func (b *commandBridge) showDialog(kind, message string) (string, bool, error) {
 	messageJSON, _ := json.Marshal(message)
 	b.eval(fmt.Sprintf("window.__gonakoBridgeDialog && window.__gonakoBridgeDialog(%d, %s, %s)", id, kindJSON, messageJSON))
 
-	result := <-answer
-	return result.text, result.accepted, nil
+	timer := time.NewTimer(bridgeDialogTimeout)
+	defer timer.Stop()
+	select {
+	case result := <-answer:
+		return result.text, result.accepted, nil
+	case <-timer.C:
+		b.dialogMu.Lock()
+		delete(b.dialogAnswers, id)
+		b.dialogMu.Unlock()
+		return "", false, fmt.Errorf("ダイアログの応答がありません（%v以内に応答がなく、ページの移動などで打ち切られた可能性があります）", bridgeDialogTimeout)
+	}
 }
 
 // resolveDialog はresolveGonakoDialog（Bind）から呼ばれ、showDialogの
