@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -103,6 +105,11 @@ func TestSampleWNako3BridgeDemoRunsThroughBridge(t *testing.T) {
 	if !strings.Contains(string(code), "GONAKO関数実行") || !strings.Contains(string(code), "GONAKO実行") {
 		t.Fatal("サンプルはGONAKO関数実行とGONAKO実行の両方を紹介すること")
 	}
+	// 固定名のファイルをいきなり保存・削除すると、利用者が同名ファイルを
+	// 作業フォルダに置いていた場合に消してしまう。存在確認してから使うこと。
+	if !strings.Contains(string(code), `「存在」を[一時ファイル名]でGONAKO関数実行`) {
+		t.Fatal("サンプルは保存前にGONAKO関数実行で存在確認すること")
+	}
 
 	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
 	if r := bridge.call("システム時間", `[]`); !r.OK {
@@ -111,12 +118,63 @@ func TestSampleWNako3BridgeDemoRunsThroughBridge(t *testing.T) {
 	if r := bridge.call("ファイル列挙", `["."]`); !r.OK {
 		t.Fatalf("ファイル列挙の呼び出しに失敗: %+v", r)
 	}
+	if r := bridge.call("存在", `["gonako-bridge-demo-test.txt"]`); !r.OK || string(r.Value) != "false" {
+		t.Fatalf("存在しないファイルの確認に失敗: %+v", r)
+	}
 	if r := bridge.call("保存", `["テスト内容","gonako-bridge-demo-test.txt"]`); !r.OK {
 		t.Fatalf("保存の呼び出しに失敗: %+v", r)
 	}
 	defer bridge.call("ファイル削除", `["gonako-bridge-demo-test.txt"]`)
+	if r := bridge.call("存在", `["gonako-bridge-demo-test.txt"]`); !r.OK || string(r.Value) != "true" {
+		t.Fatalf("保存後の存在確認に失敗: %+v", r)
+	}
 	if r := bridge.call("開", `["gonako-bridge-demo-test.txt"]`); !r.OK || string(r.Value) != `"テスト内容"` {
 		t.Fatalf("保存したファイルを読み戻せない: %+v", r)
+	}
+}
+
+// 同名ファイルが既にある場合、サンプルはそれを上書き・削除せず、
+// 番号を振った別名を使うこと（Devinレビュー指摘への対応）。
+func TestSampleWNako3BridgeDemoAvoidsOverwritingExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("作業フォルダを変更できません: %v", err)
+	}
+	defer func() { _ = os.Chdir(origDir) }()
+
+	const existing = "gonako-bridge-sample.txt"
+	if err := os.WriteFile(existing, []byte("大事なユーザーのファイル"), 0o644); err != nil {
+		t.Fatalf("下準備に失敗: %v", err)
+	}
+
+	bridge := newCommandBridge(newVirtualWindowController(), nil, func(string) {})
+	name := existing
+	for i := 0; ; {
+		r := bridge.call("存在", fmt.Sprintf(`[%q]`, name))
+		if !r.OK {
+			t.Fatalf("存在確認に失敗: %+v", r)
+		}
+		if string(r.Value) == "false" {
+			break
+		}
+		i++
+		name = fmt.Sprintf("gonako-bridge-sample-%d.txt", i)
+	}
+	if name == existing {
+		t.Fatal("既存ファイルと同じ名前を使ってしまっている")
+	}
+
+	if r := bridge.call("保存", fmt.Sprintf(`["新しい内容",%q]`, name)); !r.OK {
+		t.Fatalf("保存に失敗: %+v", r)
+	}
+	if r := bridge.call("ファイル削除", fmt.Sprintf(`[%q]`, name)); !r.OK {
+		t.Fatalf("削除に失敗: %+v", r)
+	}
+
+	data, err := os.ReadFile(existing)
+	if err != nil || string(data) != "大事なユーザーのファイル" {
+		t.Fatalf("既存ファイルが上書き・削除された: err=%v data=%q", err, data)
 	}
 }
 
