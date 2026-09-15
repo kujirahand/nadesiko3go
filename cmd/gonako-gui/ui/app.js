@@ -966,7 +966,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadCommands() {
-    const list = await fetchCommands(cmdSource);
+    const source = cmdSource;
+    const list = await fetchCommands(source);
+    // 取得中に切り替えられていたら、古い取得結果は捨てる（切り替え競合対策）。
+    if (source !== cmdSource) return;
     if (list.length === 0) return;
     allCommands = list;
     const query = cmdSearch.value.trim().toLowerCase();

@@ -149,11 +149,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "を"
+        "で"
       ],
       [
-        "から"
+        "から",
+        "を"
       ]
     ],
     "plugin": "plugin_browser",
@@ -197,12 +197,12 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ",
-        "に"
+        "の"
       ],
       [
-        "まで"
+        "まで",
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_browser",
@@ -282,23 +282,6 @@
     "category": "文字列処理",
     "desc": "文字列V(あるいは文字列配列)の最初の文字の文字コードを返す",
     "template": "【V】のASC",
-    "yomi": "A"
-  },
-  {
-    "name": "ASSERT等",
-    "type": "func",
-    "josi": [
-      [
-        "と"
-      ],
-      [
-        "が"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "テスト",
-    "desc": "mochaによるテストで、ASSERTでAとBが正しいことを報告する",
-    "template": "【A】と【B】がASSERT等",
     "yomi": "A"
   },
   {
@@ -430,11 +413,11 @@
         "を"
       ],
       [
-        "から",
-        "で"
+        "から"
       ],
       [
-        "までの"
+        "までの",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -526,45 +509,6 @@
     "category": "三角関数",
     "desc": "度からラジアンに変換",
     "template": "【V】をDEG2RAD",
-    "yomi": "D"
-  },
-  {
-    "name": "DISCORDファイル送信",
-    "type": "func",
-    "josi": [
-      [
-        "へ",
-        "に"
-      ],
-      [
-        "と"
-      ],
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "新AJAX",
-    "desc": "DISCORDのウェブフックURLにファイルF(パスを指定)とメッセージSを送信する。(非同期関数)",
-    "template": "【URL】へ【F】と【S】をDISCORDファイル送信",
-    "yomi": "D"
-  },
-  {
-    "name": "DISCORD送信",
-    "type": "func",
-    "josi": [
-      [
-        "へ",
-        "に"
-      ],
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "新AJAX",
-    "desc": "DISCORDのウェブフックURLにSのメッセージを送信する。宛先のウェブフックを取得しておく必要がある。(非同期関数)",
-    "template": "【URL】へ【S】をDISCORD送信",
     "yomi": "D"
   },
   {
@@ -670,11 +614,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -691,11 +635,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -798,11 +742,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -1066,11 +1010,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -1237,11 +1181,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -1301,39 +1245,6 @@
     "yomi": "D"
   },
   {
-    "name": "EUCファイル保存",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "に"
-      ],
-      [
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "Sをeuc-jp形式でファイルFへ書き込む",
-    "template": "【S】を【F】へEUCファイル保存",
-    "yomi": "E"
-  },
-  {
-    "name": "EUCファイル読",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "から"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "euc-jp形式のファイルSを読み込む",
-    "template": "【S】をEUCファイル読",
-    "yomi": "E"
-  },
-  {
     "name": "EXP",
     "type": "func",
     "josi": [
@@ -1354,15 +1265,6 @@
     "category": "システム定数",
     "desc": "定数 (値: false)",
     "template": "FALSE",
-    "yomi": "F"
-  },
-  {
-    "name": "FILESデータ",
-    "type": "const",
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "定数 (値: '')",
-    "template": "FILESデータ",
     "yomi": "F"
   },
   {
@@ -1408,41 +1310,16 @@
     "yomi": "F"
   },
   {
-    "name": "GETデータ",
-    "type": "const",
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "定数 (値: '')",
-    "template": "GETデータ",
-    "yomi": "G"
-  },
-  {
-    "name": "GET保障送信",
-    "type": "func",
-    "josi": [
-      [
-        "まで",
-        "へ",
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "Ajax",
-    "desc": "非同期通信(Ajax)でURLにデータの送信を開始する非同期処理オブジェクト(Promise)を作成する。",
-    "template": "【URL】までGET保障送信",
-    "yomi": "G"
-  },
-  {
     "name": "GET送信時",
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ",
-        "に"
+        "の"
       ],
       [
-        "まで"
+        "まで",
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_browser",
@@ -1525,15 +1402,6 @@
     "category": "DOM操作",
     "desc": "DOMのHTMLにVを設定",
     "template": "【DOM】に【V】をHTML設定",
-    "yomi": "H"
-  },
-  {
-    "name": "HTTPメソッド",
-    "type": "const",
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "定数 (値: '')",
-    "template": "HTTPメソッド",
     "yomi": "H"
   },
   {
@@ -1906,11 +1774,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_webworker",
@@ -2017,11 +1885,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_webworker",
@@ -2112,15 +1980,6 @@
     "yomi": "O"
   },
   {
-    "name": "OSアーキテクチャ取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "Nodeプロセス",
-    "desc": "OSアーキテクチャを返す",
-    "template": "OSアーキテクチャ取得",
-    "yomi": "O"
-  },
-  {
     "name": "OS取得",
     "type": "func",
     "plugin": "plugin_browser",
@@ -2136,15 +1995,6 @@
     "category": "システム定数",
     "desc": "定数 (値: Math.PI)",
     "template": "PI",
-    "yomi": "P"
-  },
-  {
-    "name": "POSTデータ",
-    "type": "const",
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "定数 (値: '')",
-    "template": "POSTデータ",
     "yomi": "P"
   },
   {
@@ -2205,12 +2055,12 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ",
-        "に"
+        "の"
       ],
       [
-        "まで"
+        "まで",
+        "へ",
+        "に"
       ],
       [
         "を"
@@ -2265,12 +2115,12 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ",
-        "に"
+        "の"
       ],
       [
-        "まで"
+        "まで",
+        "へ",
+        "に"
       ],
       [
         "を"
@@ -2301,14 +2151,14 @@
     "type": "func",
     "josi": [
       [
-        "と",
-        "の"
+        "と"
       ],
       [
         "と"
       ],
       [
-        "で"
+        "で",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -2429,71 +2279,6 @@
     "yomi": "S"
   },
   {
-    "name": "SJISファイル保存",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "に"
-      ],
-      [
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "SをSJIS形式でファイルFへ書き込む",
-    "template": "【S】を【F】へSJISファイル保存",
-    "yomi": "S"
-  },
-  {
-    "name": "SJISファイル読",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "から"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "SJIS形式のファイルSを読み込む",
-    "template": "【S】をSJISファイル読",
-    "yomi": "S"
-  },
-  {
-    "name": "SJIS取得",
-    "type": "func",
-    "josi": [
-      [
-        "から",
-        "を",
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "文字コード",
-    "desc": "Shift_JISのバイナリバッファを文字列に変換",
-    "template": "【BUF】からSJIS取得",
-    "yomi": "S"
-  },
-  {
-    "name": "SJIS変換",
-    "type": "func",
-    "josi": [
-      [
-        "に",
-        "へ",
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "文字コード",
-    "desc": "(v1非互換)文字列をShift_JISのバイナリバッファに変換",
-    "template": "【STR】にSJIS変換",
-    "yomi": "S"
-  },
-  {
     "name": "SQRT",
     "type": "func",
     "josi": [
@@ -2563,7 +2348,7 @@
   },
   {
     "name": "T3DカメモデルURL",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_weykturtle3d",
     "category": "3Dタートルグラフィックス・カメ操作",
     "desc": "''",
@@ -2849,7 +2634,7 @@
   },
   {
     "name": "T3Dカメ描画先",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_weykturtle3d",
     "category": "3Dタートルグラフィックス・カメ操作",
     "desc": "'turtle3d_div'",
@@ -3025,7 +2810,7 @@
   },
   {
     "name": "T3DベースURL",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_weykturtle3d",
     "category": "3Dタートルグラフィックス・ライブラリとプラグイン",
     "desc": "'https://cdn.jsdelivr.net/npm/three@0.127.0'",
@@ -3197,7 +2982,7 @@
   },
   {
     "name": "T3D自動実行",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_weykturtle3d",
     "category": "3Dタートルグラフィックス・基本機能",
     "desc": "true",
@@ -3206,7 +2991,7 @@
   },
   {
     "name": "T3D自動描画",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_weykturtle3d",
     "category": "3Dタートルグラフィックス・基本機能",
     "desc": "true",
@@ -3766,22 +3551,6 @@
     "yomi": "あ"
   },
   {
-    "name": "エクスプローラー起動",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "Windowsでエクスプローラー、macOSでFinder、Linuxでxdg-openを使って、fnameを起動する(非同期関数)",
-    "template": "【FNAME】をエクスプローラー起動",
-    "yomi": "え"
-  },
-  {
     "name": "エディタ作成",
     "type": "func",
     "josi": [
@@ -3817,42 +3586,6 @@
     "category": "デバッグ支援",
     "desc": "故意にエラーSを発生させる",
     "template": "【S】のエラー発生",
-    "yomi": "え"
-  },
-  {
-    "name": "エンコーディング取得",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で"
-      ],
-      [
-        "から"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "文字コード",
-    "desc": "バイナリバッファBUFをCODEから変換して返す",
-    "template": "【BUF】を【CODE】からエンコーディング取得",
-    "yomi": "え"
-  },
-  {
-    "name": "エンコーディング変換",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で"
-      ],
-      [
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "文字コード",
-    "desc": "文字列SをCODEへ変換してバイナリバッファを返す",
-    "template": "【S】を【CODE】へエンコーディング変換",
     "yomi": "え"
   },
   {
@@ -3958,11 +3691,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4021,11 +3754,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4382,7 +4115,7 @@
   },
   {
     "name": "カメ描画先",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_turtle",
     "category": "タートルグラフィックス・カメ描画",
     "desc": "'#turtle_cv'",
@@ -4439,7 +4172,7 @@
   },
   {
     "name": "カメ画像URL",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_turtle",
     "category": "タートルグラフィックス・カメ描画",
     "desc": "turtleImage",
@@ -4564,30 +4297,6 @@
     "yomi": "か"
   },
   {
-    "name": "カレントディレクトリ取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "カレントディレクトリを返す",
-    "template": "カレントディレクトリ取得",
-    "yomi": "か"
-  },
-  {
-    "name": "カレントディレクトリ変更",
-    "type": "func",
-    "josi": [
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "カレントディレクトリをDIRに変更する",
-    "template": "【DIR】にカレントディレクトリ変更",
-    "yomi": "か"
-  },
-  {
     "name": "キャンセル",
     "type": "const",
     "plugin": "plugin_system",
@@ -4633,11 +4342,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4651,11 +4360,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4669,11 +4378,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4687,11 +4396,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4772,52 +4481,6 @@
     "yomi": "ぐ"
   },
   {
-    "name": "コマンドライン",
-    "type": "const",
-    "plugin": "plugin_node",
-    "category": "コマンドラインと標準入出力",
-    "desc": "定数 (値: '')",
-    "template": "コマンドライン",
-    "yomi": "こ"
-  },
-  {
-    "name": "コマンド実行",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "シェルコマンドSを新しいコンソールで実行する(利用できない場合は通常の起動)",
-    "template": "【S】をコマンド実行",
-    "yomi": "こ"
-  },
-  {
-    "name": "コマンド実行待機",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "シェルコマンドSを新しいコンソールで実行し終了を待機する(戻り値は終了コード、利用できない場合は通常の待機)(非同期関数)",
-    "template": "【S】をコマンド実行待機",
-    "yomi": "こ"
-  },
-  {
-    "name": "コンソールクリア",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "コンソール画面をクリアする",
-    "template": "コンソールクリア",
-    "yomi": "こ"
-  },
-  {
     "name": "コンソール表示",
     "type": "func",
     "josi": [
@@ -4879,11 +4542,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "に"
+        "を"
       ],
       [
-        "へ"
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_browser",
@@ -4999,11 +4662,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5017,11 +4680,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5035,11 +4698,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5062,11 +4725,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5086,7 +4749,7 @@
   },
   {
     "name": "ダイアログキャンセル値",
-    "type": "func",
+    "type": "var",
     "plugin": "plugin_browser",
     "category": "ダイアログ",
     "desc": "''",
@@ -5098,11 +4761,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5174,27 +4837,18 @@
     "yomi": "て"
   },
   {
-    "name": "テンポラリフォルダ",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "テンポラリフォルダのパスを取得して返す",
-    "template": "テンポラリフォルダ",
-    "yomi": "て"
-  },
-  {
     "name": "テーブルセル変更",
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
         "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5223,11 +4877,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -5235,15 +4889,6 @@
     "desc": "既に作成したテーブルTBLを二次元配列AA(あるいは文字列の簡易CSVデータ)で更新する",
     "template": "【TBL】を【AA】にテーブル更新",
     "yomi": "て"
-  },
-  {
-    "name": "デスクトップ",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "デスクトップパスを取得して返す",
-    "template": "デスクトップ",
-    "yomi": "で"
   },
   {
     "name": "デバッグ表示",
@@ -5284,11 +4929,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -5362,24 +5007,6 @@
     "category": "システム定数",
     "desc": "定数 (値: '?')",
     "template": "ナデシコバージョン",
-    "yomi": "な"
-  },
-  {
-    "name": "ナデシコランタイム",
-    "type": "const",
-    "plugin": "plugin_node",
-    "category": "コマンドラインと標準入出力",
-    "desc": "定数 (値: '')",
-    "template": "ナデシコランタイム",
-    "yomi": "な"
-  },
-  {
-    "name": "ナデシコランタイムパス",
-    "type": "const",
-    "plugin": "plugin_node",
-    "category": "コマンドラインと標準入出力",
-    "desc": "定数 (値: '')",
-    "template": "ナデシコランタイムパス",
     "yomi": "な"
   },
   {
@@ -5517,15 +5144,6 @@
     "yomi": "は"
   },
   {
-    "name": "ハッシュ関数一覧取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ハッシュ関数",
-    "desc": "利用可能なハッシュ関数の一覧を返す",
-    "template": "ハッシュ関数一覧取得",
-    "yomi": "は"
-  },
-  {
     "name": "ハテナ関数実行",
     "type": "func",
     "josi": [
@@ -5557,21 +5175,6 @@
     "yomi": "は"
   },
   {
-    "name": "バイナリ読",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "から"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "ファイルSをバイナリ(Buffer)として開く",
-    "template": "【S】をバイナリ読",
-    "yomi": "ば"
-  },
-  {
     "name": "パスワード入力エディタ作成",
     "type": "func",
     "josi": [
@@ -5591,14 +5194,14 @@
     "type": "func",
     "josi": [
       [
-        "から",
-        "の"
+        "の",
+        "から"
       ]
     ],
-    "plugin": "plugin_node",
+    "plugin": "plugin_system",
     "category": "パス操作",
-    "desc": "ファイル名Sからパス部分を抽出して返す",
-    "template": "【S】からパス抽出",
+    "desc": "パスPATHからディレクトリ部分を抽出して返す",
+    "template": "【DIR】のパス抽出",
     "yomi": "ぱ"
   },
   {
@@ -5653,282 +5256,18 @@
     "yomi": "び"
   },
   {
-    "name": "ファイルコピー",
-    "type": "func",
-    "josi": [
-      [
-        "から",
-        "を"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへファイルコピーする(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書きコピー、それ以外はコピー先が存在するなら失敗)(非同期関数)",
-    "template": "【A】から【B】にファイルコピー",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイルコピーデフォルト動作",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "'上書禁止'",
-    "template": "ファイルコピーデフォルト動作",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイルコピー時",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "を"
-      ],
-      [
-        "から",
-        "へ"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへファイルコピーしてcallbackを実行",
-    "template": "【CALLBACK】で【A】から【B】にファイルコピー時",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイルサイズ取得",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "から"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスPATHのファイルサイズを調べて返す",
-    "template": "【PATH】のファイルサイズ取得",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル上書コピー",
-    "type": "func",
-    "josi": [
-      [
-        "から",
-        "を"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへファイルコピーする(コピー先に内容をマージしてコピー)(非同期関数)",
-    "template": "【A】から【B】にファイル上書コピー",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル上書移動",
-    "type": "func",
-    "josi": [
-      [
-        "から",
-        "を"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへ移動する(移動先に内容をマージしてコピー後、元を削除)(非同期関数)",
-    "template": "【A】から【B】にファイル上書移動",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル処理強制停止",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "『ファイルコピー』『ファイル移動』などの処理を強制停止する",
-    "template": "ファイル処理強制停止",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル処理時",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "ファイルコピー・移動の処理状況をコールバックFで報告する(変数『対象』に{\"件数\":N,\"現在\":M}をセット)",
-    "template": "【F】をファイル処理時",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル列挙",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "を",
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスSのファイル名（フォルダ名）一覧を取得する。ワイルドカード可能。「*.jpg;*.png」など複数の拡張子を指定可能。",
-    "template": "【S】のファイル列挙",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル削除",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスPATHを削除する",
-    "template": "【PATH】のファイル削除",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル削除時",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "を"
-      ],
-      [
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスPATHを削除してcallbackを実行",
-    "template": "【CALLBACK】で【PATH】のファイル削除時",
-    "yomi": "ふ"
-  },
-  {
     "name": "ファイル名抽出",
     "type": "func",
     "josi": [
       [
-        "から",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "パス操作",
-    "desc": "フルパスのファイル名Sからファイル名部分を抽出して返す",
-    "template": "【S】からファイル名抽出",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル情報取得",
-    "type": "func",
-    "josi": [
-      [
         "の",
         "から"
       ]
     ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスPATHの情報を調べてオブジェクトで返す",
-    "template": "【PATH】のファイル情報取得",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル移動",
-    "type": "func",
-    "josi": [
-      [
-        "から",
-        "を"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへ移動する(『ファイルコピーデフォルト動作』が「上書」「上書き」「overwrite」なら上書き移動、それ以外は移動先が存在するなら失敗)(非同期関数)",
-    "template": "【A】から【B】にファイル移動",
-    "yomi": "ふ"
-  },
-  {
-    "name": "ファイル移動時",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "を"
-      ],
-      [
-        "から",
-        "へ"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスAをパスBへ移動してcallbackを実行",
-    "template": "【CALLBACK】で【A】から【B】にファイル移動時",
-    "yomi": "ふ"
-  },
-  {
-    "name": "フォルダ作成",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "を",
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "ディレクトリPATHを作成して返す(再帰的に作成)",
-    "template": "【PATH】のフォルダ作成",
-    "yomi": "ふ"
-  },
-  {
-    "name": "フォルダ存在",
-    "type": "func",
-    "josi": [
-      [
-        "が",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "ディレクトリPATHが存在するか確認して返す",
-    "template": "【PATH】がフォルダ存在",
+    "plugin": "plugin_system",
+    "category": "パス操作",
+    "desc": "パスPATHからファイル名を抽出して返す",
+    "template": "【DIR】のファイル名抽出",
     "yomi": "ふ"
   },
   {
@@ -5969,11 +5308,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6025,22 +5364,6 @@
     "yomi": "ぶ"
   },
   {
-    "name": "ブラウザ起動",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "ブラウザでURLを起動",
-    "template": "【URL】をブラウザ起動",
-    "yomi": "ぶ"
-  },
-  {
     "name": "プラグイン一覧取得",
     "type": "func",
     "plugin": "plugin_system",
@@ -6071,20 +5394,6 @@
     "category": "プラグイン管理",
     "desc": "プラグイン名をSに変更する(システムにより自動的に「メイン」あるいはプラグインのファイル名が呼ばれる)",
     "template": "【S】にプラグイン名設定",
-    "yomi": "ぷ"
-  },
-  {
-    "name": "プロセス終",
-    "type": "func",
-    "josi": [
-      [
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "Nodeプロセス",
-    "desc": "Nodeで終了コードを付けてプログラム実行を強制終了する",
-    "template": "【CODE】でプロセス終",
     "yomi": "ぷ"
   },
   {
@@ -6160,15 +5469,6 @@
     "yomi": "ほ"
   },
   {
-    "name": "ホームディレクトリ取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "ホームディレクトリを取得して返す",
-    "template": "ホームディレクトリ取得",
-    "yomi": "ほ"
-  },
-  {
     "name": "ボタン作成",
     "type": "func",
     "josi": [
@@ -6232,15 +5532,6 @@
     "yomi": "ぽ"
   },
   {
-    "name": "マイドキュメント",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "マイドキュメントのパスを取得して返す",
-    "template": "マイドキュメント",
-    "yomi": "ま"
-  },
-  {
     "name": "マウスX",
     "type": "const",
     "plugin": "plugin_browser",
@@ -6272,11 +5563,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6290,13 +5581,13 @@
     "type": "func",
     "josi": [
       [
-        "で",
+        "で"
+      ],
+      [
+        "を",
         "の",
         "に",
         "へ"
-      ],
-      [
-        "を"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6310,12 +5601,12 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の",
-        "から"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の",
+        "から"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6329,11 +5620,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6347,13 +5638,13 @@
     "type": "func",
     "josi": [
       [
-        "で",
+        "で"
+      ],
+      [
+        "を",
         "の",
         "へ",
         "に"
-      ],
-      [
-        "を"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6367,12 +5658,12 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の",
-        "から"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の",
+        "から"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6555,11 +5846,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -6665,11 +5956,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_webworker",
@@ -6707,21 +5998,6 @@
     "desc": "指定したURLでWebWorkerを起動する。ワーカオブジェクトを返す。",
     "template": "【URL】でワーカー起動",
     "yomi": "わ"
-  },
-  {
-    "name": "一時フォルダ作成",
-    "type": "func",
-    "josi": [
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "指定のフォルダ(省略または空白時はOSのテンポラリフォルダ)の配下に作業用の一時フォルダを作成して取得して返す",
-    "template": "【DIR】に一時フォルダ作成",
-    "yomi": "い"
   },
   {
     "name": "一致",
@@ -6795,11 +6071,11 @@
     "type": "func",
     "josi": [
       [
-        "から",
-        "の"
+        "から"
       ],
       [
-        "までの"
+        "までの",
+        "の"
       ]
     ],
     "plugin": "plugin_math",
@@ -7033,39 +6309,15 @@
     "yomi": "な"
   },
   {
-    "name": "作業フォルダ取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "カレントディレクトリを返す",
-    "template": "作業フォルダ取得",
-    "yomi": "さ"
-  },
-  {
-    "name": "作業フォルダ変更",
-    "type": "func",
-    "josi": [
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "カレントディレクトリをDIRに変更する",
-    "template": "【DIR】に作業フォルダ変更",
-    "yomi": "さ"
-  },
-  {
     "name": "保存",
     "type": "func",
     "josi": [
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_browser",
@@ -7182,22 +6434,6 @@
     "yomi": "ぜ"
   },
   {
-    "name": "全ファイル列挙",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "を",
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "パスS以下の全ファイル名を取得する。ワイルドカード可能。「*.jpg;*.png」のように複数の拡張子を指定可能。",
-    "template": "【S】の全ファイル列挙",
-    "yomi": "ぜ"
-  },
-  {
     "name": "全描画クリア",
     "type": "func",
     "plugin": "plugin_browser",
@@ -7278,12 +6514,12 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "が",
-        "に"
+        "を"
       ],
       [
-        "の"
+        "の",
+        "が",
+        "に"
       ]
     ],
     "plugin": "plugin_promise",
@@ -7511,11 +6747,11 @@
         "で"
       ],
       [
-        "を",
-        "へ"
+        "を"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_system",
@@ -7565,11 +6801,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -7697,71 +6933,6 @@
     "yomi": "か"
   },
   {
-    "name": "圧縮",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "から"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "(v1非互換)ファイルAをBにZIP圧縮(実行には7-Zipが必要-https://7-zip.opensource.jp/ )",
-    "template": "【A】を【B】に圧縮",
-    "yomi": "あ"
-  },
-  {
-    "name": "圧縮時",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "から"
-      ],
-      [
-        "を",
-        "へ"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "圧縮処理を行い完了したときにcallback処理を指定",
-    "template": "【CALLBACK】で【A】を【B】に圧縮時",
-    "yomi": "あ"
-  },
-  {
-    "name": "圧縮解凍ツールパス",
-    "type": "const",
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "定数 (値: '7z')",
-    "template": "圧縮解凍ツールパス",
-    "yomi": "あ"
-  },
-  {
-    "name": "圧縮解凍ツールパス変更",
-    "type": "func",
-    "josi": [
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "圧縮解凍に使うツールを取得変更する",
-    "template": "【V】に圧縮解凍ツールパス変更",
-    "yomi": "あ"
-  },
-  {
     "name": "塗色設定",
     "type": "func",
     "josi": [
@@ -7795,11 +6966,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -7844,12 +7015,12 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "が",
-        "に"
+        "を"
       ],
       [
-        "の"
+        "の",
+        "が",
+        "に"
       ]
     ],
     "plugin": "plugin_promise",
@@ -8170,30 +7341,16 @@
     "yomi": "ひ"
   },
   {
-    "name": "強制終了時",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "Nodeプロセス",
-    "desc": "Nodeでctrl+cでプログラムの実行が終了した時FUNCを実行する。もしFUNCが偽を返すと終了しない。非同期処理のとき動作する(#1010)",
-    "template": "【FUNC】を強制終了時",
-    "yomi": "き"
-  },
-  {
     "name": "成功時",
     "type": "func",
     "josi": [
       [
-        "を",
-        "が",
-        "に"
+        "を"
       ],
       [
-        "の"
+        "の",
+        "が",
+        "に"
       ]
     ],
     "plugin": "plugin_promise",
@@ -8608,21 +7765,6 @@
     "yomi": "せ"
   },
   {
-    "name": "文字コード変換サポート判定",
-    "type": "func",
-    "josi": [
-      [
-        "の",
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "文字コード",
-    "desc": "文字コードCODEをサポートしているか確認",
-    "template": "【CODE】の文字コード変換サポート判定",
-    "yomi": "も"
-  },
-  {
     "name": "文字列分割",
     "type": "func",
     "josi": [
@@ -8689,14 +7831,14 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "を"
+        "の"
       ],
       [
         "から"
       ],
       [
-        "だけ"
+        "だけ",
+        "を"
       ]
     ],
     "plugin": "plugin_system",
@@ -8728,11 +7870,11 @@
     "type": "func",
     "josi": [
       [
-        "が",
-        "から"
+        "が"
       ],
       [
-        "で"
+        "で",
+        "から"
       ]
     ],
     "plugin": "plugin_system",
@@ -9286,32 +8428,6 @@
     "yomi": "だ"
   },
   {
-    "name": "標準入力全取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "コマンドラインと標準入出力",
-    "desc": "標準入力を全部取得して返す(非同期関数)",
-    "template": "標準入力全取得",
-    "yomi": "ひ"
-  },
-  {
-    "name": "標準入力取得時",
-    "type": "func",
-    "josi": [
-      [
-        "("
-      ],
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "コマンドラインと標準入出力",
-    "desc": "標準入力を一行取得した時に、変数『対象』に取得した文字列を代入し、無名関数（あるいは、文字列で関数名を指定）F(s: string)を実行する",
-    "template": "【CALLBACK】(【F】を標準入力取得時",
-    "yomi": "ひ"
-  },
-  {
     "name": "横棒グラフ描画",
     "type": "func",
     "josi": [
@@ -9386,16 +8502,16 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "から",
-        "へ"
+        "の"
       ],
       [
         "を",
-        "に"
+        "から"
       ],
       [
-        "で"
+        "で",
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_system",
@@ -9403,24 +8519,6 @@
     "desc": "文字列Sの正規表現パターンAをBに置換して結果を返す(パターンAは/pat/optで指定)",
     "template": "【S】の【A】を【B】で正規表現置換",
     "yomi": "せ"
-  },
-  {
-    "name": "母艦パス",
-    "type": "const",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "定数 (値: '')",
-    "template": "母艦パス",
-    "yomi": "ぼ"
-  },
-  {
-    "name": "母艦パス取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "フォルダ取得",
-    "desc": "スクリプトのあるディレクトリを返す",
-    "template": "母艦パス取得",
-    "yomi": "ぼ"
   },
   {
     "name": "水色",
@@ -9508,29 +8606,6 @@
     "yomi": "む"
   },
   {
-    "name": "環境変数一覧取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "環境変数",
-    "desc": "環境変数の一覧を返す",
-    "template": "環境変数一覧取得",
-    "yomi": "か"
-  },
-  {
-    "name": "環境変数取得",
-    "type": "func",
-    "josi": [
-      [
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "環境変数",
-    "desc": "環境変数Sを返す",
-    "template": "【S】の環境変数取得",
-    "yomi": "か"
-  },
-  {
     "name": "画像作成",
     "type": "func",
     "josi": [
@@ -9599,11 +8674,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "を"
+        "で"
       ],
       [
-        "の"
+        "の",
+        "を"
       ]
     ],
     "plugin": "plugin_browser",
@@ -9632,15 +8707,15 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "から"
+        "の"
       ],
       [
         "を",
-        "に"
+        "から"
       ],
       [
-        "へ"
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_browser",
@@ -9695,23 +8770,6 @@
     "desc": "定数 (値: 'silver')",
     "template": "白金色",
     "yomi": "し"
-  },
-  {
-    "name": "相対パス展開",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ],
-      [
-        "で"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "パス操作",
-    "desc": "ファイル名AからパスBを展開して返す",
-    "template": "【A】を【B】で相対パス展開",
-    "yomi": "そ"
   },
   {
     "name": "真",
@@ -10021,11 +9079,11 @@
     "type": "func",
     "josi": [
       [
-        "から",
-        "までの"
+        "から"
       ],
       [
-        "の"
+        "の",
+        "までの"
       ]
     ],
     "plugin": "plugin_system",
@@ -10039,14 +9097,14 @@
     "type": "func",
     "josi": [
       [
-        "が",
-        "までの"
+        "が"
       ],
       [
         "から"
       ],
       [
-        "の"
+        "の",
+        "までの"
       ]
     ],
     "plugin": "plugin_system",
@@ -10064,11 +9122,11 @@
         "の"
       ],
       [
-        "から",
-        "を"
+        "から"
       ],
       [
-        "まで"
+        "まで",
+        "を"
       ]
     ],
     "plugin": "plugin_system",
@@ -10076,111 +9134,6 @@
     "desc": "文字列Sで文字列AからBまでの部分を抽出して返す。切り取った残りは特殊変数『対象』に代入される。(v1非互換)",
     "template": "【S】で【A】から【B】まで範囲切取",
     "yomi": "は"
-  },
-  {
-    "name": "簡易HTTPサーバヘッダ出力",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "の",
-        "と"
-      ],
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "受信時にステータスコードNOで、ヘッダHEAD(辞書形式)を出力する。",
-    "template": "【NO】で【HEAD】を簡易HTTPサーバヘッダ出力",
-    "yomi": "か"
-  },
-  {
-    "name": "簡易HTTPサーバ出力",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "と",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "受信時に、データSを出力する。",
-    "template": "【S】を簡易HTTPサーバ出力",
-    "yomi": "か"
-  },
-  {
-    "name": "簡易HTTPサーバ受信時",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "へ",
-        "で"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "URLを指定して合致するリクエストが来たら処理を実行する。",
-    "template": "【CALLBACK】を【URL】に簡易HTTPサーバ受信時",
-    "yomi": "か"
-  },
-  {
-    "name": "簡易HTTPサーバ移動",
-    "type": "func",
-    "josi": [
-      [
-        "へ",
-        "に"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "受信時にヘッダ302(リダイレクト)を出力してURLへページを移動力する。",
-    "template": "【URL】へ簡易HTTPサーバ移動",
-    "yomi": "か"
-  },
-  {
-    "name": "簡易HTTPサーバ起動時",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "で"
-      ],
-      [
-        "の"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "ポート番号PORTを指定して簡易HTTPサーバを起動して、CALLBACKを実行する。",
-    "template": "【CALLBACK】を【PORT】の簡易HTTPサーバ起動時",
-    "yomi": "か"
-  },
-  {
-    "name": "簡易HTTPサーバ静的パス指定",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "へ"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_httpserver",
-    "category": "簡易HTTPサーバ",
-    "desc": "静的コンテンツのパスを指定。URLをPATHへマップする。",
-    "template": "【URL】を【PATH】に簡易HTTPサーバ静的パス指定",
-    "yomi": "か"
   },
   {
     "name": "紫色",
@@ -10201,25 +9154,16 @@
     "yomi": "お"
   },
   {
-    "name": "終了",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "Nodeプロセス",
-    "desc": "Nodeでプログラム実行を強制終了する",
-    "template": "終了",
-    "yomi": "し"
-  },
-  {
     "name": "終了時",
     "type": "func",
     "josi": [
       [
-        "を",
-        "が",
-        "に"
+        "を"
       ],
       [
-        "の"
+        "の",
+        "が",
+        "に"
       ]
     ],
     "plugin": "plugin_promise",
@@ -10272,21 +9216,6 @@
     "desc": "フォルダ名DIRの末尾にあるパス記号を削除する",
     "template": "【DIR】の終端パス除去",
     "yomi": "し"
-  },
-  {
-    "name": "絶対パス変換",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "の"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "パス操作",
-    "desc": "相対パスから絶対パスに変換して返す",
-    "template": "【A】を絶対パス変換",
-    "yomi": "ぜ"
   },
   {
     "name": "絶対値",
@@ -10362,11 +9291,11 @@
     "type": "func",
     "josi": [
       [
-        "から",
-        "まで"
+        "から"
       ],
       [
-        "へ"
+        "へ",
+        "まで"
       ]
     ],
     "plugin": "plugin_browser",
@@ -10412,24 +9341,6 @@
     "desc": "文字列Sのうち文字列AをBに全部置換して返す",
     "template": "【S】の【A】を【B】に置換",
     "yomi": "ち"
-  },
-  {
-    "name": "自分IPV6アドレス取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ネットワーク",
-    "desc": "ネットワークアダプターからIPアドレス(IPv6)を取得して配列で返す",
-    "template": "自分IPV6アドレス取得",
-    "yomi": "じ"
-  },
-  {
-    "name": "自分IPアドレス取得",
-    "type": "func",
-    "plugin": "plugin_node",
-    "category": "ネットワーク",
-    "desc": "ネットワークアダプターからIPアドレス(IPv4)を取得して配列で返す",
-    "template": "自分IPアドレス取得",
-    "yomi": "じ"
   },
   {
     "name": "色混",
@@ -10573,14 +9484,14 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "で"
+        "の"
       ],
       [
         "から"
       ],
       [
-        "を"
+        "を",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -10628,11 +9539,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "で"
+        "の"
       ],
       [
-        "を"
+        "を",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -10646,11 +9557,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -10696,14 +9607,14 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "で"
+        "の"
       ],
       [
         "から"
       ],
       [
-        "を"
+        "を",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -10757,11 +9668,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "に"
+        "の"
       ],
       [
-        "で"
+        "で",
+        "に"
       ],
       [
         "から"
@@ -10864,11 +9775,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "で"
+        "の"
       ],
       [
-        "を"
+        "を",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -10890,47 +9801,6 @@
     "desc": "Aの要素数を返す。Aには配列/辞書型/文字列を指定する。",
     "template": "【A】の要素数",
     "yomi": "よ"
-  },
-  {
-    "name": "解凍",
-    "type": "func",
-    "josi": [
-      [
-        "を",
-        "から"
-      ],
-      [
-        "に",
-        "へ"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "(v1非互換)ZIPファイルAをBに解凍(実行には7-Zipが必要-https://7-zip.opensource.jp/ )",
-    "template": "【A】を【B】に解凍",
-    "yomi": "か"
-  },
-  {
-    "name": "解凍時",
-    "type": "func",
-    "josi": [
-      [
-        "で",
-        "から"
-      ],
-      [
-        "を",
-        "へ"
-      ],
-      [
-        "に"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "圧縮・解凍",
-    "desc": "解凍処理を行い、処理が完了したときにcallback処理を実行",
-    "template": "【CALLBACK】で【A】を【B】に解凍時",
-    "yomi": "か"
   },
   {
     "name": "言",
@@ -10984,12 +9854,12 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "を",
-        "の"
+        "で"
       ],
       [
-        "と"
+        "と",
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -11086,11 +9956,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "の"
+        "で"
       ],
       [
-        "を"
+        "を",
+        "の"
       ]
     ],
     "plugin": "plugin_browser",
@@ -11155,51 +10025,6 @@
     "desc": "定数 (値: 'red')",
     "template": "赤色",
     "yomi": "あ"
-  },
-  {
-    "name": "起動",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "シェルコマンドSを起動",
-    "template": "【S】を起動",
-    "yomi": "き"
-  },
-  {
-    "name": "起動待機",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "シェルコマンドSを起動し実行終了まで待機する",
-    "template": "【S】を起動待機",
-    "yomi": "き"
-  },
-  {
-    "name": "起動時",
-    "type": "func",
-    "josi": [
-      [
-        "で"
-      ],
-      [
-        "を"
-      ]
-    ],
-    "plugin": "plugin_node",
-    "category": "ファイル入出力",
-    "desc": "シェルコマンドSを起動",
-    "template": "【CALLBACK】で【S】を起動時",
-    "yomi": "き"
   },
   {
     "name": "超",
@@ -11354,11 +10179,13 @@
     "type": "func",
     "josi": [
       [
-        "を...",
-        "と"
+        "を..."
       ],
       [
         "に"
+      ],
+      [
+        "と"
       ]
     ],
     "plugin": "plugin_system",
@@ -11420,11 +10247,11 @@
     "type": "func",
     "josi": [
       [
-        "で",
-        "を"
+        "で"
       ],
       [
-        "の"
+        "の",
+        "を"
       ]
     ],
     "plugin": "plugin_system",
@@ -11520,11 +10347,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "に"
+        "を"
       ],
       [
-        "へ"
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_system",
@@ -11538,11 +10365,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -11681,11 +10508,11 @@
     "type": "func",
     "josi": [
       [
-        "の",
-        "へ"
+        "の"
       ],
       [
-        "に"
+        "に",
+        "へ"
       ],
       [
         "を"
@@ -11827,11 +10654,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "で"
+        "を"
       ],
       [
-        "だけ"
+        "だけ",
+        "で"
       ]
     ],
     "plugin": "plugin_system",
@@ -11911,12 +10738,12 @@
     "type": "func",
     "josi": [
       [
-        "から",
-        "まで",
-        "の"
+        "から"
       ],
       [
-        "までの"
+        "までの",
+        "まで",
+        "の"
       ]
     ],
     "plugin": "plugin_system",
@@ -11930,11 +10757,11 @@
     "type": "func",
     "josi": [
       [
-        "を",
-        "に"
+        "を"
       ],
       [
-        "へ"
+        "へ",
+        "に"
       ]
     ],
     "plugin": "plugin_system",

@@ -27,6 +27,14 @@ const (
 	srcPath = "cmd/gonako-gui/ui/wnako3/command.json.js"
 )
 
+// excludedPlugins は wnako3 実行画面（wnako3run.html）が読み込まない、
+// Node.js専用プラグイン。command.json.js には含まれるが、対応する .js を
+// 同梱していないためブラウザでは実行できない。
+var excludedPlugins = map[string]bool{
+	"plugin_node":       true,
+	"plugin_httpserver": true,
+}
+
 var outPaths = []string{
 	"cmd/gonako-gui/ui/command-list-wnako.json",
 	"internal/commanddoc/command-list-wnako.json",
@@ -57,8 +65,8 @@ func parseArgSpec(name, spec string) (josi [][]string, template string) {
 		return nil, name
 	}
 	var (
-		groups  [][]string
-		params  []string
+		order   []string // 引数名の出現順（最初のalt基準）
+		josiMap = map[string][]string{}
 		first   = true
 		tmplBuf strings.Builder
 	)
@@ -67,18 +75,16 @@ func parseArgSpec(name, spec string) (josi [][]string, template string) {
 		if alt == "" {
 			continue
 		}
-		for i, m := range paramRe.FindAllStringSubmatch(alt, -1) {
+		for _, m := range paramRe.FindAllStringSubmatch(alt, -1) {
 			pName := m[1] + m[2]
 			j := strings.TrimSpace(m[3])
-			for len(groups) <= i {
-				groups = append(groups, nil)
-				params = append(params, "")
+			// 引数名をキーに助詞を集約する（別書式が一部の引数を省略しても、
+			// 位置ではなく名前で結び付けるので助詞がずれない）。
+			if _, ok := josiMap[pName]; !ok {
+				order = append(order, pName)
 			}
-			if params[i] == "" {
-				params[i] = pName
-			}
-			if j != "" && !containsString(groups[i], j) {
-				groups[i] = append(groups[i], j)
+			if j != "" && !containsString(josiMap[pName], j) {
+				josiMap[pName] = append(josiMap[pName], j)
 			}
 			if first {
 				fmt.Fprintf(&tmplBuf, "【%s】%s", pName, j)
@@ -86,13 +92,16 @@ func parseArgSpec(name, spec string) (josi [][]string, template string) {
 		}
 		first = false
 	}
-	if len(groups) == 0 {
+	if len(order) == 0 {
 		return nil, name
 	}
 	// 助詞が1つも無い引数は、空文字のグループにして位置だけ残す。
-	for i := range groups {
-		if groups[i] == nil {
+	groups := make([][]string, len(order))
+	for i, pName := range order {
+		if len(josiMap[pName]) == 0 {
 			groups[i] = []string{""}
+		} else {
+			groups[i] = josiMap[pName]
 		}
 	}
 	return groups, tmplBuf.String() + name
@@ -142,6 +151,9 @@ func main() {
 	sort.Strings(plugins)
 
 	for _, plugin := range plugins {
+		if excludedPlugins[plugin] {
+			continue
+		}
 		categories := make([]string, 0, len(parsed[plugin]))
 		for category := range parsed[plugin] {
 			categories = append(categories, category)
@@ -175,7 +187,8 @@ func main() {
 					Desc:     desc,
 					Yomi:     yomi,
 				}
-				if kind == "定数" {
+				switch kind {
+				case "定数":
 					// 定数は説明の代わりに値が入っているので、その旨を添える。
 					doc.Type = "const"
 					doc.Template = name
@@ -184,7 +197,14 @@ func main() {
 					} else {
 						doc.Desc = "定数"
 					}
-				} else {
+				case "変数":
+					// 変数は関数と違い呼び出し式を持たない。
+					doc.Type = "var"
+					doc.Template = name
+					if desc == "" {
+						doc.Desc = "変数"
+					}
+				default:
 					doc.Josi, doc.Template = parseArgSpec(name, spec)
 				}
 				docs = append(docs, doc)
