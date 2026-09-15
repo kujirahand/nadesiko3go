@@ -17,6 +17,12 @@ import (
 //go:embed command-list.json
 var commandListJSON []byte
 
+// wnakoCommandListJSON は本家ブラウザ版(wnako3)の命令一覧（#101）。
+// `just gen-wnako-command-list` が ui/wnako3/command.json.js から生成する。
+//
+//go:embed command-list-wnako.json
+var wnakoCommandListJSON []byte
+
 // docBaseURL はなでしこ3マニュアルの場所。
 const docBaseURL = "https://nadesi.com/v3/doc/"
 
@@ -40,11 +46,11 @@ type Command struct {
 	Score int `json:"score,omitempty"`
 }
 
-// Commands は埋め込まれた命令一覧を返す。
+// Commands は埋め込まれた命令一覧（Go版=gonako）を返す。
 func Commands() ([]Command, error) {
-	var list []Command
-	if err := json.Unmarshal(commandListJSON, &list); err != nil {
-		return nil, fmt.Errorf("命令一覧JSONを読み込めません: %w", err)
+	list, err := parseList(commandListJSON)
+	if err != nil {
+		return nil, err
 	}
 	for i := range list {
 		list[i].DocURL = DocURL(list[i].Name)
@@ -52,9 +58,39 @@ func Commands() ([]Command, error) {
 	return list, nil
 }
 
+// WNakoCommands は本家ブラウザ版(wnako3)の命令一覧を返す（#101）。
+// マニュアルのページ名は「プラグイン名/命令名」なので、そちらへリンクする。
+func WNakoCommands() ([]Command, error) {
+	list, err := parseList(wnakoCommandListJSON)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		list[i].DocURL = WNakoDocURL(list[i].Plugin, list[i].Name)
+	}
+	return list, nil
+}
+
+func parseList(data []byte) ([]Command, error) {
+	var list []Command
+	if err := json.Unmarshal(data, &list); err != nil {
+		return nil, fmt.Errorf("命令一覧JSONを読み込めません: %w", err)
+	}
+	return list, nil
+}
+
 // DocURL は命令名からマニュアルの解説ページのURLを作る。
 func DocURL(name string) string {
 	return docBaseURL + "index.php?" + url.QueryEscape("gonako/"+name)
+}
+
+// WNakoDocURL は本家の命令のマニュアルページのURLを作る。
+func WNakoDocURL(plugin, name string) string {
+	page := name
+	if plugin != "" {
+		page = plugin + "/" + name
+	}
+	return docBaseURL + "index.php?" + url.QueryEscape(page)
 }
 
 // Search は命令一覧をキーワードで検索する。キーワードを複数与えた場合は、

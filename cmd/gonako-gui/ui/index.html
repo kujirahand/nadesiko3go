@@ -100,6 +100,14 @@
             <span id="cmd-count" class="badge">0件</span>
             <button id="cmd-search-clear" class="search-clear-btn" title="検索条件をクリア" hidden>×</button>
           </div>
+          <!-- 命令一覧の切り替え: gonako(Go版) / wnako(本家ブラウザ版) (#101) -->
+          <div class="cmd-source-switch">
+            <span class="cmd-source-label">命令:</span>
+            <button id="cmd-source-gonako" class="source-btn active" data-source="gonako"
+              title="Go版(gonako)で使える命令の一覧">gonako</button>
+            <button id="cmd-source-wnako" class="source-btn" data-source="wnako"
+              title="本家ブラウザ版(wnako3)で使える命令の一覧">wnako</button>
+          </div>
           <div id="cmd-list" class="list-container cmd-list">
             <!-- JavaScriptで動的生成 -->
           </div>

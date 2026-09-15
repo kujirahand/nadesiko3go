@@ -46,6 +46,30 @@ IME変換中は未確定文字が `textarea` にしか無いため、色分け�
 
 ---
 
+## 2.5 命令一覧の切り替え（gonako / wnako）
+
+命令タブの検索ボックスの下にある `[gonako] [wnako]` で、右ペインに並べる
+命令の一覧を切り替えます（#101）。選んだ側は `localStorage` に覚えるので、
+次回の起動でも同じ側が開きます。
+
+| 表示 | 中身 | 読むファイル |
+| --- | --- | --- |
+| gonako | Go版（このリポジトリ）で使える命令 | `ui/command-list.json` |
+| wnako | 本家ブラウザ版(wnako3)で使える命令 | `ui/command-list-wnako.json` |
+
+`ui/command-list-wnako.json` は、`just copy-nadesiko3` が取り込む
+`ui/wnako3/command.json.js` から `scripts/gen-wnako-command-list.go`
+（`just gen-wnako-command-list`）が生成します。同じ内容を
+`internal/commanddoc/` にも書き出すので、CUIからは
+`gonako doc キーワード --wnako` で同じ一覧を検索できます。
+
+wnako側の命令には定義ファイルが無いため、使い方の表示では本家マニュアル
+（`https://nadesi.com/v3/doc/index.php?プラグイン名/命令名`）へのリンクを出します。
+エディタの色分けも表示中の一覧に合わせて切り替わるので、実行モードを
+「ブラウザ(wnako3)」にして書くときは wnako 側を選んでください。
+
+---
+
 ## 3. AI用の雛形を作成
 
 ハンバーガーメニューの「AI用の雛形を作成」は、現在編集中のファイルと同じ

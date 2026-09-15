@@ -503,6 +503,41 @@ body {
   border-color: var(--accent-pink);
 }
 
+/* 命令一覧の切り替え gonako / wnako (#101) */
+.cmd-source-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 6px;
+  flex: none;
+}
+
+.cmd-source-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.source-btn {
+  flex: 1;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.source-btn:hover {
+  color: var(--text-main);
+}
+
+.source-btn.active {
+  color: #fff;
+  background-color: var(--accent-blue, var(--accent-pink));
+  border-color: var(--accent-blue, var(--accent-pink));
+}
+
 /* 命令一覧のグループ（ツリー）表示 */
 .cmd-group {
   display: flex;
@@ -527,15 +562,20 @@ body {
   background-color: var(--bg-hover);
 }
 
+/* 開閉が分かるよう、フォルダのアイコンで開いている／閉じているを示す */
 .cmd-group-toggle {
   display: inline-block;
-  width: 10px;
-  font-size: 10px;
-  transition: transform 0.1s;
+  width: 16px;
+  font-size: 12px;
+  line-height: 1;
 }
 
-.cmd-group.collapsed .cmd-group-toggle {
-  transform: rotate(-90deg);
+.cmd-group-toggle::before {
+  content: '📂';
+}
+
+.cmd-group.collapsed .cmd-group-toggle::before {
+  content: '📁';
 }
 
 .cmd-group-name {

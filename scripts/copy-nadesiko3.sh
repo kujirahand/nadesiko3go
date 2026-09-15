@@ -68,3 +68,10 @@ mkdir -p "$target_dir"
 cp "$work_dir"/* "$target_dir/"
 
 echo "nadesiko3 $version ($source) を $target_dir に取り込みました"
+
+# wnakoの命令一覧(command.json.js)を、GUIエディタとCUIが読む形へ変換する(#101)
+if [ -f "$target_dir/command.json.js" ]; then
+  "$go" run ./scripts/gen-wnako-command-list.go
+else
+  echo "[警告] $target_dir/command.json.js が無いのでwnako命令一覧は更新しません" >&2
+fi

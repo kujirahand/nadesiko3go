@@ -15,6 +15,7 @@ import (
 // 検索語・命令・Web検索結果を1つのオブジェクトにまとめる。
 type docResult struct {
 	Keywords []string               `json:"keywords"`
+	Target   string                 `json:"target"`
 	Count    int                    `json:"count"`
 	Commands []commanddoc.Command   `json:"commands"`
 	Web      []commanddoc.WebResult `json:"web,omitempty"`
@@ -26,11 +27,12 @@ type docResult struct {
 func searchDoc(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doc", flag.ContinueOnError)
 	flags.SetOutput(stderr)
-	var commandOnly, web, asJSON bool
+	var commandOnly, web, asJSON, wnako bool
 	flags.BoolVar(&commandOnly, "command", false, "命令一覧から検索する")
 	flags.BoolVar(&commandOnly, "c", false, "命令一覧から検索する (--commandの短縮形)")
 	flags.BoolVar(&web, "web", false, "Webのマニュアルも検索する")
 	flags.BoolVar(&web, "w", false, "Webのマニュアルも検索する (--webの短縮形)")
+	flags.BoolVar(&wnako, "wnako", false, "本家ブラウザ版(wnako3)の命令一覧から検索する")
 	flags.BoolVar(&asJSON, "json", false, "結果をJSONで出力する")
 	limit := flags.Int("limit", 20, "表示する件数の上限 (0で全件)")
 
@@ -46,7 +48,11 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 		return errors.New("検索するキーワードを指定してください (例: gonako doc 秒待)")
 	}
 
+	// 既定はGo版(gonako)の命令。--wnako なら本家ブラウザ版(wnako3)の命令を引く(#101)。
 	list, err := commanddoc.Commands()
+	if wnako {
+		list, err = commanddoc.WNakoCommands()
+	}
 	if err != nil {
 		return err
 	}
@@ -56,7 +62,11 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 		found = found[:*limit]
 	}
 
-	result := docResult{Keywords: keywords, Count: total, Commands: found}
+	target := "gonako"
+	if wnako {
+		target = "wnako"
+	}
+	result := docResult{Keywords: keywords, Target: target, Count: total, Commands: found}
 	if result.Commands == nil {
 		result.Commands = []commanddoc.Command{}
 	}
@@ -84,10 +94,14 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 // writeDocText は人が読む形式で検索結果を書き出す。
 func writeDocText(stdout, stderr io.Writer, result docResult, web bool, omitted int) {
 	keyword := strings.Join(result.Keywords, " ")
+	target := ""
+	if result.Target == "wnako" {
+		target = "(wnako) "
+	}
 	if len(result.Commands) == 0 {
-		fmt.Fprintf(stdout, "『%s』に一致する命令はありませんでした。\n", keyword)
+		fmt.Fprintf(stdout, "%s『%s』に一致する命令はありませんでした。\n", target, keyword)
 	} else {
-		fmt.Fprintf(stdout, "『%s』に一致する命令: %d件\n\n", keyword, result.Count)
+		fmt.Fprintf(stdout, "%s『%s』に一致する命令: %d件\n\n", target, keyword, result.Count)
 	}
 	for _, cmd := range result.Commands {
 		fmt.Fprintf(stdout, "■ %s%s\n", cmd.Name, formatOrigin(cmd))

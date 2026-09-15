@@ -61,6 +61,7 @@ build のオプション:
 doc のオプション:
   --command, -c    命令一覧(JSON)から検索する (既定)
   --web, -w        Webのマニュアル(https://nadesi.com/v3/doc/)も検索する
+  --wnako          本家ブラウザ版(wnako3)の命令一覧から検索する
   --json           結果をJSONで出力する (AI向け)
   --limit N        表示する件数の上限 (既定: 20、0で全件)
 

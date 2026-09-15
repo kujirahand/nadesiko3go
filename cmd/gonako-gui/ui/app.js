@@ -86,11 +86,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const cmdCount = document.getElementById('cmd-count');
   const cmdSearchClear = document.getElementById('cmd-search-clear');
   const cmdList = document.getElementById('cmd-list');
+  const cmdSourceGonakoBtn = document.getElementById('cmd-source-gonako');
+  const cmdSourceWnakoBtn = document.getElementById('cmd-source-wnako');
   const cmdSortGroupBtn = document.getElementById('cmd-sort-group');
   const cmdSortNameBtn = document.getElementById('cmd-sort-name');
   // 通常はグループのルートだけを表示し、利用者が開いたものだけを記録する。
   const expandedCmdGroups = new Set();
   let cmdSortMode = localStorage.getItem('gonako-cmd-sort-mode') || 'group';
+  // 命令一覧の切り替え: 'gonako'(Go版) / 'wnako'(本家ブラウザ版) (#101)
+  let cmdSource = localStorage.getItem('gonako-cmd-source') === 'wnako' ? 'wnako' : 'gonako';
 
   // ひな形タブ要素
   const templateSearch = document.getElementById('template-search');
@@ -113,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let selectedContextFile = null;
 
   let allCommands = [];
+  // 読み込み済みの命令一覧を切り替え先ごとに覚えておく（再読込みを避ける）
+  const commandCache = { gonako: null, wnako: null };
   let allTemplates = [];
   let currentDirPath = '';
   let parentDirPath = '';
@@ -919,29 +925,88 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- 命令一覧の読み込みと検索 ---
-  async function loadCommands() {
-    if (typeof window.getCommandList === 'function') {
+  // source ごとの取得元。Go側のBindが無い場合（ブラウザで開いた場合）は
+  // 同じ内容のJSONをfetchする。
+  const commandSources = {
+    gonako: { bind: 'getCommandList', json: 'command-list.json' },
+    wnako: { bind: 'getWNakoCommandList', json: 'command-list-wnako.json' },
+  };
+
+  // fetchCommands は指定した種類の命令一覧を取ってくる（結果はキャッシュする）。
+  async function fetchCommands(source) {
+    if (commandCache[source]) return commandCache[source];
+    const src = commandSources[source] || commandSources.gonako;
+    let list = [];
+    if (typeof window[src.bind] === 'function') {
       try {
-        const res = await window.getCommandList();
-        allCommands = typeof res === 'string' ? JSON.parse(res) : res;
+        const res = await window[src.bind]();
+        list = typeof res === 'string' ? JSON.parse(res) : res;
       } catch (err) {
         console.error('命令一覧の読み込みエラー:', err);
       }
     } else {
       try {
-        const res = await fetch('command-list.json');
-        allCommands = await res.json();
+        const res = await fetch(src.json);
+        list = await res.json();
       } catch (err) {}
     }
-    if (allCommands && allCommands.length > 0) {
-      renderCommands(allCommands);
-      // 命令名を色分けできるようにシンタックス定義へ登録し、エディタを塗り直す
-      if (window.NakoSyntax) {
-        window.NakoSyntax.setCommands(allCommands);
-        if (highlighter) highlighter.setEnabled(true);
-      }
+    if (!Array.isArray(list)) list = [];
+    if (source === 'wnako') {
+      // マニュアルのページ名は「プラグイン名/命令名」（Go側と同じ規則）。
+      // JSONを直接fetchした場合はdocUrlが入っていないのでここで補う。
+      list.forEach(cmd => {
+        if (!cmd.docUrl) {
+          const page = cmd.plugin ? `${cmd.plugin}/${cmd.name}` : cmd.name;
+          cmd.docUrl = 'https://nadesi.com/v3/doc/index.php?' + encodeURIComponent(page);
+        }
+      });
     }
+    commandCache[source] = list;
+    return list;
   }
+
+  // loadCommands は現在の cmdSource の一覧を取得して反映する。
+  // 取得中に別の種類へ切り替えられていたら反映せず false を返す（呼び出し元が
+  // 完了メッセージなどを出すかどうかの判断に使う）。
+  async function loadCommands() {
+    const source = cmdSource;
+    const list = await fetchCommands(source);
+    // 取得中に切り替えられていたら、古い取得結果は捨てる（切り替え競合対策）。
+    if (source !== cmdSource) return false;
+    if (list.length === 0) return false;
+    allCommands = list;
+    const query = cmdSearch.value.trim().toLowerCase();
+    renderCommands(query ? filterCommands(query) : allCommands);
+    // 命令名を色分けできるようにシンタックス定義へ登録し、エディタを塗り直す
+    // （表示中の一覧に合わせるので、wnakoに切り替えると色分けもwnakoの命令になる）
+    if (window.NakoSyntax) {
+      window.NakoSyntax.setCommands(allCommands);
+      if (highlighter) highlighter.setEnabled(true);
+    }
+    return true;
+  }
+
+  // setCmdSource は命令一覧をgonako/wnakoで切り替える（#101）。
+  async function setCmdSource(source) {
+    if (source !== 'wnako') source = 'gonako';
+    cmdSource = source;
+    localStorage.setItem('gonako-cmd-source', source);
+    cmdSourceGonakoBtn.classList.toggle('active', source === 'gonako');
+    cmdSourceWnakoBtn.classList.toggle('active', source === 'wnako');
+    expandedCmdGroups.clear();
+    const applied = await loadCommands();
+    // 取得中にさらに切り替えられて反映されなかった場合、この呼び出しの
+    // 完了メッセージは現在の状態と食い違うので出さない（後の切替処理に任せる）。
+    if (!applied) return;
+    setStatus(source === 'wnako'
+      ? '命令一覧を wnako (本家ブラウザ版) に切り替えました'
+      : '命令一覧を gonako (Go版) に切り替えました');
+  }
+
+  cmdSourceGonakoBtn.addEventListener('click', () => setCmdSource('gonako'));
+  cmdSourceWnakoBtn.addEventListener('click', () => setCmdSource('wnako'));
+  cmdSourceGonakoBtn.classList.toggle('active', cmdSource === 'gonako');
+  cmdSourceWnakoBtn.classList.toggle('active', cmdSource === 'wnako');
 
   function displayCommandHelp(cmd) {
     let josiText = '';
@@ -964,6 +1029,8 @@ document.addEventListener('DOMContentLoaded', () => {
       `【助詞】 ${josiText}`,
       `【分類】 ${cmd.plugin ? `${cmd.plugin} / ` : ''}${category}`,
       `【説明】 ${desc}`,
+      `【一覧】 ${cmdSource === 'wnako' ? 'wnako (本家ブラウザ版)' : 'gonako (Go版)'}`,
+      cmd.docUrl ? `【マニュアル】 ${cmd.docUrl}` : null,
       cmd.file ? `【定義】 ${cmd.file}#L${cmd.line}` : null,
       cmd.url ? `【ソース】 ${cmd.url}` : null,
       ``,
@@ -1047,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const header = document.createElement('div');
       header.className = 'cmd-group-header';
       header.innerHTML = `
-        <span class="cmd-group-toggle">▾</span>
+        <span class="cmd-group-toggle" aria-hidden="true"></span>
         <span class="cmd-group-name">${escapeHtml(groupName)}</span>
         <span class="cmd-group-count">${items.length}件</span>
       `;

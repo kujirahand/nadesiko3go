@@ -17,6 +17,14 @@ wnako3からGo側（gonako）の命令を呼べるようにする仕組みです
 ローカルの本家とgonakoの言語バージョンが食い違うときは警告を出します。
 取り込んだファイルは `//go:embed` でgonako-guiに入るので、コミットしてください。
 
+取り込みの最後に `scripts/gen-wnako-command-list.go` を実行し、本家の命令表
+`ui/wnako3/command.json.js` を gonako と同じ形の命令一覧へ変換します（#101）。
+
+- `cmd/gonako-gui/ui/command-list-wnako.json` --- GUIエディタの命令タブの `[wnako]`
+- `internal/commanddoc/command-list-wnako.json` --- CUIの `gonako doc --wnako`
+
+こちらも生成物をコミットしてください（単独で作り直すなら `just gen-wnako-command-list`）。
+
 ## 2. 配信と自動インポート
 
 gonako-gui のローカルHTTPサーバー（HTMLフォルダ、内蔵エディタ、HTMLを梱包したアプリ）は
