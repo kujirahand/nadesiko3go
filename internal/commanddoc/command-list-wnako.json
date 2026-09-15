@@ -454,17 +454,14 @@
     "type": "func",
     "josi": [
       [
-        "{ ["
-      ],
-      [
-        "}を",
-        "}で"
+        "を",
+        "で"
       ]
     ],
     "plugin": "plugin_csv",
     "category": "CSV操作",
     "desc": "「CSV取得」「表CSV変換」命令のオプションOBJ{delimiter,eol,auto_convert_number}をオブジェクトで指定",
-    "template": "【OBJ】{ [【KEY】}をCSVオプション設定",
+    "template": "【OBJ】をCSVオプション設定",
     "yomi": "C"
   },
   {

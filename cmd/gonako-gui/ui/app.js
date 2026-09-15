@@ -965,12 +965,15 @@ document.addEventListener('DOMContentLoaded', () => {
     return list;
   }
 
+  // loadCommands は現在の cmdSource の一覧を取得して反映する。
+  // 取得中に別の種類へ切り替えられていたら反映せず false を返す（呼び出し元が
+  // 完了メッセージなどを出すかどうかの判断に使う）。
   async function loadCommands() {
     const source = cmdSource;
     const list = await fetchCommands(source);
     // 取得中に切り替えられていたら、古い取得結果は捨てる（切り替え競合対策）。
-    if (source !== cmdSource) return;
-    if (list.length === 0) return;
+    if (source !== cmdSource) return false;
+    if (list.length === 0) return false;
     allCommands = list;
     const query = cmdSearch.value.trim().toLowerCase();
     renderCommands(query ? filterCommands(query) : allCommands);
@@ -980,6 +983,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.NakoSyntax.setCommands(allCommands);
       if (highlighter) highlighter.setEnabled(true);
     }
+    return true;
   }
 
   // setCmdSource は命令一覧をgonako/wnakoで切り替える（#101）。
@@ -990,7 +994,10 @@ document.addEventListener('DOMContentLoaded', () => {
     cmdSourceGonakoBtn.classList.toggle('active', source === 'gonako');
     cmdSourceWnakoBtn.classList.toggle('active', source === 'wnako');
     expandedCmdGroups.clear();
-    await loadCommands();
+    const applied = await loadCommands();
+    // 取得中にさらに切り替えられて反映されなかった場合、この呼び出しの
+    // 完了メッセージは現在の状態と食い違うので出さない（後の切替処理に任せる）。
+    if (!applied) return;
     setStatus(source === 'wnako'
       ? '命令一覧を wnako (本家ブラウザ版) に切り替えました'
       : '命令一覧を gonako (Go版) に切り替えました');

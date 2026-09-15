@@ -56,6 +56,11 @@ type CommandDoc struct {
 // 引数名は半角英大文字と数字・アンダースコアで書かれている。
 var paramRe = regexp.MustCompile(`(\.\.\.)?([A-Z][A-Z0-9_]*)([^A-Z]*)`)
 
+// braceRe は「OBJ{delimiter,eol}を」のように引数名の後ろに付くオブジェクトの
+// キー一覧などの構造説明。中身の大文字語は別引数ではないので、助詞抽出の前に
+// 取り除く（例: 「CSVオプション設定」の "OBJ{ [KEY}を"）。
+var braceRe = regexp.MustCompile(`\{[^{}]*\}`)
+
 // parseArgSpec は「AにBを/Aと」のような引数の書式を、助詞のグループと
 // 挿入用テンプレートに変換する。'/' 区切りは呼び出し方全体の言い換えなので、
 // 引数の位置ごとに助詞をまとめ直す。
@@ -75,6 +80,7 @@ func parseArgSpec(name, spec string) (josi [][]string, template string) {
 		if alt == "" {
 			continue
 		}
+		alt = braceRe.ReplaceAllString(alt, "")
 		for _, m := range paramRe.FindAllStringSubmatch(alt, -1) {
 			pName := m[1] + m[2]
 			j := strings.TrimSpace(m[3])
