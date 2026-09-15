@@ -10,6 +10,7 @@
 //	go run ./scripts/version-update.go              現在の定義元の値へ全ファイルを再同期するだけ
 //	go run ./scripts/version-update.go --check       書き換えず、ズレがあれば非ゼロ終了する（CI用）
 //	go run ./scripts/version-update.go 3.8.2 --nadesiko 3.9.0  言語バージョンも合わせて変更
+//	go run ./scripts/version-update.go --stable 3.8.2  Release公開後、インストーラーのフォールバック版だけを切り替える
 package main
 
 import (
@@ -30,10 +31,108 @@ type singleOccurrence struct {
 	pattern *regexp.Regexp
 }
 
+// installers は「最新版APIの取得に失敗したときに使う公開済み安定版」を持つ
+// インストーラー。開発中の版番号ではなく、Release公開後に --stable で更新する。
+var installers = []singleOccurrence{
+	{"scripts/install.sh", regexp.MustCompile(`DEFAULT_VERSION="([0-9]+\.[0-9]+\.[0-9]+)"`)},
+	{"scripts/install.ps1", regexp.MustCompile(`\$defaultVersion = "([0-9]+\.[0-9]+\.[0-9]+)"`)},
+}
+
+// checkInstallersAgree は各インストーラーのフォールバック値がちょうど1箇所ずつ
+// 見つかり、互いに一致していることを確かめる。
+func checkInstallersAgree() error {
+	first := ""
+	for _, s := range installers {
+		data, err := os.ReadFile(s.path)
+		if err != nil {
+			return err
+		}
+		matches := s.pattern.FindAllStringSubmatch(string(data), -1)
+		if len(matches) != 1 {
+			return fmt.Errorf("%s: パターンが%d件マッチしました（1件である必要があります）", s.path, len(matches))
+		}
+		if first == "" {
+			first = matches[0][1]
+		} else if matches[0][1] != first {
+			return fmt.Errorf("インストーラー間でフォールバック版が一致しません: %s は %s（%s は %s）", s.path, matches[0][1], installers[0].path, first)
+		}
+	}
+	return nil
+}
+
+// switchInstallers は全インストーラーのフォールバック版を newVersion へ切り替える。
+// 片方だけ書き換わった中間状態を残さないよう、先に全ファイルを読んで検証し、
+// 更新後の内容をメモリ上で作ってから書き込む。書き込みが途中で失敗したら、
+// 書き込み済みのファイルを元の内容へ戻す。
+func switchInstallers(newVersion string) error {
+	type pending struct {
+		path, current, original, updated string
+		mode                             os.FileMode
+	}
+	var plans []pending
+	for _, s := range installers {
+		info, err := os.Stat(s.path)
+		if err != nil {
+			return err
+		}
+		data, err := os.ReadFile(s.path)
+		if err != nil {
+			return err
+		}
+		text := string(data)
+		matches := s.pattern.FindAllStringSubmatchIndex(text, -1)
+		if len(matches) != 1 {
+			return fmt.Errorf("%s: パターンが%d件マッチしました（1件である必要があります）", s.path, len(matches))
+		}
+		m := matches[0]
+		if text[m[2]:m[3]] == newVersion {
+			continue
+		}
+		plans = append(plans, pending{
+			path:     s.path,
+			current:  text[m[2]:m[3]],
+			original: text,
+			updated:  text[:m[2]] + newVersion + text[m[3]:],
+			mode:     info.Mode().Perm(),
+		})
+	}
+
+	for i, p := range plans {
+		if err := os.WriteFile(p.path, []byte(p.updated), p.mode); err != nil {
+			// 書き込み済みのファイルを元へ戻す（戻せなければその旨も伝える）
+			for _, done := range plans[:i] {
+				if rerr := os.WriteFile(done.path, []byte(done.original), done.mode); rerr != nil {
+					return fmt.Errorf("%s の書き込みに失敗し（%v）、%s を元に戻せませんでした: %v", p.path, err, done.path, rerr)
+				}
+			}
+			return fmt.Errorf("%s の書き込みに失敗したため、変更を取り消しました: %v", p.path, err)
+		}
+	}
+	for _, p := range plans {
+		fmt.Printf("[更新] %s: %s -> %s\n", p.path, p.current, newVersion)
+	}
+	return nil
+}
+
 func main() {
 	checkFlag := flag.Bool("check", false, "書き換えず、バージョン番号のズレを検査するだけ")
 	nadesikoFlag := flag.String("nadesiko", "", "ナデシコ言語バージョンも合わせて変更する場合に指定")
+	stableFlag := flag.String("stable", "", "インストーラーのフォールバック（公開済み安定版）だけをこの版へ切り替える")
 	flag.Parse()
+
+	// --stable はRelease公開後に publish-release.sh から呼ぶ。定義元や
+	// release/ 配下（Homebrew Tap更新に使う成果物）には触れない。
+	if *stableFlag != "" {
+		if !semverRe.MatchString(*stableFlag) {
+			fmt.Fprintf(os.Stderr, "エラー: --stable の形式が不正です: %q (例: 3.8.2)\n", *stableFlag)
+			os.Exit(1)
+		}
+		if err := switchInstallers(*stableFlag); err != nil {
+			fmt.Fprintln(os.Stderr, "エラー:", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	newVersion := version.Version
 	if flag.NArg() > 0 {
@@ -79,23 +178,14 @@ func main() {
 		}
 	}
 
-	// 2. 1箇所だけバージョン番号を持つファイル群
-	singles := []singleOccurrence{
-		{"scripts/install.sh", regexp.MustCompile(`DEFAULT_VERSION="([0-9]+\.[0-9]+\.[0-9]+)"`)},
-		{"scripts/install.ps1", regexp.MustCompile(`\$defaultVersion = "([0-9]+\.[0-9]+\.[0-9]+)"`)},
-	}
-	for _, s := range singles {
-		ok, wasChanged, err := syncSingleOccurrence(s, newVersion, *checkFlag)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "エラー:", err)
-			os.Exit(1)
-		}
-		if !ok {
-			mismatched = true
-		}
-		if wasChanged {
-			changed = true
-		}
+	// 2. インストーラーのフォールバック値は「公開済みの安定版」を表すので、
+	// ここでは開発中の版番号へ揃えない（Release公開前にマージされると、
+	// 最新版APIの取得失敗時に未公開版を取りに行って404になるため）。
+	// 公開後に publish-release.sh から --stable で切り替える。
+	// 検査では、2つのインストーラーの値が一致しているかだけを見る。
+	if err := checkInstallersAgree(); err != nil {
+		fmt.Fprintln(os.Stderr, "エラー:", err)
+		os.Exit(1)
 	}
 
 	// 3. 同じ数値が何度も出てくるドキュメント
@@ -175,39 +265,6 @@ func updateVersionGoFile(newVersion, newNadesiko string) error {
 	text = nakoPattern.ReplaceAllString(text, fmt.Sprintf(`const Nadesiko = "%s"`, newNadesiko))
 
 	return os.WriteFile(path, []byte(text), 0o644)
-}
-
-// syncSingleOccurrence は pattern がちょうど1回マッチする前提で、そのキャプチャ
-// グループを newVersion に揃える。マッチが0件・2件以上なら対象追加漏れ／曖昧化
-// としてエラーにする。戻り値の ok は「事前に一致していたか（checkモード用）」。
-func syncSingleOccurrence(s singleOccurrence, newVersion string, checkOnly bool) (ok bool, changed bool, err error) {
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		return false, false, err
-	}
-	text := string(data)
-
-	matches := s.pattern.FindAllStringSubmatchIndex(text, -1)
-	if len(matches) != 1 {
-		return false, false, fmt.Errorf("%s: パターンが%d件マッチしました（1件である必要があります）", s.path, len(matches))
-	}
-
-	m := matches[0]
-	current := text[m[2]:m[3]]
-	if current == newVersion {
-		return true, false, nil
-	}
-	if checkOnly {
-		fmt.Printf("[ズレ] %s: %s -> %s\n", s.path, current, newVersion)
-		return false, false, nil
-	}
-
-	updated := text[:m[2]] + newVersion + text[m[3]:]
-	if err := os.WriteFile(s.path, []byte(updated), 0o644); err != nil {
-		return false, false, err
-	}
-	fmt.Printf("[更新] %s: %s -> %s\n", s.path, current, newVersion)
-	return true, true, nil
 }
 
 // semverTokenRe はファイル中に登場する「X.Y.Z」形式の数値をすべて拾う。
