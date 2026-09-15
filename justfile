@@ -62,6 +62,10 @@ release-cli:
 release-gui:
     {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-cli
 
+# Windows版(amd64)のみ配布用バイナリを作る（gonako・gonako-guiの2つ）
+release-win:
+    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "windows/amd64"
+
 # GUI版をビルドせずに実行
 run-gui:
     {{go}} run ./cmd/gonako-gui
