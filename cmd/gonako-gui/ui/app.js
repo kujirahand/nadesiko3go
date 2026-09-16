@@ -1466,12 +1466,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       clearBinaryState();
-      editor.value = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
+      const mainProgram = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
+      editor.value = mainProgram;
       savedContent = editor.value;
       currentFilePath = '';
       currentFileDisplayName = '新規プログラム.nako3';
       currentTemplateBaseName = '';
       activeFileName.title = '';
+
+      if (typeof window.createProjectMainFile === 'function') {
+        try {
+          const mainRes = await window.createProjectMainFile(data.path);
+          const mainData = typeof mainRes === 'string' ? JSON.parse(mainRes) : mainRes;
+          if (mainData.ok) {
+            currentFilePath = mainData.path;
+            currentFileDisplayName = 'main.nako3';
+            activeFileName.title = mainData.path;
+            statusMsg += '（main.nako3も作成しました）';
+          }
+        } catch (err) {
+          console.error('main.nako3の自動作成エラー:', err);
+        }
+      }
+
       updateFileTitleDisplay();
       updateLineNumbers();
       updateCharCount();

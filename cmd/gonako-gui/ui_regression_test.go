@@ -178,6 +178,8 @@ func TestNewButtonOffersFileOrProjectChoice(t *testing.T) {
 		"menuItemNewProject.addEventListener('click', newProject)",
 		"window.createNewFolder(",
 		"window.createAIProject(data.path)",
+		"window.createProjectMainFile(data.path)",
+		"'main.nako3'",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js is missing new-menu behavior %q", required)
