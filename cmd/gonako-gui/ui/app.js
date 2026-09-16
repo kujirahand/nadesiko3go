@@ -1474,6 +1474,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentTemplateBaseName = '';
       activeFileName.title = '';
 
+      let mainFileError = '';
       if (typeof window.createProjectMainFile === 'function') {
         try {
           const mainRes = await window.createProjectMainFile(data.path);
@@ -1483,9 +1484,15 @@ document.addEventListener('DOMContentLoaded', () => {
             currentFileDisplayName = 'main.nako3';
             activeFileName.title = mainData.path;
             statusMsg += '（main.nako3も作成しました）';
+          } else {
+            mainFileError = mainData.error || 'main.nako3を作成できませんでした';
           }
         } catch (err) {
-          console.error('main.nako3の自動作成エラー:', err);
+          mainFileError = err.message || String(err);
+        }
+        if (mainFileError) {
+          console.error('main.nako3の自動作成エラー:', mainFileError);
+          statusMsg += `（main.nako3は未作成: ${mainFileError}）`;
         }
       }
 
@@ -1498,6 +1505,12 @@ document.addEventListener('DOMContentLoaded', () => {
       toggleSidebar(false);
       await loadDirectory(data.path);
       setStatus(statusMsg);
+      if (mainFileError) {
+        await showAlertDialog(
+          'main.nako3を作成できませんでした',
+          `${mainFileError}\n\nエディタの内容はまだ保存されていません。「保存」で保存先を選んでください。`
+        );
+      }
     } catch (err) {
       console.error('新規プロジェクト作成エラー:', err);
       await showAlertDialog('作成エラー', `${err.message || err}`);
