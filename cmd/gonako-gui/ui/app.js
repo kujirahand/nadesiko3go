@@ -1367,8 +1367,20 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
+        let statusMsg = `新規フォルダ「${name}」を作成しました`;
+        if (typeof window.createAIProject === 'function') {
+          try {
+            const aiRes = await window.createAIProject(data.path);
+            const aiData = typeof aiRes === 'string' ? JSON.parse(aiRes) : aiRes;
+            if (aiData.ok) {
+              statusMsg += '（AGENTS.md/CLAUDE.mdも用意しました）';
+            }
+          } catch (err) {
+            console.error('AI用の雛形の自動作成エラー:', err);
+          }
+        }
         await loadDirectory(currentDirPath || pathDirName(data.path));
-        setStatus(`新規フォルダ「${name}」を作成しました`);
+        setStatus(statusMsg);
       } else {
         await showAlertDialog('作成エラー', `新規フォルダを作成できませんでした: ${data.error}`);
       }

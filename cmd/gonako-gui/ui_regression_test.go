@@ -158,6 +158,27 @@ func TestFileTabNavigationControls(t *testing.T) {
 	}
 }
 
+func TestNewFolderAutomaticallyScaffoldsAIProject(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	newFolderStart := strings.Index(app, "btnNewFolder.addEventListener")
+	if newFolderStart < 0 {
+		t.Fatal("app.js is missing the new-folder button handler")
+	}
+	newFolderEnd := strings.Index(app[newFolderStart:], "\n  });")
+	if newFolderEnd < 0 {
+		t.Fatal("could not find the end of the new-folder button handler")
+	}
+	handler := app[newFolderStart : newFolderStart+newFolderEnd]
+
+	for _, required := range []string{
+		"window.createAIProject(data.path)",
+	} {
+		if !strings.Contains(handler, required) {
+			t.Fatalf("new-folder handler is missing automatic AI project scaffolding %q", required)
+		}
+	}
+}
+
 func TestAIProjectTemplateMenuIsWired(t *testing.T) {
 	html := readUIAsset(t, "index.html")
 	for _, required := range []string{`id="menu-item-ai-project"`, "AI用の雛形を作成"} {
