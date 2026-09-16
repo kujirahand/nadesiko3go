@@ -158,6 +158,36 @@ func TestFileTabNavigationControls(t *testing.T) {
 	}
 }
 
+func TestNewButtonOffersFileOrProjectChoice(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+	for _, required := range []string{
+		`id="btn-new"`,
+		`id="new-menu"`,
+		`id="menu-item-new-file"`,
+		`id="menu-item-new-project"`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html is missing new-menu control %q", required)
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"toggleNewMenu()",
+		"menuItemNewFile.addEventListener('click', newFile)",
+		"menuItemNewProject.addEventListener('click', newProject)",
+		"window.createNewFolder(",
+		"window.createAIProject(data.path)",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing new-menu behavior %q", required)
+		}
+	}
+	if strings.Contains(app, "btnNew.addEventListener('click', newFile)") {
+		t.Fatal("btn-new must open the new-file/new-project picker instead of creating a file directly")
+	}
+}
+
 func TestNewFolderAutomaticallyScaffoldsAIProject(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	newFolderStart := strings.Index(app, "btnNewFolder.addEventListener")
