@@ -19,7 +19,7 @@ func TestWNako3RunHandlerServesPageAndProgram(t *testing.T) {
 		t.Fatalf("実行画面を配信できない: %d", code)
 	}
 	for _, required := range []string{
-		`<canvas id="turtle_cv"`,
+		`<canvas id="nako3_canvas"`,
 		`/__gonako/wnako3/wnako3.js`,
 		`/__gonako/wnako3/plugin_turtle.js`,
 		`/__gonako-program.json`,
