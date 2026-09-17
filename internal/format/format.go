@@ -1,14 +1,14 @@
-// Package format はなでしこ3のソースコードを整形する。構文解析済みの
-// ブロック構造から各行のインデントを計算し直し、行末の空白を落とし、
-// ファイルの末尾には必ず改行を1つだけ付ける。行についてそれ以外を
-// 書き換えることはない。
+// Package format はなでしこ3のソースコードを整形する(→ docs/format.md)。
 //
-// これだけではプログラムの意味を保つとは限らない。ソース自身がインデントで
-// 構文を表すことがあり(『!インデント構文』や、行末が『:』で終わる記法)、その
-// 場合パーサーはデデント先の行の位置を借りて『ここまで』トークンを合成する
-// ため、ブロックの本当の範囲を構文木から読み取れなくなる。呼び出し側は
-// Structure(整形前)とStructure(整形後)を比較し、一致しない結果は捨てなければ
-// ならない。`gonako format`は一致しない結果を書き戻しも表示もせずに拒否する。
+// Program が入口で、行の中身の書き方を揃える段階(normalize)、構文解析済みの
+// ブロック構造から各行のインデントを計算し直す段階(Source)、必要なら
+// ブロックをコロン記法に書き換える段階(toColon)を順に行う。各段階の結果は
+// 構文解析し直し、Structure が元のプログラムと一致することを確かめる。
+// 一致しない結果は捨てる(段階によっては整形全体を中止する)。
+//
+// インデントで構文を表すファイル(『!インデント構文』や、行末が『:』で終わる
+// 記法)では、パーサーがデデント位置に『ここまで』と改行を合成する。合成した
+// トークンは長さ0なので、Sourceはそれを本物の終端と区別して扱う。
 package format
 
 import (
@@ -18,7 +18,6 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
-	"github.com/kujirahand/nadesiko3go/internal/prepare"
 )
 
 // Unit はインデント1段につき挿入する空白。
@@ -35,7 +34,9 @@ const Unit = "    "
 // あたる部分(開き引用符・閉じ引用符と同じ行にある他のコード)は整形する。
 func Source(code, filename string, tree *ast.Node) string {
 	depths := lineDepths(tree, filename) // ast.Node.Line(0始まり) -> 深さ
-	spans := protectedSpans(code, filename)
+	tokens, _ := scanTokens(code, filename)
+	spans := protectedSpans(tokens)
+	comments := commentOnlyLines(tokens)
 	lines := splitPhysicalLines(code)
 	// 末尾の空行はすべて落とし、末尾には改行を1つだけ付ける。保護範囲は実際の
 	// トークンの範囲であり空行にはかからないので、この後の行番号との対応に
@@ -66,7 +67,19 @@ func Source(code, filename string, tree *ast.Node) string {
 		}
 	}
 
-	depth := 0
+	// nextCode[i]は、行iより後ろで最初に現れる、空行でもコメントだけの行でも
+	// ない行の番号(無ければ-1)。コメントだけの行の深さを決めるのに使う。
+	nextCode := make([]int, len(lines))
+	next := -1
+	for i := len(lines) - 1; i >= 0; i-- {
+		nextCode[i] = next
+		if !comments[i] && strings.TrimSpace(lines[i].text) != "" {
+			next = i
+		}
+	}
+
+	depth := 0     // 直前の文の深さ
+	lastDepth := 0 // 直前のコードの行に実際に付けた深さ
 	out := make([]string, len(lines))
 	rawEnding := make([]bool, len(lines)) // 直後の改行を、統一newlineではなく元の綴りで出す
 
@@ -81,11 +94,28 @@ func Source(code, filename string, tree *ast.Node) string {
 		if content == "" {
 			return ""
 		}
+		if _, ok := depths[lineNo]; !ok && comments[lineNo] {
+			// コメントだけの行は、前後のコードの行のうち深い方に揃える。
+			// ブロックの先頭・末尾に書いたコメントが本文と同じ深さになり、
+			// ブロックの間に書いたコメントは外側の深さになる。
+			lineDepth := lastDepth
+			if j := nextCode[lineNo]; j >= 0 {
+				nextDepth := depth + 1 // 次の行が文の続きの場合
+				if d, ok := depths[j]; ok {
+					nextDepth = d
+				}
+				if nextDepth > lineDepth {
+					lineDepth = nextDepth
+				}
+			}
+			return strings.Repeat(Unit, lineDepth) + content
+		}
 		lineDepth := depth + 1
 		if d, ok := depths[lineNo]; ok {
 			depth = d
 			lineDepth = d
 		}
+		lastDepth = lineDepth
 		return strings.Repeat(Unit, lineDepth) + content
 	}
 
@@ -266,36 +296,12 @@ type protectedSpan struct {
 
 // protectedSpans は、複数行にわたる文字列リテラル・範囲コメントをすべて
 // 見つける。これによりSourceは、その内部には手を付けずに、開始・終了行で
-// リテラルと同居する他のコードだけを整形できる。ParseSourceが構文解析の
-// 前段で通す字句解析の最初の段階(prepareしてからTokenize)だけを再実行して
-// おり、フルパイプラインは通さない。インデント構文の変換やrequireの解決は
-// 失敗したりトークン列を書き換えたりする可能性があり、ここでは無関係な
-// うえ、このベストエフォートな処理が何も見つけられない要因を増やすだけ
-// だからである。
+// リテラルと同居する他のコードだけを整形できる。得られる範囲は、
+// ast.Node.Lineと同じ数え方のcode自身の物理行で表される。
 //
-// Tokenizeはprepare後のテキストに対して行うので、トークンのOffsetはcode
-// ではなくそのテキストへの添字である。prepare.NewlineOriginalOffsetsは、
-// その添字を元のcode自身のrune offsetへ戻す(全角記号の折り畳みは文字の
-// 位置を変えないが、改行の正規化だけは変える。このマッピングはちょうど
-// それを打ち消す)。そこから得られる範囲は、ast.Node.Lineと同じ数え方の
-// code自身の物理行で表されるので、Sourceはこれ以上何も導出し直さずに
-// その範囲を特定できる。
-//
-// Tokenizeは、フルパイプラインなら受け付けるはずの入力でも失敗することが
-// ある(フルパイプラインは先にインデント構文の変換を通し、一部のソースは
-// それに依存している)。ここで失敗した場合は単に何も保護しないだけであり、
-// formatはvm.ParseProgram自体が成功した後にしか動かないので、それと整合する。
-func protectedSpans(code, filename string) []protectedSpan {
-	prepared := prepare.Text(prepare.Convert(code))
-	tokens, err := lexer.Tokenize(prepared, 0, filename)
-	if err != nil {
-		return nil
-	}
-	preparedRunes := []rune(prepared)
-	toOriginal := prepare.NewlineOriginalOffsets(code)
-	origRunes := []rune(code)
-	origLineStart := originalLineStarts(origRunes)
-
+// 字句解析に失敗した場合は単に何も保護しないだけであり、formatは
+// vm.ParseProgram自体が成功した後にしか動かないので、それと整合する。
+func protectedSpans(tokens []srcToken) []protectedSpan {
 	var spans []protectedSpan
 	for _, tok := range tokens {
 		switch tok.Type {
@@ -303,23 +309,38 @@ func protectedSpans(code, filename string) []protectedSpan {
 		default:
 			continue
 		}
-		start, end := tok.Offset, tok.Offset+tok.Length
-		if start < 0 || end > len(preparedRunes) || start >= end {
-			continue
-		}
-		origStart := originalOffset(toOriginal, start)
-		origEnd := originalOffset(toOriginal, end)
-		startLine, startCol := lineColOf(origLineStart, origStart)
-		endLine, endCol := lineColOf(origLineStart, origEnd)
-		if startLine == endLine {
+		if tok.startLine == tok.endLine {
 			continue // 単一行に収まるリテラルは、インデントの付け替え対象のまま
 		}
 		spans = append(spans, protectedSpan{
-			startLine: startLine, startCol: startCol,
-			endLine: endLine, endCol: endCol,
+			startLine: tok.startLine, startCol: tok.startCol,
+			endLine: tok.endLine, endCol: tok.endCol,
 		})
 	}
 	return spans
+}
+
+// commentOnlyLines は、コメントだけを持つ物理行(文を持たない行)の集合を返す。
+func commentOnlyLines(tokens []srcToken) map[int]bool {
+	hasComment := map[int]bool{}
+	hasCode := map[int]bool{}
+	for _, tok := range tokens {
+		switch {
+		case tok.isComment():
+			hasComment[tok.startLine] = true
+		case tok.significant():
+			for l := tok.startLine; l <= tok.endLine; l++ {
+				hasCode[l] = true
+			}
+		}
+	}
+	result := map[int]bool{}
+	for l := range hasComment {
+		if !hasCode[l] {
+			result[l] = true
+		}
+	}
+	return result
 }
 
 // originalLineStarts は、CRLF・CR・LFのいずれも改行として、各物理行の先頭が
@@ -404,6 +425,19 @@ func lineDepths(root *ast.Node, filename string) map[int]int {
 		depths[line] = depth
 	}
 
+	// eolDepthsは、改行(ast.EOL)だけから分かる行の深さ。コメントだけの行の
+	// ように文を持たない行にだけ使う。『。』も改行として扱われるため、
+	// 『「A」と表示。』の行末の本物の改行が、コロン記法で合成した『ここまで』
+	// の後ろ(外側のブロック)に現れることがあり、文を持つ行の深さを改行から
+	// 決めると誤る。
+	eolDepths := map[int]int{}
+	setEOL := func(line, depth int) {
+		if current, ok := eolDepths[line]; ok && current <= depth {
+			return
+		}
+		eolDepths[line] = depth
+	}
+
 	var scan func(n *ast.Node, depth int)
 	var walkBlock func(block *ast.Node, bodyDepth int)
 
@@ -417,18 +451,46 @@ func lineDepths(root *ast.Node, filename string) map[int]int {
 	// (そちらも0始まりなので本体の行番号と衝突しうる)を持ったまま木に
 	// 混ざり込むため、それらは整形対象(filename)の行ではないと分かって
 	// いなければならない。
-	walkBlock = func(block *ast.Node, bodyDepth int) {
-		if block == nil {
-			return
-		}
+	//
+	// ブロックの直下にあるast.Blockは本文ではなく、連文(『AをXして、Bを
+	// 表示』や『3秒後には…ここまで』)をパーサーが1つの文として受け渡す
+	// ための包みである(本文は必ずもし・繰り返すなどの文の子になる)。
+	// 包みの中の文は包み自身と同じ深さに置き、包みの終端は閉じるキーワード
+	// ではないので扱わない。
+	var walkStmts func(block *ast.Node, bodyDepth int)
+	walkStmts = func(block *ast.Node, bodyDepth int) {
 		for _, stmt := range block.Blocks {
 			if stmt == nil || stmt.File != filename {
 				continue
 			}
+			if stmt.Type == ast.EOL {
+				// 長さ0の改行は、合成した『ここまで』に続けてパーサーが補った
+				// もので、本文の最終行の位置を借りているだけなので使わない。
+				if stmt.Length > 0 {
+					setEOL(stmt.Line, bodyDepth)
+				}
+				continue
+			}
 			set(stmt.Line, bodyDepth)
+			if stmt.Type == ast.Block {
+				walkStmts(stmt, bodyDepth)
+				continue
+			}
 			scan(stmt, bodyDepth)
 		}
-		if block.End != nil && block.End.File == filename {
+	}
+	walkBlock = func(block *ast.Node, bodyDepth int) {
+		if block == nil {
+			return
+		}
+		walkStmts(block, bodyDepth)
+		// 長さ0の終端は、コロン記法・インデント構文でパーサーが合成した
+		// 『ここまで』である。本文の最終行の位置を借りているだけなので、
+		// その行を1段浅くしてはいけない。
+		// ルートブロックの終端はファイル末尾(EOF)であり、閉じるキーワードでは
+		// ないので扱わない。EOFは最後のトークンの位置を借りるため、扱うと
+		// 最終行が深さ0に引き戻されてしまう。
+		if block != root && block.End != nil && block.End.File == filename && block.End.Length > 0 {
 			set(block.End.Line, bodyDepth-1)
 		}
 	}
@@ -464,21 +526,46 @@ func lineDepths(root *ast.Node, filename string) map[int]int {
 			walkBlock(n, depth+1)
 		case ast.If:
 			set(n.Line, depth)
-			for _, child := range n.Blocks {
+			// Blocks = [条件, then, else]。1行で書くもし文のthen・elseは
+			// ブロックではなく文そのもので、『違えば、〜』が次の行にあれば
+			// その行はもし文と同じ深さになる。
+			for i, child := range n.Blocks {
+				if i > 0 && child != nil && child.Type != ast.Block && child.File == filename {
+					set(child.Line, depth)
+				}
 				scan(child, depth)
 			}
 		case ast.Switch:
+			// 『条件分岐』は、各分岐の『〇〇ならば』と『違えば』、それぞれの
+			// 『ここまで』を1段深く、分岐の本文を2段深く置き、条件分岐自身を
+			// 閉じる『ここまで』を条件分岐と同じ深さに置く。
+			//
+			//   Aで条件分岐
+			//       1ならば
+			//           …
+			//       ここまで
+			//       違えば
+			//           …
+			//       ここまで
+			//   ここまで
 			set(n.Line, depth)
 			// Blocks = [値, 既定ブロック, 条件1, ブロック1, 条件2, ブロック2, ...]
 			for i, child := range n.Blocks {
-				if child == nil {
+				if child == nil || i == 0 || child.File != filename {
 					continue
 				}
-				if i >= 2 && i%2 == 0 {
-					set(child.Line, depth) // 「〇〇のとき」の行
-					continue
+				switch {
+				case i%2 == 0: // 「〇〇ならば」の行
+					set(child.Line, depth+1)
+				case child.Type == ast.Block:
+					if i == 1 {
+						set(child.Line, depth+1) // 「違えば」の行(本文は違えばの直後から始まる)
+					}
+					walkBlock(child, depth+2)
 				}
-				scan(child, depth)
+			}
+			if n.End != nil && n.End.File == filename && n.End.Length > 0 && n.End.Line > n.Line {
+				set(n.End.Line, depth)
 			}
 		case ast.JSONArray, ast.JSONObj:
 			// 配列・辞書リテラルの閉じ記号(]・})がある物理行は、その文自身と
@@ -503,5 +590,10 @@ func lineDepths(root *ast.Node, filename string) map[int]int {
 	}
 
 	walkBlock(root, 0)
+	for line, depth := range eolDepths {
+		if _, ok := depths[line]; !ok {
+			depths[line] = depth
+		}
+	}
 	return depths
 }

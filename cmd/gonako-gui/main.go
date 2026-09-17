@@ -651,8 +651,15 @@ func main() {
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
+	// 独自HTMLからも呼ばれるので、formatNakoCodeは2引数のまま残し、
+	// コロン記法への変換は別名のAPIにする（#120）。
 	_ = w.Bind("formatNakoCode", func(code, filePath string) string {
-		res := formatNakoCode(code, filePath)
+		res := formatNakoCode(code, filePath, false)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	_ = w.Bind("formatNakoCodeColon", func(code, filePath string) string {
+		res := formatNakoCode(code, filePath, true)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
