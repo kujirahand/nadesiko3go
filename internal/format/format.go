@@ -164,7 +164,7 @@ func protectedLines(code, filename string) map[int]bool {
 // lineDepths maps each physical line number (0-based, matching ast.Node.Line)
 // that carries a statement to its indentation depth, derived from the block
 // structure the parser already worked out: every construct that requires a
-// matching 『ここまで』(もし・くり返す・関数定義など) hands its body to the
+// matching 『ここまで』(もし・繰り返す・関数定義など) hands its body to the
 // parser as an ast.Block, and that block records both where its content
 // starts and where its closing keyword (ここまで・違えば・エラーならば) sits.
 //
@@ -266,7 +266,7 @@ func lineDepths(root *ast.Node) map[int]int {
 				scan(child, depth)
 			}
 		default:
-			// くり返す・間・反復・関数定義など、他の構文の本体もここを通って
+			// 繰り返す・間・反復・関数定義など、他の構文の本体もここを通って
 			// 見つかる: 本体はどれもBlocksのどこかにあるast.Blockなので、
 			// 深さを設定せずに子をたどるだけでBlockケースまで届く。式の途中
 			// (配列・辞書リテラルの要素など)をここで行の深さに関連付けない
