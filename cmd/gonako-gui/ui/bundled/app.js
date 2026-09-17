@@ -231,7 +231,7 @@ function askChoice(d) {
         buttons.appendChild(btn);
       });
     }
-    (isButtons ? buttons.querySelector('button') : list).focus();
+    (isButtons ? (buttons.querySelector('button') || closeBtn) : list).focus();
   });
 }
 

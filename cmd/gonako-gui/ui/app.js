@@ -565,7 +565,10 @@ document.addEventListener('DOMContentLoaded', () => {
       dialogBtnOk.addEventListener('click', onOk);
       document.addEventListener('keydown', onKeyDown, true);
 
-      (isButtons ? dialogButtonsWrapper.querySelector('button') : dialogList).focus();
+      const focusTarget = isButtons
+        ? (dialogButtonsWrapper.querySelector('button') || dialogBtnClose)
+        : dialogList;
+      focusTarget.focus();
     });
   }
 

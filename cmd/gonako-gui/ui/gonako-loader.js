@@ -374,6 +374,27 @@
         return call('二択', s);
       },
     },
+    // 『ボタン選択』『リスト選択』はwnako3(本家)には無いgonako独自の命令なので、
+    // 上書きではなく新規登録する。実体はGo側(internal/guilib)にあり、
+    // GONAKO関数実行と同じ経路(commandBridge)で呼び出す。
+    'ボタン選択': { // @候補配列Sからボタンを選ばせて選んだ文字列を返す。[x]で閉じると空文字列を返す // @ぼたんせんたく
+      type: 'func',
+      josi: [['の']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        return call('ボタン選択', s);
+      },
+    },
+    'リスト選択': { // @候補配列Sからリストで選ばせて選んだ文字列を返す。キャンセルまたは[x]で閉じると空文字列を返す // @りすとせんたく
+      type: 'func',
+      josi: [['の']],
+      pure: true,
+      asyncFn: true,
+      fn: async function (s, sys) {
+        return call('リスト選択', s);
+      },
+    },
   };
 
   let registered = false;
