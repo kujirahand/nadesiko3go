@@ -2509,7 +2509,8 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItemFormatColon.disabled = true;
     setStatus('自動整形中...');
     try {
-      const raw = await window.formatNakoCode(code, filePath || '', !!colon);
+      const formatter = colon ? window.formatNakoCodeColon : window.formatNakoCode;
+      const raw = await formatter(code, filePath || '');
       if (isStaleRequest(code, filePath)) {
         reportStaleIfIdle('自動整形中...', '自動整形: 待機中に編集されたため中止しました');
         return;
