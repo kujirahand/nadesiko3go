@@ -53,11 +53,51 @@ form > button {
 }
 
 .dialog {
+  position: relative;
   width: min(420px, 85vw);
   padding: 20px;
   border-radius: 10px;
   background: #fff;
   box-shadow: 0 14px 40px #0005;
+}
+
+.close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+}
+
+.choice-buttons {
+  display: none;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 18px;
+}
+
+.choice-buttons button {
+  background: #f0f0f0;
+  color: #222;
+  border: 1px solid #ccc;
+}
+
+.dialog-list {
+  display: none;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 8px 0 18px;
+  padding: 4px;
+  border: 1px solid #aaa;
+  border-radius: 4px;
 }
 
 .dialog p {

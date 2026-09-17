@@ -1,6 +1,7 @@
 package guilib
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -112,6 +113,14 @@ func (p *Plugin) commands() map[string]command {
 		"二択": {
 			josi: [][]string{{"で", "の", "と", "を"}},
 			fn:   p.cmdConfirm,
+		},
+		"ボタン選択": { // @候補配列からボタンを選ばせて選んだ文字列を返す。[x]で閉じると空文字列を返す // @ぼたんせんたく
+			josi: [][]string{{"の"}},
+			fn:   p.cmdButtonChoice,
+		},
+		"リスト選択": { // @候補配列からリストで選ばせて選んだ文字列を返す。キャンセルまたは[x]で閉じると空文字列を返す // @りすとせんたく
+			josi: [][]string{{"の"}},
+			fn:   p.cmdListChoice,
 		},
 		"DOM親要素設定": { // @DOM部品を追加する親要素を指定して、その要素を返す // @DOMおやようそせってい
 			josi: [][]string{{"に", "へ"}},
@@ -376,6 +385,53 @@ func (p *Plugin) cmdConfirm(ctx stdlib.Context, args []value.Value) (value.Value
 		}
 	}
 	return value.Bool(false), nil
+}
+
+// choiceDialogPayload はボタン選択・リスト選択のダイアログ要求をJSONへ載せて
+// DialogContext.ShowDialog(kind, message)のmessageに渡すための入れ物。
+// 既存のShowDialogは文字列2つしか運べないため、候補一覧はJSON化して詰める。
+type choiceDialogPayload struct {
+	Label string   `json:"label,omitempty"`
+	Items []string `json:"items"`
+}
+
+// parseChoiceArgs は候補配列を解析する。要素0が「#」で始まっていれば、
+// それをダイアログ上部に表示するラベルとして扱い、候補から取り除く。
+func parseChoiceArgs(v value.Value) (label string, items []string) {
+	items = valuesFromArray(v)
+	if len(items) > 0 && strings.HasPrefix(items[0], "#") {
+		label = strings.TrimSpace(strings.TrimPrefix(items[0], "#"))
+		items = items[1:]
+	}
+	return label, items
+}
+
+func (p *Plugin) showChoiceDialog(ctx stdlib.Context, kind string, args []value.Value) (value.Value, error) {
+	label, items := parseChoiceArgs(arg(args, 0))
+	payload, err := json.Marshal(choiceDialogPayload{Label: label, Items: items})
+	if err != nil {
+		return value.String(""), err
+	}
+	dialogs, ok := ctx.(stdlib.DialogContext)
+	if !ok {
+		return value.String(""), nil
+	}
+	answer, accepted, supported, err := dialogs.ShowDialog(kind, string(payload))
+	if err != nil {
+		return value.String(""), err
+	}
+	if supported && accepted {
+		return value.String(answer), nil
+	}
+	return value.String(""), nil
+}
+
+func (p *Plugin) cmdButtonChoice(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.showChoiceDialog(ctx, "buttons", args)
+}
+
+func (p *Plugin) cmdListChoice(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.showChoiceDialog(ctx, "list", args)
 }
 
 func (p *Plugin) cmdDisplayHTML(_ stdlib.Context, args []value.Value) (value.Value, error) {

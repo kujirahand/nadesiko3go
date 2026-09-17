@@ -122,21 +122,32 @@ function apply(ops) {
   });
 }
 
-// 『言う』『尋ねる』『二択』のダイアログ。ネイティブの alert/prompt/confirm は
-// WebView をブロックしてポーリングが止まるので使わない。
+// 『言う』『尋ねる』『二択』『ボタン選択』『リスト選択』のダイアログ。
+// ネイティブの alert/prompt/confirm は WebView をブロックしてポーリングが
+// 止まるので使わない。『ボタン選択』『リスト選択』のd.messageには
+// {label, items} をJSON化したものが入っている（internal/guilib参照）。
 function ask(d) {
+  const isChoice = d.kind === 'buttons' || d.kind === 'list';
+  return isChoice ? askChoice(d) : askPlain(d);
+}
+
+function askPlain(d) {
   return new Promise(resolve => {
     const overlay = document.getElementById('overlay');
     const input = document.getElementById('dialog-input');
     const cancel = document.getElementById('dialog-cancel');
     const ok = document.getElementById('dialog-ok');
     let composing = false;
+    document.getElementById('dialog-close').style.display = 'none';
+    document.getElementById('dialog-buttons').style.display = 'none';
+    document.getElementById('dialog-list').style.display = 'none';
     document.getElementById('dialog-title').textContent =
       d.kind === 'prompt' ? '入力' : d.kind === 'confirm' ? '確認' : 'メッセージ';
     document.getElementById('dialog-message').textContent = d.message || '';
     input.style.display = d.kind === 'prompt' ? 'block' : 'none';
     input.value = '';
     cancel.style.display = d.kind === 'alert' ? 'none' : 'inline-block';
+    ok.style.display = 'inline-block';
     overlay.style.display = 'flex';
     // 日本語入力の変換確定のEnterでダイアログを閉じてしまわないようにする
     input.oncompositionstart = () => { composing = true; };
@@ -158,6 +169,69 @@ function ask(d) {
       else if (e.key === 'Escape') done(false);
     };
     (d.kind === 'prompt' ? input : ok).focus();
+  });
+}
+
+function askChoice(d) {
+  return new Promise(resolve => {
+    let payload = {};
+    try { payload = JSON.parse(d.message || '{}'); } catch (e) { payload = {}; }
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const isButtons = d.kind === 'buttons';
+
+    const overlay = document.getElementById('overlay');
+    const closeBtn = document.getElementById('dialog-close');
+    const buttons = document.getElementById('dialog-buttons');
+    const list = document.getElementById('dialog-list');
+    const input = document.getElementById('dialog-input');
+    const cancel = document.getElementById('dialog-cancel');
+    const ok = document.getElementById('dialog-ok');
+
+    document.getElementById('dialog-title').textContent = payload.label || (isButtons ? 'ボタン選択' : 'リスト選択');
+    document.getElementById('dialog-message').textContent = '';
+    input.style.display = 'none';
+    closeBtn.style.display = 'inline-block';
+    buttons.innerHTML = '';
+    buttons.style.display = isButtons ? 'flex' : 'none';
+    list.innerHTML = '';
+    list.style.display = isButtons ? 'none' : 'block';
+    items.forEach(label => {
+      const opt = document.createElement('option');
+      opt.value = label;
+      opt.textContent = label;
+      list.appendChild(opt);
+    });
+    if (!isButtons && items.length > 0) list.selectedIndex = 0;
+    cancel.style.display = isButtons ? 'none' : 'inline-block';
+    ok.style.display = isButtons ? 'none' : 'inline-block';
+    overlay.style.display = 'flex';
+
+    const done = (text, accepted) => {
+      overlay.style.display = 'none';
+      closeBtn.onclick = null;
+      ok.onclick = null;
+      cancel.onclick = null;
+      buttons.innerHTML = '';
+      document.removeEventListener('keydown', onKeyDown, true);
+      resolve({ text, accepted });
+    };
+    function onKeyDown(e) {
+      if (e.key === 'Escape') done('', false);
+    }
+    closeBtn.onclick = () => done('', false);
+    ok.onclick = () => done(list.value, true);
+    cancel.onclick = () => done('', false);
+    document.addEventListener('keydown', onKeyDown, true);
+
+    if (isButtons) {
+      items.forEach(label => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.onclick = () => done(label, true);
+        buttons.appendChild(btn);
+      });
+    }
+    (isButtons ? buttons.querySelector('button') : list).focus();
   });
 }
 

@@ -1182,6 +1182,45 @@ kbd {
   outline: none;
 }
 
+.dialog-choice-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.dialog-choice-buttons button {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.dialog-choice-buttons button:hover {
+  background: var(--accent-pink);
+  border-color: var(--accent-pink);
+  color: #11111b;
+}
+
+.dialog-list {
+  width: 100%;
+  padding: 4px;
+  font-size: 13px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-main);
+}
+
+.dialog-list:focus {
+  border-color: var(--accent-pink);
+  outline: none;
+}
+
 .dialog-footer {
   display: flex;
   align-items: center;

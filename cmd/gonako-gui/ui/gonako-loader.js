@@ -76,7 +76,7 @@
 
   // ネイティブのalert/confirm/promptに頼らない自前のダイアログ。
   // macOSのWKWebViewはこれらを実装していないため、呼んでも何も起きない。
-  // kind: 'alert' | 'confirm' | 'prompt'。戻り値は{text, accepted}。
+  // kind: 'alert' | 'confirm' | 'prompt' | 'buttons' | 'list'。戻り値は{text, accepted}。
   // 呼び出しは内部でキューに並べ、常に1つずつ表示する（同時に2つ出さない）。
   let dialogQueue = Promise.resolve();
   function showGonakoDialog(kind, message) {
@@ -85,7 +85,106 @@
     dialogQueue = task.catch(() => {});
     return task;
   }
+  // 「ボタン選択」「リスト選択」用のダイアログ。messageには{label, items}を
+  // JSON化したものが入っている（internal/guilib のcmdButtonChoice/cmdListChoice参照）。
+  // 右上の[x]、またはリストのキャンセルは{ text: '', accepted: false }を返す。
+  function showGonakoChoiceDialogNow(kind, message) {
+    return new Promise(resolve => {
+      let payload = {};
+      try { payload = JSON.parse(message || '{}'); } catch (e) { payload = {}; }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const isButtons = kind === 'buttons';
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;'
+        + 'background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;'
+        + 'font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;';
+      const box = document.createElement('div');
+      box.style.cssText = 'position:relative;background:#fff;color:#222;min-width:280px;max-width:420px;'
+        + 'padding:20px;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '×';
+      closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;width:24px;height:24px;'
+        + 'border:none;background:transparent;font-size:18px;line-height:1;cursor:pointer;color:#888;';
+      box.appendChild(closeBtn);
+
+      if (payload.label) {
+        const label = document.createElement('div');
+        label.textContent = payload.label;
+        label.style.cssText = 'white-space:pre-wrap;word-break:break-word;margin:0 20px 14px 0;font-size:14px;line-height:1.5;';
+        box.appendChild(label);
+      }
+
+      function finish(text, accepted) {
+        document.removeEventListener('keydown', onKeyDown, true);
+        overlay.remove();
+        resolve({ text, accepted });
+      }
+      closeBtn.addEventListener('click', () => finish('', false));
+
+      let list = null;
+      if (isButtons) {
+        const buttons = document.createElement('div');
+        buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+        items.forEach(label => {
+          const btn = document.createElement('button');
+          btn.textContent = label;
+          btn.style.cssText = 'padding:6px 14px;font-size:13px;border-radius:4px;cursor:pointer;'
+            + 'background:#f0f0f0;color:#222;border:1px solid #ccc;';
+          btn.addEventListener('click', () => finish(label, true));
+          buttons.appendChild(btn);
+        });
+        box.appendChild(buttons);
+      } else {
+        list = document.createElement('select');
+        list.size = Math.min(Math.max(items.length, 3), 8);
+        list.style.cssText = 'width:100%;box-sizing:border-box;padding:4px;font-size:14px;'
+          + 'border:1px solid #ccc;border-radius:4px;margin-bottom:14px;';
+        items.forEach(label => {
+          const opt = document.createElement('option');
+          opt.value = label;
+          opt.textContent = label;
+          list.appendChild(opt);
+        });
+        if (items.length > 0) list.selectedIndex = 0;
+        box.appendChild(list);
+
+        const buttons = document.createElement('div');
+        buttons.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;';
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'キャンセル';
+        cancelBtn.style.cssText = 'padding:6px 14px;font-size:13px;border-radius:4px;cursor:pointer;'
+          + 'background:#f0f0f0;color:#222;border:1px solid #ccc;';
+        cancelBtn.addEventListener('click', () => finish('', false));
+        const okBtn = document.createElement('button');
+        okBtn.textContent = 'OK';
+        okBtn.style.cssText = 'padding:6px 14px;font-size:13px;border-radius:4px;cursor:pointer;'
+          + 'background:#e64553;color:#fff;border:none;';
+        okBtn.addEventListener('click', () => finish(list.value, true));
+        buttons.appendChild(cancelBtn);
+        buttons.appendChild(okBtn);
+        box.appendChild(buttons);
+      }
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          finish('', false);
+        }
+      }
+
+      overlay.appendChild(box);
+      (document.body || document.documentElement).appendChild(overlay);
+      document.addEventListener('keydown', onKeyDown, true);
+      (list || overlay.querySelector('button')).focus();
+    });
+  }
+
   function showGonakoDialogNow(kind, message) {
+    if (kind === 'buttons' || kind === 'list') {
+      return showGonakoChoiceDialogNow(kind, message);
+    }
     return new Promise(resolve => {
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;'
