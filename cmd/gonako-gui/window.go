@@ -51,6 +51,7 @@ type virtualWindowController struct {
 func newVirtualWindowController() *virtualWindowController {
 	return &virtualWindowController{state: guilib.WindowInfo{
 		Width: 1080, Height: 720, State: "通常", Title: "なでしこ3", Resizable: true,
+		Theme: guilib.ThemeAuto,
 	}}
 }
 
@@ -81,6 +82,9 @@ func (c *virtualWindowController) Change(handle int, settings guilib.WindowSetti
 	}
 	if settings.HasResizable {
 		c.state.Resizable = settings.Resizable
+	}
+	if settings.HasTheme {
+		c.state.Theme = settings.Theme
 	}
 	return nil
 }
@@ -135,7 +139,7 @@ func (c *nativeWindowController) Info(handle int) (guilib.WindowInfo, error) {
 	}
 	done := make(chan result, 1)
 	c.webview.Dispatch(func() {
-		info, err := platformWindowInfo(c.webview.Window())
+		info, err := nativeWindowInfo(c.webview.Window())
 		done <- result{info: info, err: err}
 	})
 	select {
@@ -157,7 +161,7 @@ func (c *directNativeWindowController) Info(handle int) (guilib.WindowInfo, erro
 	if err := checkMotherWindowHandle(handle); err != nil {
 		return guilib.WindowInfo{}, err
 	}
-	return platformWindowInfo(c.webview.Window())
+	return nativeWindowInfo(c.webview.Window())
 }
 
 // applyWindowSettings はWebViewのUIスレッドから呼び出す。
@@ -185,6 +189,11 @@ func applyWindowSettings(w webview.WebView, settings guilib.WindowSettings, pres
 			settings.Center = false
 			settings.X = before.X
 			settings.Y = before.Y
+		}
+	}
+	if settings.HasTheme {
+		if err := applyWindowTheme(w, settings.Theme); err != nil {
+			return err
 		}
 	}
 	return platformApplyWindowSettings(w.Window(), settings)

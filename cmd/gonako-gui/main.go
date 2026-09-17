@@ -141,6 +141,7 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
   -title string    ウィンドウタイトル (既定: "なでしこ3 (gonako-gui)")
   -width int       ウィンドウの幅 (既定: 1080)
   -height int      ウィンドウの高さ (既定: 720)
+  -theme string    テーマ: ライト・ダーク・自動 (light/dark/auto)
   -debug           開発者ツール（デバッグモード）を有効化
   -help, --help    このヘルプを表示
 `
@@ -416,6 +417,7 @@ func main() {
 	titleFlag := flags.String("title", "なでしこ3 (gonako-gui)", "ウィンドウタイトル")
 	widthFlag := flags.Int("width", 1080, "ウィンドウの幅")
 	heightFlag := flags.Int("height", 720, "ウィンドウの高さ")
+	themeFlag := flags.String("theme", "", "テーマ（ライト・ダーク・自動）")
 	debugFlag := flags.Bool("debug", os.Getenv("GONAKO_DEBUG") == "1", "デバッグモード有効化")
 	// エディタの「ウィンドウ(GUI)」実行モードが自分自身を子プロセスとして
 	// 起動するための内部専用フラグ。利用者が直接使うものではない（#97）。
@@ -478,7 +480,15 @@ func main() {
 		}
 	}
 
+	editorMode := targetDir == "" && targetURL == ""
 	windowSettings := defaultWindowSettings(*titleFlag, *widthFlag, *heightFlag)
+	if editorMode {
+		editorSettings, err := loadEditorSettings()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "エディタの設定を読めません（既定値で起動します）: %v\n", err)
+		}
+		windowSettings.Theme = editorSettings.Theme
+	}
 	if targetDir != "" {
 		fromFile, found, err := loadWindowSettingsFromDir(targetDir)
 		if err != nil {
@@ -498,6 +508,14 @@ func main() {
 	}
 	if explicitFlags["height"] {
 		windowSettings.HasSize, windowSettings.Height = true, *heightFlag
+	}
+	if explicitFlags["theme"] {
+		theme, err := guilib.NormalizeWindowTheme(*themeFlag)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		windowSettings.HasTheme, windowSettings.Theme = true, theme
 	}
 
 	var handler http.Handler
@@ -663,6 +681,26 @@ func main() {
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
+
+	// エディタのテーマ（#112）。変更はすぐ画面へ反映し、設定ファイルへ保存する。
+	if editorMode {
+		_ = w.Bind("getEditorTheme", func() string {
+			return windowTheme(w.Window())
+		})
+		_ = w.Bind("setEditorTheme", func(theme string) (string, error) {
+			normalized, err := guilib.NormalizeWindowTheme(theme)
+			if err != nil {
+				return "", err
+			}
+			if err := applyWindowTheme(w, normalized); err != nil {
+				return "", err
+			}
+			if err := saveEditorTheme(normalized); err != nil {
+				return normalized, err
+			}
+			return normalized, nil
+		})
+	}
 
 	// WKWebViewではアプリの起動形態によって標準のコピー＆ペーストが
 	// textareaまで届かないため、メインエディタ用にOSクリップボードを公開する。

@@ -42,6 +42,7 @@ func defaultWindowSettings(title string, width, height int) guilib.WindowSetting
 		HasSize: true, Width: width, Height: height,
 		HasResizable: true, Resizable: true,
 		HasState: true, State: "通常",
+		HasTheme: true, Theme: guilib.ThemeAuto,
 	}
 }
 
@@ -61,6 +62,9 @@ func mergeWindowSettings(base, override guilib.WindowSettings) guilib.WindowSett
 	}
 	if override.HasResizable {
 		base.HasResizable, base.Resizable = true, override.Resizable
+	}
+	if override.HasTheme {
+		base.HasTheme, base.Theme = true, override.Theme
 	}
 	return base
 }

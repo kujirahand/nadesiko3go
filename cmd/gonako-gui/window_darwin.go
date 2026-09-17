@@ -18,6 +18,7 @@ typedef struct {
 
 void gonakoApplyWindowSettings(void *window, int hasPosition, int center, int x, int y,
 	int hasState, int state, int hasResizable, int resizable);
+void gonakoApplyWindowTheme(void *window, int theme);
 gonakoWindowInfo gonakoGetWindowInfo(void *window);
 void gonakoFreeWindowTitle(char *title);
 */
@@ -66,6 +67,14 @@ func platformApplyWindowSettings(window unsafe.Pointer, settings guilib.WindowSe
 		C.int(boolInt(settings.HasState)), C.int(nativeWindowStateCode(settings.State)),
 		C.int(boolInt(settings.HasResizable)), C.int(boolInt(settings.Resizable)),
 	)
+	return nil
+}
+
+func platformApplyWindowTheme(window unsafe.Pointer, theme string) error {
+	if window == nil {
+		return fmt.Errorf("ネイティブウィンドウを取得できません")
+	}
+	C.gonakoApplyWindowTheme(window, C.int(nativeThemeCode(theme)))
 	return nil
 }
 

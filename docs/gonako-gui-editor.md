@@ -44,6 +44,46 @@ GUI版に関する節を独立させたものです。使い方（コマンド�
 IME変換中は未確定文字が `textarea` にしか無いため、色分けを止めて
 `textarea` の文字を見せます（`compositionstart` / `compositionend`）。
 
+### テーマ（ライトモード・ダークモード）
+
+メニュー（☰）の「テーマ」をクリックすると、`自動` → `ライト` → `ダーク` の順に
+切り替わります。既定値は`自動`で、OSの外観設定に従います（Issue #112）。
+
+- 配色は `ui/style.css` の CSS 変数にまとめてあります。`:root` がダーク配色、
+  `:root[data-gonako-theme="light"]` がライト配色です。`data-gonako-theme` は
+  gonako-gui が `<html>` へ付ける属性で、仕組みはアプリの `index.json` の `テーマ` と
+  共通です（[`window-size.md`](window-size.md)）
+- 色分けやボタンの色も CSS 変数を使います。色を追加するときは、固定の色を直接書かず、
+  両方の配色に変数を追加してください
+- 切り替えは Go 側の `setEditorTheme` を呼び、ウィンドウの配色へすぐ反映してから
+  設定ファイルへ保存します。`getEditorTheme` で現在の値を取得できます
+- `-theme` オプションを指定して起動した場合は、保存された設定より優先します
+  （このときも、メニューで切り替えると設定ファイルへ保存します）
+
+#### 設定ファイル
+
+エディタの設定は、どのOSでも次のファイルに保存します。
+
+```text
+~/.config/gonako-gui/settings.json
+```
+
+環境変数 `XDG_CONFIG_HOME` があれば、`$XDG_CONFIG_HOME/gonako-gui/settings.json` を使います。
+Windowsでは `%USERPROFILE%\.config\gonako-gui\settings.json` です。
+
+```json
+{
+  "theme": "ダーク"
+}
+```
+
+`theme` には `ライト`・`ダーク`・`自動`（または `light`・`dark`・`auto`）を書けます。
+ファイルがない場合や値が不正な場合は `自動` として起動します。保存するときは
+`theme` だけを書き換え、ほかの項目は残します。
+
+サイドバーの開閉や命令一覧の表示順など、これまでの画面の状態は従来どおり
+WebViewの `localStorage` に保存しています。
+
 ---
 
 ## 2.5 命令一覧の切り替え（gonako / wnako）

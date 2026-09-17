@@ -27,6 +27,21 @@
   #output .error {
     color: #c62828;
   }
+  /* ダークモード (#112)。キャンバスは描画内容を保つため白地のままにする。 */
+  :root[data-gonako-theme="dark"] {
+    color-scheme: dark;
+  }
+  :root[data-gonako-theme="dark"] body {
+    background: #1e1e2e;
+    color: #cdd6f4;
+  }
+  :root[data-gonako-theme="dark"] #nako3_canvas {
+    background: #fff;
+    border-color: #45475a;
+  }
+  :root[data-gonako-theme="dark"] #output .error {
+    color: #f38ba8;
+  }
 </style>
 <script src="/__gonako/wnako3/wnako3.js"></script>
 <script src="/__gonako/wnako3/plugin_turtle.js"></script>

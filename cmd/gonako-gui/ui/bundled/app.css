@@ -119,3 +119,34 @@ form > button {
 .secondary {
   background: #777;
 }
+
+/* ダークモード (#112)。data-gonako-theme はgonako-guiが<html>へ付ける。 */
+:root[data-gonako-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-gonako-theme="dark"] body {
+  background: #1e1e2e;
+  color: #cdd6f4;
+}
+
+:root[data-gonako-theme="dark"] input,
+:root[data-gonako-theme="dark"] .dialog-list {
+  background: #181825;
+  color: #cdd6f4;
+  border-color: #45475a;
+}
+
+:root[data-gonako-theme="dark"] .dialog {
+  background: #252538;
+}
+
+:root[data-gonako-theme="dark"] .choice-buttons button {
+  background: #313244;
+  color: #cdd6f4;
+  border-color: #45475a;
+}
+
+:root[data-gonako-theme="dark"] #gonako-error {
+  color: #f38ba8 !important;
+}

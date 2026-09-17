@@ -820,6 +820,37 @@ document.addEventListener('DOMContentLoaded', () => {
   menuItemShortcuts.addEventListener('click', openShortcutsModal);
   menuItemAbout.addEventListener('click', openAboutModal);
 
+  // --- テーマ切り替え (#112) ---
+  // 実際の配色はgonako-guiが<html data-gonako-theme>で切り替える。
+  const themeOrder = ['自動', 'ライト', 'ダーク'];
+  const menuItemTheme = document.getElementById('menu-item-theme');
+  const menuItemThemeLabel = document.getElementById('menu-item-theme-label');
+  let currentTheme = '自動';
+
+  function showTheme(theme) {
+    currentTheme = theme;
+    if (menuItemThemeLabel) menuItemThemeLabel.textContent = `テーマ: ${theme}`;
+  }
+
+  if (menuItemTheme) {
+    if (typeof window.getEditorTheme === 'function') {
+      window.getEditorTheme().then(showTheme).catch(() => {});
+    } else {
+      menuItemTheme.style.display = 'none';
+    }
+    menuItemTheme.addEventListener('click', async () => {
+      if (typeof window.setEditorTheme !== 'function') return;
+      const next = themeOrder[(themeOrder.indexOf(currentTheme) + 1) % themeOrder.length];
+      try {
+        showTheme(await window.setEditorTheme(next));
+        setStatus(`テーマを「${next}」に変更しました`);
+      } catch (err) {
+        setStatus(`テーマの変更エラー: ${err.message || err}`);
+        window.getEditorTheme().then(showTheme).catch(() => {});
+      }
+    });
+  }
+
   // --- AI開発用プロジェクト作成 ---
   async function createAIProjectFromCurrentFolder() {
     closeHamburger();

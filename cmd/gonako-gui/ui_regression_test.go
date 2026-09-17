@@ -401,3 +401,40 @@ func TestWNakoCommandListIsEmbedded(t *testing.T) {
 	}
 	t.Fatal("wnakoの命令一覧に『表示』がありません")
 }
+
+// ライトモード (#112): 配色はCSS変数に集約し、data-gonako-themeで切り替える。
+func TestEditorSupportsLightTheme(t *testing.T) {
+	style := readUIAsset(t, "style.css")
+	if !strings.Contains(style, `:root[data-gonako-theme="light"]`) {
+		t.Fatal("style.css must define the light theme palette")
+	}
+	for _, hardcoded := range []string{"#585b70", "#6c7086", "#7f849c", "#f5c2e7", "rgba(255, 255, 255, 0.08)"} {
+		if strings.Count(style, hardcoded) != 1 {
+			t.Fatalf("style.css should only use %q in the dark palette variables", hardcoded)
+		}
+	}
+	html := readUIAsset(t, "index.html")
+	app := readUIAsset(t, "app.js")
+	if !strings.Contains(html, `id="menu-item-theme"`) {
+		t.Fatal("index.html is missing the theme menu item")
+	}
+	for _, required := range []string{"window.getEditorTheme()", "window.setEditorTheme(next)"} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing theme bridge %q", required)
+		}
+	}
+	for _, page := range []string{"bundled/app.css", "bundled/text.html", "wnako3run.html"} {
+		if !strings.Contains(readUIAsset(t, page), "data-gonako-theme") {
+			t.Fatalf("%s must follow data-gonako-theme", page)
+		}
+	}
+}
+
+func TestThemeScript(t *testing.T) {
+	for theme, want := range map[string]string{"ライト": `("light")`, "ダーク": `("dark")`, "自動": `("auto")`} {
+		script := themeScript(theme)
+		if !strings.HasSuffix(script, want+";") || !strings.Contains(script, "data-gonako-theme") {
+			t.Fatalf("themeScript(%s) is wrong: %s", theme, script)
+		}
+	}
+}

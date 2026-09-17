@@ -15,8 +15,54 @@
   --accent-mauve: #cba6f7;
   --accent-teal: #94e2d5;
   --border-color: #313244;
+  --accent-pink-soft: #eba0ac;
+  --accent-pink-hover: #f5c2e7;
+  --text-on-accent: #11111b;
+  --text-faint: #585b70;
+  --tk-comment: #6c7086;
+  --tk-josi: #7f849c;
+  --overlay-faint: rgba(255, 255, 255, 0.02);
+  --overlay-subtle: rgba(255, 255, 255, 0.03);
+  --overlay: rgba(255, 255, 255, 0.08);
+  --overlay-strong: rgba(255, 255, 255, 0.1);
+  --shade: rgba(0, 0, 0, 0.15);
+  --shade-strong: rgba(0, 0, 0, 0.2);
+  color-scheme: dark;
   --font-mono: "SF Mono", "JetBrains Mono", "Cascadia Code", "Consolas", "Menlo", monospace;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "BIZ UDPGothic", Meiryo, sans-serif;
+}
+
+/* ライトモード (#112)。data-gonako-theme はgonako-guiが<html>へ付ける。 */
+:root[data-gonako-theme="light"] {
+  --bg-primary: #eff1f5;
+  --bg-secondary: #e6e9ef;
+  --bg-sidebar: #dce0e8;
+  --bg-editor: #fbfbfd;
+  --bg-output: #e6e9ef;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --bg-active: rgba(210, 15, 57, 0.1);
+  --text-main: #4c4f69;
+  --text-muted: #6c6f85;
+  --accent-pink: #d20f39;
+  --accent-green: #40a02b;
+  --accent-blue: #1e66f5;
+  --accent-yellow: #df8e1d;
+  --accent-mauve: #8839ef;
+  --accent-teal: #179299;
+  --border-color: #ccd0da;
+  --accent-pink-soft: #e64553;
+  --accent-pink-hover: #e64553;
+  --text-on-accent: #ffffff;
+  --text-faint: #9ca0b0;
+  --tk-comment: #8c8fa1;
+  --tk-josi: #7c7f93;
+  --overlay-faint: rgba(0, 0, 0, 0.03);
+  --overlay-subtle: rgba(0, 0, 0, 0.03);
+  --overlay: rgba(0, 0, 0, 0.06);
+  --overlay-strong: rgba(0, 0, 0, 0.08);
+  --shade: rgba(0, 0, 0, 0.04);
+  --shade-strong: rgba(0, 0, 0, 0.05);
+  color-scheme: light;
 }
 
 * {
@@ -76,9 +122,9 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #f38ba8, #eba0ac);
-  color: #11111b;
-  border-color: #f38ba8;
+  background: linear-gradient(135deg, var(--accent-pink), var(--accent-pink-soft));
+  color: var(--text-on-accent);
+  border-color: var(--accent-pink);
 }
 
 .btn-primary:hover {
@@ -245,7 +291,7 @@ body {
   font-size: 11px;
   padding: 3px 8px;
   border-radius: 4px;
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--overlay);
   color: var(--text-muted);
 }
 
@@ -342,7 +388,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 8px 10px;
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--shade);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -368,7 +414,7 @@ body {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--overlay-strong);
   color: var(--text-main);
   font-size: 13px;
   line-height: 1;
@@ -386,7 +432,7 @@ body {
   align-items: center;
   gap: 4px;
   padding: 6px 10px;
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--shade);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -431,7 +477,7 @@ body {
   cursor: pointer;
   transition: background-color 0.1s;
   user-select: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--overlay-faint);
 }
 
 .list-item:hover {
@@ -492,7 +538,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--shade);
   border-top: 1px solid var(--border-color);
   flex: none;
 }
@@ -574,8 +620,8 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
-  background-color: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  background-color: var(--overlay-subtle);
+  border-bottom: 1px solid var(--overlay-faint);
 }
 
 .cmd-group-header:hover {
@@ -670,7 +716,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--shade-strong);
   border-bottom: 1px solid var(--border-color);
   font-size: 12px;
   font-weight: 600;
@@ -707,7 +753,7 @@ body {
 }
 
 .badge {
-  background-color: rgba(255, 255, 255, 0.08);
+  background-color: var(--overlay);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 11px;
@@ -775,7 +821,7 @@ body {
   font-family: var(--font-mono);
   font-size: 14px;
   line-height: 1.6;
-  color: #585b70;
+  color: var(--text-faint);
   background-color: var(--bg-editor);
   border-right: 1px solid var(--border-color);
   user-select: none;
@@ -871,12 +917,12 @@ body {
 }
 
 /* トークンの配色 */
-.tk-comment { color: #6c7086; font-style: italic; }
+.tk-comment { color: var(--tk-comment); font-style: italic; }
 .tk-string { color: var(--accent-green); }
 .tk-embed { color: var(--accent-teal); }
 .tk-number { color: var(--accent-yellow); }
 .tk-keyword { color: var(--accent-pink); font-weight: 600; }
-.tk-josi { color: #7f849c; }
+.tk-josi { color: var(--tk-josi); }
 .tk-func { color: var(--accent-blue); }
 .tk-const { color: var(--accent-mauve); }
 .tk-word { color: var(--text-main); }
@@ -955,16 +1001,16 @@ body {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  color: #a6adc8;
+  color: var(--text-muted);
   user-select: text;
 }
 
 .output.has-content {
-  color: #cdd6f4;
+  color: var(--text-main);
 }
 
 .output.has-error {
-  color: #f38ba8;
+  color: var(--accent-pink);
 }
 
 /* ステータスバー */
@@ -1113,7 +1159,7 @@ kbd {
 
 .btn-file-footer:hover {
   background: var(--accent-blue);
-  color: #11111b;
+  color: var(--text-on-accent);
 }
 
 /* リストアイテム右側の補足情報 */
@@ -1203,7 +1249,7 @@ kbd {
 .dialog-choice-buttons button:hover {
   background: var(--accent-pink);
   border-color: var(--accent-pink);
-  color: #11111b;
+  color: var(--text-on-accent);
 }
 
 .dialog-list {
@@ -1227,7 +1273,7 @@ kbd {
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 16px;
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--shade);
   border-top: 1px solid var(--border-color);
 }
 
@@ -1241,13 +1287,13 @@ kbd {
 .btn-primary {
   background: var(--accent-pink);
   border: 1px solid var(--accent-pink);
-  color: #11111b;
+  color: var(--text-on-accent);
   font-weight: 600;
 }
 
 .btn-primary:hover {
-  background: #f5c2e7;
-  border-color: #f5c2e7;
+  background: var(--accent-pink-hover);
+  border-color: var(--accent-pink-hover);
 }
 
 .btn-danger {

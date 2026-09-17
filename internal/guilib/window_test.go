@@ -100,6 +100,8 @@ func TestDecodeWindowSettingsRejectsInvalidValues(t *testing.T) {
 		`{"状態":"閉じる"}`,
 		`{"サイズ変更可":"false"}`,
 		`{"サイズ変更可":1}`,
+		`{"テーマ":"青"}`,
+		`{"テーマ":1}`,
 	} {
 		if _, err := DecodeWindowSettings([]byte(source)); err == nil {
 			t.Fatalf("不正な設定を受理しました: %s", source)
@@ -112,6 +114,40 @@ func TestDecodeWindowSettingsRejectsInvalidValues(t *testing.T) {
 	_, err := plugin.Impls()["ウィンドウ変更"](nil, []value.Value{value.DictValue(dict), value.Number(0)})
 	if err == nil || !strings.Contains(err.Error(), "gonako-gui") {
 		t.Fatalf("ウィンドウ未接続時のエラーが違います: %v", err)
+	}
+}
+
+func TestDecodeWindowSettingsTheme(t *testing.T) {
+	for source, want := range map[string]string{
+		`{"テーマ":"ライト"}`:       ThemeLight,
+		`{"テーマ":"ダーク"}`:       ThemeDark,
+		`{"テーマ":"自動"}`:        ThemeAuto,
+		`{"theme":"Dark"}`:    ThemeDark,
+		`{"theme":" light "}`: ThemeLight,
+		`{"theme":"auto"}`:    ThemeAuto,
+	} {
+		settings, err := DecodeWindowSettings([]byte(source))
+		if err != nil {
+			t.Fatalf("%s を解釈できません: %v", source, err)
+		}
+		if !settings.HasTheme || settings.Theme != want {
+			t.Fatalf("%s のテーマが違います: %#v", source, settings)
+		}
+	}
+	settings, err := DecodeWindowSettings([]byte(`{"タイトル":"見本"}`))
+	if err != nil || settings.HasTheme {
+		t.Fatalf("テーマ省略時にHasThemeが立っています: %#v %v", settings, err)
+	}
+}
+
+func TestWindowInfoValueTheme(t *testing.T) {
+	dict, _ := windowInfoValue(WindowInfo{}).Dict()
+	if theme, _ := dict.Get("テーマ"); value.ToString(theme) != ThemeAuto {
+		t.Fatalf("テーマ未設定時は自動を返すべきです: %s", value.ToString(theme))
+	}
+	dict, _ = windowInfoValue(WindowInfo{Theme: ThemeDark}).Dict()
+	if theme, _ := dict.Get("テーマ"); value.ToString(theme) != ThemeDark {
+		t.Fatalf("テーマが違います: %s", value.ToString(theme))
 	}
 }
 
