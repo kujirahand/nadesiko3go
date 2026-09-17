@@ -402,3 +402,84 @@ func TestBundledExitCode(t *testing.T) {
 		t.Errorf("host.Exited = %v, host.ExitCode = %d, want true, 3", host.Exited, host.ExitCode)
 	}
 }
+
+func TestLintOK(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ok.nako3")
+	if err := os.WriteFile(path, []byte("「やあ」と表示。"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"lint", path}, &out, &errOut); err != nil {
+		t.Fatalf("lint: %v; stderr=%s", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "文法エラーはありません") {
+		t.Errorf("出力 = %q", out.String())
+	}
+}
+
+func TestLintSyntaxError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.nako3")
+	if err := os.WriteFile(path, []byte("もし1=1ならば\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"lint", path}, &out, &errOut); err == nil {
+		t.Fatal("文法エラーのあるファイルでエラーになりませんでした")
+	}
+}
+
+func TestFormatPrintsToStdoutByDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.nako3")
+	original := "もし、1=1ならば\n「やあ」と表示。\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
+	}
+	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	if out.String() != want {
+		t.Errorf("出力 = %q, want %q", out.String(), want)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != original {
+		t.Errorf("--forceなしでファイルが書き換わりました: %q", got)
+	}
+}
+
+func TestFormatForceWritesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.nako3")
+	original := "もし、1=1ならば\n「やあ」と表示。\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", "--force", path}, &out, &errOut); err != nil {
+		t.Fatalf("format --force: %v; stderr=%s", err, errOut.String())
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	if string(got) != want {
+		t.Errorf("ファイルの内容 = %q, want %q", got, want)
+	}
+
+	// 既に整形済みなら2回目は変更なしと報告する
+	out.Reset()
+	if err := run([]string{"format", "-f", path}, &out, &errOut); err != nil {
+		t.Fatalf("format -f: %v; stderr=%s", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "変更はありません") {
+		t.Errorf("出力 = %q", out.String())
+	}
+}

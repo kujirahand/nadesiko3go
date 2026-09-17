@@ -17,6 +17,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
+	"github.com/kujirahand/nadesiko3go/internal/format"
 	"github.com/kujirahand/nadesiko3go/internal/gogen"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -45,6 +46,8 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
   gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
+  gonako lint <ファイル>             文法をチェックする
+  gonako format <ファイル> [-f]      コードを整形する（インデントを整える）
   gonako compat run [--cases DIR] [--out DIR]
   gonako compat commands [--source FILE]
   gonako version                    バージョン情報を表示する
@@ -68,6 +71,9 @@ doc のオプション:
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
   パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
+
+format のオプション:
+  --force, -f      結果をファイルへ書き戻す（省略時は標準出力に表示するだけ）
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -400,6 +406,75 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
 }
 
+// lintFile parses a program without running it, so a mistake shows up as a
+// syntax error with its position instead of failing partway through a run.
+func lintFile(args []string, stdout io.Writer) error {
+	if len(args) == 0 {
+		return errors.New("文法チェックするファイルを指定してください")
+	}
+	source := args[0]
+	code, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	if _, err := vm.ParseProgram(string(code), source); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s: 文法エラーはありません\n", source)
+	return nil
+}
+
+// formatFile reindents a program from its parsed block structure. Without
+// --force it only prints the result, matching gofmt's default of leaving the
+// file alone until asked to write it back.
+func formatFile(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("format", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	force := flags.Bool("force", false, "結果をファイルへ書き戻す")
+	flags.BoolVar(force, "f", false, "結果をファイルへ書き戻す (--forceの短縮形)")
+	source, rest := splitSourceFor(args)
+	if err := flags.Parse(rest); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if source == "" && flags.NArg() > 0 {
+		source = flags.Arg(0)
+	}
+	if source == "" || flags.NArg() > 0 {
+		return errors.New("整形するファイルを1つ指定してください")
+	}
+
+	info, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	code, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	tree, err := vm.ParseProgram(string(code), source)
+	if err != nil {
+		return err
+	}
+	formatted := format.Source(string(code), source, tree)
+
+	if !*force {
+		fmt.Fprint(stdout, formatted)
+		return nil
+	}
+	if formatted == string(code) {
+		fmt.Fprintf(stdout, "%s: 変更はありません\n", source)
+		return nil
+	}
+	if err := os.WriteFile(source, []byte(formatted), info.Mode()); err != nil {
+		return fmt.Errorf("ファイル『%s』へ書き戻せません: %w", source, err)
+	}
+	fmt.Fprintf(stdout, "%s を整形しました\n", source)
+	return nil
+}
+
 // existingDocTestTargets lets the optional manual symlink be absent while the
 // repository-owned fixtures continue to run. An explicitly supplied missing
 // path is still reported by doctest.Collect.
@@ -476,6 +551,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return searchDoc(args[1:], stdout, stderr)
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
+	case "lint":
+		return lintFile(args[1:], stdout)
+	case "format":
+		return formatFile(args[1:], stdout, stderr)
 	}
 
 	if len(args) >= 2 && args[0] == "compat" && args[1] == "run" {
