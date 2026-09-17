@@ -313,3 +313,30 @@ func summarize(tokens []lexer.Token) []string {
 	}
 	return out
 }
+
+// CountIndent は internal/format がインデント文字を字句解析器と同じ基準で
+// 判定するために公開している。全角中黒(・)のような、空白以外のインデント
+// 文字も認識できることを確かめる。
+func TestCountIndent(t *testing.T) {
+	tests := []struct {
+		name       string
+		src        string
+		wantIndent int
+		wantSkip   int
+	}{
+		{"半角スペース2つ", "  A", 2, 2},
+		{"タブ1つ", "\tA", 4, 1},
+		{"全角スペース2つ", "　　A", 4, 2},
+		{"全角中黒2つ", "・・A", 4, 2},
+		{"インデントなし", "A", 0, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			indent, skip := lexer.CountIndent(tt.src)
+			if indent != tt.wantIndent || skip != tt.wantSkip {
+				t.Errorf("CountIndent(%q) = (%d, %d), want (%d, %d)",
+					tt.src, indent, skip, tt.wantIndent, tt.wantSkip)
+			}
+		})
+	}
+}

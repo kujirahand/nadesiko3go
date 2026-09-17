@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
@@ -120,12 +121,20 @@ func RunProgram(code, filename string, h *CUIHost) error {
 // CompileProgram compiles a program to IR without running it, which is what
 // `gonako build` needs.
 func CompileProgram(code, filename string) (*ir.Program, error) {
-	registry := runtimeRegistry()
-	tree, err := parser.ParseSource(code, filename, registry.FuncList())
+	tree, err := ParseProgram(code, filename)
 	if err != nil {
 		return nil, err
 	}
-	return compiler.Compile(tree, filename, registry)
+	return compiler.Compile(tree, filename, runtimeRegistry())
+}
+
+// ParseProgram はプログラムをコンパイルせず、構文木に解析するだけを行う。
+// `gonako run`/`build` と同じ命令レジストリを使う。`gonako lint`/`format`
+// が必要とするのはこれで、文法チェックと、フォーマッターがインデントを
+// 付け直すために使うブロック構造が手に入る。
+func ParseProgram(code, filename string) (*ast.Node, error) {
+	registry := runtimeRegistry()
+	return parser.ParseSource(code, filename, registry.FuncList())
 }
 
 // RunCompiled runs IR that was compiled earlier, which is how a bundled

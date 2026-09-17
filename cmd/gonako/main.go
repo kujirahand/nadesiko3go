@@ -12,11 +12,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/commanddiff"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/doctest"
+	"github.com/kujirahand/nadesiko3go/internal/format"
 	"github.com/kujirahand/nadesiko3go/internal/gogen"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -45,6 +47,8 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
   gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
+  gonako lint <ファイル>             文法をチェックする
+  gonako format <ファイル> [-f]      コードを整形する（インデントを整える）
   gonako compat run [--cases DIR] [--out DIR]
   gonako compat commands [--source FILE]
   gonako version                    バージョン情報を表示する
@@ -68,6 +72,9 @@ doc のオプション:
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
   パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
+
+format のオプション:
+  --force, -f      結果をファイルへ書き戻す（省略時は標準出力に表示するだけ）
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -400,6 +407,129 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
 }
 
+// lintFile はプログラムを実行せずに構文解析だけ行う。間違いは、実行中に
+// 途中で失敗するのではなく、位置付きの文法エラーとして表れる。
+func lintFile(args []string, stdout io.Writer) error {
+	if len(args) != 1 {
+		return errors.New("文法チェックするファイルを1つ指定してください")
+	}
+	source := args[0]
+	code, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	if _, err := vm.ParseProgram(string(code), source); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "%s: 文法エラーはありません\n", source)
+	return nil
+}
+
+// formatFile は、構文解析済みのブロック構造からプログラムのインデントを
+// 付け直す。--forceを付けなければ結果を表示するだけで、gofmtの既定動作と
+// 同じく、書き戻しを求められるまでファイルには手を付けない。
+func formatFile(args []string, stdout, stderr io.Writer) error {
+	flags := flag.NewFlagSet("format", flag.ContinueOnError)
+	flags.SetOutput(stderr)
+	force := flags.Bool("force", false, "結果をファイルへ書き戻す")
+	flags.BoolVar(force, "f", false, "結果をファイルへ書き戻す (--forceの短縮形)")
+	source, rest := splitSourceFor(args)
+	if err := flags.Parse(rest); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return nil
+		}
+		return err
+	}
+	if source == "" && flags.NArg() > 0 {
+		source = flags.Arg(0)
+	}
+	if source == "" || flags.NArg() > 0 {
+		return errors.New("整形するファイルを1つ指定してください")
+	}
+
+	info, err := os.Stat(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	code, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
+	}
+	tree, err := vm.ParseProgram(string(code), source)
+	if err != nil {
+		return err
+	}
+	formatted := format.Source(string(code), source, tree)
+	unchanged := formatted == string(code)
+	if !unchanged {
+		if err := checkSameProgram(tree, formatted, source); err != nil {
+			return err
+		}
+	}
+
+	if !*force {
+		fmt.Fprint(stdout, formatted)
+		return nil
+	}
+	if unchanged {
+		fmt.Fprintf(stdout, "%s: 変更はありません\n", source)
+		return nil
+	}
+	if err := atomicWriteFile(source, []byte(formatted), info.Mode()); err != nil {
+		return fmt.Errorf("ファイル『%s』へ書き戻せません: %w", source, err)
+	}
+	fmt.Fprintf(stdout, "%s を整形しました\n", source)
+	return nil
+}
+
+// atomicWriteFile は、同じディレクトリに一時ファイルを作って書き込み、
+// 内容をディスクへ確実に反映してから、既存ファイルへリネームで置き換える。
+// os.WriteFileは既存ファイルを開くときに先に切り詰めるため、ディスク容量
+// 不足やプロセスの異常終了で書き込みが途中で失敗すると、元の内容を失った
+// まま復元できなくなる。フォーマッターの失敗が入力ファイルそのものを
+// 壊してしまうのを避けるため、書き戻しにはこちらを使う。
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath) // 成功時はRenameで移動済みなので、失敗時だけ消える
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
+}
+
+// checkSameProgram は、もはや同じプログラムではなくなった結果を返すことを
+// 拒否する。インデント自身が構文になっているファイル(『!インデント構文』
+// や行末の『:』を使うファイルが該当する)では、インデントの付け替えが文を
+// ブロックの内外へ移動させてしまうため、処理を止めることだけが安全な答え
+// になる。
+func checkSameProgram(original *ast.Node, formatted, source string) error {
+	tree, err := vm.ParseProgram(formatted, source)
+	if err != nil {
+		return fmt.Errorf("整形結果が構文解析できなくなるため中止しました: %w", err)
+	}
+	if format.Structure(tree) != format.Structure(original) {
+		return fmt.Errorf("『%s』は整形すると構文構造が変わってしまうため中止しました。"+
+			"インデントでブロックを表すファイル(『!インデント構文』や『3回:』のようなコロン記法)は整形できません", source)
+	}
+	return nil
+}
+
 // existingDocTestTargets lets the optional manual symlink be absent while the
 // repository-owned fixtures continue to run. An explicitly supplied missing
 // path is still reported by doctest.Collect.
@@ -476,6 +606,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return searchDoc(args[1:], stdout, stderr)
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
+	case "lint":
+		return lintFile(args[1:], stdout)
+	case "format":
+		return formatFile(args[1:], stdout, stderr)
 	}
 
 	if len(args) >= 2 && args[0] == "compat" && args[1] == "run" {

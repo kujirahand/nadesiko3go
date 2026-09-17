@@ -402,3 +402,186 @@ func TestBundledExitCode(t *testing.T) {
 		t.Errorf("host.Exited = %v, host.ExitCode = %d, want true, 3", host.Exited, host.ExitCode)
 	}
 }
+
+func TestLintOK(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ok.nako3")
+	if err := os.WriteFile(path, []byte("「やあ」と表示。"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"lint", path}, &out, &errOut); err != nil {
+		t.Fatalf("lint: %v; stderr=%s", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "文法エラーはありません") {
+		t.Errorf("出力 = %q", out.String())
+	}
+}
+
+func TestLintSyntaxError(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "bad.nako3")
+	if err := os.WriteFile(path, []byte("もし1=1ならば\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"lint", path}, &out, &errOut); err == nil {
+		t.Fatal("文法エラーのあるファイルでエラーになりませんでした")
+	}
+}
+
+func TestFormatPrintsToStdoutByDefault(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.nako3")
+	original := "もし、1=1ならば\n「やあ」と表示。\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
+	}
+	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	if out.String() != want {
+		t.Errorf("出力 = %q, want %q", out.String(), want)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != original {
+		t.Errorf("--forceなしでファイルが書き換わりました: %q", got)
+	}
+}
+
+func TestFormatForceWritesFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.nako3")
+	original := "もし、1=1ならば\n「やあ」と表示。\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", "--force", path}, &out, &errOut); err != nil {
+		t.Fatalf("format --force: %v; stderr=%s", err, errOut.String())
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	if string(got) != want {
+		t.Errorf("ファイルの内容 = %q, want %q", got, want)
+	}
+
+	// 整形済みなら2回目は変更なしと報告する
+	out.Reset()
+	if err := run([]string{"format", "-f", path}, &out, &errOut); err != nil {
+		t.Fatalf("format -f: %v; stderr=%s", err, errOut.String())
+	}
+	if !strings.Contains(out.String(), "変更はありません") {
+		t.Errorf("出力 = %q", out.String())
+	}
+}
+
+// TestFormatDoesNotConfuseRequiredFileLineNumbers は、『!「file」を取込』で
+// 展開される取込先ファイルの行番号(そちらも0始まりなので本体の行番号と
+// 衝突しうる)が、本体側のインデント計算に紛れ込まないことを確かめる
+// (取込先ファイルのトップレベルの行が、本体のもし文の中の同じ行番号の
+// 文を、より浅い深さで上書きしてしまう不具合の回帰テスト)。
+func TestFormatDoesNotConfuseRequiredFileLineNumbers(t *testing.T) {
+	dir := t.TempDir()
+	lib := "「lib1」と表示。\n「lib2」と表示。\n「lib3」と表示。\n"
+	if err := os.WriteFile(filepath.Join(dir, "lib.nako3"), []byte(lib), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	main := "!「lib.nako3」を取込。\n" +
+		"もし、1=1ならば\n" +
+		"「A」と表示。\n" +
+		"「B」と表示。\n" +
+		"「C」と表示。\n" +
+		"ここまで\n"
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
+	}
+	want := "!「lib.nako3」を取込。\n" +
+		"もし、1=1ならば\n" +
+		"    「A」と表示。\n" +
+		"    「B」と表示。\n" +
+		"    「C」と表示。\n" +
+		"ここまで\n"
+	if out.String() != want {
+		t.Errorf("出力 = %q, want %q", out.String(), want)
+	}
+}
+
+// --forceでの書き戻しは、既存ファイルのパーミッションを保つ(一時ファイル
+// を作ってリネームする実装なので、既定のパーミッションで新規作成される
+// ことがないかを確かめる)。
+func TestFormatForcePreservesFileMode(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "p.nako3")
+	original := "もし、1=1ならば\n「やあ」と表示。\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", "--force", path}, &out, &errOut); err != nil {
+		t.Fatalf("format --force: %v; stderr=%s", err, errOut.String())
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Errorf("パーミッション = %v, want %v", info.Mode().Perm(), os.FileMode(0o600))
+	}
+}
+
+// 行末の『:』でブロックを表すファイルは、インデントを付け替えると
+// ブロックの範囲が変わってしまう。書き換えずに中止することを確かめる。
+func TestFormatRefusesWhenStructureWouldChange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "colon.nako3")
+	original := "3回:\n    「A」と表示。\n「終」と表示。\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	err := run([]string{"format", "--force", path}, &out, &errOut)
+	if err == nil {
+		t.Fatal("構造が変わるファイルで中止しませんでした")
+	}
+	if !strings.Contains(err.Error(), "構文構造が変わってしまうため中止") {
+		t.Errorf("エラー = %v", err)
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != original {
+		t.Errorf("中止したのにファイルが書き換わりました: %q", got)
+	}
+}
+
+// インデント構文でも、デデントした行がブロックの外に出たままであることを確かめる。
+func TestFormatKeepsIndentSyntaxMeaning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "indent.nako3")
+	original := "!インデント構文\n3回\n    「A」と表示。\n「終わり」と表示。\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v", err)
+	}
+	if out.String() != original {
+		t.Errorf("出力 = %q, want %q", out.String(), original)
+	}
+}
