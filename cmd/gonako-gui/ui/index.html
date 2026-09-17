@@ -36,6 +36,10 @@
         <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (F5 / Ctrl+R / Cmd+R)">
           <span class="icon">▶</span> 実行 (F5)
         </button>
+        <!-- 文法チェック -->
+        <button id="btn-syntax-check" class="btn btn-secondary btn-icon-only" title="文法チェック（実行せずに構文だけ確認します）">
+          <span class="icon">✓</span>
+        </button>
         <div class="separator"></div>
         <!-- アプリ種類 -->
         <div class="app-type-group">
@@ -68,6 +72,10 @@
             </button>
             <button id="menu-item-save-as" class="menu-item">
               <span class="menu-icon">📑</span> 名前を付けて保存...
+            </button>
+            <div class="menu-separator"></div>
+            <button id="menu-item-format" class="menu-item" title="コードのインデントを整えます（実行はしません）">
+              <span class="menu-icon">🧹</span> 自動整形
             </button>
             <div class="menu-separator"></div>
             <button id="menu-item-ai-project" class="menu-item" title="編集中のファイルと同じフォルダへ、AI開発用のAGENTS.mdとCLAUDE.mdを配置します">
