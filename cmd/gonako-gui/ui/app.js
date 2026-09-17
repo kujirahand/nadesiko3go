@@ -2331,6 +2331,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return editor.value !== requestCode || currentFilePath !== requestFilePath;
   }
 
+  // 応答が古くなっていて結果を捨てるとき、状態表示が開始時の「実行中」
+  // メッセージのままなら中止を伝える。既に他の操作（保存・実行など）が
+  // 状態表示を書き換えていれば、それを消さないよう何もしない
+  // （Devin指摘: 中止表示が他操作の状態を上書きする／逆に実行中表示が残り続ける）。
+  function reportStaleIfIdle(inProgressMsg, staleMsg) {
+    if (statusMsg.textContent === inProgressMsg) {
+      setStatus(staleMsg);
+    }
+  }
+
   // 文法チェック（#118）。実行はせず構文解析だけを行うので、
   // 副作用のあるプログラムでも安全に呼べる。
   async function checkSyntax() {
@@ -2345,7 +2355,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('文法チェック中...');
     try {
       const raw = await window.checkNakoSyntax(code, filePath || '');
-      if (isStaleRequest(code, filePath)) return;
+      if (isStaleRequest(code, filePath)) {
+        reportStaleIfIdle('文法チェック中...', '文法チェック: 待機中に編集されたため中止しました');
+        return;
+      }
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (data.ok) {
         output.textContent = '文法エラーはありません';
@@ -2361,7 +2374,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus('文法チェックでエラーが見つかりました');
       }
     } catch (err) {
-      if (isStaleRequest(code, filePath)) return;
+      if (isStaleRequest(code, filePath)) {
+        reportStaleIfIdle('文法チェック中...', '文法チェック: 待機中に編集されたため中止しました');
+        return;
+      }
       output.textContent = `[システムエラー] ${err.message || err}`;
       output.className = 'output has-error';
       setStatus(`システムエラー: ${err}`);
@@ -2383,10 +2399,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('自動整形中...');
     try {
       const raw = await window.formatNakoCode(code, filePath || '');
-      // 待っている間に別の操作（保存・実行など）が進んでいる可能性があるため、
-      // ここでは何も表示せず黙って捨てる。setStatusで上書きすると、その別操作の
-      // 状態表示を古い整形結果の中止メッセージで消してしまう（Devin指摘）。
-      if (isStaleRequest(code, filePath)) return;
+      if (isStaleRequest(code, filePath)) {
+        reportStaleIfIdle('自動整形中...', '自動整形: 待機中に編集されたため中止しました');
+        return;
+      }
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!data.ok) {
         setOutputPanelOpen(true);
@@ -2414,7 +2430,10 @@ document.addEventListener('DOMContentLoaded', () => {
       updateCursorPos();
       setStatus('自動整形が完了しました');
     } catch (err) {
-      if (isStaleRequest(code, filePath)) return;
+      if (isStaleRequest(code, filePath)) {
+        reportStaleIfIdle('自動整形中...', '自動整形: 待機中に編集されたため中止しました');
+        return;
+      }
       setStatus(`システムエラー: ${err.message || err}`);
     } finally {
       menuItemFormat.disabled = false;
