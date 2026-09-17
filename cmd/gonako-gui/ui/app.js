@@ -426,6 +426,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (request.kind === 'buttons' || request.kind === 'list') {
       return showNakoChoiceDialog(request);
     }
+    if (request.kind === 'custom') {
+      return showNakoCustomDialog(request);
+    }
     return new Promise((resolve) => {
       const isPrompt = request.kind === 'prompt';
       const isConfirm = request.kind === 'confirm';
@@ -569,6 +572,73 @@ document.addEventListener('DOMContentLoaded', () => {
         ? (dialogButtonsWrapper.querySelector('button') || dialogBtnClose)
         : dialogList;
       focusTarget.focus();
+    });
+  }
+
+  // 「カスタムダイアログ表示」用のダイアログ。request.messageには
+  // {html, items} をJSON化したものが入っている（guilib.cmdCustomDialog参照）。
+  // htmlはそのままdialogMessageに挿入し、itemsをボタンラベルとして並べる。
+  // [x]で閉じると { text: '', accepted: false } を返す。
+  function showNakoCustomDialog(request) {
+    return new Promise((resolve) => {
+      let payload = {};
+      try {
+        payload = JSON.parse(request.message || '{}');
+      } catch (e) {
+        payload = {};
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+
+      dialogTitle.textContent = 'ダイアログ';
+      dialogMessage.innerHTML = payload.html || '';
+      dialogInputWrapper.style.display = 'none';
+      dialogBtnClose.style.display = 'inline-flex';
+
+      dialogButtonsWrapper.innerHTML = '';
+      dialogButtonsWrapper.style.display = 'flex';
+      dialogListWrapper.style.display = 'none';
+
+      dialogFooter.style.display = 'none';
+      dialogBtnCancel.style.display = 'none';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = 'none';
+
+      dialogOverlay.style.display = 'flex';
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogMessage.innerHTML = '';
+        dialogButtonsWrapper.innerHTML = '';
+        dialogButtonsWrapper.style.display = 'none';
+        dialogFooter.style.display = 'flex';
+        dialogBtnClose.style.display = 'none';
+        dialogBtnClose.removeEventListener('click', onClose);
+        document.removeEventListener('keydown', onKeyDown, true);
+      }
+      function finish(text, accepted) {
+        cleanup();
+        resolve({ text, accepted });
+      }
+      function onClose() { finish('', false); }
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        }
+      }
+
+      items.forEach((label) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.addEventListener('click', () => finish(label, true));
+        dialogButtonsWrapper.appendChild(btn);
+      });
+
+      dialogBtnClose.addEventListener('click', onClose);
+      document.addEventListener('keydown', onKeyDown, true);
+
+      (dialogButtonsWrapper.querySelector('button') || dialogBtnClose).focus();
     });
   }
 
