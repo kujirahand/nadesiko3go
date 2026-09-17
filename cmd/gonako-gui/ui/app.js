@@ -2286,10 +2286,56 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // オフセットoldOffsetの(行, 桁)を求め、その行の旧インデント幅・新インデント幅の
+  // 差だけ桁をずらしてnewText側のオフセットへ変換する。整形（format.Source）は
+  // 各行の先頭の空白（インデント）だけを書き換え、それ以外は行内で位置を保つため、
+  // オフセットの単純な使い回しではインデントが変わった行でカーソルがずれる（Devin指摘）。
+  function mapOffsetAfterFormat(oldText, newText, oldOffset) {
+    const oldLines = oldText.split('\n');
+    const newLines = newText.split('\n');
+    let row = 0;
+    let remaining = oldOffset;
+    for (; row < oldLines.length; row++) {
+      const lineLen = oldLines[row].length;
+      if (remaining <= lineLen || row === oldLines.length - 1) break;
+      remaining -= lineLen + 1; // 改行の分
+    }
+    const oldLine = oldLines[row] || '';
+    const col = Math.max(0, Math.min(remaining, oldLine.length));
+    const oldIndentLen = oldLine.length - oldLine.replace(/^[ \t]+/, '').length;
+
+    const newRow = Math.min(row, newLines.length - 1);
+    const newLine = newLines[newRow] || '';
+    const newIndentLen = newLine.length - newLine.replace(/^[ \t]+/, '').length;
+
+    let newCol;
+    if (col <= oldIndentLen) {
+      // インデント部分にいた場合は、新しいインデントの範囲に収める。
+      newCol = Math.min(col, newIndentLen);
+    } else {
+      // インデントより後ろの内容はそのまま保たれるので、差分だけ動かす。
+      newCol = newIndentLen + (col - oldIndentLen);
+    }
+    newCol = Math.max(0, Math.min(newCol, newLine.length));
+
+    let offset = 0;
+    for (let i = 0; i < newRow; i++) offset += newLines[i].length + 1;
+    return offset + newCol;
+  }
+
+  // 文法チェック・自動整形の非同期応答を待つ間に、利用者が編集を続けたり
+  // 別のファイルへ切り替えたりできる。応答が届いた時点で送信時の内容から
+  // 変わっていれば、古い結果でエディタや表示を上書きしないよう捨てる
+  // （Devin指摘: 解析中の編集を古い結果が上書きする）。
+  function isStaleRequest(requestCode, requestFilePath) {
+    return editor.value !== requestCode || currentFilePath !== requestFilePath;
+  }
+
   // 文法チェック（#118）。実行はせず構文解析だけを行うので、
   // 副作用のあるプログラムでも安全に呼べる。
   async function checkSyntax() {
     const code = editor.value;
+    const filePath = currentFilePath;
     if (!code.trim()) {
       setStatus('（プログラムが空です）');
       return;
@@ -2298,7 +2344,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSyntaxCheck.disabled = true;
     setStatus('文法チェック中...');
     try {
-      const raw = await window.checkNakoSyntax(code, currentFilePath || '');
+      const raw = await window.checkNakoSyntax(code, filePath || '');
+      if (isStaleRequest(code, filePath)) return;
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (data.ok) {
         output.textContent = '文法エラーはありません';
@@ -2314,6 +2361,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus('文法チェックでエラーが見つかりました');
       }
     } catch (err) {
+      if (isStaleRequest(code, filePath)) return;
       output.textContent = `[システムエラー] ${err.message || err}`;
       output.className = 'output has-error';
       setStatus(`システムエラー: ${err}`);
@@ -2326,13 +2374,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 整形結果に置き換える。保存は利用者が別途行う。
   async function formatCode() {
     const code = editor.value;
+    const filePath = currentFilePath;
     if (!code.trim()) {
       setStatus('（プログラムが空です）');
       return;
     }
+    menuItemFormat.disabled = true;
     setStatus('自動整形中...');
     try {
-      const raw = await window.formatNakoCode(code, currentFilePath || '');
+      const raw = await window.formatNakoCode(code, filePath || '');
+      if (isStaleRequest(code, filePath)) {
+        setStatus('自動整形: 待機中に編集されたため中止しました');
+        return;
+      }
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!data.ok) {
         setOutputPanelOpen(true);
@@ -2345,16 +2399,25 @@ document.addEventListener('DOMContentLoaded', () => {
         setStatus('自動整形: 変更はありません');
         return;
       }
-      const cursorOffset = editor.selectionStart;
+      const selStart = mapOffsetAfterFormat(code, data.formatted, editor.selectionStart);
+      const selEnd = mapOffsetAfterFormat(code, data.formatted, editor.selectionEnd);
+      const direction = editor.selectionDirection;
       editor.value = data.formatted;
-      editor.selectionStart = editor.selectionEnd = Math.min(cursorOffset, editor.value.length);
+      editor.setSelectionRange(
+        Math.min(selStart, selEnd),
+        Math.max(selStart, selEnd),
+        direction
+      );
       updateFileTitleDisplay();
       updateLineNumbers();
       updateCharCount();
       updateCursorPos();
       setStatus('自動整形が完了しました');
     } catch (err) {
+      if (isStaleRequest(code, filePath)) return;
       setStatus(`システムエラー: ${err.message || err}`);
+    } finally {
+      menuItemFormat.disabled = false;
     }
   }
 
