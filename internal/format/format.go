@@ -90,21 +90,34 @@ func Source(code, filename string, tree *ast.Node) string {
 	}
 
 	for i, pl := range lines {
+		endSp, hasEnd := endAt[i]
+		startSp, hasStart := startAt[i]
+		runes := []rune(pl.text)
 		switch {
 		case inside[i]:
 			// リテラル・範囲コメントの内部の行はそのまま。
 			out[i] = pl.text
 			rawEnding[i] = true
-		case hasSpan(startAt, i):
-			sp := startAt[i]
-			runes := []rune(pl.text)
-			col := clampCol(sp.startCol, len(runes))
+		case hasEnd && hasStart:
+			// 1つの行に、手前のリテラル・範囲コメントの閉じ記号と、次の
+			// リテラルの開き記号が両方ある(範囲コメントの直後に文字列が
+			// 始まるなど、非常に稀なケース)。閉じ記号までと開き記号から
+			// 先はそのまま残し、その間(行の途中なのでインデントは付け
+			// 直さない)だけ末尾の空白を落とす。
+			endCol := clampCol(endSp.endCol, len(runes))
+			startCol := clampCol(startSp.startCol, len(runes))
+			if startCol < endCol {
+				startCol = endCol
+			}
+			middle := strings.TrimRight(string(runes[endCol:startCol]), " \t　")
+			out[i] = string(runes[:endCol]) + middle + string(runes[startCol:])
+			rawEnding[i] = true
+		case hasStart:
+			col := clampCol(startSp.startCol, len(runes))
 			out[i] = reindent(string(runes[:col]), i) + string(runes[col:])
 			rawEnding[i] = true
-		case hasSpan(endAt, i):
-			sp := endAt[i]
-			runes := []rune(pl.text)
-			col := clampCol(sp.endCol, len(runes))
+		case hasEnd:
+			col := clampCol(endSp.endCol, len(runes))
 			// 閉じ記号より後ろに続くコードは、行頭ではないのでインデントは
 			// 付け直さず、末尾の空白だけ落とす。
 			out[i] = string(runes[:col]) + strings.TrimRight(string(runes[col:]), " \t　")
@@ -127,11 +140,6 @@ func Source(code, filename string, tree *ast.Node) string {
 		}
 	}
 	return b.String()
-}
-
-func hasSpan(m map[int]protectedSpan, line int) bool {
-	_, ok := m[line]
-	return ok
 }
 
 func clampCol(col, max int) int {

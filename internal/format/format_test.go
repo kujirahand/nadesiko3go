@@ -220,6 +220,24 @@ func TestSourceKeepsLiteralInteriorNewlineStyle(t *testing.T) {
 	}
 }
 
+// 1つの行に、手前の範囲コメントの閉じ記号と、次の文字列リテラルの開き
+// 記号が両方あるとき(範囲コメントの直後に複数行文字列が始まる、非常に
+// 稀なケース)、コメントの中身の一部にインデントを書き込んでしまわない。
+func TestSourceHandlesAdjacentProtectedSpansOnSameLine(t *testing.T) {
+	code := "もし、1=1ならば\n" +
+		"/*コメント\n続き*/A=『あ\nい』\n" +
+		"Aを表示。\n" +
+		"ここまで\n"
+	got := formatSource(t, code)
+	want := "もし、1=1ならば\n" +
+		"/*コメント\n続き*/A=『あ\nい』\n" +
+		"    Aを表示。\n" +
+		"ここまで\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
 func TestSourceKeepsMultilineArrayAsContinuation(t *testing.T) {
 	code := "データ = [\n" +
 		"1,\n" +
