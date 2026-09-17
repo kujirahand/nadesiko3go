@@ -857,3 +857,57 @@ func TestChoiceDialogsUnsupportedHostReturnsEmptyString(t *testing.T) {
 		t.Fatalf("output = %q, want empty", got)
 	}
 }
+
+func TestCustomDialogReturnsSelectedLabel(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	host := &dialogCUIHost{
+		CUIHost:   vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil),
+		answer:    "はい",
+		accepted:  true,
+		supported: true,
+	}
+	var out strings.Builder
+	host.Out = &out
+	code := `"<h1>続けますか？</h1>"で["はい","いいえ"]をカスタムダイアログ表示を表示`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if host.kind != "custom" {
+		t.Fatalf("kind = %q, want custom", host.kind)
+	}
+	if !strings.Contains(host.message, `"html":"<h1>続けますか？</h1>"`) || !strings.Contains(host.message, `"items":["はい","いいえ"]`) {
+		t.Fatalf("message = %q", host.message)
+	}
+	if got := strings.TrimSpace(out.String()); got != "はい" {
+		t.Fatalf("output = %q, want はい", got)
+	}
+}
+
+func TestCustomDialogClosedReturnsEmptyString(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	host := &dialogCUIHost{
+		CUIHost:   vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil),
+		accepted:  false,
+		supported: true,
+	}
+	var out strings.Builder
+	host.Out = &out
+	if err := vm.RunWithHostAndRegistry(`"<p>本文</p>"で["OK"]をカスタムダイアログ表示を表示`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "" {
+		t.Fatalf("output = %q, want empty", got)
+	}
+}
+
+func TestCustomDialogUnsupportedHostReturnsEmptyString(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	if err := vm.RunWithHostAndRegistry(`"<p>本文</p>"で["OK"]をカスタムダイアログ表示を表示`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "" {
+		t.Fatalf("output = %q, want empty", got)
+	}
+}

@@ -181,9 +181,74 @@
     });
   }
 
+  // 「カスタムダイアログ表示」用のダイアログ。messageには{html, items}を
+  // JSON化したものが入っている（internal/guilib のcmdCustomDialog参照）。
+  // htmlはそのまま本文としてDOMに挿入し、itemsをボタンラベルとして並べる。
+  // 右上の[x]は{ text: '', accepted: false }を返す。
+  function showGonakoCustomDialogNow(message) {
+    return new Promise(resolve => {
+      let payload = {};
+      try { payload = JSON.parse(message || '{}'); } catch (e) { payload = {}; }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;'
+        + 'background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;'
+        + 'font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic UI",sans-serif;';
+      const box = document.createElement('div');
+      box.style.cssText = 'position:relative;background:#fff;color:#222;min-width:280px;max-width:520px;'
+        + 'padding:20px;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.3);';
+
+      const closeBtn = document.createElement('button');
+      closeBtn.textContent = '×';
+      closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;width:24px;height:24px;'
+        + 'border:none;background:transparent;font-size:18px;line-height:1;cursor:pointer;color:#888;';
+      box.appendChild(closeBtn);
+
+      const body = document.createElement('div');
+      body.innerHTML = payload.html || '';
+      body.style.cssText = 'margin:0 20px 14px 0;font-size:14px;line-height:1.5;';
+      box.appendChild(body);
+
+      function finish(text, accepted) {
+        document.removeEventListener('keydown', onKeyDown, true);
+        overlay.remove();
+        resolve({ text, accepted });
+      }
+      closeBtn.addEventListener('click', () => finish('', false));
+
+      const buttons = document.createElement('div');
+      buttons.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+      items.forEach(label => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = 'padding:6px 14px;font-size:13px;border-radius:4px;cursor:pointer;'
+          + 'background:#f0f0f0;color:#222;border:1px solid #ccc;';
+        btn.addEventListener('click', () => finish(label, true));
+        buttons.appendChild(btn);
+      });
+      box.appendChild(buttons);
+
+      function onKeyDown(e) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          finish('', false);
+        }
+      }
+
+      overlay.appendChild(box);
+      (document.body || document.documentElement).appendChild(overlay);
+      document.addEventListener('keydown', onKeyDown, true);
+      (overlay.querySelector('button')).focus();
+    });
+  }
+
   function showGonakoDialogNow(kind, message) {
     if (kind === 'buttons' || kind === 'list') {
       return showGonakoChoiceDialogNow(kind, message);
+    }
+    if (kind === 'custom') {
+      return showGonakoCustomDialogNow(message);
     }
     return new Promise(resolve => {
       const overlay = document.createElement('div');

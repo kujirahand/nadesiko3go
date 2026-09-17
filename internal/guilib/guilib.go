@@ -1,6 +1,7 @@
 package guilib
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -121,6 +122,10 @@ func (p *Plugin) commands() map[string]command {
 		"リスト選択": { // @候補配列からリストで選ばせて選んだ文字列を返す。キャンセルまたは[x]で閉じると空文字列を返す // @りすとせんたく
 			josi: [][]string{{"の"}},
 			fn:   p.cmdListChoice,
+		},
+		"カスタムダイアログ表示": { // @HTML文字列AとボタンラベルBの配列からモーダルダイアログを表示し、押されたボタンのラベルを返す。[x]で閉じると空文字列を返す // @かすたむだいあろぐひょうじ
+			josi: [][]string{{"で"}, {"を", "の"}},
+			fn:   p.cmdCustomDialog,
 		},
 		"DOM親要素設定": { // @DOM部品を追加する親要素を指定して、その要素を返す // @DOMおやようそせってい
 			josi: [][]string{{"に", "へ"}},
@@ -432,6 +437,39 @@ func (p *Plugin) cmdButtonChoice(ctx stdlib.Context, args []value.Value) (value.
 
 func (p *Plugin) cmdListChoice(ctx stdlib.Context, args []value.Value) (value.Value, error) {
 	return p.showChoiceDialog(ctx, "list", args)
+}
+
+// customDialogPayload は「カスタムダイアログ表示」の要求をJSONへ載せて
+// DialogContext.ShowDialog(kind, message)のmessageに渡すための入れ物。
+type customDialogPayload struct {
+	HTML  string   `json:"html"`
+	Items []string `json:"items"`
+}
+
+func (p *Plugin) cmdCustomDialog(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	html := value.ToString(arg(args, 0))
+	items := valuesFromArray(arg(args, 1))
+	// json.Marshalは既定でHTMLの`<`>`&`をエスケープしてしまうため、
+	// HTML文字列をそのままJavaScript側へ届けられるようEscapeHTMLを切る。
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(customDialogPayload{HTML: html, Items: items}); err != nil {
+		return value.String(""), err
+	}
+	payload := bytes.TrimRight(buf.Bytes(), "\n")
+	dialogs, ok := ctx.(stdlib.DialogContext)
+	if !ok {
+		return value.String(""), nil
+	}
+	answer, accepted, supported, err := dialogs.ShowDialog("custom", string(payload))
+	if err != nil {
+		return value.String(""), err
+	}
+	if supported && accepted {
+		return value.String(answer), nil
+	}
+	return value.String(""), nil
 }
 
 func (p *Plugin) cmdDisplayHTML(_ stdlib.Context, args []value.Value) (value.Value, error) {

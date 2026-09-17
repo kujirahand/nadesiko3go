@@ -127,8 +127,9 @@ function apply(ops) {
 // 止まるので使わない。『ボタン選択』『リスト選択』のd.messageには
 // {label, items} をJSON化したものが入っている（internal/guilib参照）。
 function ask(d) {
-  const isChoice = d.kind === 'buttons' || d.kind === 'list';
-  return isChoice ? askChoice(d) : askPlain(d);
+  if (d.kind === 'buttons' || d.kind === 'list') return askChoice(d);
+  if (d.kind === 'custom') return askCustom(d);
+  return askPlain(d);
 }
 
 function askPlain(d) {
@@ -232,6 +233,57 @@ function askChoice(d) {
       });
     }
     (isButtons ? (buttons.querySelector('button') || closeBtn) : list).focus();
+  });
+}
+
+// 『カスタムダイアログ表示』のダイアログ。d.messageには{html, items}を
+// JSON化したものが入っている（internal/guilib のcmdCustomDialog参照）。
+function askCustom(d) {
+  return new Promise(resolve => {
+    let payload = {};
+    try { payload = JSON.parse(d.message || '{}'); } catch (e) { payload = {}; }
+    const items = Array.isArray(payload.items) ? payload.items : [];
+
+    const overlay = document.getElementById('overlay');
+    const closeBtn = document.getElementById('dialog-close');
+    const buttons = document.getElementById('dialog-buttons');
+    const list = document.getElementById('dialog-list');
+    const input = document.getElementById('dialog-input');
+    const cancel = document.getElementById('dialog-cancel');
+    const ok = document.getElementById('dialog-ok');
+
+    document.getElementById('dialog-title').textContent = '';
+    document.getElementById('dialog-message').innerHTML = payload.html || '';
+    input.style.display = 'none';
+    list.style.display = 'none';
+    closeBtn.style.display = 'inline-block';
+    cancel.style.display = 'none';
+    ok.style.display = 'none';
+    buttons.innerHTML = '';
+    buttons.style.display = 'flex';
+    overlay.style.display = 'flex';
+
+    const done = (text, accepted) => {
+      overlay.style.display = 'none';
+      closeBtn.onclick = null;
+      buttons.innerHTML = '';
+      document.getElementById('dialog-message').innerHTML = '';
+      document.removeEventListener('keydown', onKeyDown, true);
+      resolve({ text, accepted });
+    };
+    function onKeyDown(e) {
+      if (e.key === 'Escape') done('', false);
+    }
+    closeBtn.onclick = () => done('', false);
+    document.addEventListener('keydown', onKeyDown, true);
+
+    items.forEach(label => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.onclick = () => done(label, true);
+      buttons.appendChild(btn);
+    });
+    (buttons.querySelector('button') || closeBtn).focus();
   });
 }
 
