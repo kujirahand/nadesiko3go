@@ -44,15 +44,15 @@ func TestEditorSettingsLoadAndSave(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte(`{"theme":"auto","other":123}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"theme":"auto","other":123,"cursor":9007199254740993}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := saveEditorTheme(guilib.ThemeLight); err != nil {
 		t.Fatalf("保存に失敗しました: %v", err)
 	}
 	data, _ := os.ReadFile(path)
-	if !strings.Contains(string(data), `"other": 123`) {
-		t.Fatalf("ほかの設定項目が消えています: %s", data)
+	if !strings.Contains(string(data), `"other": 123`) || !strings.Contains(string(data), `"cursor": 9007199254740993`) {
+		t.Fatalf("ほかの設定項目が消えたか変わっています: %s", data)
 	}
 	settings, err = loadEditorSettings()
 	if err != nil || settings.Theme != guilib.ThemeLight {
@@ -70,5 +70,11 @@ func TestEditorSettingsLoadAndSave(t *testing.T) {
 	}
 	if settings, err := loadEditorSettings(); err == nil || settings.Theme != guilib.ThemeAuto {
 		t.Fatalf("壊れたJSONはエラーと既定値を返すはずです: %#v %v", settings, err)
+	}
+	if err := saveEditorTheme(guilib.ThemeDark); err == nil {
+		t.Fatal("壊れたJSONの設定ファイルを上書きしてはいけません")
+	}
+	if data, _ := os.ReadFile(path); string(data) != `{` {
+		t.Fatalf("壊れた設定ファイルが書き換えられています: %s", data)
 	}
 }

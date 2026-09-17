@@ -69,14 +69,24 @@ func saveEditorTheme(theme string) error {
 	if err != nil {
 		return err
 	}
-	raw := map[string]any{}
-	if data, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(data, &raw)
-		if raw == nil {
-			raw = map[string]any{}
+	// ほかの項目は値を解釈せずそのまま残す（大きな整数の丸めなどを防ぐ）。
+	// 既存ファイルを読めないときは、上書きして設定を失わないようエラーにする。
+	raw := map[string]json.RawMessage{}
+	if existing, readErr := os.ReadFile(path); readErr == nil {
+		if err := json.Unmarshal(existing, &raw); err != nil {
+			return fmt.Errorf("%sをJSONとして読めません: %w", path, err)
 		}
+		if raw == nil {
+			raw = map[string]json.RawMessage{}
+		}
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return fmt.Errorf("%sを読めません: %w", path, readErr)
 	}
-	raw["theme"] = theme
+	themeData, err := json.Marshal(theme)
+	if err != nil {
+		return err
+	}
+	raw["theme"] = themeData
 	data, err := json.MarshalIndent(raw, "", "  ")
 	if err != nil {
 		return err

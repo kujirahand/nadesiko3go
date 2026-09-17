@@ -43,7 +43,8 @@ func nativeThemeCode(theme string) int {
 }
 
 // themeScript はページの<html>へdata-gonako-theme（light/dark）を付ける。
-// 自動のときはprefers-color-schemeの変化にも追従する。
+// 自動のときはprefers-color-schemeの変化にも追従し、OSの配色変更を
+// __gonakoSyncNativeThemeでネイティブ側（Windowsのタイトルバーなど）へ伝える。
 // ライト・ダークのときはcolor-schemeも固定し、配色を持たないページでも
 // ブラウザ標準の背景色や文字色がテーマに合うようにする。
 func themeScript(theme string) string {
@@ -61,7 +62,11 @@ func themeScript(theme string) string {
       try { window.dispatchEvent(new CustomEvent('gonako-theme-change', { detail: { theme: t, resolved: resolved } })); } catch (e) {}
     };
     if (mq) {
-      var onChange = function() { if (window.__gonakoTheme === 'auto') { window.__gonakoApplyTheme(); } };
+      var onChange = function() {
+        if (window.__gonakoTheme !== 'auto') { return; }
+        window.__gonakoApplyTheme();
+        if (typeof window.__gonakoSyncNativeTheme === 'function') { window.__gonakoSyncNativeTheme(); }
+      };
       if (mq.addEventListener) { mq.addEventListener('change', onChange); } else if (mq.addListener) { mq.addListener(onChange); }
     }
     if (!document.documentElement) {
@@ -77,6 +82,24 @@ type themeWebView interface {
 	Window() unsafe.Pointer
 	Init(js string)
 	Eval(js string)
+	Bind(name string, f interface{}) error
+}
+
+// themeSyncBound はBind済みのウィンドウを覚える。同じ名前は二度Bindできない。
+var themeSyncBound sync.Map
+
+// bindNativeThemeSync は、自動テーマのウィンドウでOSの配色が変わったときに
+// ページから呼ばれる関数を登録する。Bindの呼び出しはUIスレッドで実行される。
+func bindNativeThemeSync(w themeWebView) {
+	window := w.Window()
+	if _, loaded := themeSyncBound.LoadOrStore(window, true); loaded {
+		return
+	}
+	_ = w.Bind("__gonakoSyncNativeTheme", func() {
+		if windowTheme(window) == guilib.ThemeAuto {
+			_ = platformApplyWindowTheme(window, guilib.ThemeAuto)
+		}
+	})
 }
 
 // applyWindowTheme はUIスレッドから呼ぶ。Initで以降のページ遷移にも適用し、
@@ -87,6 +110,7 @@ func applyWindowTheme(w themeWebView, theme string) error {
 		return err
 	}
 	windowThemes.Store(window, theme)
+	bindNativeThemeSync(w)
 	script := themeScript(theme)
 	w.Init(script)
 	w.Eval(script)
