@@ -474,12 +474,55 @@ func TestFormatForceWritesFile(t *testing.T) {
 		t.Errorf("ファイルの内容 = %q, want %q", got, want)
 	}
 
-	// 既に整形済みなら2回目は変更なしと報告する
+	// 整形済みなら2回目は変更なしと報告する
 	out.Reset()
 	if err := run([]string{"format", "-f", path}, &out, &errOut); err != nil {
 		t.Fatalf("format -f: %v; stderr=%s", err, errOut.String())
 	}
 	if !strings.Contains(out.String(), "変更はありません") {
 		t.Errorf("出力 = %q", out.String())
+	}
+}
+
+// 行末の『:』でブロックを表すファイルは、インデントを付け替えると
+// ブロックの範囲が変わってしまう。書き換えずに中止することを確かめる。
+func TestFormatRefusesWhenStructureWouldChange(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "colon.nako3")
+	original := "3回:\n    「A」と表示。\n「終」と表示。\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	err := run([]string{"format", "--force", path}, &out, &errOut)
+	if err == nil {
+		t.Fatal("構造が変わるファイルで中止しませんでした")
+	}
+	if !strings.Contains(err.Error(), "構文構造が変わってしまうため中止") {
+		t.Errorf("エラー = %v", err)
+	}
+	got, readErr := os.ReadFile(path)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if string(got) != original {
+		t.Errorf("中止したのにファイルが書き換わりました: %q", got)
+	}
+}
+
+// インデント構文でも、デデントした行がブロックの外に出たままであることを確かめる。
+func TestFormatKeepsIndentSyntaxMeaning(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "indent.nako3")
+	original := "!インデント構文\n3回\n    「A」と表示。\n「終わり」と表示。\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v", err)
+	}
+	if out.String() != original {
+		t.Errorf("出力 = %q, want %q", out.String(), original)
 	}
 }

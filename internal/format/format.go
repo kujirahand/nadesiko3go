@@ -1,11 +1,19 @@
 // Package format reformats なでしこ3 source code: it recomputes each line's
 // indentation from the parsed block structure, trims trailing whitespace, and
-// ensures the file ends with exactly one newline. It never rewrites anything
-// else about a line, so a program that still runs the same way before
-// formatting still runs the same way after.
+// ensures the file ends with exactly one newline. It rewrites nothing else
+// about a line.
+//
+// That is not on its own enough to keep a program's meaning, because
+// indentation can itself be the syntax — 『!インデント構文』, or a line ending
+// in 『:』 — and there the parser synthesises 『ここまで』 tokens that borrow a
+// neighbouring line's number, so a body's real extent cannot be recovered
+// from the tree. Callers must compare Structure(before) against
+// Structure(after) and discard a result that does not match; `gonako format`
+// refuses to write or print one.
 package format
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
@@ -28,12 +36,17 @@ func Source(code, filename string, tree *ast.Node) string {
 	depths := lineDepths(tree)
 	protected := protectedLines(code, filename)
 
+	// 改行コードは元のファイルに合わせる。Windowsで書かれたファイルを
+	// 整形しただけで全行が変更扱いになるのを避ける。
+	newline := "\n"
+	if strings.Contains(code, "\r\n") {
+		newline = "\r\n"
+	}
 	normalized := strings.ReplaceAll(code, "\r\n", "\n")
 	lines := strings.Split(normalized, "\n")
-	// strings.Splitは末尾の改行の後に空文字列の要素を作る。最終行として扱わず、
-	// 出力の末尾に改行を1つ付けるかどうかの判定にだけ使う。
-	hadTrailingNewline := len(lines) > 0 && lines[len(lines)-1] == ""
-	if hadTrailingNewline {
+	// 末尾が改行なら、strings.Splitが作る空文字列の要素は行ではないので外す。
+	// 出力には必ず改行を1つ付けるので、元の末尾が改行だったかは問わない。
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
 
@@ -61,11 +74,48 @@ func Source(code, filename string, tree *ast.Node) string {
 		out[i] = strings.Repeat(Unit, lineDepth) + content
 	}
 
-	result := strings.Join(out, "\n")
+	result := strings.Join(out, newline)
 	if len(out) > 0 {
-		result += "\n"
+		result += newline
 	}
 	return result
+}
+
+// Structure renders a syntax tree as text — node types, names and literal
+// values, and how they nest, with every source position left out. Two
+// sources with the same Structure are the same program, differently laid
+// out. Names and values are part of it so that a change inside a literal —
+// the body of a multi-line string, say — shows up too, and not only a change
+// in the shape of the tree.
+//
+// Reindenting is not always meaning-preserving: a source can express its
+// blocks through indentation itself (『!インデント構文』, or a line ending in
+// 『:』), and there the parser synthesises 『ここまで』 tokens that borrow a
+// neighbouring line's number, so the block structure cannot be read back off
+// the tree line by line. Comparing the Structure of the formatted source
+// against the original catches that, and anything else a future change might
+// get wrong, before the result reaches a file.
+func Structure(tree *ast.Node) string {
+	var b strings.Builder
+	var walk func(n *ast.Node)
+	walk = func(n *ast.Node) {
+		if n == nil {
+			b.WriteString("_")
+			return
+		}
+		fmt.Fprintf(&b, "%s|%s|%s|%v(", n.Type, n.Name, n.Josi, n.Value)
+		for _, child := range n.Blocks {
+			walk(child)
+			b.WriteString(",")
+		}
+		for _, arg := range n.Args {
+			walk(arg)
+			b.WriteString(";")
+		}
+		b.WriteString(")")
+	}
+	walk(tree)
+	return b.String()
 }
 
 // protectedLines finds every physical line that a multi-line string literal
@@ -125,17 +175,22 @@ func protectedLines(code, filename string) map[int]bool {
 // depth as the branch itself.
 func lineDepths(root *ast.Node) map[int]int {
 	depths := map[int]int{}
+
+	// set records that something at this depth sits on the line. Several
+	// constructs can claim one line, and the shallowest of them is the one
+	// the line must be indented to, because a line starts at the level of
+	// the outermost thing on it:
+	//
+	//   - 『もし〜ならば』の行を終端する改行は、そのブロック本文の最初の要素
+	//     としても現れる。行はもし文のものなので、深い方ではなく浅い方。
+	//   - インデント構文では、パーサーがデデント先の行の位置に『ここまで』と
+	//     改行を合成する。その行には外側の本物の文があり、そちらが正しい。
 	set := func(line, depth int) {
-		if _, already := depths[line]; already {
-			// 最初にその行へ到達した時点の深さを採用する。行を辿る順序は必ず
-			// 外側の構文(もし・くり返すなど)が先、内側の中身が後になるので、
-			// 最初の書き込みが常にその行の正しい所属先を表す。
-			// (例: 『もし〜ならば』行の直後の改行はブロック本文の最初の要素
-			// としても現れるが、本来はもし文自身と同じ行にすぎない)
-			return
-		}
 		if depth < 0 {
 			depth = 0
+		}
+		if current, ok := depths[line]; ok && current <= depth {
+			return
 		}
 		depths[line] = depth
 	}
@@ -165,14 +220,17 @@ func lineDepths(root *ast.Node) map[int]int {
 	}
 
 	// scan looks inside a statement (or a branch already at its own depth)
-	// for nested bodies to place: an ast.Block child spanning more than one
-	// physical line is a body one level deeper (walkBlock handles it); a
-	// chained 『違えば、もし』else-if, or a 『条件分岐』case label, sits on its
-	// own line at the same depth as the branch itself; a same-line
-	// 『AをXして、Bを表示』comma chain (連文, which the parser also wraps as an
-	// ast.Block purely to hand it around as one node) has nothing to
-	// reindent, since its whole body lives on the one line it was invoked
-	// from.
+	// for nested bodies to place: an ast.Block child is a body one level
+	// deeper (walkBlock handles it), and a chained 『違えば、もし』else-if or a
+	// 『条件分岐』case label sits on its own line at the same depth as the
+	// branch itself.
+	//
+	// Not every ast.Block is a body: 『AをXして、Bを表示』comma chaining (連文)
+	// is wrapped as one too, purely so the parser can hand it around as a
+	// single node. Such a chain needs no telling apart, because it lives on
+	// the line it was invoked from, which its own statement has already
+	// claimed at the shallower depth — and the shallowest claim on a line
+	// wins.
 	//
 	// Anything else — condition expressions, call arguments, array and
 	// object literals — is a value, not a statement, and is left alone: an
@@ -188,13 +246,7 @@ func lineDepths(root *ast.Node) map[int]int {
 		}
 		switch n.Type {
 		case ast.Block:
-			if n.End != nil && n.End.Line > n.Line {
-				walkBlock(n, depth+1)
-			} else {
-				for _, child := range n.Blocks {
-					scan(child, depth)
-				}
-			}
+			walkBlock(n, depth+1)
 		case ast.If:
 			set(n.Line, depth)
 			for _, child := range n.Blocks {

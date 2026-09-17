@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/commanddiff"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
@@ -409,8 +410,8 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 // lintFile parses a program without running it, so a mistake shows up as a
 // syntax error with its position instead of failing partway through a run.
 func lintFile(args []string, stdout io.Writer) error {
-	if len(args) == 0 {
-		return errors.New("文法チェックするファイルを指定してください")
+	if len(args) != 1 {
+		return errors.New("文法チェックするファイルを1つ指定してください")
 	}
 	source := args[0]
 	code, err := os.ReadFile(source)
@@ -459,12 +460,18 @@ func formatFile(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	formatted := format.Source(string(code), source, tree)
+	unchanged := formatted == string(code)
+	if !unchanged {
+		if err := checkSameProgram(tree, formatted, source); err != nil {
+			return err
+		}
+	}
 
 	if !*force {
 		fmt.Fprint(stdout, formatted)
 		return nil
 	}
-	if formatted == string(code) {
+	if unchanged {
 		fmt.Fprintf(stdout, "%s: 変更はありません\n", source)
 		return nil
 	}
@@ -472,6 +479,23 @@ func formatFile(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("ファイル『%s』へ書き戻せません: %w", source, err)
 	}
 	fmt.Fprintf(stdout, "%s を整形しました\n", source)
+	return nil
+}
+
+// checkSameProgram refuses to hand back a result that is no longer the same
+// program. Where indentation is itself the syntax, re-indenting moves
+// statements in and out of blocks, and stopping is the only safe answer.
+// (インデントでブロックを表すファイル、つまり『!インデント構文』や行末の
+// 『:』を使うファイルが該当する)
+func checkSameProgram(original *ast.Node, formatted, source string) error {
+	tree, err := vm.ParseProgram(formatted, source)
+	if err != nil {
+		return fmt.Errorf("整形結果が構文解析できなくなるため中止しました: %w", err)
+	}
+	if format.Structure(tree) != format.Structure(original) {
+		return fmt.Errorf("『%s』は整形すると構文構造が変わってしまうため中止しました。"+
+			"インデントでブロックを表すファイル(『!インデント構文』や『3回:』のようなコロン記法)は整形できません", source)
+	}
 	return nil
 }
 
