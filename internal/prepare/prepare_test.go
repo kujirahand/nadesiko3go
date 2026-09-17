@@ -200,3 +200,25 @@ func TestCheckNakoMode(t *testing.T) {
 		})
 	}
 }
+
+// NewlineOriginalOffsets は internal/format が複数行のリテラルを元のソース
+// 上で特定するために使う。CRLF/CRがLFへ1文字に圧縮される分だけoffsetが
+// ずれるので、それを正しく戻せることを確かめる。
+func TestNewlineOriginalOffsets(t *testing.T) {
+	code := "A\r\nB\rC\n"
+	offsets := prepare.NewlineOriginalOffsets(code)
+	normalized := "A\nB\nC\n"
+	if len(offsets) != len([]rune(normalized)) {
+		t.Fatalf("len(offsets) = %d, want %d", len(offsets), len([]rune(normalized)))
+	}
+	origRunes := []rune(code)
+	want := []int{0, 1, 3, 4, 5, 6}
+	for i, w := range want {
+		if offsets[i] != w {
+			t.Errorf("offsets[%d] = %d, want %d", i, offsets[i], w)
+		}
+	}
+	if got := origRunes[offsets[0]]; got != 'A' {
+		t.Errorf("origRunes[offsets[0]] = %q, want 'A'", got)
+	}
+}

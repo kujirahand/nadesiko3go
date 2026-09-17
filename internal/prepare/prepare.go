@@ -123,6 +123,17 @@ func normalizeNewlines(code string) normalized {
 	return out
 }
 
+// NewlineOriginalOffsets は、改行をLFへ正規化したテキストの各文字が、元の
+// テキストの何文字目(rune単位)にあったかを返す。Convert1chは1文字を1文字に
+// 折り畳むだけでずれを生まないが、CRLFやCRをLFへ正規化する処理は2文字を1文字
+// に圧縮しうるので、Convert・Textが返す結果のoffsetを元のソースへ逆変換したい
+// 呼び出し元(internal/formatが複数行の文字列リテラルの範囲を元のファイル上で
+// 特定する場合など)はこれを使う。戻り値のi番目は、Convertが最終的に生成する
+// テキストのi番目の文字が元のcodeの何文字目だったかを表す。
+func NewlineOriginalOffsets(code string) []int {
+	return normalizeNewlines(code).pos
+}
+
 // sourcePos maps an index in the normalized text back to the original source.
 // An index one past the end maps just past the last character.
 func (n normalized) sourcePos(i int) int {

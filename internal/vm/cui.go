@@ -128,10 +128,10 @@ func CompileProgram(code, filename string) (*ir.Program, error) {
 	return compiler.Compile(tree, filename, runtimeRegistry())
 }
 
-// ParseProgram parses a program into its syntax tree without compiling it,
-// against the same command registry `gonako run`/`build` use. This is what
-// `gonako lint`/`format` need: a grammar check and the block structure a
-// formatter re-indents by.
+// ParseProgram はプログラムをコンパイルせず、構文木に解析するだけを行う。
+// `gonako run`/`build` と同じ命令レジストリを使う。`gonako lint`/`format`
+// が必要とするのはこれで、文法チェックと、フォーマッターがインデントを
+// 付け直すために使うブロック構造が手に入る。
 func ParseProgram(code, filename string) (*ast.Node, error) {
 	registry := runtimeRegistry()
 	return parser.ParseSource(code, filename, registry.FuncList())

@@ -407,8 +407,8 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
 }
 
-// lintFile parses a program without running it, so a mistake shows up as a
-// syntax error with its position instead of failing partway through a run.
+// lintFile はプログラムを実行せずに構文解析だけ行う。間違いは、実行中に
+// 途中で失敗するのではなく、位置付きの文法エラーとして表れる。
 func lintFile(args []string, stdout io.Writer) error {
 	if len(args) != 1 {
 		return errors.New("文法チェックするファイルを1つ指定してください")
@@ -425,9 +425,9 @@ func lintFile(args []string, stdout io.Writer) error {
 	return nil
 }
 
-// formatFile reindents a program from its parsed block structure. Without
-// --force it only prints the result, matching gofmt's default of leaving the
-// file alone until asked to write it back.
+// formatFile は、構文解析済みのブロック構造からプログラムのインデントを
+// 付け直す。--forceを付けなければ結果を表示するだけで、gofmtの既定動作と
+// 同じく、書き戻しを求められるまでファイルには手を付けない。
 func formatFile(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("format", flag.ContinueOnError)
 	flags.SetOutput(stderr)
@@ -482,11 +482,11 @@ func formatFile(args []string, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// checkSameProgram refuses to hand back a result that is no longer the same
-// program. Where indentation is itself the syntax, re-indenting moves
-// statements in and out of blocks, and stopping is the only safe answer.
-// (インデントでブロックを表すファイル、つまり『!インデント構文』や行末の
-// 『:』を使うファイルが該当する)
+// checkSameProgram は、もはや同じプログラムではなくなった結果を返すことを
+// 拒否する。インデント自身が構文になっているファイル(『!インデント構文』
+// や行末の『:』を使うファイルが該当する)では、インデントの付け替えが文を
+// ブロックの内外へ移動させてしまうため、処理を止めることだけが安全な答え
+// になる。
 func checkSameProgram(original *ast.Node, formatted, source string) error {
 	tree, err := vm.ParseProgram(formatted, source)
 	if err != nil {

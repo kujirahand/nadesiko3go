@@ -73,13 +73,30 @@ func TestSourceTrimsTrailingWhitespaceAndBlankLines(t *testing.T) {
 	}
 }
 
+// リテラルの中身(開始行の引用符から終了行の引用符まで)は書き換えないが、
+// 開始行の引用符より前にあるコードは、通常の行と同じくインデントを付け直す。
 func TestSourceLeavesMultilineStringAlone(t *testing.T) {
 	code := "もし、1=1ならば\n" +
 		"A=『あ\nい\nう』\n" +
 		"ここまで\n"
 	got := formatSource(t, code)
 	want := "もし、1=1ならば\n" +
-		"A=『あ\nい\nう』\n" +
+		"    A=『あ\nい\nう』\n" +
+		"ここまで\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// リテラルの前後にコードが同居する場合でも、内部の改行や中身は変えない。
+// 開始行はリテラルの前だけ整形し、終了行はリテラルの後ろの末尾空白だけ落とす。
+func TestSourceReindentsCodeAroundMultilineString(t *testing.T) {
+	code := "もし、1=1ならば\n" +
+		"A=『あ\nい』と表示。   \n" +
+		"ここまで\n"
+	got := formatSource(t, code)
+	want := "もし、1=1ならば\n" +
+		"    A=『あ\nい』と表示。\n" +
 		"ここまで\n"
 	if got != want {
 		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
@@ -128,6 +145,76 @@ func TestSourceIndentsCommentLinesWithTheirBlock(t *testing.T) {
 	code := "もし、1=1ならば\n// 中のコメント\n「やあ」と表示。\nここまで\n"
 	got := formatSource(t, code)
 	want := "もし、1=1ならば\n    // 中のコメント\n    「やあ」と表示。\nここまで\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// 末尾に複数の空行があっても、すべて落として改行を1つだけ付ける。
+func TestSourceCollapsesTrailingBlankLines(t *testing.T) {
+	code := "A=1\n\n\n\n"
+	got := formatSource(t, code)
+	want := "A=1\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// 末尾に改行がないファイルも整形でき(EOLがStructureの比較から除かれる)、
+// 末尾には改行が1つ付く。
+func TestSourceAddsMissingTrailingNewline(t *testing.T) {
+	code := "A=1"
+	got := formatSource(t, code)
+	want := "A=1\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+	tree := parse(t, code)
+	after := parse(t, got)
+	if format.Structure(tree) != format.Structure(after) {
+		t.Fatalf("末尾に改行を1つ付けただけで構造が変わったと判定されました")
+	}
+}
+
+// ファイル末尾にある複数行配列・辞書リテラルの閉じ記号(]・})は、それを
+// 含む文と同じ深さになる(本文の続きとして扱われて深くなってはいけない)。
+func TestSourceIndentsClosingBracketAtEOF(t *testing.T) {
+	code := "もし、1=1ならば\nデータ=[\n1\n]\nここまで\n"
+	got := formatSource(t, code)
+	want := "もし、1=1ならば\n    データ=[\n        1\n    ]\nここまで\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// lexerがインデント文字として数える文字(全角中黒など)も、半角スペース・
+// タブ・全角スペースと同じく行頭から取り除く。
+func TestSourceStripsLexerIndentCharacters(t *testing.T) {
+	code := "もし、1=1ならば\n・・「A」と表示。\nここまで\n"
+	got := formatSource(t, code)
+	want := "もし、1=1ならば\n    「A」と表示。\nここまで\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// 単独のCRだけを改行として使うファイルも、CRLFやLFと同じく行として認識し、
+// 文をまたいで1行に連結してしまわない。
+func TestSourceHandlesLoneCRNewlines(t *testing.T) {
+	code := "A=1\rB=2\r「{A}{B}」と表示。\r"
+	got := formatSource(t, code)
+	want := "A=1\nB=2\n「{A}{B}」と表示。\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+// CRLFとLFが混在するファイルで、複数行リテラルの内部にある改行は、外側の
+// 改行コードに合わせて書き換えられず、元の綴りのまま残る。
+func TestSourceKeepsLiteralInteriorNewlineStyle(t *testing.T) {
+	code := "もし、1=1ならば\r\nA=『一行目\n二行目』\r\nここまで\r\n"
+	got := formatSource(t, code)
+	want := "もし、1=1ならば\r\n    A=『一行目\n二行目』\r\nここまで\r\n"
 	if got != want {
 		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
 	}

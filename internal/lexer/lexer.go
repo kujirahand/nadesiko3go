@@ -22,7 +22,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 	isDefTest := false
 
 	// 最初にインデントを数える
-	indent, skip := countIndent(src)
+	indent, skip := CountIndent(src)
 	src = dropRunes(src, skip)
 	column += skip
 
@@ -192,7 +192,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			// 一行に2つ以上の文を含む場合を考慮する。(core #66)
 			if ruleName == TypeEOL && column == 1 {
 				var skip int
-				indent, skip = countIndent(src)
+				indent, skip = CountIndent(src)
 				column += skip
 				src = dropRunes(src, skip)
 			}
@@ -205,9 +205,10 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 	return result, nil
 }
 
-// countIndent returns the indent width of the leading indent characters and how
-// many characters they occupy.
-func countIndent(src string) (indent, skip int) {
+// CountIndent は行頭のインデント文字の幅と、それが何文字分かを返す。
+// lexerパッケージの外(internal/format)でも、行を再字句解析せずに
+// 「行頭の何文字がインデントか」を知りたい場面があるため公開している。
+func CountIndent(src string) (indent, skip int) {
 	for _, c := range src {
 		n := isIndentChars(c)
 		if n == 0 {
