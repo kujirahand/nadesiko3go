@@ -766,3 +766,94 @@ func TestFormSubmitProvidesNamedValues(t *testing.T) {
 		t.Fatalf("callback output = %q, want 花子", got)
 	}
 }
+
+// dialogCUIHost はCUIHostにShowDialogを足しただけの、テスト用ダイアログホスト。
+type dialogCUIHost struct {
+	*vm.CUIHost
+	kind, message string
+	answer        string
+	accepted      bool
+	supported     bool
+}
+
+func (h *dialogCUIHost) ShowDialog(kind, message string) (string, bool, bool, error) {
+	h.kind, h.message = kind, message
+	return h.answer, h.accepted, h.supported, nil
+}
+
+func TestButtonChoiceReturnsSelectedLabel(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	host := &dialogCUIHost{
+		CUIHost:   vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil),
+		answer:    "寿司",
+		accepted:  true,
+		supported: true,
+	}
+	var out strings.Builder
+	host.Out = &out
+	code := `["# 何を食べたいですか？", "寿司", "ラーメン"]のボタン選択を表示`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if host.kind != "buttons" {
+		t.Fatalf("kind = %q, want buttons", host.kind)
+	}
+	if !strings.Contains(host.message, `"label":"何を食べたいですか？"`) || !strings.Contains(host.message, `"items":["寿司","ラーメン"]`) {
+		t.Fatalf("message = %q", host.message)
+	}
+	if got := strings.TrimSpace(out.String()); got != "寿司" {
+		t.Fatalf("output = %q, want 寿司", got)
+	}
+}
+
+func TestButtonChoiceClosedReturnsEmptyString(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	host := &dialogCUIHost{
+		CUIHost:   vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil),
+		accepted:  false,
+		supported: true,
+	}
+	var out strings.Builder
+	host.Out = &out
+	if err := vm.RunWithHostAndRegistry(`["OK","Cancel"]のボタン選択を表示`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "" {
+		t.Fatalf("output = %q, want empty", got)
+	}
+}
+
+func TestListChoiceReturnsSelectedItem(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	host := &dialogCUIHost{
+		CUIHost:   vm.NewCUIHost(&strings.Builder{}, strings.NewReader(""), nil),
+		answer:    "Cancel",
+		accepted:  true,
+		supported: true,
+	}
+	var out strings.Builder
+	host.Out = &out
+	if err := vm.RunWithHostAndRegistry(`["OK","Cancel"]のリスト選択を表示`, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if host.kind != "list" {
+		t.Fatalf("kind = %q, want list", host.kind)
+	}
+	if got := strings.TrimSpace(out.String()); got != "Cancel" {
+		t.Fatalf("output = %q, want Cancel", got)
+	}
+}
+
+func TestChoiceDialogsUnsupportedHostReturnsEmptyString(t *testing.T) {
+	registry := stdlib.NewRegistry(New())
+	var out strings.Builder
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	code := `["OK","Cancel"]のボタン選択を表示
+["OK","Cancel"]のリスト選択を表示`
+	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != "" {
+		t.Fatalf("output = %q, want empty", got)
+	}
+}

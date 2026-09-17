@@ -350,8 +350,8 @@ func TestPromptDialogIgnoresIMEEnter(t *testing.T) {
 			t.Fatalf("app.js is missing IME dialog guard %q", required)
 		}
 	}
-	if got := strings.Count(app, "if (isDialogIMEKeyEvent(e)) return;"); got != 2 {
-		t.Fatalf("IME dialog guard count = %d, want 2", got)
+	if got := strings.Count(app, "if (isDialogIMEKeyEvent(e)) return;"); got != 3 {
+		t.Fatalf("IME dialog guard count = %d, want 3", got)
 	}
 }
 

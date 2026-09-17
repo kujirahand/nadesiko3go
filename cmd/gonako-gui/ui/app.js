@@ -73,6 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const dialogBtnCancel = document.getElementById('dialog-btn-cancel');
   const dialogBtnDiscard = document.getElementById('dialog-btn-discard');
   const dialogBtnOk = document.getElementById('dialog-btn-ok');
+  const dialogBtnClose = document.getElementById('dialog-btn-close');
+  const dialogFooter = document.getElementById('dialog-footer');
+  const dialogButtonsWrapper = document.getElementById('dialog-buttons-wrapper');
+  const dialogListWrapper = document.getElementById('dialog-list-wrapper');
+  const dialogList = document.getElementById('dialog-list');
 
   // タブボタン
   const tabBtnCmd = document.getElementById('tab-btn-cmd');
@@ -418,6 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function showNakoDialog(request) {
+    if (request.kind === 'buttons' || request.kind === 'list') {
+      return showNakoChoiceDialog(request);
+    }
     return new Promise((resolve) => {
       const isPrompt = request.kind === 'prompt';
       const isConfirm = request.kind === 'confirm';
@@ -425,6 +433,10 @@ document.addEventListener('DOMContentLoaded', () => {
       dialogMessage.textContent = request.message || '';
       dialogInputWrapper.style.display = isPrompt ? 'block' : 'none';
       dialogInput.value = '';
+      dialogBtnClose.style.display = 'none';
+      dialogButtonsWrapper.style.display = 'none';
+      dialogListWrapper.style.display = 'none';
+      dialogFooter.style.display = 'flex';
 
       dialogBtnCancel.style.display = (isPrompt || isConfirm) ? 'inline-flex' : 'none';
       dialogBtnCancel.textContent = 'キャンセル';
@@ -463,6 +475,100 @@ document.addEventListener('DOMContentLoaded', () => {
       dialogBtnCancel.addEventListener('click', onCancel);
       dialogBtnOk.addEventListener('click', onOk);
       dialogInput.addEventListener('keydown', onKeyDown);
+    });
+  }
+
+  // 「ボタン選択」「リスト選択」用のダイアログ。request.messageには
+  // {label, items} をJSON化したものが入っている（guilib.showChoiceDialog参照）。
+  // [x]で閉じる、またはリストのキャンセルは { text: '', accepted: false } を返す。
+  function showNakoChoiceDialog(request) {
+    return new Promise((resolve) => {
+      let payload = {};
+      try {
+        payload = JSON.parse(request.message || '{}');
+      } catch (e) {
+        payload = {};
+      }
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      const isButtons = request.kind === 'buttons';
+
+      dialogTitle.textContent = payload.label || (isButtons ? 'ボタン選択' : 'リスト選択');
+      dialogMessage.textContent = '';
+      dialogInputWrapper.style.display = 'none';
+      dialogBtnClose.style.display = 'inline-flex';
+
+      dialogButtonsWrapper.innerHTML = '';
+      dialogButtonsWrapper.style.display = isButtons ? 'flex' : 'none';
+      dialogListWrapper.style.display = isButtons ? 'none' : 'block';
+      dialogList.innerHTML = '';
+      items.forEach((label) => {
+        const opt = document.createElement('option');
+        opt.value = label;
+        opt.textContent = label;
+        dialogList.appendChild(opt);
+      });
+      if (!isButtons && items.length > 0) {
+        dialogList.selectedIndex = 0;
+      }
+
+      dialogFooter.style.display = isButtons ? 'none' : 'flex';
+      dialogBtnCancel.style.display = isButtons ? 'none' : 'inline-flex';
+      dialogBtnCancel.textContent = 'キャンセル';
+      dialogBtnDiscard.style.display = 'none';
+      dialogBtnOk.style.display = isButtons ? 'none' : 'inline-flex';
+      dialogBtnOk.textContent = 'OK';
+
+      dialogOverlay.style.display = 'flex';
+
+      function cleanup() {
+        dialogOverlay.style.display = 'none';
+        dialogButtonsWrapper.innerHTML = '';
+        dialogButtonsWrapper.style.display = 'none';
+        dialogListWrapper.style.display = 'none';
+        dialogFooter.style.display = 'flex';
+        dialogBtnClose.style.display = 'none';
+        dialogBtnClose.removeEventListener('click', onClose);
+        dialogBtnCancel.removeEventListener('click', onCancel);
+        dialogBtnOk.removeEventListener('click', onOk);
+        document.removeEventListener('keydown', onKeyDown, true);
+      }
+      function finish(text, accepted) {
+        cleanup();
+        resolve({ text, accepted });
+      }
+      function onClose() { finish('', false); }
+      function onCancel() { finish('', false); }
+      function onOk() { finish(dialogList.value, true); }
+      function onKeyDown(e) {
+        if (isDialogIMEKeyEvent(e)) return;
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onClose();
+        } else if (e.key === 'Enter' && !isButtons) {
+          e.preventDefault();
+          onOk();
+        }
+      }
+
+      if (isButtons) {
+        items.forEach((label) => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.textContent = label;
+          btn.addEventListener('click', () => finish(label, true));
+          dialogButtonsWrapper.appendChild(btn);
+        });
+      }
+
+      dialogBtnClose.addEventListener('click', onClose);
+      dialogBtnCancel.addEventListener('click', onCancel);
+      dialogBtnOk.addEventListener('click', onOk);
+      document.addEventListener('keydown', onKeyDown, true);
+
+      const focusTarget = isButtons
+        ? (dialogButtonsWrapper.querySelector('button') || dialogBtnClose)
+        : dialogList;
+      focusTarget.focus();
     });
   }
 

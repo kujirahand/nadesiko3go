@@ -628,8 +628,8 @@
     "template": "【S】をDOMスキン設定",
     "yomi": "DOMすきんせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 128,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L128"
+    "line": 137,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L137"
   },
   {
     "name": "DOMスタイル一括設定",
@@ -649,8 +649,8 @@
     "template": "【A】に【B】をDOMスタイル一括設定",
     "yomi": "DOMすたいるいっかつせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 216,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L216"
+    "line": 225,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L225"
   },
   {
     "name": "DOMテキスト取得",
@@ -667,8 +667,8 @@
     "template": "【S】のDOMテキスト取得",
     "yomi": "DOMてきすとしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 246,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L246"
+    "line": 255,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L255"
   },
   {
     "name": "DOMテキスト変更",
@@ -689,8 +689,8 @@
     "template": "【A】に【B】をDOMテキスト変更",
     "yomi": "DOMてきすとへんこう",
     "file": "internal/guilib/guilib.go",
-    "line": 251,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L251"
+    "line": 260,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L260"
   },
   {
     "name": "DOMテキスト設定",
@@ -711,8 +711,8 @@
     "template": "【A】に【B】をDOMテキスト設定",
     "yomi": "DOMてきすとせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 256,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L256"
+    "line": 265,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L265"
   },
   {
     "name": "DOM属性一括設定",
@@ -732,8 +732,8 @@
     "template": "【A】に【B】をDOM属性一括設定",
     "yomi": "DOMぞくせいいっかつせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 226,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L226"
+    "line": 235,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L235"
   },
   {
     "name": "DOM属性設定",
@@ -756,8 +756,8 @@
     "template": "【A】の【B】に【C】をDOM属性設定",
     "yomi": "DOMぞくせいせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 221,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L221"
+    "line": 230,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L230"
   },
   {
     "name": "DOM注目",
@@ -775,8 +775,8 @@
     "template": "【S】をDOM注目",
     "yomi": "DOMちゅうもく",
     "file": "internal/guilib/guilib.go",
-    "line": 276,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L276"
+    "line": 285,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L285"
   },
   {
     "name": "DOM要素ID取得",
@@ -793,8 +793,8 @@
     "template": "【S】のDOM要素ID取得",
     "yomi": "DOMようそIDしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 231,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L231"
+    "line": 240,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L240"
   },
   {
     "name": "DOM要素作成",
@@ -811,8 +811,8 @@
     "template": "【S】のDOM要素作成",
     "yomi": "DOMようそさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 133,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L133"
+    "line": 142,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L142"
   },
   {
     "name": "DOM要素全取得",
@@ -829,8 +829,8 @@
     "template": "【S】のDOM要素全取得",
     "yomi": "DOMようそぜんしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 241,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L241"
+    "line": 250,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L250"
   },
   {
     "name": "DOM要素取得",
@@ -847,8 +847,8 @@
     "template": "【S】のDOM要素取得",
     "yomi": "DOMようそしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 236,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L236"
+    "line": 245,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L245"
   },
   {
     "name": "DOM親要素設定",
@@ -865,8 +865,8 @@
     "template": "【S】にDOM親要素設定",
     "yomi": "DOMおやようそせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 116,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L116"
+    "line": 125,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L125"
   },
   {
     "name": "DOM親部品設定",
@@ -883,8 +883,8 @@
     "template": "【S】にDOM親部品設定",
     "yomi": "DOMおやぶひんせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 120,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L120"
+    "line": 129,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L129"
   },
   {
     "name": "DOM部品作成",
@@ -900,8 +900,8 @@
     "template": "【S】のDOM部品作成",
     "yomi": "DOMぶひんさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 124,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L124"
+    "line": 133,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L133"
   },
   {
     "name": "DOM部品削除",
@@ -918,8 +918,8 @@
     "template": "【S】のDOM部品削除",
     "yomi": "DOMぶひんさくじょ",
     "file": "internal/guilib/guilib.go",
-    "line": 137,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L137"
+    "line": 146,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L146"
   },
   {
     "name": "EUCファイル保存",
@@ -1107,8 +1107,8 @@
     "template": "【S】のHTML取得",
     "yomi": "HTMLしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 261,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L261"
+    "line": 270,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L270"
   },
   {
     "name": "HTML変更",
@@ -1129,8 +1129,8 @@
     "template": "【A】に【B】をHTML変更",
     "yomi": "HTMLへんこう",
     "file": "internal/guilib/guilib.go",
-    "line": 266,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L266"
+    "line": 275,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L275"
   },
   {
     "name": "HTML表示",
@@ -1147,8 +1147,8 @@
     "template": "【S】をHTML表示",
     "yomi": "HTMLひょうじ",
     "file": "internal/guilib/guilib.go",
-    "line": 107,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L107"
+    "line": 108,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L108"
   },
   {
     "name": "HTML設定",
@@ -1169,8 +1169,8 @@
     "template": "【A】に【B】をHTML設定",
     "yomi": "HTMLせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 271,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L271"
+    "line": 280,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L280"
   },
   {
     "name": "HTTP保障取得",
@@ -2754,8 +2754,8 @@
     "template": "【A】で【B】のウィンドウ作成",
     "yomi": "うぃんどうさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 313,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L313"
+    "line": 322,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L322"
   },
   {
     "name": "ウィンドウ取得",
@@ -2773,8 +2773,8 @@
     "template": "【S】のウィンドウ取得",
     "yomi": "うぃんどうしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 323,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L323"
+    "line": 332,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L332"
   },
   {
     "name": "ウィンドウ変更",
@@ -2795,8 +2795,8 @@
     "template": "【A】で【B】のウィンドウ変更",
     "yomi": "うぃんどうへんこう",
     "file": "internal/guilib/guilib.go",
-    "line": 318,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L318"
+    "line": 327,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L327"
   },
   {
     "name": "エクスプローラー起動",
@@ -3201,8 +3201,8 @@
     "template": "【S】のエディタ作成",
     "yomi": "えでぃたさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 146,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L146"
+    "line": 155,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L155"
   },
   {
     "name": "エラー発生",
@@ -3347,8 +3347,8 @@
     "template": "カレントディレクトリ取得",
     "yomi": "かれんとでぃれくとりしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 204,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L204"
+    "line": 205,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L205"
   },
   {
     "name": "カレントディレクトリ変更",
@@ -3365,8 +3365,8 @@
     "template": "【S】にカレントディレクトリ変更",
     "yomi": "かれんとでぃれくとりへんこう",
     "file": "internal/nodelib/file.go",
-    "line": 213,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L213"
+    "line": 214,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L214"
   },
   {
     "name": "キャンバス作成",
@@ -3382,8 +3382,8 @@
     "template": "【S】のキャンバス作成",
     "yomi": "きゃんばすさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 166,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L166"
+    "line": 175,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L175"
   },
   {
     "name": "クリック時",
@@ -3403,8 +3403,8 @@
     "template": "【A】で【B】をクリック時",
     "yomi": "くりっくしたとき",
     "file": "internal/guilib/guilib.go",
-    "line": 286,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L286"
+    "line": 295,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L295"
   },
   {
     "name": "クリップボード取得",
@@ -3605,8 +3605,8 @@
     "template": "【A】を【B】へセレクトボックスアイテム設定",
     "yomi": "せれくとぼっくすあいてむせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 186,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L186"
+    "line": 195,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L195"
   },
   {
     "name": "セレクトボックス作成",
@@ -3622,8 +3622,8 @@
     "template": "【S】のセレクトボックス作成",
     "yomi": "せれくとぼっくすさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 182,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L182"
+    "line": 191,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L191"
   },
   {
     "name": "ゼロ埋",
@@ -3677,8 +3677,8 @@
     "template": "【S】のチェックボックス作成",
     "yomi": "ちぇっくぼっくすさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 178,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L178"
+    "line": 187,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L187"
   },
   {
     "name": "テキストエリア作成",
@@ -3694,8 +3694,8 @@
     "template": "【S】のテキストエリア作成",
     "yomi": "てきすとえりあさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 150,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L150"
+    "line": 159,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L159"
   },
   {
     "name": "テキスト取得",
@@ -3712,8 +3712,8 @@
     "template": "【S】のテキスト取得",
     "yomi": "てきすとしゅとく",
     "file": "internal/guilib/guilib.go",
-    "line": 212,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L212"
+    "line": 221,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L221"
   },
   {
     "name": "テキスト設定",
@@ -3734,8 +3734,8 @@
     "template": "【A】に【B】をテキスト設定",
     "yomi": "てきすとせってい",
     "file": "internal/guilib/guilib.go",
-    "line": 207,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L207"
+    "line": 216,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L216"
   },
   {
     "name": "テンポラリフォルダ",
@@ -3747,8 +3747,8 @@
     "template": "テンポラリフォルダ",
     "yomi": "てんぽらりふぉるだ",
     "file": "internal/nodelib/file.go",
-    "line": 220,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L220"
+    "line": 221,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L221"
   },
   {
     "name": "デスクトップ",
@@ -3760,8 +3760,8 @@
     "template": "デスクトップ",
     "yomi": "ですくとっぷ",
     "file": "internal/nodelib/file.go",
-    "line": 237,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L237"
+    "line": 238,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L238"
   },
   {
     "name": "デバッグ表示",
@@ -3963,8 +3963,8 @@
     "template": "【S】をバイナリ読",
     "yomi": "ばいなりよむ",
     "file": "internal/nodelib/file.go",
-    "line": 38,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L38"
+    "line": 39,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L39"
   },
   {
     "name": "パスワード入力エディタ作成",
@@ -3981,8 +3981,8 @@
     "template": "【S】のパスワード入力エディタ作成",
     "yomi": "ぱすわーどにゅうりょくえでぃたさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 199,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L199"
+    "line": 208,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L208"
   },
   {
     "name": "パス抽出",
@@ -3999,8 +3999,8 @@
     "template": "【S】のパス抽出",
     "yomi": "ぱすちゅうしゅつ",
     "file": "internal/nodelib/file.go",
-    "line": 173,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L173"
+    "line": 174,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L174"
   },
   {
     "name": "パス結合",
@@ -4017,8 +4017,8 @@
     "template": "【S】とパス結合",
     "yomi": "ぱすけつごう",
     "file": "internal/nodelib/file.go",
-    "line": 193,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L193"
+    "line": 194,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L194"
   },
   {
     "name": "ファイルコピー",
@@ -4039,8 +4039,8 @@
     "template": "【A】を【B】にファイルコピー",
     "yomi": "ふぁいるこぴー",
     "file": "internal/nodelib/file.go",
-    "line": 111,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L111"
+    "line": 112,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L112"
   },
   {
     "name": "ファイルコピー時",
@@ -4066,8 +4066,8 @@
     "template": "【A】で【B】から【C】にファイルコピー時",
     "yomi": "ふぁいるこぴーしたとき",
     "file": "internal/nodelib/file.go",
-    "line": 119,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L119"
+    "line": 120,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L120"
   },
   {
     "name": "ファイルサイズ取得",
@@ -4085,8 +4085,8 @@
     "template": "【S】のファイルサイズ取得",
     "yomi": "ふぁいるさいずしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 141,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L141"
+    "line": 142,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L142"
   },
   {
     "name": "ファイル上書コピー",
@@ -4107,8 +4107,8 @@
     "template": "【A】を【B】にファイル上書コピー",
     "yomi": "ふぁいるうわがきこぴー",
     "file": "internal/nodelib/file.go",
-    "line": 115,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L115"
+    "line": 116,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L116"
   },
   {
     "name": "ファイル上書移動",
@@ -4129,8 +4129,8 @@
     "template": "【A】を【B】にファイル上書移動",
     "yomi": "ふぁいるうわがきいどう",
     "file": "internal/nodelib/file.go",
-    "line": 84,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L84"
+    "line": 85,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L85"
   },
   {
     "name": "ファイル処理強制停止",
@@ -4142,8 +4142,8 @@
     "template": "ファイル処理強制停止",
     "yomi": "ふぁいるしょりきょうせいていし",
     "file": "internal/nodelib/file.go",
-    "line": 135,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L135"
+    "line": 136,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L136"
   },
   {
     "name": "ファイル処理時",
@@ -4161,8 +4161,8 @@
     "template": "【S】をファイル処理時",
     "yomi": "ふぁいるしょりじ",
     "file": "internal/nodelib/file.go",
-    "line": 129,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L129"
+    "line": 130,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L130"
   },
   {
     "name": "ファイル列挙",
@@ -4180,8 +4180,8 @@
     "template": "【S】のファイル列挙",
     "yomi": "ふぁいるれっきょ",
     "file": "internal/nodelib/file.go",
-    "line": 167,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L167"
+    "line": 168,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L168"
   },
   {
     "name": "ファイル削除",
@@ -4198,8 +4198,8 @@
     "template": "【S】のファイル削除",
     "yomi": "ふぁいるさくじょ",
     "file": "internal/nodelib/file.go",
-    "line": 58,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L58"
+    "line": 59,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L59"
   },
   {
     "name": "ファイル削除時",
@@ -4221,8 +4221,8 @@
     "template": "【A】で【B】のファイル削除時",
     "yomi": "ふぁいるさくじょしたとき",
     "file": "internal/nodelib/file.go",
-    "line": 62,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L62"
+    "line": 63,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L63"
   },
   {
     "name": "ファイル名抽出",
@@ -4239,8 +4239,8 @@
     "template": "【S】のファイル名抽出",
     "yomi": "ふぁいるめいちゅうしゅつ",
     "file": "internal/nodelib/file.go",
-    "line": 172,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L172"
+    "line": 173,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L173"
   },
   {
     "name": "ファイル情報取得",
@@ -4258,8 +4258,8 @@
     "template": "【S】のファイル情報取得",
     "yomi": "ふぁいるじょうほうしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 150,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L150"
+    "line": 151,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L151"
   },
   {
     "name": "ファイル移動",
@@ -4280,8 +4280,8 @@
     "template": "【A】を【B】にファイル移動",
     "yomi": "ふぁいるいどう",
     "file": "internal/nodelib/file.go",
-    "line": 72,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L72"
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L73"
   },
   {
     "name": "ファイル移動時",
@@ -4307,8 +4307,8 @@
     "template": "【A】で【B】から【C】にファイル移動時",
     "yomi": "ふぁいるいどうしたとき",
     "file": "internal/nodelib/file.go",
-    "line": 96,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L96"
+    "line": 97,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L97"
   },
   {
     "name": "ファイル選択",
@@ -4324,8 +4324,8 @@
     "template": "『S』のファイル選択",
     "yomi": "ふぁいるせんたく",
     "file": "internal/guilib/guilib.go",
-    "line": 301,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L301"
+    "line": 310,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L310"
   },
   {
     "name": "フォルダ作成",
@@ -4343,8 +4343,8 @@
     "template": "【S】にフォルダ作成",
     "yomi": "ふぉるださくせい",
     "file": "internal/nodelib/file.go",
-    "line": 54,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L54"
+    "line": 55,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L55"
   },
   {
     "name": "フォルダ存在",
@@ -4361,8 +4361,8 @@
     "template": "【S】がフォルダ存在",
     "yomi": "ふぉるだそんざい",
     "file": "internal/nodelib/file.go",
-    "line": 50,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L50"
+    "line": 51,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L51"
   },
   {
     "name": "フォルダ選択",
@@ -4380,8 +4380,8 @@
     "template": "『S』のフォルダ選択",
     "yomi": "ふぉるだせんたく",
     "file": "internal/guilib/guilib.go",
-    "line": 309,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L309"
+    "line": 318,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L318"
   },
   {
     "name": "フォーム作成",
@@ -4401,8 +4401,8 @@
     "template": "【A】で【B】をフォーム作成",
     "yomi": "ふぉーむさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 162,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L162"
+    "line": 171,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L171"
   },
   {
     "name": "フォーム送信時",
@@ -4422,8 +4422,8 @@
     "template": "【A】で【B】をフォーム送信時",
     "yomi": "ふぉーむそうしんしたとき",
     "file": "internal/guilib/guilib.go",
-    "line": 296,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L296"
+    "line": 305,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L305"
   },
   {
     "name": "ブラウザ起動",
@@ -4503,8 +4503,8 @@
     "template": "ホームディレクトリ取得",
     "yomi": "ほーむでぃれくとりしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 230,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L230"
+    "line": 231,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L231"
   },
   {
     "name": "ボタン作成",
@@ -4520,8 +4520,25 @@
     "template": "【S】のボタン作成",
     "yomi": "ぼたんさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 154,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L154"
+    "line": 163,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L163"
+  },
+  {
+    "name": "ボタン選択",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "候補配列からボタンを選ばせて選んだ文字列を返す。[x]で閉じると空文字列を返す",
+    "template": "【S】のボタン選択",
+    "yomi": "ぼたんせんたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 117,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L117"
   },
   {
     "name": "マイドキュメント",
@@ -4580,8 +4597,8 @@
     "template": "【S】のラベル作成",
     "yomi": "らべるさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 142,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L142"
+    "line": 151,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L151"
   },
   {
     "name": "ランダムUUID生成",
@@ -4613,6 +4630,23 @@
     "file": "internal/nodelib/crypto.go",
     "line": 71,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/crypto.go#L71"
+  },
+  {
+    "name": "リスト選択",
+    "type": "func",
+    "josi": [
+      [
+        "の"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "候補配列からリストで選ばせて選んだ文字列を返す。キャンセルまたは[x]で閉じると空文字列を返す",
+    "template": "【S】のリスト選択",
+    "yomi": "りすとせんたく",
+    "file": "internal/guilib/guilib.go",
+    "line": 121,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L121"
   },
   {
     "name": "リフレイン",
@@ -4650,8 +4684,8 @@
     "template": "【S】に一時フォルダ作成",
     "yomi": "いちじふぉるださくせい",
     "file": "internal/nodelib/file.go",
-    "line": 223,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L223"
+    "line": 224,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L224"
   },
   {
     "name": "一致",
@@ -4801,8 +4835,8 @@
     "template": "【S】で二択",
     "yomi": "にたく",
     "file": "internal/guilib/guilib.go",
-    "line": 112,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L112"
+    "line": 113,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L113"
   },
   {
     "name": "二進",
@@ -4965,8 +4999,8 @@
     "template": "作業フォルダ取得",
     "yomi": "さぎょうふぉるだしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 211,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L211"
+    "line": 212,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L212"
   },
   {
     "name": "作業フォルダ変更",
@@ -4983,8 +5017,8 @@
     "template": "【S】に作業フォルダ変更",
     "yomi": "さぎょうふぉるだへんこう",
     "file": "internal/nodelib/file.go",
-    "line": 218,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L218"
+    "line": 219,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L219"
   },
   {
     "name": "保存",
@@ -5004,8 +5038,8 @@
     "template": "【A】を【B】に保存",
     "yomi": "ほぞん",
     "file": "internal/nodelib/file.go",
-    "line": 39,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L39"
+    "line": 40,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L40"
   },
   {
     "name": "保存ファイル選択",
@@ -5021,8 +5055,8 @@
     "template": "『S』の保存ファイル選択",
     "yomi": "ほぞんふぁいるせんたく",
     "file": "internal/guilib/guilib.go",
-    "line": 305,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L305"
+    "line": 314,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L314"
   },
   {
     "name": "倍",
@@ -5060,8 +5094,8 @@
     "template": "【S】の値指定バー作成",
     "yomi": "あたいしていばーさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 203,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L203"
+    "line": 212,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L212"
   },
   {
     "name": "偶数",
@@ -5122,8 +5156,8 @@
     "template": "【S】の全ファイル列挙",
     "yomi": "ぜんふぁいるれっきょ",
     "file": "internal/nodelib/file.go",
-    "line": 168,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L168"
+    "line": 169,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L169"
   },
   {
     "name": "全角変換",
@@ -5618,8 +5652,8 @@
     "template": "【A】で【B】を変更時",
     "yomi": "へんこうしたとき",
     "file": "internal/guilib/guilib.go",
-    "line": 291,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L291"
+    "line": 300,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L300"
   },
   {
     "name": "大文字変換",
@@ -5671,8 +5705,8 @@
     "template": "【S】が存在",
     "yomi": "そんざい",
     "file": "internal/nodelib/file.go",
-    "line": 42,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L42"
+    "line": 43,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L43"
   },
   {
     "name": "実数変換",
@@ -6057,8 +6091,8 @@
     "template": "【S】から拡張子抽出",
     "yomi": "かくちょうしちゅうしゅつ",
     "file": "internal/nodelib/file.go",
-    "line": 174,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L174"
+    "line": 175,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L175"
   },
   {
     "name": "掛",
@@ -6091,8 +6125,8 @@
     "template": "改行作成",
     "yomi": "かいぎょうさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 174,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L174"
+    "line": 183,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L183"
   },
   {
     "name": "敬具",
@@ -6563,8 +6597,8 @@
     "template": "日付選択ボックス作成",
     "yomi": "ひづけせんたくぼっくすさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 195,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L195"
+    "line": 204,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L204"
   },
   {
     "name": "日数差",
@@ -7062,8 +7096,8 @@
     "template": "【S】を注目",
     "yomi": "ちゅうもく",
     "file": "internal/guilib/guilib.go",
-    "line": 281,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L281"
+    "line": 290,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L290"
   },
   {
     "name": "環境変数一覧取得",
@@ -7129,8 +7163,8 @@
     "template": "【S】の画像作成",
     "yomi": "がぞうさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 170,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L170"
+    "line": 179,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L179"
   },
   {
     "name": "画像保存",
@@ -7412,8 +7446,8 @@
     "template": "【A】を【B】で相対パス展開",
     "yomi": "そうたいぱすてんかい",
     "file": "internal/nodelib/file.go",
-    "line": 183,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L183"
+    "line": 184,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L184"
   },
   {
     "name": "真偽判定",
@@ -7874,8 +7908,8 @@
     "template": "【S】を絶対パス変換",
     "yomi": "ぜったいぱすへんかん",
     "file": "internal/nodelib/file.go",
-    "line": 175,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L175"
+    "line": 176,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L176"
   },
   {
     "name": "絶対値",
@@ -7974,8 +8008,8 @@
     "template": "色選択ボックス作成",
     "yomi": "いろせんたくぼっくすさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 191,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L191"
+    "line": 200,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L200"
   },
   {
     "name": "英数全角変換",
@@ -8562,8 +8596,8 @@
     "template": "【S】を読",
     "yomi": "よむ",
     "file": "internal/nodelib/file.go",
-    "line": 37,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L37"
+    "line": 38,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L38"
   },
   {
     "name": "論理AND",
@@ -8820,8 +8854,8 @@
     "template": "【A】を【B】に追記",
     "yomi": "ついき",
     "file": "internal/nodelib/file.go",
-    "line": 40,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L40"
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L41"
   },
   {
     "name": "送信ボタン作成",
@@ -8837,8 +8871,8 @@
     "template": "【S】の送信ボタン作成",
     "yomi": "そうしんぼたんさくせい",
     "file": "internal/guilib/guilib.go",
-    "line": 158,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L158"
+    "line": 167,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L167"
   },
   {
     "name": "通貨形式",
@@ -9591,8 +9625,8 @@
     "template": "【S】を開",
     "yomi": "ひらく",
     "file": "internal/nodelib/file.go",
-    "line": 36,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L36"
+    "line": 37,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L37"
   },
   {
     "name": "非数判定",
