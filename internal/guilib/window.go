@@ -35,6 +35,8 @@ type WindowSettings struct {
 	Title        string
 	HasResizable bool
 	Resizable    bool
+	HasTheme     bool
+	Theme        string
 }
 
 // WindowInfo は現在のネイティブウィンドウ情報である。
@@ -46,7 +48,15 @@ type WindowInfo struct {
 	State     string
 	Title     string
 	Resizable bool
+	Theme     string
 }
+
+// テーマの値。自動はOSの外観設定に従う。
+const (
+	ThemeLight = "ライト"
+	ThemeDark  = "ダーク"
+	ThemeAuto  = "自動"
+)
 
 // WindowController はVMとネイティブウィンドウの境界である。
 // 実装側は、必要な処理をWebViewのUIスレッドへ送る責任を持つ。
@@ -62,6 +72,20 @@ func normalizeWindowState(state string) (string, error) {
 		return state, nil
 	default:
 		return "", fmt.Errorf("ウィンドウ状態『%s』は指定できません（通常・最大化・最小化・全画面から選んでください）", state)
+	}
+}
+
+// NormalizeWindowTheme はテーマ名を日本語の正規名にそろえる。
+func NormalizeWindowTheme(theme string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(theme)) {
+	case ThemeLight, "light":
+		return ThemeLight, nil
+	case ThemeDark, "dark":
+		return ThemeDark, nil
+	case ThemeAuto, "auto":
+		return ThemeAuto, nil
+	default:
+		return "", fmt.Errorf("テーマ『%s』は指定できません（ライト・ダーク・自動から選んでください）", theme)
 	}
 }
 
@@ -164,6 +188,17 @@ func ParseWindowSettings(v value.Value) (WindowSettings, error) {
 		settings.HasResizable = true
 		settings.Resizable = resizable
 	}
+	if item, ok := getWindowSetting(dict, "テーマ", "theme"); ok {
+		if item.Kind() != value.KindString {
+			return WindowSettings{}, errors.New("ウィンドウの『テーマ』には文字列を指定してください")
+		}
+		theme, err := NormalizeWindowTheme(value.ToString(item))
+		if err != nil {
+			return WindowSettings{}, err
+		}
+		settings.HasTheme = true
+		settings.Theme = theme
+	}
 	return settings, nil
 }
 
@@ -235,5 +270,10 @@ func windowInfoValue(info WindowInfo) value.Value {
 	dict.Set("状態", value.String(info.State))
 	dict.Set("タイトル", value.String(info.Title))
 	dict.Set("サイズ変更可", value.Bool(info.Resizable))
+	theme := info.Theme
+	if theme == "" {
+		theme = ThemeAuto
+	}
+	dict.Set("テーマ", value.String(theme))
 	return value.DictValue(dict)
 }

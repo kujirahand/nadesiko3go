@@ -92,6 +92,22 @@ void gonakoApplyWindowSettings(void *windowPtr, int hasPosition, int center, int
     }
 }
 
+// theme: 0=自動（OSに従う）、1=ライト、2=ダーク。
+// WKWebViewのprefers-color-schemeもウィンドウの外観に追従する。
+void gonakoApplyWindowTheme(void *windowPtr, int theme) {
+    NSWindow *window = (__bridge NSWindow *)windowPtr;
+    if (window == nil) {
+        return;
+    }
+    if (theme == 1) {
+        window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
+    } else if (theme == 2) {
+        window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+    } else {
+        window.appearance = nil;
+    }
+}
+
 gonakoWindowInfo gonakoGetWindowInfo(void *windowPtr) {
     NSWindow *window = (__bridge NSWindow *)windowPtr;
     gonakoWindowInfo result = {0};

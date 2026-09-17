@@ -58,6 +58,24 @@ static void gonakoApplyGtkWindowSettings(void *windowPtr, int hasPosition, int c
 	else if (state == 3) gtk_window_fullscreen(window);
 }
 
+// GTKのダーク指定はアプリ全体の設定なので、自動に戻すときのために
+// 最初の値を覚えておく。theme: 0=自動、1=ライト、2=ダーク。
+static int gonakoGtkDarkSaved = 0;
+static gboolean gonakoGtkDarkOriginal = FALSE;
+
+static void gonakoApplyGtkTheme(int theme) {
+	GtkSettings *settings = gtk_settings_get_default();
+	if (settings == NULL) return;
+	if (!gonakoGtkDarkSaved) {
+		g_object_get(settings, "gtk-application-prefer-dark-theme", &gonakoGtkDarkOriginal, NULL);
+		gonakoGtkDarkSaved = 1;
+	}
+	gboolean dark = gonakoGtkDarkOriginal;
+	if (theme == 1) dark = FALSE;
+	else if (theme == 2) dark = TRUE;
+	g_object_set(settings, "gtk-application-prefer-dark-theme", dark, NULL);
+}
+
 static gonakoWindowInfo gonakoGetGtkWindowInfo(void *windowPtr) {
 	GtkWindow *window = GTK_WINDOW(windowPtr);
 	gonakoWindowInfo result = {0};
@@ -96,6 +114,14 @@ func platformApplyWindowSettings(window unsafe.Pointer, settings guilib.WindowSe
 		C.int(windowBoolInt(settings.HasState)), C.int(windowStateCode(settings.State)),
 		C.int(windowBoolInt(settings.HasResizable)), C.int(windowBoolInt(settings.Resizable)),
 	)
+	return nil
+}
+
+func platformApplyWindowTheme(window unsafe.Pointer, theme string) error {
+	if window == nil {
+		return fmt.Errorf("ネイティブウィンドウを取得できません")
+	}
+	C.gonakoApplyGtkTheme(C.int(nativeThemeCode(theme)))
 	return nil
 }
 

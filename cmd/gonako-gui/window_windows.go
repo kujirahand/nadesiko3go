@@ -57,7 +57,57 @@ var (
 	setWindowLongW    = windowUser32.NewProc("SetWindowLongW")
 	getWindowTextW    = windowUser32.NewProc("GetWindowTextW")
 	fullscreenWindows sync.Map
+
+	windowDwmapi          = syscall.NewLazyDLL("dwmapi.dll")
+	dwmSetWindowAttribute = windowDwmapi.NewProc("DwmSetWindowAttribute")
+	windowAdvapi32        = syscall.NewLazyDLL("advapi32.dll")
+	regGetValueW          = windowAdvapi32.NewProc("RegGetValueW")
 )
+
+const (
+	dwmwaUseImmersiveDarkMode       = 20
+	dwmwaUseImmersiveDarkModeBefore = 19 // Windows 10 20H1より前
+	hkeyCurrentUser                 = 0x80000001
+	rrfRtRegDword                   = 0x00000010
+)
+
+// platformApplyWindowTheme はタイトルバーの配色を切り替える。
+// WebView2のprefers-color-schemeはOSの設定に従うため、ページ側は
+// data-gonako-theme属性で判定する。
+func platformApplyWindowTheme(window unsafe.Pointer, theme string) error {
+	hwnd := uintptr(window)
+	if hwnd == 0 {
+		return fmt.Errorf("ネイティブウィンドウを取得できません")
+	}
+	dark := int32(0)
+	switch nativeThemeCode(theme) {
+	case 2:
+		dark = 1
+	case 0:
+		if windowsSystemUsesDarkTheme() {
+			dark = 1
+		}
+	}
+	if dwmSetWindowAttribute.Find() != nil {
+		return nil
+	}
+	hr, _, _ := dwmSetWindowAttribute.Call(hwnd, dwmwaUseImmersiveDarkMode, uintptr(unsafe.Pointer(&dark)), unsafe.Sizeof(dark))
+	if hr != 0 {
+		dwmSetWindowAttribute.Call(hwnd, dwmwaUseImmersiveDarkModeBefore, uintptr(unsafe.Pointer(&dark)), unsafe.Sizeof(dark))
+	}
+	setWindowPos.Call(hwnd, 0, 0, 0, 0, 0, swpNoMove|swpNoSize|swpNoZOrder|swpFrameChanged)
+	return nil
+}
+
+func windowsSystemUsesDarkTheme() bool {
+	key, _ := syscall.UTF16PtrFromString(`Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`)
+	name, _ := syscall.UTF16PtrFromString("AppsUseLightTheme")
+	var data uint32
+	size := uint32(unsafe.Sizeof(data))
+	status, _, _ := regGetValueW.Call(hkeyCurrentUser, uintptr(unsafe.Pointer(key)), uintptr(unsafe.Pointer(name)),
+		rrfRtRegDword, 0, uintptr(unsafe.Pointer(&data)), uintptr(unsafe.Pointer(&size)))
+	return status == 0 && data == 0
+}
 
 func platformApplyWindowSettings(window unsafe.Pointer, settings guilib.WindowSettings) error {
 	hwnd := uintptr(window)
