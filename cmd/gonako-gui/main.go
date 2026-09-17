@@ -777,6 +777,25 @@ func main() {
 		return string(b)
 	})
 
+	// Go ↔ JavaScript バインディング: 新規プロジェクトのメインファイル作成
+	_ = w.Bind("createProjectMainFile", func(dirPath string) string {
+		fullPath, err := createProjectMainFile(dirPath)
+		res := struct {
+			OK    bool   `json:"ok"`
+			Path  string `json:"path,omitempty"`
+			Error string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+			res.Path = fullPath
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
 	// Go ↔ JavaScript バインディング: 新規フォルダ作成
 	_ = w.Bind("createNewFolder", func(dirPath, name string) string {
 		fullPath, err := createNewFolder(dirPath, name)

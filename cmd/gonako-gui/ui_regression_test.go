@@ -158,6 +158,59 @@ func TestFileTabNavigationControls(t *testing.T) {
 	}
 }
 
+func TestNewButtonOffersFileOrProjectChoice(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+	for _, required := range []string{
+		`id="btn-new"`,
+		`id="new-menu"`,
+		`id="menu-item-new-file"`,
+		`id="menu-item-new-project"`,
+	} {
+		if !strings.Contains(html, required) {
+			t.Fatalf("index.html is missing new-menu control %q", required)
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"toggleNewMenu()",
+		"menuItemNewFile.addEventListener('click', newFile)",
+		"menuItemNewProject.addEventListener('click', newProject)",
+		"window.createNewFolder(",
+		"window.createAIProject(data.path)",
+		"window.createProjectMainFile(data.path)",
+		"'main.nako3'",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing new-menu behavior %q", required)
+		}
+	}
+	if strings.Contains(app, "btnNew.addEventListener('click', newFile)") {
+		t.Fatal("btn-new must open the new-file/new-project picker instead of creating a file directly")
+	}
+}
+
+func TestNewFolderAutomaticallyScaffoldsAIProject(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	newFolderStart := strings.Index(app, "btnNewFolder.addEventListener")
+	if newFolderStart < 0 {
+		t.Fatal("app.js is missing the new-folder button handler")
+	}
+	newFolderEnd := strings.Index(app[newFolderStart:], "\n  });")
+	if newFolderEnd < 0 {
+		t.Fatal("could not find the end of the new-folder button handler")
+	}
+	handler := app[newFolderStart : newFolderStart+newFolderEnd]
+
+	for _, required := range []string{
+		"window.createAIProject(data.path)",
+	} {
+		if !strings.Contains(handler, required) {
+			t.Fatalf("new-folder handler is missing automatic AI project scaffolding %q", required)
+		}
+	}
+}
+
 func TestAIProjectTemplateMenuIsWired(t *testing.T) {
 	html := readUIAsset(t, "index.html")
 	for _, required := range []string{`id="menu-item-ai-project"`, "AI用の雛形を作成"} {

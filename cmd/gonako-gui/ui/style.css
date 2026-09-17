@@ -192,6 +192,26 @@ body {
   padding: 6px 10px;
 }
 
+/* 新規作成ボタンのドロップダウン */
+.new-menu-wrapper {
+  position: relative;
+}
+
+.new-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  z-index: 100;
+}
+
 /* 実行モードの説明を開く [?] ボタン (#104) */
 .btn-help-icon {
   width: 20px;

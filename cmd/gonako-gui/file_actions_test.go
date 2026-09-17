@@ -83,3 +83,41 @@ func TestCreateAIProjectDoesNotOverwriteExistingFiles(t *testing.T) {
 		t.Fatalf("片方だけ作成してしまった: %v", err)
 	}
 }
+
+func TestCreateProjectMainFile(t *testing.T) {
+	projectPath := t.TempDir()
+	gotPath, err := createProjectMainFile(projectPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(projectPath, "main.nako3")
+	if gotPath != want {
+		t.Fatalf("created path = %q, want %q", gotPath, want)
+	}
+	data, err := os.ReadFile(want)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != defaultMainProgram {
+		t.Fatalf("main.nako3の内容 = %q, want %q", data, defaultMainProgram)
+	}
+}
+
+func TestCreateProjectMainFileDoesNotOverwriteExisting(t *testing.T) {
+	projectPath := t.TempDir()
+	important := filepath.Join(projectPath, "main.nako3")
+	if err := os.WriteFile(important, []byte("残す"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := createProjectMainFile(projectPath); err == nil {
+		t.Fatal("既存のmain.nako3を受け入れてしまった")
+	}
+	data, err := os.ReadFile(important)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != "残す" {
+		t.Fatalf("既存ファイルを上書きした: %q", data)
+	}
+}

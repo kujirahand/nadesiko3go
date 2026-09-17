@@ -72,3 +72,37 @@ func aiProjectFileNames(paths []string) []string {
 	}
 	return names
 }
+
+const defaultMainProgram = "// なでしこ3 プログラム\n「こんにちは」と表示。\n"
+
+// createProjectMainFile は新規プロジェクトのフォルダへメインファイル main.nako3 を作る。
+// 既に存在する場合は上書きせずエラーを返す。
+func createProjectMainFile(projectDir string) (string, error) {
+	absDir, err := filepath.Abs(projectDir)
+	if err != nil {
+		return "", fmt.Errorf("フォルダの場所が分かりません: %w", err)
+	}
+	info, err := os.Stat(absDir)
+	if err != nil {
+		return "", fmt.Errorf("フォルダを確認できません: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("フォルダではありません: %s", absDir)
+	}
+
+	filePath := filepath.Join(absDir, "main.nako3")
+	file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return "", fmt.Errorf("main.nako3を書き込めません: %w", err)
+	}
+	if _, err := file.WriteString(defaultMainProgram); err != nil {
+		_ = file.Close()
+		_ = os.Remove(filePath)
+		return "", fmt.Errorf("main.nako3を書き込めません: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		_ = os.Remove(filePath)
+		return "", fmt.Errorf("main.nako3を書き込めません: %w", err)
+	}
+	return filePath, nil
+}

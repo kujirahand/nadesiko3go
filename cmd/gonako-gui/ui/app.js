@@ -11,6 +11,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const windowPreview = document.getElementById('window-preview');
   const btnRun = document.getElementById('btn-run');
   const btnNew = document.getElementById('btn-new');
+  const newMenu = document.getElementById('new-menu');
+  const menuItemNewFile = document.getElementById('menu-item-new-file');
+  const menuItemNewProject = document.getElementById('menu-item-new-project');
   const btnOpen = document.getElementById('btn-open');
   const btnSave = document.getElementById('btn-save');
   const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
@@ -503,14 +506,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hamburgerMenu) hamburgerMenu.style.display = 'none';
   }
 
+  function toggleNewMenu() {
+    if (!newMenu) return;
+    const isShown = newMenu.style.display === 'flex';
+    newMenu.style.display = isShown ? 'none' : 'flex';
+  }
+
+  function closeNewMenu() {
+    if (newMenu) newMenu.style.display = 'none';
+  }
+
   btnHamburger.addEventListener('click', (e) => {
     e.stopPropagation();
     toggleHamburger();
   });
 
+  if (btnNew) {
+    btnNew.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleNewMenu();
+    });
+  }
+
   document.addEventListener('click', (e) => {
     if (hamburgerMenu && !hamburgerMenu.contains(e.target) && e.target !== btnHamburger) {
       closeHamburger();
+    }
+    if (newMenu && !newMenu.contains(e.target) && !(btnNew && btnNew.contains(e.target))) {
+      closeNewMenu();
     }
     if (fileContextMenu && !fileContextMenu.contains(e.target)) {
       closeContextMenu();
@@ -1367,8 +1390,20 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
+        let statusMsg = `新規フォルダ「${name}」を作成しました`;
+        if (typeof window.createAIProject === 'function') {
+          try {
+            const aiRes = await window.createAIProject(data.path);
+            const aiData = typeof aiRes === 'string' ? JSON.parse(aiRes) : aiRes;
+            if (aiData.ok) {
+              statusMsg += '（AGENTS.md/CLAUDE.mdも用意しました）';
+            }
+          } catch (err) {
+            console.error('AI用の雛形の自動作成エラー:', err);
+          }
+        }
         await loadDirectory(currentDirPath || pathDirName(data.path));
-        setStatus(`新規フォルダ「${name}」を作成しました`);
+        setStatus(statusMsg);
       } else {
         await showAlertDialog('作成エラー', `新規フォルダを作成できませんでした: ${data.error}`);
       }
@@ -1379,6 +1414,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function newFile() {
     closeHamburger();
+    closeNewMenu();
     if (!(await confirmSaveIfDirty())) return;
     clearBinaryState();
     editor.value = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
@@ -1394,6 +1430,95 @@ document.addEventListener('DOMContentLoaded', () => {
     editor.focus();
     setStatus('新規ファイルを作成しました');
   }
+
+  async function newProject() {
+    closeNewMenu();
+    if (typeof window.createNewFolder !== 'function' || typeof window.createAIProject !== 'function') {
+      await showAlertDialog('作成できません', 'この機能は gonako-gui 上でのみ使えます。');
+      return;
+    }
+    if (!(await confirmSaveIfDirty())) return;
+
+    const name = await showPromptDialog(
+      '新規プロジェクト', 'プロジェクト用のフォルダ名を入力してください:', '新規プロジェクト', '作成'
+    );
+    if (!name) return;
+
+    try {
+      const res = await window.createNewFolder(
+        currentDirPath || desktopDirPath || homeDirPath, name
+      );
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (!data.ok) {
+        await showAlertDialog('作成エラー', `新規プロジェクトを作成できませんでした: ${data.error}`);
+        return;
+      }
+
+      let statusMsg = `新規プロジェクト「${name}」を作成しました`;
+      try {
+        const aiRes = await window.createAIProject(data.path);
+        const aiData = typeof aiRes === 'string' ? JSON.parse(aiRes) : aiRes;
+        if (aiData.ok) {
+          statusMsg += '（AGENTS.md/CLAUDE.mdも用意しました）';
+        }
+      } catch (err) {
+        console.error('AI用の雛形の自動作成エラー:', err);
+      }
+
+      clearBinaryState();
+      const mainProgram = `// なでしこ3 プログラム\n「こんにちは」と表示。\n`;
+      editor.value = mainProgram;
+      savedContent = editor.value;
+      currentFilePath = '';
+      currentFileDisplayName = '新規プログラム.nako3';
+      currentTemplateBaseName = '';
+      activeFileName.title = '';
+
+      let mainFileError = '';
+      if (typeof window.createProjectMainFile === 'function') {
+        try {
+          const mainRes = await window.createProjectMainFile(data.path);
+          const mainData = typeof mainRes === 'string' ? JSON.parse(mainRes) : mainRes;
+          if (mainData.ok) {
+            currentFilePath = mainData.path;
+            currentFileDisplayName = 'main.nako3';
+            activeFileName.title = mainData.path;
+            statusMsg += '（main.nako3も作成しました）';
+          } else {
+            mainFileError = mainData.error || 'main.nako3を作成できませんでした';
+          }
+        } catch (err) {
+          mainFileError = err.message || String(err);
+        }
+        if (mainFileError) {
+          console.error('main.nako3の自動作成エラー:', mainFileError);
+          statusMsg += `（main.nako3は未作成: ${mainFileError}）`;
+        }
+      }
+
+      updateFileTitleDisplay();
+      updateLineNumbers();
+      updateCharCount();
+      updateCursorPos();
+
+      activateTab(tabBtnFile, tabContentFile);
+      toggleSidebar(false);
+      await loadDirectory(data.path);
+      setStatus(statusMsg);
+      if (mainFileError) {
+        await showAlertDialog(
+          'main.nako3を作成できませんでした',
+          `${mainFileError}\n\nエディタの内容はまだ保存されていません。「保存」で保存先を選んでください。`
+        );
+      }
+    } catch (err) {
+      console.error('新規プロジェクト作成エラー:', err);
+      await showAlertDialog('作成エラー', `${err.message || err}`);
+    }
+  }
+
+  if (menuItemNewFile) menuItemNewFile.addEventListener('click', newFile);
+  if (menuItemNewProject) menuItemNewProject.addEventListener('click', newProject);
 
   async function openFileDialogAction() {
     closeHamburger();
@@ -1543,7 +1668,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  if (btnNew) btnNew.addEventListener('click', newFile);
   if (btnOpen) btnOpen.addEventListener('click', openFileDialogAction);
   if (btnSave) btnSave.addEventListener('click', saveFile);
   if (menuItemNew) menuItemNew.addEventListener('click', newFile);

@@ -12,9 +12,19 @@
     <header class="toolbar">
       <div class="toolbar-actions">
         <!-- ファイル操作 -->
-        <button id="btn-new" class="btn btn-secondary" title="新規作成 (Ctrl+N / Cmd+N)">
-          <span class="icon">📄</span> 新規
-        </button>
+        <div class="new-menu-wrapper">
+          <button id="btn-new" class="btn btn-secondary" title="新規作成 (Ctrl+N / Cmd+N)">
+            <span class="icon">📄</span> 新規 ▾
+          </button>
+          <div id="new-menu" class="new-menu" style="display: none;">
+            <button id="menu-item-new-file" class="menu-item">
+              <span class="menu-icon">📄</span> 新規ファイル
+            </button>
+            <button id="menu-item-new-project" class="menu-item" title="フォルダを作成し、AGENTS.mdとCLAUDE.mdを自動で用意します">
+              <span class="menu-icon">📁</span> 新規プロジェクト
+            </button>
+          </div>
+        </div>
         <button id="btn-open" class="btn btn-secondary" title="ファイルを開く (Ctrl+O / Cmd+O)">
           <span class="icon">📂</span> 開く
         </button>
