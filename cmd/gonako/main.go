@@ -475,11 +475,42 @@ func formatFile(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "%s: 変更はありません\n", source)
 		return nil
 	}
-	if err := os.WriteFile(source, []byte(formatted), info.Mode()); err != nil {
+	if err := atomicWriteFile(source, []byte(formatted), info.Mode()); err != nil {
 		return fmt.Errorf("ファイル『%s』へ書き戻せません: %w", source, err)
 	}
 	fmt.Fprintf(stdout, "%s を整形しました\n", source)
 	return nil
+}
+
+// atomicWriteFile は、同じディレクトリに一時ファイルを作って書き込み、
+// 内容をディスクへ確実に反映してから、既存ファイルへリネームで置き換える。
+// os.WriteFileは既存ファイルを開くときに先に切り詰めるため、ディスク容量
+// 不足やプロセスの異常終了で書き込みが途中で失敗すると、元の内容を失った
+// まま復元できなくなる。フォーマッターの失敗が入力ファイルそのものを
+// 壊してしまうのを避けるため、書き戻しにはこちらを使う。
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	defer os.Remove(tmpPath) // 成功時はRenameで移動済みなので、失敗時だけ消える
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, path)
 }
 
 // checkSameProgram は、もはや同じプログラムではなくなった結果を返すことを

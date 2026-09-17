@@ -34,7 +34,7 @@ const Unit = "    "
 // 書き換えてしまうからである。ただし開始行・終了行のうち、リテラルの外側に
 // あたる部分(開き引用符・閉じ引用符と同じ行にある他のコード)は整形する。
 func Source(code, filename string, tree *ast.Node) string {
-	depths := lineDepths(tree) // ast.Node.Line(0始まり) -> 深さ
+	depths := lineDepths(tree, filename) // ast.Node.Line(0始まり) -> 深さ
 	spans := protectedSpans(code, filename)
 	lines := splitPhysicalLines(code)
 	// 末尾の空行はすべて落とし、末尾には改行を1つだけ付ける。保護範囲は実際の
@@ -374,7 +374,15 @@ func lineColOf(lineStarts []int, offset int) (line, col int) {
 // で別の もし に繋がる『違えば、もし』チェーンや、1行で書く『もし〜ならば
 // 〜』のthen/elseがそれである。これらは1段深い本体ではなく、その分岐の行
 // の内容そのものなので、分岐自身と同じ深さで辿る。
-func lineDepths(root *ast.Node) map[int]int {
+//
+// filenameは整形しているファイル自身のパスで、Sourceが受け取ったfilename
+// と同じ値を渡す。『!「file」を取込』で展開されたノードは、取込先ファイル
+// 自身の行番号(そちらも0始まり)を持ったまま木に混ざり込むため、filename
+// と異なるNode.Fileを持つノードは深さの計算から除外する。除外しないと、
+// 取込先ファイルのトップレベルの行番号が、本体側の同じ行番号のブロック内
+// の文と衝突し、「最も浅い深さを採用する」規則によって本体側の字下げが
+// 消されてしまう(取込先の行が本体の行より浅くなりがちなため)。
+func lineDepths(root *ast.Node, filename string) map[int]int {
 	depths := map[int]int{}
 
 	// setは、この深さの何かがその行にあることを記録する。1つの行を複数の
@@ -403,18 +411,24 @@ func lineDepths(root *ast.Node) map[int]int {
 	// block.Blocksを通って辿り着くものは、構造上必ず値ではなく文だから、
 	// これは常に成り立つ――そのうえで、それぞれの内側を見て入れ子の本体を
 	// さらに探す。ブロック自身を閉じるキーワードの行は、1段浅い深さに置く。
+	//
+	// stmt.File・block.End.Fileがfilenameと異なる場合はスキップする:
+	// 『!「file」を取込』で展開されたノードは、取込先ファイル自身の行番号
+	// (そちらも0始まりなので本体の行番号と衝突しうる)を持ったまま木に
+	// 混ざり込むため、それらは整形対象(filename)の行ではないと分かって
+	// いなければならない。
 	walkBlock = func(block *ast.Node, bodyDepth int) {
 		if block == nil {
 			return
 		}
 		for _, stmt := range block.Blocks {
-			if stmt == nil {
+			if stmt == nil || stmt.File != filename {
 				continue
 			}
 			set(stmt.Line, bodyDepth)
 			scan(stmt, bodyDepth)
 		}
-		if block.End != nil {
+		if block.End != nil && block.End.File == filename {
 			set(block.End.Line, bodyDepth-1)
 		}
 	}
@@ -439,7 +453,10 @@ func lineDepths(root *ast.Node) map[int]int {
 	// 込まれた制御構文の本体、たとえば呼び出しの引数として渡した無名関数
 	// の本体は、既知の制限としてインデントの再計算対象にならない。)
 	scan = func(n *ast.Node, depth int) {
-		if n == nil {
+		if n == nil || n.File != filename {
+			// walkBlockから呼ぶ場合はここに来る前に確認済みだが、If・Switch
+			// などが子として持つノードが取込先ファイル由来になることは
+			// 通常ないものの、念のためここでも確認する。
 			return
 		}
 		switch n.Type {
