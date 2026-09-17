@@ -2383,10 +2383,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus('自動整形中...');
     try {
       const raw = await window.formatNakoCode(code, filePath || '');
-      if (isStaleRequest(code, filePath)) {
-        setStatus('自動整形: 待機中に編集されたため中止しました');
-        return;
-      }
+      // 待っている間に別の操作（保存・実行など）が進んでいる可能性があるため、
+      // ここでは何も表示せず黙って捨てる。setStatusで上書きすると、その別操作の
+      // 状態表示を古い整形結果の中止メッセージで消してしまう（Devin指摘）。
+      if (isStaleRequest(code, filePath)) return;
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!data.ok) {
         setOutputPanelOpen(true);
