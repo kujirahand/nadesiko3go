@@ -644,6 +644,19 @@ func main() {
 		return guiRuntime.resolveDialog(runID, dialogID, text, accepted)
 	})
 
+	// Go ↔ JavaScript バインディング: 文法チェック・自動整形（#118）。
+	// どちらも実行はせず構文解析だけを行う。
+	_ = w.Bind("checkNakoSyntax", func(code, filePath string) string {
+		res := checkNakoSyntax(code, filePath)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	_ = w.Bind("formatNakoCode", func(code, filePath string) string {
+		res := formatNakoCode(code, filePath)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
 	// WKWebViewではアプリの起動形態によって標準のコピー＆ペーストが
 	// textareaまで届かないため、メインエディタ用にOSクリップボードを公開する。
 	_ = w.Bind("readClipboardText", readClipboardText)

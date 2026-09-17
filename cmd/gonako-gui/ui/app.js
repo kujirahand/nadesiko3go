@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const output = document.getElementById('output');
   const windowPreview = document.getElementById('window-preview');
   const btnRun = document.getElementById('btn-run');
+  const btnSyntaxCheck = document.getElementById('btn-syntax-check');
   const btnNew = document.getElementById('btn-new');
   const newMenu = document.getElementById('new-menu');
   const menuItemNewFile = document.getElementById('menu-item-new-file');
@@ -54,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItemOpen = document.getElementById('menu-item-open');
   const menuItemSave = document.getElementById('menu-item-save');
   const menuItemSaveAs = document.getElementById('menu-item-save-as');
+  const menuItemFormat = document.getElementById('menu-item-format');
   const menuItemAIProject = document.getElementById('menu-item-ai-project');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
@@ -1958,6 +1960,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 実行ボタン
   btnRun.addEventListener('click', runCode);
+  btnSyntaxCheck.addEventListener('click', checkSyntax);
+  menuItemFormat.addEventListener('click', () => {
+    closeHamburger();
+    formatCode();
+  });
 
   // ログクリア
   btnClearLog.addEventListener('click', () => {
@@ -2276,6 +2283,78 @@ document.addEventListener('DOMContentLoaded', () => {
     } finally {
       runInFlight = false;
       btnRun.disabled = false;
+    }
+  }
+
+  // 文法チェック（#118）。実行はせず構文解析だけを行うので、
+  // 副作用のあるプログラムでも安全に呼べる。
+  async function checkSyntax() {
+    const code = editor.value;
+    if (!code.trim()) {
+      setStatus('（プログラムが空です）');
+      return;
+    }
+    setOutputPanelOpen(true);
+    btnSyntaxCheck.disabled = true;
+    setStatus('文法チェック中...');
+    try {
+      const raw = await window.checkNakoSyntax(code, currentFilePath || '');
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (data.ok) {
+        output.textContent = '文法エラーはありません';
+        output.className = 'output has-content';
+        execStatus.textContent = 'OK';
+        execStatus.className = 'status-indicator success';
+        setStatus('文法チェック完了: エラーはありません');
+      } else {
+        output.textContent = data.error || '文法エラーがあります';
+        output.className = 'output has-error';
+        execStatus.textContent = 'エラー';
+        execStatus.className = 'status-indicator error';
+        setStatus('文法チェックでエラーが見つかりました');
+      }
+    } catch (err) {
+      output.textContent = `[システムエラー] ${err.message || err}`;
+      output.className = 'output has-error';
+      setStatus(`システムエラー: ${err}`);
+    } finally {
+      btnSyntaxCheck.disabled = false;
+    }
+  }
+
+  // 自動整形（#118）。ファイルへは書き戻さず、エディタのバッファだけを
+  // 整形結果に置き換える。保存は利用者が別途行う。
+  async function formatCode() {
+    const code = editor.value;
+    if (!code.trim()) {
+      setStatus('（プログラムが空です）');
+      return;
+    }
+    setStatus('自動整形中...');
+    try {
+      const raw = await window.formatNakoCode(code, currentFilePath || '');
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!data.ok) {
+        setOutputPanelOpen(true);
+        output.textContent = data.error || '整形できませんでした';
+        output.className = 'output has-error';
+        setStatus('自動整形に失敗しました');
+        return;
+      }
+      if (!data.changed) {
+        setStatus('自動整形: 変更はありません');
+        return;
+      }
+      const cursorOffset = editor.selectionStart;
+      editor.value = data.formatted;
+      editor.selectionStart = editor.selectionEnd = Math.min(cursorOffset, editor.value.length);
+      updateFileTitleDisplay();
+      updateLineNumbers();
+      updateCharCount();
+      updateCursorPos();
+      setStatus('自動整形が完了しました');
+    } catch (err) {
+      setStatus(`システムエラー: ${err.message || err}`);
     }
   }
 
