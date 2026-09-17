@@ -651,8 +651,8 @@ func main() {
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
-	_ = w.Bind("formatNakoCode", func(code, filePath string) string {
-		res := formatNakoCode(code, filePath)
+	_ = w.Bind("formatNakoCode", func(code, filePath string, colon bool) string {
+		res := formatNakoCode(code, filePath, colon)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})

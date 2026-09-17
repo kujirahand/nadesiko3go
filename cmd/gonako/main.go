@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/commanddiff"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
@@ -48,7 +47,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako lint <ファイル>             文法をチェックする
-  gonako format <ファイル> [-f]      コードを整形する（インデントを整える）
+  gonako format <ファイル> [-f] [--colon] コードを整形する
   gonako compat run [--cases DIR] [--out DIR]
   gonako compat commands [--source FILE]
   gonako version                    バージョン情報を表示する
@@ -75,6 +74,7 @@ doctest のオプション:
 
 format のオプション:
   --force, -f      結果をファイルへ書き戻す（省略時は標準出力に表示するだけ）
+  --colon          『ここまで』で閉じるブロックを『3回:』のようなコロン記法に書き換える
 `
 
 // runFile runs a program from a file. Everything after the file name is passed
@@ -426,13 +426,16 @@ func lintFile(args []string, stdout io.Writer) error {
 }
 
 // formatFile は、構文解析済みのブロック構造からプログラムのインデントを
-// 付け直す。--forceを付けなければ結果を表示するだけで、gofmtの既定動作と
-// 同じく、書き戻しを求められるまでファイルには手を付けない。
+// 付け直し、行の中身の書き方(空白・全角記号・演算子)を揃える。--colonを
+// 付けるとブロックをコロン記法に書き換える。--forceを付けなければ結果を
+// 表示するだけで、gofmtの既定動作と同じく、書き戻しを求められるまで
+// ファイルには手を付けない。
 func formatFile(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("format", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	force := flags.Bool("force", false, "結果をファイルへ書き戻す")
 	flags.BoolVar(force, "f", false, "結果をファイルへ書き戻す (--forceの短縮形)")
+	colon := flags.Bool("colon", false, "ブロックをコロン記法に書き換える")
 	source, rest := splitSourceFor(args)
 	if err := flags.Parse(rest); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -455,17 +458,14 @@ func formatFile(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("ファイル『%s』を読み込めません: %w", source, err)
 	}
-	tree, err := vm.ParseProgram(string(code), source)
+	formatted, err := format.Program(string(code), source, vm.ParseProgram, format.Options{Colon: *colon})
+	if errors.Is(err, format.ErrStructureChanged) {
+		return fmt.Errorf("『%s』は%w", source, err)
+	}
 	if err != nil {
 		return err
 	}
-	formatted := format.Source(string(code), source, tree)
 	unchanged := formatted == string(code)
-	if !unchanged {
-		if err := checkSameProgram(tree, formatted, source); err != nil {
-			return err
-		}
-	}
 
 	if !*force {
 		fmt.Fprint(stdout, formatted)
@@ -511,23 +511,6 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	return os.Rename(tmpPath, path)
-}
-
-// checkSameProgram は、もはや同じプログラムではなくなった結果を返すことを
-// 拒否する。インデント自身が構文になっているファイル(『!インデント構文』
-// や行末の『:』を使うファイルが該当する)では、インデントの付け替えが文を
-// ブロックの内外へ移動させてしまうため、処理を止めることだけが安全な答え
-// になる。
-func checkSameProgram(original *ast.Node, formatted, source string) error {
-	tree, err := vm.ParseProgram(formatted, source)
-	if err != nil {
-		return fmt.Errorf("整形結果が構文解析できなくなるため中止しました: %w", err)
-	}
-	if format.Structure(tree) != format.Structure(original) {
-		return fmt.Errorf("『%s』は整形すると構文構造が変わってしまうため中止しました。"+
-			"インデントでブロックを表すファイル(『!インデント構文』や『3回:』のようなコロン記法)は整形できません", source)
-	}
-	return nil
 }
 
 // existingDocTestTargets lets the optional manual symlink be absent while the

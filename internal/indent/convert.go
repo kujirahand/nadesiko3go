@@ -216,16 +216,22 @@ func lineTemplate(line []lexer.Token, fallback lexer.Token) lexer.Token {
 	return fallback
 }
 
+// appendEnd は、インデントから合成した『ここまで』と改行を行末に追加する。
+// 合成したトークンはソース上に実体を持たないので長さを0にする。整形処理
+// (internal/format)は、長さ0の終端を「本物の『ここまで』行ではない」と
+// 見分けてインデントの計算から外す。
 func appendEnd(line *[]lexer.Token, template lexer.Token) {
 	end := template
 	end.Type = lexer.TypeKokomade
 	end.Value = "ここまで"
 	end.Josi = ""
 	end.RawJosi = ""
+	end.Length = 0
 	eol := template
 	eol.Type = lexer.TypeEOL
 	eol.Value = template.Line
 	eol.Josi = ""
 	eol.RawJosi = ""
+	eol.Length = 0
 	*line = append(*line, end, eol)
 }

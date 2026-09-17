@@ -27,7 +27,7 @@ func TestCheckNakoSyntaxError(t *testing.T) {
 
 func TestFormatNakoCodeChanged(t *testing.T) {
 	code := "3回\n「A」と表示。\nここまで\n"
-	res := formatNakoCode(code, "test.nako3")
+	res := formatNakoCode(code, "test.nako3", false)
 	if !res.OK {
 		t.Fatalf("OK = false, error = %q", res.Error)
 	}
@@ -41,7 +41,7 @@ func TestFormatNakoCodeChanged(t *testing.T) {
 
 func TestFormatNakoCodeUnchanged(t *testing.T) {
 	code := "3回\n    「A」と表示。\nここまで\n"
-	res := formatNakoCode(code, "test.nako3")
+	res := formatNakoCode(code, "test.nako3", false)
 	if !res.OK {
 		t.Fatalf("OK = false, error = %q", res.Error)
 	}
@@ -50,19 +50,32 @@ func TestFormatNakoCodeUnchanged(t *testing.T) {
 	}
 }
 
-func TestFormatNakoCodeRefusesStructureChange(t *testing.T) {
-	code := "3回:\n    「A」と表示。\n「終」と表示。\n"
-	res := formatNakoCode(code, "colon.nako3")
-	if res.OK {
-		t.Fatal("構造が変わるのにOK = trueでした")
+func TestFormatNakoCodeColonSyntax(t *testing.T) {
+	code := "3回:\n  「A」と表示。\n「終」と表示。\n"
+	res := formatNakoCode(code, "colon.nako3", false)
+	if !res.OK {
+		t.Fatalf("OK = false, error = %q", res.Error)
 	}
-	if !strings.Contains(res.Error, "構文構造が変わってしまうため中止") {
-		t.Errorf("Error = %q", res.Error)
+	want := "3回:\n    「A」と表示。\n「終」と表示。\n"
+	if res.Formatted != want || !res.Changed {
+		t.Errorf("Formatted = %q, Changed = %v", res.Formatted, res.Changed)
+	}
+}
+
+func TestFormatNakoCodeToColon(t *testing.T) {
+	code := "3回\n    「A」と表示。\nここまで\n"
+	res := formatNakoCode(code, "test.nako3", true)
+	if !res.OK {
+		t.Fatalf("OK = false, error = %q", res.Error)
+	}
+	want := "3回:\n    「A」と表示。\n"
+	if res.Formatted != want || !res.Changed {
+		t.Errorf("Formatted = %q, Changed = %v", res.Formatted, res.Changed)
 	}
 }
 
 func TestFormatNakoCodeSyntaxError(t *testing.T) {
-	res := formatNakoCode("もし「A」ならば\n「B」と表示。", "test.nako3")
+	res := formatNakoCode("もし「A」ならば\n「B」と表示。", "test.nako3", false)
 	if res.OK {
 		t.Fatal("文法エラーがあるのにOK = trueでした")
 	}

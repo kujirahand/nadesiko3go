@@ -321,8 +321,8 @@ func stringImpls(m map[string]Impl) {
 const (
 	fullWidthKana       = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンァィゥェォャュョッ、。ー「」"
 	halfWidthKana       = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜｦﾝｧｨｩｪｫｬｭｮｯ､｡ｰ｢｣ﾞﾟ"
-	fullWidthVoicedKana = "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
-	halfWidthVoicedKana = "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾋﾞﾌﾞﾍﾞﾎﾞﾊﾟﾋﾟﾌﾟﾍﾟﾎﾟ"
+	fullWidthVoicedKana = "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポヴ"
+	halfWidthVoicedKana = "ｶﾞｷﾞｸﾞｹﾞｺﾞｻﾞｼﾞｽﾞｾﾞｿﾞﾀﾞﾁﾞﾂﾞﾃﾞﾄﾞﾊﾞﾋﾞﾌﾞﾍﾞﾎﾞﾊﾟﾋﾟﾌﾟﾍﾟﾎﾟｳﾞ"
 )
 
 func katakanaToFullWidth(s string) string {
@@ -340,11 +340,10 @@ func katakanaToFullWidth(s string) string {
 				}
 			}
 		}
-		for j, r := range half {
-			if runes[i] == r {
-				b.WriteRune(full[j])
-				goto converted
-			}
+		// 対応する全角文字がない単独の濁点・半濁点などは、そのまま残す。
+		if j := runeIndex(half, runes[i]); j >= 0 && j < len(full) {
+			b.WriteRune(full[j])
+			goto converted
 		}
 		b.WriteRune(runes[i])
 	converted:

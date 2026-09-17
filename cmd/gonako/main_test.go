@@ -441,7 +441,7 @@ func TestFormatPrintsToStdoutByDefault(t *testing.T) {
 	if err := run([]string{"format", path}, &out, &errOut); err != nil {
 		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
 	}
-	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	want := "もし、1 = 1ならば\n    「やあ」と表示。\nここまで\n"
 	if out.String() != want {
 		t.Errorf("出力 = %q, want %q", out.String(), want)
 	}
@@ -469,7 +469,7 @@ func TestFormatForceWritesFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "もし、1=1ならば\n    「やあ」と表示。\nここまで\n"
+	want := "もし、1 = 1ならば\n    「やあ」と表示。\nここまで\n"
 	if string(got) != want {
 		t.Errorf("ファイルの内容 = %q, want %q", got, want)
 	}
@@ -510,7 +510,7 @@ func TestFormatDoesNotConfuseRequiredFileLineNumbers(t *testing.T) {
 		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
 	}
 	want := "!「lib.nako3」を取込。\n" +
-		"もし、1=1ならば\n" +
+		"もし、1 = 1ならば\n" +
 		"    「A」と表示。\n" +
 		"    「B」と表示。\n" +
 		"    「C」と表示。\n" +
@@ -543,29 +543,39 @@ func TestFormatForcePreservesFileMode(t *testing.T) {
 	}
 }
 
-// 行末の『:』でブロックを表すファイルは、インデントを付け替えると
-// ブロックの範囲が変わってしまう。書き換えずに中止することを確かめる。
-func TestFormatRefusesWhenStructureWouldChange(t *testing.T) {
+// 行末の『:』でブロックを表すファイルも、構文構造を保ったまま整形できる(#120)。
+func TestFormatColonSyntaxFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "colon.nako3")
-	original := "3回:\n    「A」と表示。\n「終」と表示。\n"
+	original := "3回:\n  「A」と表示。\n「終」と表示。\n"
 	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	var out, errOut bytes.Buffer
-	err := run([]string{"format", "--force", path}, &out, &errOut)
-	if err == nil {
-		t.Fatal("構造が変わるファイルで中止しませんでした")
+	if err := run([]string{"format", path}, &out, &errOut); err != nil {
+		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
 	}
-	if !strings.Contains(err.Error(), "構文構造が変わってしまうため中止") {
-		t.Errorf("エラー = %v", err)
+	want := "3回:\n    「A」と表示。\n「終」と表示。\n"
+	if out.String() != want {
+		t.Errorf("出力 = %q, want %q", out.String(), want)
 	}
-	got, readErr := os.ReadFile(path)
-	if readErr != nil {
-		t.Fatal(readErr)
+}
+
+// --colon を付けると、『ここまで』で閉じるブロックをコロン記法に書き換える。
+func TestFormatColonOption(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "block.nako3")
+	original := "3回\n「A」 を表示\nここまで\n"
+	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if string(got) != original {
-		t.Errorf("中止したのにファイルが書き換わりました: %q", got)
+	var out, errOut bytes.Buffer
+	if err := run([]string{"format", path, "--colon"}, &out, &errOut); err != nil {
+		t.Fatalf("format --colon: %v; stderr=%s", err, errOut.String())
+	}
+	want := "3回:\n    「A」を表示\n"
+	if out.String() != want {
+		t.Errorf("出力 = %q, want %q", out.String(), want)
 	}
 }
 

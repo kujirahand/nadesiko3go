@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const menuItemSave = document.getElementById('menu-item-save');
   const menuItemSaveAs = document.getElementById('menu-item-save-as');
   const menuItemFormat = document.getElementById('menu-item-format');
+  const menuItemFormatColon = document.getElementById('menu-item-format-colon');
   const menuItemAIProject = document.getElementById('menu-item-ai-project');
   const menuItemShortcuts = document.getElementById('menu-item-shortcuts');
   const menuItemAbout = document.getElementById('menu-item-about');
@@ -2033,7 +2034,11 @@ document.addEventListener('DOMContentLoaded', () => {
   btnSyntaxCheck.addEventListener('click', checkSyntax);
   menuItemFormat.addEventListener('click', () => {
     closeHamburger();
-    formatCode();
+    formatCode(false);
+  });
+  menuItemFormatColon.addEventListener('click', () => {
+    closeHamburger();
+    formatCode(true);
   });
 
   // ログクリア
@@ -2356,11 +2361,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // オフセットoldOffsetの(行, 桁)を求め、その行の旧インデント幅・新インデント幅の
-  // 差だけ桁をずらしてnewText側のオフセットへ変換する。整形（format.Source）は
-  // 各行の先頭の空白（インデント）だけを書き換え、それ以外は行内で位置を保つため、
-  // オフセットの単純な使い回しではインデントが変わった行でカーソルがずれる（Devin指摘）。
+  // 整形前のオフセットoldOffsetを、整形後のnewText側のオフセットへ変換する。
+  // 整形（format.Program）は行頭のインデントのほか、行内の空白・記号を書き換え、
+  // コロン記法への変換では『ここまで』の行を消すこともある。そこで、まず前後の
+  // 一致部分（変更の無い先頭・末尾）にあるカーソルはそのままずらし、変更のある
+  // 範囲では、消えた行を飛ばして行を対応付け、行の中の空白以外の文字数を
+  // 数えて同じ文字の位置へ移す（記号の書き換えは1文字を1文字に置き換える）。
+  // オフセットの単純な使い回しではカーソルがずれる（Devin指摘）。
   function mapOffsetAfterFormat(oldText, newText, oldOffset) {
+    // 先頭の一致部分
+    let prefix = 0;
+    const minLen = Math.min(oldText.length, newText.length);
+    while (prefix < minLen && oldText[prefix] === newText[prefix]) prefix++;
+    if (oldOffset <= prefix) return oldOffset;
+    // 末尾の一致部分（先頭の一致部分とは重ねない）
+    let suffix = 0;
+    while (suffix < minLen - prefix &&
+      oldText[oldText.length - 1 - suffix] === newText[newText.length - 1 - suffix]) suffix++;
+    if (oldOffset >= oldText.length - suffix) {
+      return newText.length - (oldText.length - oldOffset);
+    }
+
     const oldLines = oldText.split('\n');
     const newLines = newText.split('\n');
     let row = 0;
@@ -2372,19 +2393,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const oldLine = oldLines[row] || '';
     const col = Math.max(0, Math.min(remaining, oldLine.length));
-    const oldIndentLen = oldLine.length - oldLine.replace(/^[ \t]+/, '').length;
 
-    const newRow = Math.min(row, newLines.length - 1);
+    // コロン記法への変換では『ここまで』だけの行が消えるので、行番号が
+    // ずれる。先頭から順に、消えた行を飛ばしながら行を対応付ける。
+    const isBlockEnd = (line) => /^[ \t\u3000]*(ここまで|💧)[。.]?[ \t\u3000]*$/.test(line);
+    let newRow = 0;
+    for (let i = 0; i < row; i++) {
+      const deleted = isBlockEnd(oldLines[i]) &&
+        !(newRow < newLines.length && isBlockEnd(newLines[newRow]));
+      if (!deleted) newRow++;
+    }
+    newRow = Math.max(0, Math.min(newRow, newLines.length - 1));
     const newLine = newLines[newRow] || '';
-    const newIndentLen = newLine.length - newLine.replace(/^[ \t]+/, '').length;
 
-    let newCol;
-    if (col <= oldIndentLen) {
+    // 空白以外の文字をいくつ過ぎたかで、同じ文字の位置を探す。
+    const isSpace = (ch) => ch === ' ' || ch === '\t' || ch === '\u3000';
+    let count = 0;
+    for (let i = 0; i < col; i++) {
+      if (!isSpace(oldLine[i])) count++;
+    }
+    let newCol = 0;
+    if (count === 0) {
       // インデント部分にいた場合は、新しいインデントの範囲に収める。
+      const newIndentLen = newLine.length - newLine.replace(/^[ \t\u3000]+/, '').length;
       newCol = Math.min(col, newIndentLen);
     } else {
-      // インデントより後ろの内容はそのまま保たれるので、差分だけ動かす。
-      newCol = newIndentLen + (col - oldIndentLen);
+      let seen = 0;
+      while (newCol < newLine.length && seen < count) {
+        if (!isSpace(newLine[newCol])) seen++;
+        newCol++;
+      }
     }
     newCol = Math.max(0, Math.min(newCol, newLine.length));
 
@@ -2392,6 +2430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     for (let i = 0; i < newRow; i++) offset += newLines[i].length + 1;
     return offset + newCol;
   }
+
 
   // 文法チェック・自動整形の非同期応答を待つ間に、利用者が編集を続けたり
   // 別のファイルへ切り替えたりできる。応答が届いた時点で送信時の内容から
@@ -2456,9 +2495,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 自動整形（#118）。ファイルへは書き戻さず、エディタのバッファだけを
+  // 自動整形（#118・#120）。ファイルへは書き戻さず、エディタのバッファだけを
   // 整形結果に置き換える。保存は利用者が別途行う。
-  async function formatCode() {
+  // colonがtrueなら、ブロックをコロン記法に書き換える。
+  async function formatCode(colon) {
     const code = editor.value;
     const filePath = currentFilePath;
     if (!code.trim()) {
@@ -2466,9 +2506,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     menuItemFormat.disabled = true;
+    menuItemFormatColon.disabled = true;
     setStatus('自動整形中...');
     try {
-      const raw = await window.formatNakoCode(code, filePath || '');
+      const raw = await window.formatNakoCode(code, filePath || '', !!colon);
       if (isStaleRequest(code, filePath)) {
         reportStaleIfIdle('自動整形中...', '自動整形: 待機中に編集されたため中止しました');
         return;
@@ -2507,6 +2548,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setStatus(`システムエラー: ${err.message || err}`);
     } finally {
       menuItemFormat.disabled = false;
+      menuItemFormatColon.disabled = false;
     }
   }
 

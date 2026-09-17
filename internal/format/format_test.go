@@ -120,15 +120,38 @@ func TestSourceKeepsDedentedLineOutsideBlock(t *testing.T) {
 }
 
 // 行末の『:』でブロックを開くファイルは、合成された『ここまで』が本文の
-// 最終行の行番号を持つため、深さを読み取れない。Structureの比較で気づける
-// ことを確かめる(呼び出し側はこの結果を捨てる)。
-func TestStructureCatchesColonSyntaxReindent(t *testing.T) {
-	code := "3回:\n    「A」と表示。\n「終」と表示。\n"
+// 最終行の位置を借りる。それに引きずられて本文の最終行を浅くせず、
+// 構文構造を保ったままインデントを付け直せることを確かめる(#120)。
+func TestSourceReindentsColonSyntax(t *testing.T) {
+	code := "3回:\n" +
+		"  もし、はいならば：\n" +
+		"      「T」と表示\n" +
+		"  違えば：\n" +
+		"   「F」と表示。\n" +
+		"「終」と表示。\n"
 	before := parse(t, code)
-	formatted := format.Source(code, "main.nako3", before)
-	after := parse(t, formatted)
+	got := format.Source(code, "main.nako3", before)
+	want := "3回:\n" +
+		"    もし、はいならば：\n" +
+		"        「T」と表示\n" +
+		"    違えば：\n" +
+		"        「F」と表示。\n" +
+		"「終」と表示。\n"
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if format.Structure(before) != format.Structure(parse(t, got)) {
+		t.Fatalf("構文構造が変わりました:\n%s", got)
+	}
+}
+
+// コロン記法では、本文の行を浅くすると本文の範囲が変わる。Structureの比較で
+// それに気づけることを確かめる(呼び出し側はこの結果を捨てる)。
+func TestStructureCatchesColonBodyChange(t *testing.T) {
+	before := parse(t, "3回:\n    「A」と表示。\n「終」と表示。\n")
+	after := parse(t, "3回:\n    「A」と表示。\n    「終」と表示。\n")
 	if format.Structure(before) == format.Structure(after) {
-		t.Fatalf("整形で構造が変わったのに検出できていません:\n%s", formatted)
+		t.Fatal("本文の範囲が変わったのに検出できていません")
 	}
 }
 

@@ -120,7 +120,9 @@ func (p *Parser) yEOL() *ast.Node {
 	comment, _ := eol.Value.(string)
 	return &ast.Node{
 		Type: ast.EOL, Comment: comment,
-		SourceMap: ast.SourceMap{Line: eol.Line, Column: eol.Column, File: eol.File},
+		// Offset・Lengthも残す。インデント構文・コロン記法で合成した改行は
+		// 長さ0なので、整形処理(internal/format)が本物の改行と見分けられる。
+		SourceMap: ast.SourceMap{Line: eol.Line, Column: eol.Column, File: eol.File, Offset: eol.Offset, Length: eol.Length},
 	}
 }
 
