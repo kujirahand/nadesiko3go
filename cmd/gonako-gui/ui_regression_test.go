@@ -446,16 +446,23 @@ func TestGonakoCommandListHasDocURL(t *testing.T) {
 
 	app := readUIAsset(t, "app.js")
 
-	// 命令クリック時は簡易テキストをまず即座に表示し(displayCommandHelpText)、
-	// 詳細はリンククリックで外部ブラウザのWebマニュアルへ誘導する(iframeの遅延表示はしない)。
-	if !strings.Contains(app, "function displayCommandHelpText(") {
-		t.Fatal("app.js にプレーンテキスト表示関数 displayCommandHelpText がありません")
+	// 命令クリック時はHTMLカードを即座に表示し、右上のリンクから外部ブラウザの
+	// Webマニュアルへ誘導する。ソースURLは短いファイル名ラベルのリンクにする。
+	for _, required := range []string{"function displayCommandHelp(", "help-card", "createHelpField("} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js にHTML形式の命令ヘルプ表示がありません: %q", required)
+		}
 	}
-	if !strings.Contains(app, "→Webで詳細マニュアルを見る") {
+	if !strings.Contains(app, "→Webマニュアル") {
 		t.Fatal("app.js に外部ブラウザへのマニュアルリンクがありません")
 	}
-	if !strings.Contains(app, "function openExternalManual(") {
-		t.Fatal("app.js に外部ブラウザでマニュアルを開く openExternalManual がありません")
+	if !strings.Contains(app, "function openExternalLink(") {
+		t.Fatal("app.js に外部ブラウザでリンクを開く openExternalLink がありません")
+	}
+	for _, required := range []string{"const sourceName = cmd.file", "createExternalHelpLink(cmd.url, sourceName, 'help-source-link')"} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js がソースURLを短いラベルのリンクとして表示していません: %q", required)
+		}
 	}
 	if !strings.Contains(app, "window.openExternalURL") {
 		t.Fatal("app.js が Go側の openExternalURL バインディングを呼んでいません")
@@ -463,6 +470,17 @@ func TestGonakoCommandListHasDocURL(t *testing.T) {
 	for _, required := range []string{"JSON.parse(rawResult)", "result.ok !== true", "外部ブラウザを開けませんでした"} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js が外部ブラウザ起動失敗を処理していません: %q", required)
+		}
+	}
+
+	html := readUIAsset(t, "index.html")
+	if !strings.Contains(html, `<div id="output" class="output">`) {
+		t.Fatal("index.html の出力領域がHTMLヘルプを表示できるコンテナではありません")
+	}
+	style := readUIAsset(t, "style.css")
+	for _, required := range []string{".output.has-command-help", ".help-web-link", "position: sticky", ".help-card", ".help-source-link"} {
+		if !strings.Contains(style, required) {
+			t.Fatalf("style.css に命令ヘルプの表示スタイルがありません: %q", required)
 		}
 	}
 

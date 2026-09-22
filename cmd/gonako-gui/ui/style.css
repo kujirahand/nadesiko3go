@@ -1025,6 +1025,14 @@ body {
   user-select: text;
 }
 
+.output.has-command-help {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  font-family: var(--font-sans);
+  white-space: normal;
+}
+
 .output.has-content {
   color: var(--text-main);
 }
@@ -1033,25 +1041,174 @@ body {
   color: var(--accent-pink);
 }
 
-.help-text {
-  margin: 0;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
 .help-web-link {
-  display: inline-block;
-  margin-top: 8px;
-  color: var(--accent-blue, #4a9eff);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 11px;
+  color: var(--text-on-accent);
+  background: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px var(--shade-strong);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
   text-decoration: none;
   cursor: pointer;
 }
 
 .help-web-link:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.help-card {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--bg-secondary), var(--bg-output));
+  box-shadow: 0 8px 24px var(--shade);
+}
+
+.help-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--overlay-subtle);
+}
+
+.help-card-eyebrow {
+  margin-bottom: 3px;
+  color: var(--accent-mauve);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.help-card-title {
+  color: var(--text-main);
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.help-card-yomi {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.help-source-badge {
+  flex: none;
+  padding: 3px 8px;
+  color: var(--accent-teal);
+  background: var(--overlay);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.help-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1px;
+  background: var(--border-color);
+}
+
+.help-field {
+  min-width: 0;
+  padding: 10px 14px;
+  background: var(--bg-output);
+}
+
+.help-field-wide {
+  grid-column: 1 / -1;
+}
+
+.help-field-label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.help-field-value {
+  color: var(--text-main);
+  overflow-wrap: anywhere;
+}
+
+.help-code {
+  display: inline-block;
+  padding: 4px 7px;
+  color: var(--accent-yellow);
+  background: var(--bg-primary);
+  border-radius: 5px;
+  font-family: var(--font-mono);
+}
+
+.help-field-description .help-field-value {
+  line-height: 1.65;
+}
+
+.help-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.help-source-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+
+.help-source-label {
+  flex: none;
+  font-weight: 700;
+}
+
+.help-source-link {
+  overflow: hidden;
+  color: var(--accent-blue);
+  font-family: var(--font-mono);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.help-source-link:hover {
   text-decoration: underline;
+}
+
+.help-card-hint {
+  flex: none;
+  color: var(--text-faint);
+}
+
+@media (max-width: 760px) {
+  .help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .help-card-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 /* ステータスバー */
