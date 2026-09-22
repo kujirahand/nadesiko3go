@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -492,11 +493,27 @@ func TestGonakoCommandListHasDocURL(t *testing.T) {
 	if !strings.Contains(string(mainSrc), `w.Bind("openExternalURL"`) {
 		t.Fatal("main.go に openExternalURL のBindがありません")
 	}
-	for _, required := range []string{"if err := cmd.Start(); err != nil", "_ = cmd.Wait()"} {
+	for _, required := range []string{"return runExternalLauncher(cmd)", "return cmd.Run()"} {
 		if !strings.Contains(string(mainSrc), required) {
-			t.Fatalf("main.go が外部ブラウザの子プロセスを正しく起動・回収していません: %q", required)
+			t.Fatalf("main.go が外部ブラウザの終了結果を処理していません: %q", required)
 		}
 	}
+}
+
+// ランチャーが起動後に非ゼロ終了した場合、その失敗を呼び出し元へ返すこと。
+func TestRunExternalLauncherReportsExitFailure(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-test.run=TestExternalLauncherHelperProcess")
+	cmd.Env = append(os.Environ(), "GO_WANT_EXTERNAL_LAUNCHER_HELPER=1")
+	if err := runExternalLauncher(cmd); err == nil {
+		t.Fatal("ランチャーの非ゼロ終了が成功として扱われました")
+	}
+}
+
+func TestExternalLauncherHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_EXTERNAL_LAUNCHER_HELPER") != "1" {
+		return
+	}
+	os.Exit(7)
 }
 
 // ライトモード (#112): 配色はCSS変数に集約し、data-gonako-themeで切り替える。

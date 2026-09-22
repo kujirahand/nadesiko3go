@@ -418,14 +418,14 @@ func openExternalURL(rawURL string) error {
 	default:
 		cmd = exec.Command("xdg-open", rawURL)
 	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	// ブラウザの終了は待たないが、終了した子プロセスは必ず回収する。
-	go func() {
-		_ = cmd.Wait()
-	}()
-	return nil
+	return runExternalLauncher(cmd)
+}
+
+// runExternalLauncher はブラウザへURLを渡すランチャーの終了結果を返す。
+// open / rundll32 / xdg-open はブラウザ本体ではなく短時間で終了する委譲用プロセスなので、
+// 終了まで待つことで起動後の失敗を呼び出し元へ通知し、同時に子プロセスも回収する。
+func runExternalLauncher(cmd *exec.Cmd) error {
+	return cmd.Run()
 }
 
 func main() {
