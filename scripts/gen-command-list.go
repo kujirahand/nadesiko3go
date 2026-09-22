@@ -5,6 +5,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -37,6 +38,7 @@ type CommandDoc struct {
 	File     string     `json:"file,omitempty"`
 	Line     int        `json:"line,omitempty"`
 	URL      string     `json:"url,omitempty"`
+	DocURL   string     `json:"docUrl,omitempty"`
 }
 
 // pluginForFile は定義ファイルのパスから、その命令が属するプラグインを返す。
@@ -441,6 +443,12 @@ func main() {
 		}
 
 		doc.Plugin = pluginForFile(doc.File)
+		plugin := doc.Plugin
+		if plugin == "" {
+			plugin = "gonako"
+		}
+		doc.DocURL = "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(plugin+"/"+name)
+
 		// 本家(TS)に対応する命令が無いもの（≒Go独自命令）は、「命令」という
 		// 意味のないグループに丸めず、定義ファイルに応じた具体的なグループ名を付ける。
 		if !tsOK && doc.File != "" {

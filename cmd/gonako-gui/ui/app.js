@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const highlighter = (window.GonakoHighlighter && window.GonakoHighlighter.create(editor)) || null;
   const output = document.getElementById('output');
   const windowPreview = document.getElementById('window-preview');
+  const docPreview = document.getElementById('doc-preview');
+  const docFrame = document.getElementById('doc-frame');
   const btnRun = document.getElementById('btn-run');
   const btnSyntaxCheck = document.getElementById('btn-syntax-check');
   const btnNew = document.getElementById('btn-new');
@@ -1184,16 +1186,14 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {}
     }
     if (!Array.isArray(list)) list = [];
-    if (source === 'wnako') {
-      // マニュアルのページ名は「プラグイン名/命令名」（Go側と同じ規則）。
-      // JSONを直接fetchした場合はdocUrlが入っていないのでここで補う。
-      list.forEach(cmd => {
-        if (!cmd.docUrl) {
-          const page = cmd.plugin ? `${cmd.plugin}/${cmd.name}` : cmd.name;
-          cmd.docUrl = 'https://nadesi.com/v3/doc/index.php?' + encodeURIComponent(page);
-        }
-      });
-    }
+    // マニュアルのページ名は基本的に「プラグイン名/命令名」（Go側と同じ規則）。
+    // JSONを直接fetchした場合やdocUrlが無い場合はここで補う。
+    list.forEach(cmd => {
+      if (!cmd.docUrl) {
+        const plugin = cmd.plugin || (source === 'gonako' ? 'gonako' : 'plugin_system');
+        cmd.docUrl = 'https://nadesi.com/v3/doc/index.php?' + encodeURIComponent(`${plugin}/${cmd.name}`);
+      }
+    });
     commandCache[source] = list;
     return list;
   }
@@ -1241,7 +1241,26 @@ document.addEventListener('DOMContentLoaded', () => {
   cmdSourceGonakoBtn.classList.toggle('active', cmdSource === 'gonako');
   cmdSourceWnakoBtn.classList.toggle('active', cmdSource === 'wnako');
 
-  function displayCommandHelp(cmd) {
+  // マニュアル表示モード（既定値は 'web'。後ほど設定でプレーンテキスト版 'text' へ切り替え可能）
+  let docDisplayMode = localStorage.getItem('gonako-doc-mode') || 'web';
+
+  function hideDocPreview() {
+    if (docPreview) {
+      docPreview.style.display = 'none';
+    }
+    if (docFrame && docFrame.src && docFrame.src !== 'about:blank') {
+      docFrame.src = 'about:blank';
+    }
+    if (output) {
+      output.style.display = 'block';
+    }
+  }
+
+  // プレーンテキストによる命令のヘルプ表示（既存の実装を残し、設定で切り替えられるようにする）
+  // withWebLink: trueの場合、末尾に「→Webで詳細マニュアルを見る」リンクを付ける。
+  // （Webマニュアルのiframe表示は読み込みが遅いため、まず手元のテキストを即座に出し、
+  // 　詳細が必要なときだけ外部ブラウザでWebマニュアルを開かせる）
+  function displayCommandHelpText(cmd, withWebLink) {
     let josiText = '';
     if (cmd.josi && cmd.josi.length > 0) {
       josiText = cmd.josi.map(group => `[${group.join(', ')}]`).join(' ');
@@ -1263,18 +1282,53 @@ document.addEventListener('DOMContentLoaded', () => {
       `【分類】 ${cmd.plugin ? `${cmd.plugin} / ` : ''}${category}`,
       `【説明】 ${desc}`,
       `【一覧】 ${cmdSource === 'wnako' ? 'wnako (本家ブラウザ版)' : 'gonako (Go版)'}`,
-      cmd.docUrl ? `【マニュアル】 ${cmd.docUrl}` : null,
+      cmd.docUrl && !withWebLink ? `【マニュアル】 ${cmd.docUrl}` : null,
       cmd.file ? `【定義】 ${cmd.file}#L${cmd.line}` : null,
       cmd.url ? `【ソース】 ${cmd.url}` : null,
       ``,
       `※ ダブルクリックまたはエディタへのドラッグ＆ドロップで構文を挿入できます。`
     ].filter(line => line !== null).join('\n');
 
-    output.textContent = helpText;
-    output.className = 'output has-content';
+    hideDocPreview();
     windowPreview.style.display = 'none';
+    setOutputPanelOpen(true);
     execStatus.textContent = '使い方表示';
     execStatus.className = 'status-indicator';
+
+    output.style.display = 'block';
+    output.className = 'output has-content';
+    output.textContent = '';
+    const pre = document.createElement('pre');
+    pre.className = 'help-text';
+    pre.textContent = helpText;
+    output.appendChild(pre);
+
+    if (withWebLink && cmd.docUrl) {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.className = 'help-web-link';
+      link.textContent = '→Webで詳細マニュアルを見る';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        openExternalManual(cmd.docUrl);
+      });
+      output.appendChild(link);
+    }
+  }
+
+  // openExternalManual は外部ブラウザでWebマニュアルを開く。
+  // Go側のBindが無い場合（ブラウザで開いた場合）は window.open にフォールバックする。
+  function openExternalManual(docUrl) {
+    if (typeof window.openExternalURL === 'function') {
+      Promise.resolve(window.openExternalURL(docUrl)).catch(() => window.open(docUrl, '_blank'));
+    } else {
+      window.open(docUrl, '_blank');
+    }
+  }
+
+  // 命令クリック時のヘルプ表示エントリポイント
+  function displayCommandHelp(cmd) {
+    displayCommandHelpText(cmd, docDisplayMode !== 'text');
   }
 
   function createCmdItem(cmd) {
@@ -2079,6 +2133,7 @@ document.addEventListener('DOMContentLoaded', () => {
     windowPreview.innerHTML = '';
     guiElements.clear();
     windowPreview.style.display = 'none';
+    hideDocPreview();
     execStatus.textContent = '待機中';
     execStatus.className = 'status-indicator';
     setStatus('ログを消去しました');
@@ -2282,6 +2337,7 @@ document.addEventListener('DOMContentLoaded', () => {
     windowPreview.innerHTML = '';
     guiElements.clear();
     windowPreview.style.display = 'none';
+    hideDocPreview();
     activeGUIRunID = 0;
 
     // 「ウィンドウ(GUI)」は別プロセス・別ウィンドウで動くので、エディタ側は
@@ -2491,6 +2547,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     setOutputPanelOpen(true);
+    hideDocPreview();
     btnSyntaxCheck.disabled = true;
     setStatus('文法チェック中...');
     try {

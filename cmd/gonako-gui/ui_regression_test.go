@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
@@ -400,6 +401,74 @@ func TestWNakoCommandListIsEmbedded(t *testing.T) {
 		return
 	}
 	t.Fatal("wnakoの命令一覧に『表示』がありません")
+}
+
+// gonakoの命令一覧にもマニュアル(Web)へのリンクが付くこと。
+func TestGonakoCommandListHasDocURL(t *testing.T) {
+	items := getCommandList()
+	if len(items) < 100 {
+		t.Fatalf("gonakoの命令一覧が少なすぎます: %d件", len(items))
+	}
+	checked := 0
+	for _, item := range items {
+		if item.DocURL == "" {
+			t.Fatalf("『%s』のマニュアルURLがありません", item.Name)
+		}
+		if !strings.HasPrefix(item.DocURL, "https://nadesi.com/v3/doc/index.php?") {
+			t.Fatalf("『%s』のマニュアルURLが不正です: %s", item.Name, item.DocURL)
+		}
+		if item.Name == "表示" {
+			if !strings.Contains(item.DocURL, "plugin_system%2F") {
+				t.Fatalf("『表示』のマニュアルURLにplugin_systemがありません: %s", item.DocURL)
+			}
+			checked++
+		}
+		if item.Name == "画像新規作成" {
+			if !strings.Contains(item.DocURL, "gonako%2F") {
+				t.Fatalf("『画像新規作成』のマニュアルURLにgonakoがありません: %s", item.DocURL)
+			}
+			checked++
+		}
+	}
+	if checked < 2 {
+		t.Fatal("代表的な命令（表示、画像新規作成）が検証されませんでした")
+	}
+
+	// wnakoの命令一覧も{プラグイン名}%2F{命令名}形式のURLを持つこと
+	wnakoItems := getWNakoCommandList()
+	for _, item := range wnakoItems {
+		if item.Name == "AJAX_JSON取得" {
+			if !strings.Contains(item.DocURL, "plugin_browser%2F") {
+				t.Fatalf("wnakoの『AJAX_JSON取得』のマニュアルURLが不正です: %s", item.DocURL)
+			}
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+
+	// 命令クリック時は簡易テキストをまず即座に表示し(displayCommandHelpText)、
+	// 詳細はリンククリックで外部ブラウザのWebマニュアルへ誘導する(iframeの遅延表示はしない)。
+	if !strings.Contains(app, "function displayCommandHelpText(") {
+		t.Fatal("app.js にプレーンテキスト表示関数 displayCommandHelpText がありません")
+	}
+	if !strings.Contains(app, "→Webで詳細マニュアルを見る") {
+		t.Fatal("app.js に外部ブラウザへのマニュアルリンクがありません")
+	}
+	if !strings.Contains(app, "function openExternalManual(") {
+		t.Fatal("app.js に外部ブラウザでマニュアルを開く openExternalManual がありません")
+	}
+	if !strings.Contains(app, "window.openExternalURL") {
+		t.Fatal("app.js が Go側の openExternalURL バインディングを呼んでいません")
+	}
+
+	// Go側にも外部ブラウザでURLを開くバインディングがあること
+	mainSrc, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainSrc), `w.Bind("openExternalURL"`) {
+		t.Fatal("main.go に openExternalURL のBindがありません")
+	}
 }
 
 // ライトモード (#112): 配色はCSS変数に集約し、data-gonako-themeで切り替える。

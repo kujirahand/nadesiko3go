@@ -995,6 +995,26 @@ body {
   grid-column: 2;
 }
 
+.doc-preview-area {
+  background: #ffffff;
+  border-radius: 6px;
+  min-height: 200px;
+  height: 100%;
+  flex: 1;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-frame {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border: none;
+  background: #ffffff;
+}
+
 .output {
   font-family: var(--font-mono);
   font-size: 13px;
@@ -1011,6 +1031,27 @@ body {
 
 .output.has-error {
   color: var(--accent-pink);
+}
+
+.help-text {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.help-web-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--accent-blue, #4a9eff);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.help-web-link:hover {
+  text-decoration: underline;
 }
 
 /* ステータスバー */

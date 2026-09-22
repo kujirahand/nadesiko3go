@@ -17,6 +17,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -50,6 +51,7 @@ type CommandDoc struct {
 	Desc     string     `json:"desc"`
 	Template string     `json:"template"`
 	Yomi     string     `json:"yomi,omitempty"`
+	DocURL   string     `json:"docUrl,omitempty"`
 }
 
 // paramRe は「...A」「SRC」のような引数名と、それに続く助詞を取り出す。
@@ -192,6 +194,7 @@ func main() {
 					Category: category,
 					Desc:     desc,
 					Yomi:     yomi,
+					DocURL:   "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(plugin+"/"+name),
 				}
 				switch kind {
 				case "定数":
