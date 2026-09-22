@@ -1320,7 +1320,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Go側のBindが無い場合（ブラウザで開いた場合）は window.open にフォールバックする。
   function openExternalManual(docUrl) {
     if (typeof window.openExternalURL === 'function') {
-      Promise.resolve(window.openExternalURL(docUrl)).catch(() => window.open(docUrl, '_blank'));
+      Promise.resolve(window.openExternalURL(docUrl)).then((rawResult) => {
+        const result = typeof rawResult === 'string' ? JSON.parse(rawResult) : rawResult;
+        if (!result || result.ok !== true) {
+          const detail = result && result.error ? `: ${result.error}` : '';
+          setStatus(`外部ブラウザを開けませんでした${detail}`);
+        }
+      }).catch((err) => {
+        const detail = err && err.message ? `: ${err.message}` : '';
+        setStatus(`外部ブラウザを開けませんでした${detail}`);
+      });
     } else {
       window.open(docUrl, '_blank');
     }

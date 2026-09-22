@@ -409,14 +409,23 @@ func openExternalURL(rawURL string) error {
 		return fmt.Errorf("開けないURLです: %q", rawURL)
 	}
 
+	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		return exec.Command("open", rawURL).Start()
+		cmd = exec.Command("open", rawURL)
 	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL).Start()
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
 	default:
-		return exec.Command("xdg-open", rawURL).Start()
+		cmd = exec.Command("xdg-open", rawURL)
 	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	// ブラウザの終了は待たないが、終了した子プロセスは必ず回収する。
+	go func() {
+		_ = cmd.Wait()
+	}()
+	return nil
 }
 
 func main() {

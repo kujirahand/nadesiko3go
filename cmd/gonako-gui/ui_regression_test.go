@@ -460,6 +460,11 @@ func TestGonakoCommandListHasDocURL(t *testing.T) {
 	if !strings.Contains(app, "window.openExternalURL") {
 		t.Fatal("app.js が Go側の openExternalURL バインディングを呼んでいません")
 	}
+	for _, required := range []string{"JSON.parse(rawResult)", "result.ok !== true", "外部ブラウザを開けませんでした"} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js が外部ブラウザ起動失敗を処理していません: %q", required)
+		}
+	}
 
 	// Go側にも外部ブラウザでURLを開くバインディングがあること
 	mainSrc, err := os.ReadFile("main.go")
@@ -468,6 +473,11 @@ func TestGonakoCommandListHasDocURL(t *testing.T) {
 	}
 	if !strings.Contains(string(mainSrc), `w.Bind("openExternalURL"`) {
 		t.Fatal("main.go に openExternalURL のBindがありません")
+	}
+	for _, required := range []string{"if err := cmd.Start(); err != nil", "_ = cmd.Wait()"} {
+		if !strings.Contains(string(mainSrc), required) {
+			t.Fatalf("main.go が外部ブラウザの子プロセスを正しく起動・回収していません: %q", required)
+		}
 	}
 }
 
