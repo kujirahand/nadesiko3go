@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -400,6 +402,118 @@ func TestWNakoCommandListIsEmbedded(t *testing.T) {
 		return
 	}
 	t.Fatal("wnakoの命令一覧に『表示』がありません")
+}
+
+// gonakoの命令一覧にもマニュアル(Web)へのリンクが付くこと。
+func TestGonakoCommandListHasDocURL(t *testing.T) {
+	items := getCommandList()
+	if len(items) < 100 {
+		t.Fatalf("gonakoの命令一覧が少なすぎます: %d件", len(items))
+	}
+	checked := 0
+	for _, item := range items {
+		if item.DocURL == "" {
+			t.Fatalf("『%s』のマニュアルURLがありません", item.Name)
+		}
+		if !strings.HasPrefix(item.DocURL, "https://nadesi.com/v3/doc/index.php?") {
+			t.Fatalf("『%s』のマニュアルURLが不正です: %s", item.Name, item.DocURL)
+		}
+		if item.Name == "表示" {
+			if !strings.Contains(item.DocURL, "plugin_system%2F") {
+				t.Fatalf("『表示』のマニュアルURLにplugin_systemがありません: %s", item.DocURL)
+			}
+			checked++
+		}
+		if item.Name == "画像新規作成" {
+			if !strings.Contains(item.DocURL, "gonako%2F") {
+				t.Fatalf("『画像新規作成』のマニュアルURLにgonakoがありません: %s", item.DocURL)
+			}
+			checked++
+		}
+	}
+	if checked < 2 {
+		t.Fatal("代表的な命令（表示、画像新規作成）が検証されませんでした")
+	}
+
+	// wnakoの命令一覧も{プラグイン名}%2F{命令名}形式のURLを持つこと
+	wnakoItems := getWNakoCommandList()
+	for _, item := range wnakoItems {
+		if item.Name == "AJAX_JSON取得" {
+			if !strings.Contains(item.DocURL, "plugin_browser%2F") {
+				t.Fatalf("wnakoの『AJAX_JSON取得』のマニュアルURLが不正です: %s", item.DocURL)
+			}
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+
+	// 命令クリック時はHTMLカードを即座に表示し、右上のリンクから外部ブラウザの
+	// Webマニュアルへ誘導する。ソースURLは短いファイル名ラベルのリンクにする。
+	for _, required := range []string{"function displayCommandHelp(", "help-card", "createHelpField("} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js にHTML形式の命令ヘルプ表示がありません: %q", required)
+		}
+	}
+	if !strings.Contains(app, "→Webマニュアル") {
+		t.Fatal("app.js に外部ブラウザへのマニュアルリンクがありません")
+	}
+	if !strings.Contains(app, "function openExternalLink(") {
+		t.Fatal("app.js に外部ブラウザでリンクを開く openExternalLink がありません")
+	}
+	for _, required := range []string{"const sourceName = cmd.file", "createExternalHelpLink(cmd.url, sourceName, 'help-source-link')"} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js がソースURLを短いラベルのリンクとして表示していません: %q", required)
+		}
+	}
+	if !strings.Contains(app, "window.openExternalURL") {
+		t.Fatal("app.js が Go側の openExternalURL バインディングを呼んでいません")
+	}
+	for _, required := range []string{"JSON.parse(rawResult)", "result.ok !== true", "外部ブラウザを開けませんでした"} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js が外部ブラウザ起動失敗を処理していません: %q", required)
+		}
+	}
+
+	html := readUIAsset(t, "index.html")
+	if !strings.Contains(html, `<div id="output" class="output">`) {
+		t.Fatal("index.html の出力領域がHTMLヘルプを表示できるコンテナではありません")
+	}
+	style := readUIAsset(t, "style.css")
+	for _, required := range []string{".output.has-command-help", ".help-web-link", "position: sticky", ".help-card", ".help-source-link"} {
+		if !strings.Contains(style, required) {
+			t.Fatalf("style.css に命令ヘルプの表示スタイルがありません: %q", required)
+		}
+	}
+
+	// Go側にも外部ブラウザでURLを開くバインディングがあること
+	mainSrc, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainSrc), `w.Bind("openExternalURL"`) {
+		t.Fatal("main.go に openExternalURL のBindがありません")
+	}
+	for _, required := range []string{"return runExternalLauncher(cmd)", "return cmd.Run()"} {
+		if !strings.Contains(string(mainSrc), required) {
+			t.Fatalf("main.go が外部ブラウザの終了結果を処理していません: %q", required)
+		}
+	}
+}
+
+// ランチャーが起動後に非ゼロ終了した場合、その失敗を呼び出し元へ返すこと。
+func TestRunExternalLauncherReportsExitFailure(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-test.run=TestExternalLauncherHelperProcess")
+	cmd.Env = append(os.Environ(), "GO_WANT_EXTERNAL_LAUNCHER_HELPER=1")
+	if err := runExternalLauncher(cmd); err == nil {
+		t.Fatal("ランチャーの非ゼロ終了が成功として扱われました")
+	}
+}
+
+func TestExternalLauncherHelperProcess(t *testing.T) {
+	if os.Getenv("GO_WANT_EXTERNAL_LAUNCHER_HELPER") != "1" {
+		return
+	}
+	os.Exit(7)
 }
 
 // ライトモード (#112): 配色はCSS変数に集約し、data-gonako-themeで切り替える。

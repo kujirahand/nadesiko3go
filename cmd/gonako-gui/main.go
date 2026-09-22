@@ -146,11 +146,25 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
   -help, --help    このヘルプを表示
 `
 
+// nakoDocURL は命令のマニュアルページのURLを作る。
+// マニュアルのページ名は基本的に「プラグイン名/命令名」である。
+func nakoDocURL(plugin, name string) string {
+	if plugin == "" {
+		plugin = "gonako"
+	}
+	return "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(plugin+"/"+name)
+}
+
 func getCommandList() []CommandItem {
 	data, err := fs.ReadFile(uiFS, "ui/command-list.json")
 	if err == nil {
 		var items []CommandItem
 		if err := json.Unmarshal(data, &items); err == nil && len(items) > 0 {
+			for i := range items {
+				if items[i].DocURL == "" {
+					items[i].DocURL = nakoDocURL(items[i].Plugin, items[i].Name)
+				}
+			}
 			return items
 		}
 	}
@@ -172,24 +186,13 @@ func getCommandList() []CommandItem {
 			ReturnNone: item.ReturnNone,
 			Desc:       fmt.Sprintf("命令『%s』を実行します", name),
 			Template:   name,
+			DocURL:     nakoDocURL("gonako", name),
 		})
 	}
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].Name < items[j].Name
 	})
 	return items
-}
-
-// wnakoDocURL は本家の命令のマニュアルページのURLを作る。
-// マニュアルのページ名は「プラグイン名/命令名」である（#101）。
-// internal/commanddoc と同じ計算だが、命令一覧JSONを二重にバイナリへ
-// 埋め込まないよう、ここでは依存せずに組み立てる。
-func wnakoDocURL(plugin, name string) string {
-	page := name
-	if plugin != "" {
-		page = plugin + "/" + name
-	}
-	return "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(page)
 }
 
 // getWNakoCommandList は本家ブラウザ版(wnako3)の命令一覧を返す（#101）。
@@ -204,7 +207,7 @@ func getWNakoCommandList() []CommandItem {
 		return []CommandItem{}
 	}
 	for i := range items {
-		items[i].DocURL = wnakoDocURL(items[i].Plugin, items[i].Name)
+		items[i].DocURL = nakoDocURL(items[i].Plugin, items[i].Name)
 	}
 	return items
 }
@@ -397,6 +400,32 @@ func revealInFinder(targetPath string) error {
 		}
 		return exec.Command("xdg-open", absPath).Start()
 	}
+}
+
+// openExternalURL は外部ブラウザでURLを開く（http/httpsのみ許可）。
+func openExternalURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return fmt.Errorf("開けないURLです: %q", rawURL)
+	}
+
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", rawURL)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
+	default:
+		cmd = exec.Command("xdg-open", rawURL)
+	}
+	return runExternalLauncher(cmd)
+}
+
+// runExternalLauncher はブラウザへURLを渡すランチャーの終了結果を返す。
+// open / rundll32 / xdg-open はブラウザ本体ではなく短時間で終了する委譲用プロセスなので、
+// 終了まで待つことで起動後の失敗を呼び出し元へ通知し、同時に子プロセスも回収する。
+func runExternalLauncher(cmd *exec.Cmd) error {
+	return cmd.Run()
 }
 
 func main() {
@@ -897,6 +926,23 @@ func main() {
 	// Go ↔ JavaScript バインディング: OSファイラーで表示 (Finder / Explorer)
 	_ = w.Bind("revealInFinder", func(targetPath string) string {
 		err := revealInFinder(targetPath)
+		res := struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
+	// Go ↔ JavaScript バインディング: 外部ブラウザでURLを開く（Webマニュアルの詳細リンクなど）
+	_ = w.Bind("openExternalURL", func(targetURL string) string {
+		err := openExternalURL(targetURL)
 		res := struct {
 			OK    bool   `json:"ok"`
 			Error string `json:"error,omitempty"`
