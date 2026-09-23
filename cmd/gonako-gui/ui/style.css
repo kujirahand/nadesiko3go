@@ -563,7 +563,8 @@ body {
   color: var(--text-main);
 }
 
-.sort-btn.active {
+.sort-btn.active,
+.source-btn.active {
   color: #fff;
   background-color: var(--accent-pink);
   border-color: var(--accent-pink);
@@ -596,12 +597,6 @@ body {
 
 .source-btn:hover {
   color: var(--text-main);
-}
-
-.source-btn.active {
-  color: #fff;
-  background-color: var(--accent-blue, var(--accent-pink));
-  border-color: var(--accent-blue, var(--accent-pink));
 }
 
 /* 命令一覧のグループ（ツリー）表示 */

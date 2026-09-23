@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 通常はグループのルートだけを表示し、利用者が開いたものだけを記録する。
   const expandedCmdGroups = new Set();
   let cmdSortMode = localStorage.getItem('gonako-cmd-sort-mode') || 'group';
-  // 命令一覧の切り替え: 'gonako'(Go版) / 'wnako'(本家ブラウザ版) (#101)
-  let cmdSource = localStorage.getItem('gonako-cmd-source') === 'wnako' ? 'wnako' : 'gonako';
+  // 初回表示も実行モードに合わせる（#124）。実行モードはHTMLの初期値を使う。
+  let cmdSource = selectAppType.value === 'wnako3' ? 'wnako' : 'gonako';
 
   // ひな形タブ要素
   const templateSearch = document.getElementById('template-search');
@@ -270,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modeBadge.textContent = runModeLabels[mode] || mode;
     modeBadge.style.color = color;
     modeBadge.style.background = background;
+    // ブラウザ版で実行するときはwnako、それ以外はGo版の命令一覧を表示する（#124）。
+    setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false);
     setStatus(`実行モードを「${runModeLabels[mode] || mode}」に変更しました`);
   });
 
@@ -1220,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // setCmdSource は命令一覧をgonako/wnakoで切り替える（#101）。
-  async function setCmdSource(source) {
+  async function setCmdSource(source, announce = true) {
     if (source !== 'wnako') source = 'gonako';
     cmdSource = source;
     localStorage.setItem('gonako-cmd-source', source);
@@ -1231,9 +1233,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 取得中にさらに切り替えられて反映されなかった場合、この呼び出しの
     // 完了メッセージは現在の状態と食い違うので出さない（後の切替処理に任せる）。
     if (!applied) return;
-    setStatus(source === 'wnako'
-      ? '命令一覧を wnako (本家ブラウザ版) に切り替えました'
-      : '命令一覧を gonako (Go版) に切り替えました');
+    if (announce) {
+      setStatus(source === 'wnako'
+        ? '命令一覧を wnako (本家ブラウザ版) に切り替えました'
+        : '命令一覧を gonako (Go版) に切り替えました');
+    }
   }
 
   cmdSourceGonakoBtn.addEventListener('click', () => setCmdSource('gonako'));

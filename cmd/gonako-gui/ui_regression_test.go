@@ -383,6 +383,25 @@ func TestCommandListSourceSwitch(t *testing.T) {
 	}
 }
 
+// 実行モードに合わせて命令一覧が切り替わり、表示順ボタンと配色が揃うこと（#124）。
+func TestRunModeSynchronizesCommandListSource(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"selectAppType.addEventListener('change', () =>",
+		"setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false)",
+		"async function setCmdSource(source, announce = true)",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js に実行モードと命令一覧の同期処理 %q がありません", required)
+		}
+	}
+
+	style := readUIAsset(t, "style.css")
+	if !strings.Contains(style, ".sort-btn.active,\n.source-btn.active {") {
+		t.Fatal("命令種別と表示順のアクティブボタンで配色が共有されていません")
+	}
+}
+
 // wnakoの命令一覧が同梱され、マニュアルへのリンクが付くこと（#101）。
 func TestWNakoCommandListIsEmbedded(t *testing.T) {
 	items := getWNakoCommandList()
