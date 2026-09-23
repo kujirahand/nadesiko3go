@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // 通常はグループのルートだけを表示し、利用者が開いたものだけを記録する。
   const expandedCmdGroups = new Set();
   let cmdSortMode = localStorage.getItem('gonako-cmd-sort-mode') || 'group';
-  // 命令一覧の切り替え: 'gonako'(Go版) / 'wnako'(本家ブラウザ版) (#101)
-  let cmdSource = localStorage.getItem('gonako-cmd-source') === 'wnako' ? 'wnako' : 'gonako';
+  // 初回表示も実行モードに合わせる（#124）。実行モードはHTMLの初期値を使う。
+  let cmdSource = selectAppType.value === 'wnako3' ? 'wnako' : 'gonako';
 
   // ひな形タブ要素
   const templateSearch = document.getElementById('template-search');
