@@ -2,6 +2,8 @@ package nodelib
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -301,10 +303,30 @@ func readBinaryFile(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 }
 
 func writeFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
-	if err := os.WriteFile(str(a, 1), []byte(str(a, 0)), 0o644); err != nil {
+	data, err := fileData(argAt(a, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	if err := os.WriteFile(str(a, 1), data, 0o644); err != nil {
 		return value.Undefined(), fileError("保存でき", str(a, 1), err)
 	}
 	return value.Undefined(), nil
+}
+
+// fileData は文字列をUTF-8、数値配列をバイト列として返す。
+func fileData(v value.Value) ([]byte, error) {
+	if arr, ok := v.Array(); ok {
+		data := make([]byte, arr.Len())
+		for i := 0; i < arr.Len(); i++ {
+			n, ok := arr.Get(i).Number()
+			if !ok || math.IsNaN(n) || math.IsInf(n, 0) || math.Trunc(n) != n || n < 0 || n > 255 {
+				return nil, fmt.Errorf("保存する数値配列の%d番目は0〜255の整数で指定してください。", i+1)
+			}
+			data[i] = byte(n)
+		}
+		return data, nil
+	}
+	return []byte(value.ToString(v)), nil
 }
 
 func appendFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
