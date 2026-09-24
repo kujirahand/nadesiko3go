@@ -36,7 +36,7 @@ func mathImpls(m map[string]Impl) {
 		return value.Bool(int64(value.ToNumber(arg(a, 0)))%2 == 0), nil
 	}
 	m["奇数"] = func(_ Context, a []value.Value) (value.Value, error) {
-		return value.Bool(int64(value.ToNumber(arg(a, 0)))%2 == 1), nil
+		return value.Bool(int64(value.ToNumber(arg(a, 0)))%2 != 0), nil
 	}
 	m["二乗"] = func(_ Context, a []value.Value) (value.Value, error) {
 		n := value.ToNumber(arg(a, 0))
