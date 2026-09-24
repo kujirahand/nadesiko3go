@@ -651,7 +651,10 @@ func (m *VM) indexGet1(container value.Value, index value.Value, pos int) value.
 	switch container.Kind() {
 	case value.KindArray:
 		arr, _ := container.Array()
-		return arr.Get(indexToInt(index))
+		if idx, ok := value.AsArrayIndex(index); ok {
+			return arr.Get(idx)
+		}
+		return arr.GetProp(value.ToString(index))
 	case value.KindDict:
 		d, _ := container.Dict()
 		v, _ := d.Get(value.ToString(index))
@@ -712,22 +715,31 @@ func (m *VM) storeOne(container value.Value, index value.Value, v value.Value) {
 	switch container.Kind() {
 	case value.KindArray:
 		arr, _ := container.Array()
-		arr.Set(indexToInt(index), v)
+		if idx, ok := value.AsArrayIndex(index); ok {
+			arr.Set(idx, v)
+		} else {
+			arr.SetProp(value.ToString(index), v)
+		}
 	case value.KindDict:
 		d, _ := container.Dict()
 		d.Set(value.ToString(index), v)
 	}
 }
 
-// iterKeys lists what 『反復』 walks: the indexes of an array, or the keys of a
-// dictionary in insertion order.
+// iterKeys は『反復』で走査するキー一覧を返す。配列ならインデックスおよび名前付きプロパティ、
+// 辞書なら挿入順のキー一覧。
 func (m *VM) iterKeys(v value.Value) value.Value {
 	switch v.Kind() {
 	case value.KindArray:
 		arr, _ := v.Array()
-		keys := make([]value.Value, arr.Len())
-		for i := range keys {
-			keys[i] = value.Number(float64(i))
+		keys := make([]value.Value, 0, arr.Len())
+		for i := 0; i < arr.Len(); i++ {
+			keys = append(keys, value.Number(float64(i)))
+		}
+		if props := arr.Props(); props != nil {
+			for _, k := range props.Keys() {
+				keys = append(keys, value.String(k))
+			}
 		}
 		return value.ArrayValue(value.NewArray(keys...))
 	case value.KindDict:

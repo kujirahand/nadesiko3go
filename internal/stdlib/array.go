@@ -463,7 +463,10 @@ func requireTable(name string, v value.Value) (*value.Array, error) {
 
 func tableCell(row, col value.Value) value.Value {
 	if items, ok := row.Array(); ok {
-		return items.Get(int(value.ToNumber(col)))
+		if idx, isIdx := value.AsArrayIndex(col); isIdx {
+			return items.Get(idx)
+		}
+		return items.GetProp(value.ToString(col))
 	}
 	if dict, ok := row.Dict(); ok {
 		v, _ := dict.Get(value.ToString(col))
@@ -541,20 +544,6 @@ func transposeTable(table *value.Array, rotate bool) value.Value {
 }
 
 func arrayReference(container, index value.Value) (value.Value, error) {
-	if n, ok := index.Number(); ok {
-		i := int(n)
-		switch container.Kind() {
-		case value.KindArray:
-			a, _ := container.Array()
-			return a.Get(i), nil
-		case value.KindString:
-			r := []rune(value.ToString(container))
-			if i < 0 || i >= len(r) {
-				return value.Undefined(), nil
-			}
-			return value.String(string(r[i])), nil
-		}
-	}
 	if span, ok := index.Dict(); ok {
 		first, firstOK := span.Get("先頭")
 		last, lastOK := span.Get("末尾")
@@ -579,11 +568,28 @@ func arrayReference(container, index value.Value) (value.Value, error) {
 			}
 		}
 	}
-	if d, ok := container.Dict(); ok {
+	switch container.Kind() {
+	case value.KindArray:
+		a, _ := container.Array()
+		if idx, ok := value.AsArrayIndex(index); ok {
+			return a.Get(idx), nil
+		}
+		return a.GetProp(value.ToString(index)), nil
+	case value.KindDict:
+		d, _ := container.Dict()
 		if got, found := d.Get(value.ToString(index)); found {
 			return got, nil
 		}
 		return value.Undefined(), nil
+	case value.KindString:
+		if n, ok := index.Number(); ok {
+			i := int(n)
+			r := []rune(value.ToString(container))
+			if i < 0 || i >= len(r) {
+				return value.Undefined(), nil
+			}
+			return value.String(string(r[i])), nil
+		}
 	}
 	return value.Undefined(), errors.New("『参照』で文字列/配列/辞書型以外の値が指定されました。")
 }
@@ -713,25 +719,49 @@ func elementCount(v value.Value) int {
 	return 1
 }
 
-// cloneValue makes a deep copy, so that changing the copy leaves the original
-// alone.
+// cloneValue は値の深いコピー（ディープコピー）を作成する。
+// 循環参照（自己参照プロパティなど）が存在する場合も無限再帰せず複製する。
 func cloneValue(v value.Value) value.Value {
+	return cloneValueSeen(v, make(map[any]value.Value))
+}
+
+func cloneValueSeen(v value.Value, seen map[any]value.Value) value.Value {
 	switch v.Kind() {
 	case value.KindArray:
 		arr, _ := v.Array()
-		items := make([]value.Value, arr.Len())
-		for i := range items {
-			items[i] = cloneValue(arr.Get(i))
+		if existing, ok := seen[arr]; ok {
+			return existing
 		}
-		return value.ArrayValue(value.NewArray(items...))
+		newArr := value.NewArray()
+		res := value.ArrayValue(newArr)
+		seen[arr] = res
+
+		for i := 0; i < arr.Len(); i++ {
+			newArr.Set(i, cloneValueSeen(arr.Get(i), seen))
+		}
+		if props := arr.Props(); props != nil {
+			for _, k := range props.Keys() {
+				if item, ok := props.Get(k); ok {
+					newArr.SetProp(k, cloneValueSeen(item, seen))
+				}
+			}
+		}
+		return res
+
 	case value.KindDict:
 		d, _ := v.Dict()
+		if existing, ok := seen[d]; ok {
+			return existing
+		}
 		out := value.NewDict()
+		res := value.DictValue(out)
+		seen[d] = res
+
 		for _, k := range d.Keys() {
 			item, _ := d.Get(k)
-			out.Set(k, cloneValue(item))
+			out.Set(k, cloneValueSeen(item, seen))
 		}
-		return value.DictValue(out)
+		return res
 	}
 	return v
 }

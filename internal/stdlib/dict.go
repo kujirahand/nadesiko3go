@@ -39,22 +39,27 @@ func dictImpls(m map[string]Impl) {
 	}
 
 	m["辞書キー存在"] = func(_ Context, a []value.Value) (value.Value, error) {
-		d, ok := arg(a, 0).Dict()
-		if !ok {
-			return value.Bool(false), nil
+		if d, ok := arg(a, 0).Dict(); ok {
+			_, found := d.Get(str(a, 1))
+			return value.Bool(found), nil
 		}
-		_, found := d.Get(str(a, 1))
-		return value.Bool(found), nil
+		if arr, ok := arg(a, 0).Array(); ok {
+			return value.Bool(arr.HasProp(str(a, 1))), nil
+		}
+		return value.Bool(false), nil
 	}
 	m["ハッシュキー存在"] = m["辞書キー存在"]
 
 	m["辞書キー削除"] = func(_ Context, a []value.Value) (value.Value, error) {
-		d, ok := arg(a, 0).Dict()
-		if !ok {
-			return value.Undefined(), errors.New("『辞書キー削除』で辞書以外が指定されました。")
+		if d, ok := arg(a, 0).Dict(); ok {
+			d.Delete(str(a, 1))
+			return arg(a, 0), nil
 		}
-		d.Delete(str(a, 1))
-		return arg(a, 0), nil
+		if arr, ok := arg(a, 0).Array(); ok {
+			arr.DeleteProp(str(a, 1))
+			return arg(a, 0), nil
+		}
+		return value.Undefined(), errors.New("『辞書キー削除』で辞書以外が指定されました。")
 	}
 	m["ハッシュキー削除"] = m["辞書キー削除"]
 
