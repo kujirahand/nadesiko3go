@@ -5,6 +5,7 @@
 // whose body contains a 『### 表示結果:』 line. A block without one is prose, not
 // a test. 『### GO表示結果:』 is the same, but marks a sample for a gonako専用
 // (独自) command — it runs under CNako exactly like 『### 表示結果:』.
+// 任意の接頭辞（『### L表示結果:』など）も同じ形式として抽出できる。
 //
 //	{{{#nako3
 //	「こんにちは」と表示。
@@ -30,6 +31,16 @@ const (
 	WNako Runtime = "wnako"
 )
 
+// マニュアルに書く表示結果ラベル。
+const (
+	LabelCNako  = "表示結果"
+	LabelWNako  = "WEB表示結果"
+	LabelGOnako = "GO表示結果"
+)
+
+// DefaultLabels は --label を省略したときの対象。現行の CNako 相当。
+var DefaultLabels = []string{LabelCNako, LabelGOnako}
+
 // Test is one sample block taken from a DocTest text file.
 type Test struct {
 	File string
@@ -38,12 +49,14 @@ type Test struct {
 	Code    string
 	Expect  string
 	Runtime Runtime
+	// Label は 『表示結果』『GO表示結果』『L表示結果』など、期待出力の見出し。
+	Label string
 }
 
 var (
 	// expectHead matches the line that starts the expected output.
-	// GO表示結果 marks a gonako専用命令のサンプルで、CNakoとして実行・検証する。
-	expectHead = regexp.MustCompile(`^###[ \t]*(WEB表示結果|GO表示結果|表示結果)[ \t]*[:：]?[ \t]?(.*)$`)
+	// 接頭辞は英数字とアンダースコア（空でもよい）。WEB / GO / L など。
+	expectHead = regexp.MustCompile(`^###[ \t]*([A-Za-z0-9_]*表示結果)[ \t]*[:：]?[ \t]?(.*)$`)
 	// expectTail matches the second and later lines of it.
 	expectTail = regexp.MustCompile(`^###[ \t]?(.*)$`)
 	// trailingSpace matches the whitespace both sides trim before comparing.
@@ -95,10 +108,7 @@ func parseBlock(block []string, file string, line int) (Test, bool) {
 		return Test{}, false
 	}
 
-	runtime := CNako
-	if strings.EqualFold(headMatch[1], "WEB表示結果") {
-		runtime = WNako
-	}
+	label := headMatch[1]
 	expects := []string{headMatch[2]}
 
 	i := head + 1
@@ -116,13 +126,40 @@ func parseBlock(block []string, file string, line int) (Test, bool) {
 		Line:    line,
 		Code:    strings.Join(code, "\n"),
 		Expect:  trimTrailing(strings.Join(expects, "\n")),
-		Runtime: runtime,
+		Runtime: runtimeOf(label),
+		Label:   label,
 	}, true
 }
 
+func runtimeOf(label string) Runtime {
+	if label == LabelWNako {
+		return WNako
+	}
+	return CNako
+}
+
 // Collect gathers the tests under the given files or folders, keeping only the
-// ones for the given runtime.
+// ones for the given runtime. CNako は DefaultLabels（表示結果とGO表示結果）を対象にする。
 func Collect(targets []string, runtime Runtime) ([]Test, error) {
+	if runtime == WNako {
+		return CollectByLabel(targets, LabelWNako)
+	}
+	return CollectByLabel(targets, DefaultLabels...)
+}
+
+// CollectByLabel は指定した表示結果ラベルのサンプルだけを集める。
+// ラベルを省略すると DefaultLabels を使う。
+func CollectByLabel(targets []string, labels ...string) ([]Test, error) {
+	if len(labels) == 0 {
+		labels = DefaultLabels
+	}
+	allowed := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		if n := NormalizeLabel(label); n != "" {
+			allowed[n] = struct{}{}
+		}
+	}
+
 	var tests []Test
 	for _, target := range targets {
 		files, err := findFiles(target)
@@ -139,13 +176,23 @@ func Collect(targets []string, runtime Runtime) ([]Test, error) {
 				continue
 			}
 			for _, test := range Extract(text, file) {
-				if test.Runtime == runtime {
+				if _, ok := allowed[test.Label]; ok {
 					tests = append(tests, test)
 				}
 			}
 		}
 	}
 	return tests, nil
+}
+
+// NormalizeLabel は CLI や見出しからラベル名だけを取り出す。
+// 『### L表示結果:』や『L表示結果』はどちらも 『L表示結果』になる。
+func NormalizeLabel(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "###")
+	s = strings.TrimSpace(s)
+	s = strings.TrimRight(s, ":：")
+	return strings.TrimSpace(s)
 }
 
 // hasExpectation is a quick check that skips a page with no samples at all.

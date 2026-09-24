@@ -1,9 +1,12 @@
 package doctest
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -72,8 +75,11 @@ func (h *logHost) Args() []string                     { return nil }
 func (h *logHost) ReadResource(string) ([]byte, bool) { return nil, false }
 func (h *logHost) Now() time.Time                     { return time.Now() }
 
+// Runner は1件のサンプルを実行して結果を返す。
+type Runner func(Test) Result
+
 // Run executes one sample and compares what it printed with what the manual
-// says it prints.
+// says it prints. 内蔵のVMで実行する。
 func Run(test Test) Result {
 	if test.Runtime == WNako {
 		return Result{Err: errors.New("WEB表示結果のDocTestはブラウザ版の実行が必要です。")}
@@ -86,6 +92,43 @@ func Run(test Test) Result {
 		return Result{Err: err}
 	}
 	actual := trimTrailing(host.log.String())
+	return Result{OK: actual == test.Expect, Actual: actual}
+}
+
+// ExternalRunner は、与えた実行ファイルで一時ソースを実行し、標準出力を
+// 期待結果と照合する Runner を返す。Go版の省略命令は適用しない。
+// extraArgs はファイルパスの前に挿入する（例: 「run」→ `lnako run ファイル`）。
+func ExternalRunner(bin string, extraArgs ...string) Runner {
+	return func(test Test) Result {
+		return runExternal(bin, extraArgs, test)
+	}
+}
+
+func runExternal(bin string, extraArgs []string, test Test) Result {
+	dir, err := os.MkdirTemp("", "gonako-doctest-*")
+	if err != nil {
+		return Result{Err: fmt.Errorf("一時ファイルを作れません: %w", err)}
+	}
+	defer os.RemoveAll(dir)
+
+	src := filepath.Join(dir, "sample.nako3")
+	if err := os.WriteFile(src, []byte(test.Code), 0o600); err != nil {
+		return Result{Err: fmt.Errorf("一時ファイルを書けません: %w", err)}
+	}
+
+	args := append(append([]string{}, extraArgs...), src)
+	cmd := exec.Command(bin, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		return Result{Err: errors.New(msg)}
+	}
+	actual := trimTrailing(stdout.String())
 	return Result{OK: actual == test.Expect, Actual: actual}
 }
 
@@ -167,11 +210,11 @@ func FormatFailure(test Test, r Result, root string) string {
 	b.WriteString("--- 期待した表示結果 ---\n" + indent(test.Expect) + "\n")
 	b.WriteString("--- 実際の表示結果 ---\n" + indent(r.Actual) + "\n")
 	b.WriteString("--- 違いのある行 ---\n" + indent(diffLines(test.Expect, r.Actual)) + "\n")
-	marker := "### 表示結果:"
-	if test.Runtime == WNako {
-		marker = "### WEB表示結果:"
+	label := test.Label
+	if label == "" {
+		label = LabelCNako
 	}
-	fmt.Fprintf(&b, "マニュアルの「%s」の記述か、サンプルコードのどちらかを修正してください。", marker)
+	fmt.Fprintf(&b, "マニュアルの「### %s:」の記述か、サンプルコードのどちらかを修正してください。", label)
 	return b.String()
 }
 
