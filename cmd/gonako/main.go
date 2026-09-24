@@ -70,6 +70,9 @@ doc のオプション:
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
+  --runtime PATH   サンプルを実行するランタイム (既定: 内蔵VM)
+  --subcommand NAME ランタイムに渡すサブコマンド (例: run → lnako run ファイル)
+  --label NAME     対象にする表示結果ラベル (既定: 表示結果とGO表示結果)
   パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
 
 format のオプション:
@@ -336,6 +339,9 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doctest", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	max := flags.Int("max", 10, "失敗の詳細を表示する件数 (0で全件)")
+	runtimePath := flags.String("runtime", "", "サンプルを実行するランタイムのパス (省略時は内蔵VM)")
+	subcommand := flags.String("subcommand", "", "ランタイムに渡すサブコマンド (例: run)")
+	label := flags.String("label", "", "対象にする表示結果ラベル (省略時は表示結果とGO表示結果)")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -347,7 +353,26 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 		targets = existingDocTestTargets(defaultDocTestTargets)
 	}
 
-	tests, err := doctest.Collect(targets, doctest.CNako)
+	labels := doctest.DefaultLabels
+	if *label != "" {
+		labels = []string{doctest.NormalizeLabel(*label)}
+	}
+	runOne := doctest.Run
+	if *runtimePath != "" {
+		resolved, err := exec.LookPath(*runtimePath)
+		if err != nil {
+			return fmt.Errorf("DocTestのランタイム『%s』が見つかりません: %w", *runtimePath, err)
+		}
+		if *subcommand != "" {
+			runOne = doctest.ExternalRunner(resolved, *subcommand)
+		} else {
+			runOne = doctest.ExternalRunner(resolved)
+		}
+	} else if *subcommand != "" {
+		return errors.New("--subcommand は --runtime と一緒に指定してください")
+	}
+
+	tests, err := doctest.CollectByLabel(targets, labels...)
 	if err != nil {
 		return fmt.Errorf("DocTest対象を読み込めません: %w", err)
 	}
@@ -362,7 +387,7 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	skipReasons := map[string]int{}
 	byReason := map[doctest.Failure]int{}
 	for _, test := range tests {
-		result := doctest.Run(test)
+		result := runOne(test)
 		if result.Skipped {
 			skipped++
 			skipReasons[result.SkipReason]++
