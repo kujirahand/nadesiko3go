@@ -91,8 +91,9 @@ func arrayImpls(m map[string]Impl) {
 			return value.Undefined(), errors.New("『配列一括挿入』で配列以外の要素への挿入。")
 		}
 		at := int(value.ToNumber(arg(a, 1)))
-		for i := 0; i < src.Len(); i++ {
-			dst.Insert(at+i, src.Get(i))
+		// 挿入元を固定し、同じ配列への挿入でも処理が終わるようにする。
+		for i, item := range src.Values() {
+			dst.Insert(at+i, item)
 		}
 		return arg(a, 0), nil
 	}
