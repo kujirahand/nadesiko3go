@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/version"
 )
@@ -36,6 +38,8 @@ func runFakeRuntime(mode string) int {
 	case "fail":
 		fmt.Fprintln(os.Stderr, "boom")
 		return 1
+	case "hang":
+		select {}
 	default:
 		fmt.Fprintln(os.Stderr, "unknown fake runtime mode")
 		return 2
@@ -221,5 +225,13 @@ func TestExternalRunnerDoesNotSkipJS(t *testing.T) {
 	}
 	if !result.OK {
 		t.Fatalf("ExternalRunner JS = %#v", result)
+	}
+}
+
+func TestExternalRunnerTimesOut(t *testing.T) {
+	t.Setenv(fakeRuntimeEnv, "hang")
+	result := runExternal(os.Args[0], nil, Test{Code: "x"}, 20*time.Millisecond)
+	if result.Err == nil || !strings.Contains(result.Err.Error(), "制限時間") {
+		t.Fatalf("ExternalRunner timeout = %#v", result)
 	}
 }

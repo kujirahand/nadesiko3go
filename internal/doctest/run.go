@@ -2,6 +2,7 @@ package doctest
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
+
+const externalRuntimeTimeout = 10 * time.Second
 
 // Result is what running one sample produced.
 type Result struct {
@@ -100,11 +103,11 @@ func Run(test Test) Result {
 // extraArgs はファイルパスの前に挿入する（例: 「run」→ `lnako run ファイル`）。
 func ExternalRunner(bin string, extraArgs ...string) Runner {
 	return func(test Test) Result {
-		return runExternal(bin, extraArgs, test)
+		return runExternal(bin, extraArgs, test, externalRuntimeTimeout)
 	}
 }
 
-func runExternal(bin string, extraArgs []string, test Test) Result {
+func runExternal(bin string, extraArgs []string, test Test, timeout time.Duration) Result {
 	dir, err := os.MkdirTemp("", "gonako-doctest-*")
 	if err != nil {
 		return Result{Err: fmt.Errorf("一時ファイルを作れません: %w", err)}
@@ -117,11 +120,16 @@ func runExternal(bin string, extraArgs []string, test Test) Result {
 	}
 
 	args := append(append([]string{}, extraArgs...), src)
-	cmd := exec.Command(bin, args...)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, bin, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return Result{Err: fmt.Errorf("外部ランタイムが制限時間 %s を超えました", timeout)}
+		}
 		msg := strings.TrimSpace(stderr.String())
 		if msg == "" {
 			msg = err.Error()
