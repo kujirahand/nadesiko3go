@@ -148,7 +148,7 @@ func TestCollectCoreFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := len(tests), 575; got != want {
+	if got, want := len(tests), 576; got != want {
 		t.Fatalf("core DocTest = %d件, want %d件", got, want)
 	}
 }
