@@ -463,7 +463,10 @@ func requireTable(name string, v value.Value) (*value.Array, error) {
 
 func tableCell(row, col value.Value) value.Value {
 	if items, ok := row.Array(); ok {
-		return items.Get(int(value.ToNumber(col)))
+		if idx, isIdx := value.AsArrayIndex(col); isIdx {
+			return items.Get(idx)
+		}
+		return items.GetProp(value.ToString(col))
 	}
 	if dict, ok := row.Dict(); ok {
 		v, _ := dict.Get(value.ToString(col))
@@ -541,20 +544,6 @@ func transposeTable(table *value.Array, rotate bool) value.Value {
 }
 
 func arrayReference(container, index value.Value) (value.Value, error) {
-	if n, ok := index.Number(); ok {
-		i := int(n)
-		switch container.Kind() {
-		case value.KindArray:
-			a, _ := container.Array()
-			return a.Get(i), nil
-		case value.KindString:
-			r := []rune(value.ToString(container))
-			if i < 0 || i >= len(r) {
-				return value.Undefined(), nil
-			}
-			return value.String(string(r[i])), nil
-		}
-	}
 	if span, ok := index.Dict(); ok {
 		first, firstOK := span.Get("先頭")
 		last, lastOK := span.Get("末尾")
@@ -579,11 +568,28 @@ func arrayReference(container, index value.Value) (value.Value, error) {
 			}
 		}
 	}
-	if d, ok := container.Dict(); ok {
+	switch container.Kind() {
+	case value.KindArray:
+		a, _ := container.Array()
+		if idx, ok := value.AsArrayIndex(index); ok {
+			return a.Get(idx), nil
+		}
+		return a.GetProp(value.ToString(index)), nil
+	case value.KindDict:
+		d, _ := container.Dict()
 		if got, found := d.Get(value.ToString(index)); found {
 			return got, nil
 		}
 		return value.Undefined(), nil
+	case value.KindString:
+		if n, ok := index.Number(); ok {
+			i := int(n)
+			r := []rune(value.ToString(container))
+			if i < 0 || i >= len(r) {
+				return value.Undefined(), nil
+			}
+			return value.String(string(r[i])), nil
+		}
 	}
 	return value.Undefined(), errors.New("『参照』で文字列/配列/辞書型以外の値が指定されました。")
 }
