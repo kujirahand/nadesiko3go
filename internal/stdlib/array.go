@@ -719,33 +719,49 @@ func elementCount(v value.Value) int {
 	return 1
 }
 
-// cloneValue makes a deep copy, so that changing the copy leaves the original
-// alone.
+// cloneValue は値の深いコピー（ディープコピー）を作成する。
+// 循環参照（自己参照プロパティなど）が存在する場合も無限再帰せず複製する。
 func cloneValue(v value.Value) value.Value {
+	return cloneValueSeen(v, make(map[any]value.Value))
+}
+
+func cloneValueSeen(v value.Value, seen map[any]value.Value) value.Value {
 	switch v.Kind() {
 	case value.KindArray:
 		arr, _ := v.Array()
-		items := make([]value.Value, arr.Len())
-		for i := range items {
-			items[i] = cloneValue(arr.Get(i))
+		if existing, ok := seen[arr]; ok {
+			return existing
 		}
-		newArr := value.NewArray(items...)
+		newArr := value.NewArray()
+		res := value.ArrayValue(newArr)
+		seen[arr] = res
+
+		for i := 0; i < arr.Len(); i++ {
+			newArr.Set(i, cloneValueSeen(arr.Get(i), seen))
+		}
 		if props := arr.Props(); props != nil {
 			for _, k := range props.Keys() {
 				if item, ok := props.Get(k); ok {
-					newArr.SetProp(k, cloneValue(item))
+					newArr.SetProp(k, cloneValueSeen(item, seen))
 				}
 			}
 		}
-		return value.ArrayValue(newArr)
+		return res
+
 	case value.KindDict:
 		d, _ := v.Dict()
+		if existing, ok := seen[d]; ok {
+			return existing
+		}
 		out := value.NewDict()
+		res := value.DictValue(out)
+		seen[d] = res
+
 		for _, k := range d.Keys() {
 			item, _ := d.Get(k)
-			out.Set(k, cloneValue(item))
+			out.Set(k, cloneValueSeen(item, seen))
 		}
-		return value.DictValue(out)
+		return res
 	}
 	return v
 }
