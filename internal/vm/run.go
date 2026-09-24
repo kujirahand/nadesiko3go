@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
@@ -651,7 +652,10 @@ func (m *VM) indexGet1(container value.Value, index value.Value, pos int) value.
 	switch container.Kind() {
 	case value.KindArray:
 		arr, _ := container.Array()
-		return arr.Get(indexToInt(index))
+		if idx, ok := asArrayIndex(index); ok {
+			return arr.Get(idx)
+		}
+		return arr.GetProp(value.ToString(index))
 	case value.KindDict:
 		d, _ := container.Dict()
 		v, _ := d.Get(value.ToString(index))
@@ -712,22 +716,31 @@ func (m *VM) storeOne(container value.Value, index value.Value, v value.Value) {
 	switch container.Kind() {
 	case value.KindArray:
 		arr, _ := container.Array()
-		arr.Set(indexToInt(index), v)
+		if idx, ok := asArrayIndex(index); ok {
+			arr.Set(idx, v)
+		} else {
+			arr.SetProp(value.ToString(index), v)
+		}
 	case value.KindDict:
 		d, _ := container.Dict()
 		d.Set(value.ToString(index), v)
 	}
 }
 
-// iterKeys lists what 『反復』 walks: the indexes of an array, or the keys of a
-// dictionary in insertion order.
+// iterKeys は『反復』で走査するキー一覧を返す。配列ならインデックスおよび名前付きプロパティ、
+// 辞書なら挿入順のキー一覧。
 func (m *VM) iterKeys(v value.Value) value.Value {
 	switch v.Kind() {
 	case value.KindArray:
 		arr, _ := v.Array()
-		keys := make([]value.Value, arr.Len())
-		for i := range keys {
-			keys[i] = value.Number(float64(i))
+		keys := make([]value.Value, 0, arr.Len())
+		for i := 0; i < arr.Len(); i++ {
+			keys = append(keys, value.Number(float64(i)))
+		}
+		if props := arr.Props(); props != nil {
+			for _, k := range props.Keys() {
+				keys = append(keys, value.String(k))
+			}
 		}
 		return value.ArrayValue(value.NewArray(keys...))
 	case value.KindDict:
@@ -740,6 +753,44 @@ func (m *VM) iterKeys(v value.Value) value.Value {
 		return value.ArrayValue(value.NewArray(keys...))
 	}
 	return value.ArrayValue(value.NewArray())
+}
+
+// maxArrayIndex はJavaScript (ECMA-262) の配列インデックスの上限（2^32 - 2）。
+const maxArrayIndex = 4294967294
+
+// asArrayIndex は値 v が配列要素のインデックス（非負整数）かどうかを判定し、
+// 配列インデックスであればその整数値と true を返す。
+// それ以外のキー（非数値文字列、負数、小数など）はオブジェクトのプロパティ名として扱う。
+func asArrayIndex(v value.Value) (int, bool) {
+	switch v.Kind() {
+	case value.KindNumber:
+		n, _ := v.Number()
+		if math.IsNaN(n) || math.IsInf(n, 0) || n < 0 || math.Trunc(n) != n || n > maxArrayIndex {
+			return 0, false
+		}
+		return int(n), true
+	case value.KindString:
+		s, _ := v.String()
+		if s == "" {
+			return 0, false
+		}
+		// 正準数値文字列: "0" は許容するが、先行ゼロを持つ "01" 等はプロパティ名
+		if len(s) > 1 && s[0] == '0' {
+			return 0, false
+		}
+		for i := 0; i < len(s); i++ {
+			if s[i] < '0' || s[i] > '9' {
+				return 0, false
+			}
+		}
+		u, err := strconv.ParseUint(s, 10, 64)
+		if err != nil || u > maxArrayIndex {
+			return 0, false
+		}
+		return int(u), true
+	default:
+		return 0, false
+	}
 }
 
 // indexToInt converts an index to an array position. A non-numeric index

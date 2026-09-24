@@ -723,7 +723,15 @@ func cloneValue(v value.Value) value.Value {
 		for i := range items {
 			items[i] = cloneValue(arr.Get(i))
 		}
-		return value.ArrayValue(value.NewArray(items...))
+		newArr := value.NewArray(items...)
+		if props := arr.Props(); props != nil {
+			for _, k := range props.Keys() {
+				if item, ok := props.Get(k); ok {
+					newArr.SetProp(k, cloneValue(item))
+				}
+			}
+		}
+		return value.ArrayValue(newArr)
 	case value.KindDict:
 		d, _ := v.Dict()
 		out := value.NewDict()

@@ -6,11 +6,54 @@ import "sort"
 // JavaScript sparse array's observable reads without exposing Go nil values.
 type Array struct {
 	items []Value
+	props *Dict // 配列の名前付きプロパティ（非整数キー用）
 }
 
 func NewArray(values ...Value) *Array {
 	items := append([]Value(nil), values...)
 	return &Array{items: items}
+}
+
+// GetProp は配列の名前付きプロパティを取得する。存在しない場合は Undefined() を返す。
+func (a *Array) GetProp(key string) Value {
+	if a.props == nil {
+		return Undefined()
+	}
+	v, ok := a.props.Get(key)
+	if !ok {
+		return Undefined()
+	}
+	return v
+}
+
+// SetProp は配列の名前付きプロパティを設定する。
+func (a *Array) SetProp(key string, v Value) {
+	if a.props == nil {
+		a.props = NewDict()
+	}
+	a.props.Set(key, v)
+}
+
+// Props は配列のプロパティ辞書を返す（存在しない場合は nil）。
+func (a *Array) Props() *Dict {
+	return a.props
+}
+
+// HasProp は指定した名前付きプロパティが存在するかどうかを返す。
+func (a *Array) HasProp(key string) bool {
+	if a.props == nil {
+		return false
+	}
+	_, ok := a.props.Get(key)
+	return ok
+}
+
+// DeleteProp は指定した名前付きプロパティを削除する。
+func (a *Array) DeleteProp(key string) bool {
+	if a.props == nil {
+		return false
+	}
+	return a.props.Delete(key)
 }
 
 func (a *Array) Len() int { return len(a.items) }
