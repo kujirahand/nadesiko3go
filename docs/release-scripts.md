@@ -37,7 +37,7 @@
 ```text
 ① バージョン更新 & テスト  (just version-update 3.8.8 && just test)
            │
-② 手元ビルド確認            (just release)
+② 手元ビルド確認            (just release / release-<OS>)
            │
 ③ Gitコミット & PRマージ    (masterブランチを最新化)
            │
@@ -57,15 +57,35 @@ just test
 just doctest
 ```
 
-### ステップ 2: 手元での全プラットフォームビルド確認
+### ステップ 2: 手元でのOS別ビルド確認
 
-全OS・アーキテクチャ向けの配布ZIPが手元で正常にビルドできることを確認します。
+全OSを一度にビルドするとGUIのクロスコンパイルなどで途中失敗しやすいため（Issue #150）、
+リリース成果物はOSごとに分けて作成します。`just release` は実行中のOSを自動判定し、
+そのOS向けだけをビルドします（実行前に `release/` を空にします）。
 
 ```bash
+# 実行中のOS向けだけをビルド（macOSならdarwinのみ）
 just release
 ```
 
-`release/` ディレクトリに以下の9ファイルが生成されます：
+OSを明示するときは以下のレシピを使います。1台で複数OS分をまとめて作りたいときは、
+これらを続けて実行すると `release/` に成果物が積み上がります。
+
+```bash
+# 出力先を空にしてから始める（任意。積み上げたいときは実行しない）
+just release-clean
+just release-darwin
+just release-windows
+just release-linux
+```
+
+| レシピ | 対象 | 生成物 |
+|---|---|---|
+| `just release-darwin` | macOS (arm64/amd64) | CLIバイナリ + GUI App Bundle |
+| `just release-windows` | Windows (amd64) | CLIバイナリ + GUI exe |
+| `just release-linux` | Linux (amd64/arm64) | CLIバイナリ + GUI実行ファイル |
+
+`release/` ディレクトリに生成される主な成果物：
 
 | ファイル名 | 対象環境 | 形式 |
 |---|---|---|
@@ -80,6 +100,22 @@ just release
 | `gonako-gui-3.8.8-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイル |
 
 > **Note**: 先に手元ビルドを通すことで、クロスコンパイルエラーや環境要因によるビルド失敗時の不要なロールバックを防ぎます。
+
+### ステップ 2-2: 成果物をGitHub Releasesへアップロード（任意）
+
+`just release-upload` は `release/*.zip` をGitHub Releasesへアップロードします。
+リリースがまだ無ければドラフトとして自動作成し、同名ファイルは上書き（`--clobber`）します。
+`release/` 内のZIPのファイル名にタグのバージョンが含まれない場合（別バージョンの残骸など）は、
+アップロード前にエラーで止まります。バージョン文字列は形式も検証します。
+
+```bash
+just release-upload        # バージョンは internal/version/version.go から
+just release-upload 3.8.8  # バージョンを明示
+```
+
+OSごとに別マシンでビルドする場合は、各マシンで `just release-<OS>` の後に
+`just release-upload` を実行すると、全OSの成果物が1つのリリースに集まります。
+（正式公開は `just publish`、または `gh release edit <VERSION> --draft=false --latest`）
 
 ### ステップ 3: コミットとプルリクエスト作成・マージ
 
@@ -110,7 +146,15 @@ just publish
 
 引数を省略した場合は `internal/version/version.go` の現在値が使われます（`just publish 3.8.8` のように明示指定も可能）。
 
+> **Note**: `just publish` は `release/` にあるローカルZIPをアップロードし、そのZIPから
+> HomebrewのSHA-256を算出します（`-local`）。そのため実行前に全OS分の成果物を `release/` に
+> 集めておいてください（`just release-darwin` / `release-windows` / `release-linux` を実行）。
+> OSごとに別マシンで作る場合は、各マシンで `just release-<OS>` → `just release-upload` を実行した
+> うえで、`gh release edit <VERSION> --draft=false --latest` と
+> `just homebrew-update "<VERSION> -push"`（`-local` なし）で公開・Tap更新します。
+
 #### `just publish` 実行時の内部処理
+0. **成果物の事前検証**: 配布対象の9つのZIP（成果物一覧の表にあるCLI 5件・GUI 4件）が `release/` に揃っているか確認。不足があれば何もアップロード・公開せずに終了（一部のOSだけの不完全なリリースを公開しないため）。
 1. **ドラフトリリース作成**: `gh release create <VERSION> --draft` で未公開の下書きを作成。
 2. **成果物のアップロード**: `release/upload-<VERSION>.sh` を実行し、全ZIPをアップロード。
 3. **アトミック公開**: `gh release edit <VERSION> --draft=false --latest` で正式公開に切り替え。
@@ -128,11 +172,15 @@ just publish
 - インストーラーのフォールバック版（`install.sh` の `DEFAULT_VERSION` / `install.ps1` の `$defaultVersion`）は同期対象外です。`--stable <VERSION>` を付けたときだけ、この2箇所を切り替えます（`just publish` が公開後に実行）。
 
 ### `just release` (`scripts/build-release.go`)
-- 全プラットフォーム向けの CLI/GUI バイナリをクロスコンパイルして ZIP 圧縮します。
+- Linux向けGUIは、ホストとアーキテクチャが違う場合（amd64ホストでarm64をビルドする等）はクロスCコンパイラ（`aarch64-linux-gnu-gcc` 等）が必要です。無ければそのGUIはスキップされます。
+- `just release` は実行中のOSを自動判定し、そのOS向けの CLI/GUI バイナリをクロスコンパイルして ZIP 圧縮します。実行前に `release/` を空にします。
+- OSを明示する場合は `just release-darwin` / `just release-windows` / `just release-linux` を使います。
 - あわせて `release/upload-<VERSION>.sh` および `release/upload-<VERSION>.bat` を出力します。
+- アップロードは `just release-upload`（リリースが無ければドラフトを自動作成、同名ファイルは上書き）。
 - オプション:
   - `just release-cli`: CLI版のみビルド
   - `just release-gui`: GUI版のみビルド
+  - `just release-clean`: `release/` を空にする
 
 ### `just publish` (`scripts/publish-release.sh`)
 - GitHub Release のドラフト作成、成果物アップロード、ドラフト解除（アトミック公開）、Homebrew Tap 更新までを一貫して実行します。

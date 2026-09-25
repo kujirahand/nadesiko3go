@@ -50,21 +50,88 @@ install:
     {{go}} install ./cmd/gonako
     {{go}} install ./cmd/gonako-cui
 
-# 配布用に各プラットフォーム向けのバイナリ・ツール（CLI・GUI）を作る
-release:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}"
+# release/ を空にする（リリース作成の最初に実行する）
+release-clean:
+    rm -rf release
+    mkdir -p release
+
+# 配布用に現在のOS向けのバイナリ・ツール（CLI・GUI）を作る
+# 実行中のOSを自動判定し、release-darwin / release-windows / release-linux の
+# 該当するものだけを実行する。先に release/ を空にしてから作り直す。
+release version=version: release-clean
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # 子の just 呼び出しにバージョン指定を引き継ぐ
+    export VERSION={{quote(version)}}
+    case "{{os()}}" in
+      macos) target=release-darwin ;;
+      linux) target=release-linux ;;
+      windows) target=release-windows ;;
+      *) echo "未対応のOSです: {{os()}}" >&2; exit 1 ;;
+    esac
+    echo "===> $target を実行します"
+    just "$target"
+
+# macOS向けの配布用バイナリ（gonako・gonako-gui）を作る
+release-darwin:
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "darwin/arm64 darwin/amd64"
+
+# Windows向けの配布用バイナリ（gonako・gonako-gui）を作る
+release-windows:
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "windows/amd64"
+
+# Linux向けの配布用バイナリ（gonako・gonako-gui）を作る
+release-linux:
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "linux/amd64 linux/arm64"
+
+# release/ にある成果物をGitHubリリースへアップロードする
+# リリースが無ければドラフトとして自動作成し、同名ファイルは上書きする
+release-upload version=version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # 版番号はシェルに展開させず、環境変数経由で受け取る（コマンド注入の防止）
+    export RELEASE_VERSION={{quote(version)}}
+    version="$RELEASE_VERSION"
+    if [ -z "$version" ]; then
+      version=$({{go}} run ./scripts/print-version.go)
+    fi
+    version="${version#v}"
+    if ! [[ "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+      echo "エラー: 不正なバージョン指定です: $version" >&2
+      exit 1
+    fi
+    if ! command -v gh >/dev/null 2>&1; then
+      echo "エラー: GitHub CLI (gh) が必要です" >&2
+      exit 1
+    fi
+    shopt -s nullglob
+    files=(release/*.zip)
+    if [ "${#files[@]}" -eq 0 ]; then
+      echo "エラー: release/*.zip がありません。先に just release-darwin などを実行してください" >&2
+      exit 1
+    fi
+    # 別バージョンのZIPが混ざっていたらアップロード前に失敗させる
+    for f in "${files[@]}"; do
+      case "$(basename "$f")" in
+        *"-${version}-"*) ;;
+        *) echo "エラー: ${f} はバージョン ${version} の成果物ではありません" >&2; exit 1 ;;
+      esac
+    done
+    if ! gh release view "$version" >/dev/null 2>&1; then
+      echo "--- リリース ${version} をドラフトとして作成します"
+      gh release create "$version" --draft --title "v${version}" --notes "Release ${version}"
+    fi
+    echo "--- ${#files[@]} 件の成果物をアップロードします"
+    gh release upload "$version" "${files[@]}" --clobber
+    echo "===> アップロード完了: v${version}（正式公開は gh release edit ${version} --draft=false --latest）"
 
 # CLI版のみ配布用バイナリを作る
 release-cli:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-gui
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms {{quote(platforms)}} -skip-gui
 
 # GUI版のみ配布用バイナリを作る
 release-gui:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-cli
-
-# Windows版(amd64)のみ配布用バイナリを作る（gonako・gonako-guiの2つ）
-release-win:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "windows/amd64"
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms {{quote(platforms)}} -skip-cli
 
 # GUI版をビルドせずに実行
 run-gui:
@@ -135,4 +202,4 @@ homebrew-check:
 # GitHubリリースの作成・成果物のアップロード・Homebrew Tapの更新まで一括で行う
 # 事前に `just version-update X.Y.Z` と `just release` を済ませておくこと
 publish version=version:
-    ./scripts/publish-release.sh "{{version}}"
+    ./scripts/publish-release.sh {{quote(version)}}

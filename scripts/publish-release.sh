@@ -25,6 +25,29 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
+# 公開前に、配布対象の全OS分のZIP（install.sh / install.ps1 / Homebrew Tap が参照するもの）が
+# release/ に揃っているか検証する。
+# 不足したまま公開すると、公開済みリリースに欠落が残るため、何もアップロードしない。
+missing=""
+for f in \
+  "gonako-${VERSION}-darwin-arm64.zip" \
+  "gonako-${VERSION}-darwin-amd64.zip" \
+  "gonako-${VERSION}-linux-arm64.zip" \
+  "gonako-${VERSION}-linux-amd64.zip" \
+  "gonako-${VERSION}-windows-amd64.zip" \
+  "gonako-gui-${VERSION}-darwin-arm64.app.zip" \
+  "gonako-gui-${VERSION}-darwin-amd64.app.zip" \
+  "gonako-gui-${VERSION}-windows-amd64.zip" \
+  "gonako-gui-${VERSION}-linux-amd64.zip"; do
+  [ -f "release/$f" ] || missing="$missing $f"
+done
+if [ -n "$missing" ]; then
+  echo "エラー: release/ に次の成果物がありません（公開を中止します）:" >&2
+  for f in $missing; do echo "  - $f" >&2; done
+  echo "全OS分を release/ に集めてから再実行してください" >&2
+  exit 1
+fi
+
 # 1. リリース（タグ）の作成。タグ名は install.sh のURLに合わせて v を付けない。
 # 成果物アップロード中の404エラーを防ぐため、ドラフト（下書き）として作成する。
 if gh release view "$VERSION" >/dev/null 2>&1; then

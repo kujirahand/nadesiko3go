@@ -151,7 +151,7 @@ gonako / gonako-gui をソースコードからコンパイルするのも簡単
 git clone https://github.com/kujirahand/nadesiko3go.git
 cd nadesiko3go
 just build
-# もし各種OSのリリースファイルを生成するなら
+# もしリリースファイルを生成するなら（実行中のOS向けのみ。just release-darwin 等でOS指定も可）
 just release
 ```
 
