@@ -120,8 +120,13 @@ func stringImpls(m map[string]Impl) {
 		return value.Bool(strings.HasSuffix(str(a, 0), str(a, 1))), nil
 	}
 	m["出現回数"] = func(_ Context, a []value.Value) (value.Value, error) {
-		// split(a).length - 1 と同じ。区切り文字が空なら文字数になる。
-		return value.Number(float64(len(splitString(str(a, 0), str(a, 1))) - 1)), nil
+		// split(a).length - 1 と同じ。検索語が空文字列のときは0回とする
+		// (split(a).length - 1では-1や文字数-1を返すため。TS版 #2482 に合わせる)。
+		search := str(a, 1)
+		if search == "" {
+			return value.Number(0), nil
+		}
+		return value.Number(float64(len(splitString(str(a, 0), search)) - 1)), nil
 	}
 	m["置換"] = func(_ Context, a []value.Value) (value.Value, error) {
 		// split して join するので、区切り文字が空なら間に挟み込む形になる
