@@ -117,7 +117,8 @@ func lastPathSep(s string) int {
 
 // decodeQueryComponent は JavaScript の URLSearchParams と同じルールで
 // クエリのキー・値をデコードする。'+' は空白に変換し、%XX は有効な
-// 16進数のときだけデコードする。不正な % エスケープはそのまま残す。
+// 16進数のときだけデコードする。不正な % エスケープはそのまま残し、
+// デコード後の無効な UTF-8 シーケンスは � に置換する。
 func decodeQueryComponent(s string) string {
 	s = strings.ReplaceAll(s, "+", " ")
 	var b strings.Builder
@@ -129,7 +130,7 @@ func decodeQueryComponent(s string) string {
 		b.WriteByte(hexValue(s[i+1])<<4 | hexValue(s[i+2]))
 		i += 2
 	}
-	return b.String()
+	return strings.ToValidUTF8(b.String(), "�")
 }
 
 func isHexByte(c byte) bool {

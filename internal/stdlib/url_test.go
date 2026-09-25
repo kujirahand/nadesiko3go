@@ -60,6 +60,8 @@ func TestURLParameterParsing(t *testing.T) {
 		{"https://nadesi.com/p#frag?a=1", "a", ""},
 		{"https://nadesi.com/?=x", "", "x"},
 		{"?x=+", "x", " "},
+		{"https://nadesi.com/?a=%FF", "a", "�"},
+		{"https://nadesi.com/?a=%C0%AF", "a", "�"},
 	}
 
 	for _, tt := range tests {
