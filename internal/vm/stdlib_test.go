@@ -1,10 +1,12 @@
 package vm_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
@@ -55,11 +57,49 @@ func TestStringCommands(t *testing.T) {
 		{"CHR", `(65のCHR)を表示`, "A"},
 		{"CHR-配列", `([97,98,99]のCHRを""で配列結合)を表示`, "abc"},
 		{"文字列連結", `("a"と"b"を文字列連結)を表示`, "ab"},
+		{"リフレイン-小数切り捨て", `("x"を2.5でリフレイン)を表示`, "xx"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := run(t, tt.code); got != tt.want {
 				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPadAndRefrainStopOnExtremeCount は本家 #2480（ゼロ埋・空白埋）と
+// #2481（リフレイン）の回帰テストである。無限大や極端に大きな桁数・回数を
+// 渡しても止まらず、本家と同じ文面の実行時エラーになることを確かめる。
+func TestPadAndRefrainStopOnExtremeCount(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{"ゼロ埋-無限大", `("5"を無限大でゼロ埋)を表示`, "『ゼロ埋』の桁数には有限の整数を指定してください。"},
+		{"ゼロ埋-NaN", `("5"を(0÷0)でゼロ埋)を表示`, "『ゼロ埋』の桁数には有限の整数を指定してください。"},
+		{"ゼロ埋-上限超え", `("5"を1000001でゼロ埋)を表示`, "『ゼロ埋』の桁数が大きすぎます。"},
+		{"ゼロ埋-指数表記", `("5"を(10の21のべき乗)でゼロ埋)を表示`, "『ゼロ埋』の桁数が大きすぎます。"},
+		{"空白埋-無限大", `("5"を無限大で空白埋)を表示`, "『空白埋』の桁数には有限の整数を指定してください。"},
+		{"空白埋-NaN", `("5"を(0÷0)で空白埋)を表示`, "『空白埋』の桁数には有限の整数を指定してください。"},
+		{"空白埋-上限超え", `("5"を1000001で空白埋)を表示`, "『空白埋』の桁数が大きすぎます。"},
+		{"リフレイン-無限大", `("x"を無限大でリフレイン)を表示`, "『リフレイン』の回数には有限の整数を指定してください。"},
+		{"リフレイン-負数", `("x"を(0-1)でリフレイン)を表示`, "『リフレイン』の回数には0以上の整数を指定してください。"},
+		{"リフレイン-上限超え", `("x"を1000001でリフレイン)を表示`, "『リフレイン』の回数が大きすぎます。"},
+		{"リフレイン-結果が大きい", `A=("x"を700でリフレイン)。(Aを1000000でリフレイン)を表示`, "『リフレイン』の結果が大きすぎます。"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := vm.RunSource(tt.code, "main.nako3", nil)
+			if err == nil {
+				t.Fatalf("%s がエラーにならなかった", tt.code)
+			}
+			var nakoErr *errs.NakoError
+			if !errors.As(err, &nakoErr) {
+				t.Fatalf("エラー型 = %T, want *errs.NakoError", err)
+			}
+			if nakoErr.Kind != errs.Runtime {
+				t.Errorf("Kind = %v, want errs.Runtime", nakoErr.Kind)
+			}
+			if nakoErr.Msg != tt.want {
+				t.Errorf("Msg = %q, want %q", nakoErr.Msg, tt.want)
 			}
 		})
 	}
