@@ -110,7 +110,7 @@ just release-linux
 
 ```bash
 just release-upload        # バージョンは internal/version/version.go から
-just release-upload 3.8.7  # バージョンを明示
+just release-upload 3.8.8  # バージョンを明示
 ```
 
 OSごとに別マシンでビルドする場合は、各マシンで `just release-<OS>` の後に
@@ -154,7 +154,7 @@ just publish
 > `just homebrew-update "<VERSION> -push"`（`-local` なし）で公開・Tap更新します。
 
 #### `just publish` 実行時の内部処理
-0. **成果物の事前検証**: Homebrewが必要とする6つのZIP（CLIのdarwin/linux各arm64・amd64、GUIのdarwin各arm64・amd64）が `release/` に揃っているか確認。不足があれば何もアップロード・公開せずに終了（一部のOSだけの不完全なリリースを公開しないため）。
+0. **成果物の事前検証**: 配布対象の9つのZIP（成果物一覧の表にあるCLI 5件・GUI 4件）が `release/` に揃っているか確認。不足があれば何もアップロード・公開せずに終了（一部のOSだけの不完全なリリースを公開しないため）。
 1. **ドラフトリリース作成**: `gh release create <VERSION> --draft` で未公開の下書きを作成。
 2. **成果物のアップロード**: `release/upload-<VERSION>.sh` を実行し、全ZIPをアップロード。
 3. **アトミック公開**: `gh release edit <VERSION> --draft=false --latest` で正式公開に切り替え。

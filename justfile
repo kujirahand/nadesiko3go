@@ -74,15 +74,15 @@ release version=version: release-clean
 
 # macOS向けの配布用バイナリ（gonako・gonako-gui）を作る
 release-darwin:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "darwin/arm64 darwin/amd64"
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "darwin/arm64 darwin/amd64"
 
 # Windows向けの配布用バイナリ（gonako・gonako-gui）を作る
 release-windows:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "windows/amd64"
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "windows/amd64"
 
 # Linux向けの配布用バイナリ（gonako・gonako-gui）を作る
 release-linux:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "linux/amd64 linux/arm64"
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms "linux/amd64 linux/arm64"
 
 # release/ にある成果物をGitHubリリースへアップロードする
 # リリースが無ければドラフトとして自動作成し、同名ファイルは上書きする
@@ -127,11 +127,11 @@ release-upload version=version:
 
 # CLI版のみ配布用バイナリを作る
 release-cli:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-gui
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms {{quote(platforms)}} -skip-gui
 
 # GUI版のみ配布用バイナリを作る
 release-gui:
-    {{go}} run ./scripts/build-release.go -version "{{version}}" -platforms "{{platforms}}" -skip-cli
+    {{go}} run ./scripts/build-release.go -version {{quote(version)}} -platforms {{quote(platforms)}} -skip-cli
 
 # GUI版をビルドせずに実行
 run-gui:
@@ -202,4 +202,4 @@ homebrew-check:
 # GitHubリリースの作成・成果物のアップロード・Homebrew Tapの更新まで一括で行う
 # 事前に `just version-update X.Y.Z` と `just release` を済ませておくこと
 publish version=version:
-    ./scripts/publish-release.sh "{{version}}"
+    ./scripts/publish-release.sh {{quote(version)}}

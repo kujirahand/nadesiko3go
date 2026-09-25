@@ -25,7 +25,8 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-# 公開前に、Homebrew Tap が必要とする全OS分のZIPが release/ に揃っているか検証する。
+# 公開前に、配布対象の全OS分のZIP（install.sh / install.ps1 / Homebrew Tap が参照するもの）が
+# release/ に揃っているか検証する。
 # 不足したまま公開すると、公開済みリリースに欠落が残るため、何もアップロードしない。
 missing=""
 for f in \
@@ -33,8 +34,11 @@ for f in \
   "gonako-${VERSION}-darwin-amd64.zip" \
   "gonako-${VERSION}-linux-arm64.zip" \
   "gonako-${VERSION}-linux-amd64.zip" \
+  "gonako-${VERSION}-windows-amd64.zip" \
   "gonako-gui-${VERSION}-darwin-arm64.app.zip" \
-  "gonako-gui-${VERSION}-darwin-amd64.app.zip"; do
+  "gonako-gui-${VERSION}-darwin-amd64.app.zip" \
+  "gonako-gui-${VERSION}-windows-amd64.zip" \
+  "gonako-gui-${VERSION}-linux-amd64.zip"; do
   [ -f "release/$f" ] || missing="$missing $f"
 done
 if [ -n "$missing" ]; then
