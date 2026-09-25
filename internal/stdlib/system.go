@@ -341,9 +341,14 @@ func implementations() map[string]Impl {
 	return m
 }
 
-// allDigitsRE matches a string made only of digits, half-width or full-width,
-// which is what 『数列判定』 asks about.
-var allDigitsRE = regexp.MustCompile(`^[+\-＋－]?(?:[0-9０-９]+(?:[.．][0-9０-９]+)?|[.．][0-9０-９]+)(?:[eEｅＥ][+\-＋－]?[0-9０-９]+)?$`)
+// allDigitsRE は『数列判定』が数値とみなす文字列の正規表現である。
+// 本家 TypeScript 版（core/src/plugin_system_string.mts の『数列判定』）の
+// checkerRE と、文字クラス・量指定・分岐を1対1で合わせてある。
+// 判定の歴史は次の2件（本家の修正に合わせてある）。
+//   - #2483: 符号のみ（「+」「-」「＋」）や「.」単独を受理しないよう、数字を必須にした
+//   - d2dac011: 小数部を省略した指数表記（「123.e1」「123.」）も受理する
+// 空文字列は正規表現に一致しないので、本家の `s === ''` の分岐は持たない。
+var allDigitsRE = regexp.MustCompile(`^[+\-＋－]?(?:[0-9０-９]+(?:[.．][0-9０-９]*)?|[.．][0-9０-９]+)(?:[eEｅＥ][+\-＋－]?[0-9０-９]+)?$`)
 
 // binaryNumber adapts a two-operand numeric operation into a command.
 func binaryNumber(f func(a, b value.Value) float64) Impl {
