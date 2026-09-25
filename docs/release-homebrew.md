@@ -8,7 +8,8 @@
 ```bash
 just version-update 3.8.7   # バージョン番号を一括更新
 just test                   # テスト
-just release                # 全プラットフォームの成果物をビルド確認
+just release                # 実行中のOS向けの成果物をビルド（Issue #150）
+# （全OS分を配信する場合）just release-darwin / release-windows / release-linux で release/ を揃える
 # Git コミット & PR作成・マージ（masterを最新化）
 just publish                # ドラフト作成 → 成果物アップロード → 正式公開 → Homebrew Tap更新
 ```
@@ -70,14 +71,38 @@ Tapの作業ディレクトリは既定で `./homebrew-nadesiko3`（`.gitignore`
 just version-update 3.8.7
 ```
 
-続けて `just release` を実行します（`VERSION` を省略すると更新後の値が使われます）。
-CLI版とGUI版の各プラットフォーム用成果物（すべてZIP形式）が `release/` 配下に
-一括生成され、あわせて `release/upload-${VERSION}.sh` および `release/upload-${VERSION}.bat`（GitHub Releasesへ
-アップロードするスクリプト・バッチ）も生成されます。
+続けて成果物をビルドします（`VERSION` を省略すると更新後の値が使われます）。
+全OSを一度にビルドするとGUIのクロスコンパイルなどで途中失敗しやすいため（Issue #150）、
+成果物はOSごとに作成します。`just release` は実行中のOSを自動判定し、そのOS向けだけを
+ビルドします（実行前に `release/` を空にします）。
 
 ```bash
-just release
+just release              # 実行中のOS向けだけ
+just release-darwin       # macOS向け
+just release-windows      # Windows向け
+just release-linux        # Linux向け
+just release-clean        # release/ を空にする（任意）
 ```
+
+CLI版とGUI版の各成果物（すべてZIP形式）が `release/` 配下に生成され、あわせて
+`release/upload-${VERSION}.sh` および `release/upload-${VERSION}.bat`（GitHub Releasesへ
+アップロードするスクリプト・バッチ）も生成されます。
+
+> 複数OSを1台で作るときは `just release-darwin` → `release-windows` → `release-linux` の順に
+> 実行すると `release/` に成果物が積み上がります。`just release` は実行前に `release/` を
+> 空にするので、全OSをまとめて作りたい場合は個別レシピを使ってください。
+
+`just release-upload` で `release/*.zip` をGitHub Releasesへアップロードできます
+（リリースが無ければドラフトを自動作成、同名ファイルは上書き）。
+
+```bash
+just release-upload        # バージョンは internal/version/version.go から
+```
+
+OSごとに別マシンでビルドする場合は、各マシンで `just release-<OS>` → `just release-upload` を
+実行すると、全OSの成果物が1つのドラフトリリースに揃います。その場合は最後に
+`gh release edit <VERSION> --draft=false --latest` で公開し、Homebrew Tap は `-local` を付けずに
+`just homebrew-update "<VERSION> -push"` で更新してください（GitHub上のZIPからハッシュを算出）。
 
 ### 生成される主な成果物 (`release/`)
 
