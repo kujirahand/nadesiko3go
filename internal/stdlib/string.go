@@ -1,6 +1,9 @@
 package stdlib
 
 import (
+	"errors"
+	"fmt"
+	"math"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -185,11 +188,19 @@ func stringImpls(m map[string]Impl) {
 		return value.Bool(strings.Contains(value.ToString(container), value.ToString(wanted))), nil
 	}
 	m["リフレイン"] = func(_ Context, a []value.Value) (value.Value, error) {
-		n := int(value.ToNumber(arg(a, 1)))
-		if n < 0 {
-			n = 0
+		// 負数はエラー。NaN は normalizeBoundedCount 側で弾かれる (#2481)
+		if raw := value.ToNumber(arg(a, 1)); raw < 0 {
+			return value.Undefined(), errors.New("『リフレイン』の回数には0以上の整数を指定してください。")
 		}
-		return value.String(strings.Repeat(value.ToString(arg(a, 0)), n)), nil
+		n, err := normalizeBoundedCount(arg(a, 1), "リフレイン", "回数")
+		if err != nil {
+			return value.Undefined(), err
+		}
+		s := value.ToString(arg(a, 0))
+		if n > 0 && int64(len(s)) > int64(maxRepeatResult)/int64(n) {
+			return value.Undefined(), errors.New("『リフレイン』の結果が大きすぎます。")
+		}
+		return value.String(strings.Repeat(s, n)), nil
 	}
 
 	// --- 空白の削除 ---
@@ -281,8 +292,8 @@ func stringImpls(m map[string]Impl) {
 
 	// --- 桁揃え ---
 
-	m["ゼロ埋"] = padLeft('0')
-	m["空白埋"] = padLeft(' ')
+	m["ゼロ埋"] = padLeft('0', "ゼロ埋")
+	m["空白埋"] = padLeft(' ', "空白埋")
 
 	// --- 文字コード ---
 
@@ -395,15 +406,50 @@ func firstRuneBetween(low, high rune) Impl {
 
 // padLeft builds 『ゼロ埋』 and 『空白埋』, which pad on the left to a width
 // counted in runes and never truncate.
-func padLeft(fill rune) Impl {
+func padLeft(fill rune, cmd string) Impl {
 	return func(_ Context, a []value.Value) (value.Value, error) {
-		s := value.ToString(arg(a, 0))
-		width := int(value.ToNumber(arg(a, 1)))
-		if n := runeLen(s); width < n {
-			width = n
+		// 無限大や極端に大きな桁数は、埋め始める前に止める (#2480)
+		width, err := normalizeBoundedCount(arg(a, 1), cmd, "桁数")
+		if err != nil {
+			return value.Undefined(), err
 		}
-		return value.String(strings.Repeat(string(fill), width-runeLen(s)) + s), nil
+		s := value.ToString(arg(a, 0))
+		n := runeLen(s)
+		if width <= n {
+			return value.String(s), nil
+		}
+		return value.String(strings.Repeat(string(fill), width-n) + s), nil
 	}
+}
+
+// maxCount は『ゼロ埋』『空白埋』の桁数と『リフレイン』の回数の上限。
+// 本家 TypeScript 版 plugin_system_string.mts の MAX_COUNT と同じ値。
+// 非有限値や極端に大きな値で処理が終わらなくなるのを防ぐ (#2480, #2481)。
+const maxCount = 1000000
+
+// maxRepeatResult は『リフレイン』が作る結果の長さの上限（バイト単位）。
+// 本家は V8 の最大文字列長を超えると RangeError になるので、Go版も
+// 確保してしまう前に同じ文面のエラーで止める (#2481)。
+const maxRepeatResult = 1 << 29
+
+// normalizeBoundedCount は桁数・回数を有限の整数（端数は切り捨て）に整える。
+// 本家 normalizeBoundedCount と同じ順序で検査する。負数は許容し、
+// 許可しない命令側で先に弾く。
+func normalizeBoundedCount(v value.Value, cmd, unit string) (int, error) {
+	n := value.ToNumber(v)
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return 0, fmt.Errorf("『%s』の%sには有限の整数を指定してください。", cmd, unit)
+	}
+	n = math.Trunc(n)
+	if n > maxCount {
+		return 0, fmt.Errorf("『%s』の%sが大きすぎます。", cmd, unit)
+	}
+	// 巨大な負数は int に収まらない。-maxCount 以下は桁数・回数ともに
+	// 「足りないので何もしない」場合なので、結果が変わらない範囲で丸める。
+	if n < -maxCount {
+		n = -maxCount
+	}
+	return int(n), nil
 }
 
 // shiftRunes builds a command that moves the runes in a range by delta, which
