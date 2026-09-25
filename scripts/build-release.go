@@ -399,7 +399,7 @@ func buildGUILinux(cfg config, goarch string) error {
 		"CGO_ENABLED=1",
 	)
 
-	if runtime.GOOS != "linux" {
+	if runtime.GOOS != "linux" || runtime.GOARCH != goarch {
 		var cc, cxx string
 		if goarch == "amd64" {
 			cc = "x86_64-linux-gnu-gcc"

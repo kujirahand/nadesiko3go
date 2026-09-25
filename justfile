@@ -89,11 +89,17 @@ release-linux:
 release-upload version=version:
     #!/usr/bin/env bash
     set -euo pipefail
-    version="{{version}}"
+    # 版番号はシェルに展開させず、環境変数経由で受け取る（コマンド注入の防止）
+    export RELEASE_VERSION={{quote(version)}}
+    version="$RELEASE_VERSION"
     if [ -z "$version" ]; then
       version=$({{go}} run ./scripts/print-version.go)
     fi
     version="${version#v}"
+    if ! [[ "$version" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]]; then
+      echo "エラー: 不正なバージョン指定です: $version" >&2
+      exit 1
+    fi
     if ! command -v gh >/dev/null 2>&1; then
       echo "エラー: GitHub CLI (gh) が必要です" >&2
       exit 1
@@ -104,6 +110,13 @@ release-upload version=version:
       echo "エラー: release/*.zip がありません。先に just release-darwin などを実行してください" >&2
       exit 1
     fi
+    # 別バージョンのZIPが混ざっていたらアップロード前に失敗させる
+    for f in "${files[@]}"; do
+      case "$(basename "$f")" in
+        *"-${version}-"*) ;;
+        *) echo "エラー: ${f} はバージョン ${version} の成果物ではありません" >&2; exit 1 ;;
+      esac
+    done
     if ! gh release view "$version" >/dev/null 2>&1; then
       echo "--- リリース ${version} をドラフトとして作成します"
       gh release create "$version" --draft --title "v${version}" --notes "Release ${version}"
