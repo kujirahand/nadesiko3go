@@ -23,7 +23,12 @@ func urlImpls(m map[string]Impl) {
 	}
 	m["URLパラメータ解析"] = func(_ Context, a []value.Value) (value.Value, error) {
 		d := value.NewDict()
-		_, query, found := strings.Cut(str(a, 0), "?")
+		s := str(a, 0)
+		// # 以降はフラグメントとして扱い、クエリ解析から除外する
+		if i := strings.Index(s, "#"); i >= 0 {
+			s = s[:i]
+		}
+		_, query, found := strings.Cut(s, "?")
 		if !found {
 			return value.DictValue(d), nil
 		}
@@ -32,14 +37,8 @@ func urlImpls(m map[string]Impl) {
 				continue
 			}
 			key, val, _ := strings.Cut(field, "=")
-			decodedKey, err := url.PathUnescape(key)
-			if err != nil {
-				return value.Undefined(), err
-			}
-			decodedVal, err := url.PathUnescape(val)
-			if err != nil {
-				return value.Undefined(), err
-			}
+			decodedKey := decodeQueryComponent(key)
+			decodedVal := decodeQueryComponent(val)
 			d.Set(decodedKey, value.String(decodedVal))
 		}
 		return value.DictValue(d), nil
@@ -114,4 +113,37 @@ func lastPathSep(s string) int {
 		return i1
 	}
 	return i2
+}
+
+// decodeQueryComponent は JavaScript の URLSearchParams と同じルールで
+// クエリのキー・値をデコードする。'+' は空白に変換し、%XX は有効な
+// 16進数のときだけデコードする。不正な % エスケープはそのまま残す。
+func decodeQueryComponent(s string) string {
+	s = strings.ReplaceAll(s, "+", " ")
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '%' || i+2 >= len(s) || !isHexByte(s[i+1]) || !isHexByte(s[i+2]) {
+			b.WriteByte(s[i])
+			continue
+		}
+		b.WriteByte(hexValue(s[i+1])<<4 | hexValue(s[i+2]))
+		i += 2
+	}
+	return b.String()
+}
+
+func isHexByte(c byte) bool {
+	return ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f')
+}
+
+func hexValue(c byte) byte {
+	switch {
+	case '0' <= c && c <= '9':
+		return c - '0'
+	case 'a' <= c && c <= 'f':
+		return c - 'a' + 10
+	case 'A' <= c && c <= 'F':
+		return c - 'A' + 10
+	}
+	return 0
 }
