@@ -62,7 +62,7 @@ release version=version: release-clean
     #!/usr/bin/env bash
     set -euo pipefail
     # 子の just 呼び出しにバージョン指定を引き継ぐ
-    export VERSION="{{version}}"
+    export VERSION={{quote(version)}}
     case "{{os()}}" in
       macos) target=release-darwin ;;
       linux) target=release-linux ;;
