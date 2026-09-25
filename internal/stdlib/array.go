@@ -736,7 +736,10 @@ func rangeEndpoint(v value.Value) (float64, error) {
 		n, _ = v.Number()
 	case value.KindString:
 		s, _ := v.String()
-		if strings.TrimSpace(s) == "" {
+		// 空白の判定は value.ToNumber と同じ JS の trim に合わせる。
+		// strings.TrimSpace は BOM(U+FEFF) を残すため、ToNumber が0にする
+		// 文字列を空と判定できず、本家ならエラーになる入力を通してしまう
+		if value.TrimJSSpace(s) == "" {
 			n = math.NaN()
 		} else {
 			n = value.ToNumber(v)

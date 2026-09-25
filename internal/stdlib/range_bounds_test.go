@@ -63,6 +63,8 @@ func TestArrayRange(t *testing.T) {
 		{"数値文字列-小数", value.String("1.5"), value.String("2.5"), "1.5,2.5"},
 		{"数値文字列-前後の空白", value.String(" 1 "), value.String("3"), "1,2,3"},
 		{"数値文字列-指数表記", value.String("1e2"), value.String("102"), "100,101,102"},
+		// BOM(U+FEFF)は本家の trim でも取り除かれるので数値として読める
+		{"数値文字列-BOM前置き", value.String("\uFEFF1"), value.String("3"), "1,2,3"},
 		// #2472 小数の範囲は従来どおり生成できる
 		{"小数の範囲", value.Number(1.5), value.Number(3.5), "1.5,2.5,3.5"},
 		{"小数の範囲-1件", value.Number(0.5), value.Number(0.5), "0.5"},
@@ -96,6 +98,11 @@ func TestArrayRangeRejectsNonFiniteEndpoint(t *testing.T) {
 	}{
 		{"空文字列", value.String(""), value.String("")},
 		{"空白だけ", value.String("   "), value.Number(3)},
+		// JS の trim は BOM(U+FEFF) も取り除く。strings.TrimSpace が残すため、
+		// ToNumber は0にするが本家は有限な数値として扱わない
+		{"BOMだけ", value.String("\uFEFF"), value.String("\uFEFF")},
+		{"BOMと空白の混在", value.String(" \uFEFF "), value.Number(3)},
+		{"改行だけ", value.String("\n\t"), value.Number(3)},
 		{"数値でない文字列", value.String("あ"), value.Number(3)},
 		{"NaN", value.Number(math.NaN()), value.Number(3)},
 		{"正の無限大", value.Number(1), value.Number(math.Inf(1))},
