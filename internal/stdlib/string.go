@@ -259,7 +259,7 @@ func stringImpls(m map[string]Impl) {
 		if r == '　' {
 			return ' '
 		}
-		if r >= 0xff01 && r <= 0xff5f {
+		if r >= 0xff01 && r <= 0xff5e {
 			return r - 0xfee0
 		}
 		return r
