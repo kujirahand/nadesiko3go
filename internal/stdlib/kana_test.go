@@ -22,3 +22,25 @@ func TestKatakanaWidthConversion(t *testing.T) {
 		t.Errorf("katakanaToFullWidth(単独の濁点) = %q, want そのまま", got)
 	}
 }
+
+// 本家 #2457・#2478 の回帰ケース。末尾の未濁音の誤変換、濁点の消失、
+// 濁音ペアの境界誤一致が起きないことを確かめる。
+func TestKatakanaToFullWidthBoundary(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"ｲﾛﾊﾆﾎﾍﾄ", "イロハニホヘト"}, // 末尾の ﾄ が ド にならない
+		{"ﾄ", "ト"},
+		{"ｳﾞ", "ヴ"},
+		{"ﾞｷ", "ﾞキ"}, // 濁点を次の文字に結合しない
+		{"ﾟﾋ", "ﾟヒ"},
+		{"ﾞ", "ﾞ"}, // 単独の濁点は消さない
+		{"ﾟ", "ﾟ"},
+		{"ｶﾞ", "ガ"},
+		{"ｲﾛﾊﾆﾎﾍﾄﾞ", "イロハニホヘド"},
+		{"ABCｱ1", "ABCア1"}, // 変換対象外文字との境界
+	}
+	for _, tt := range tests {
+		if got := katakanaToFullWidth(tt.in); got != tt.want {
+			t.Errorf("katakanaToFullWidth(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
