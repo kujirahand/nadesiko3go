@@ -105,6 +105,8 @@ just release-linux
 
 `just release-upload` は `release/*.zip` をGitHub Releasesへアップロードします。
 リリースがまだ無ければドラフトとして自動作成し、同名ファイルは上書き（`--clobber`）します。
+`release/` 内のZIPのファイル名にタグのバージョンが含まれない場合（別バージョンの残骸など）は、
+アップロード前にエラーで止まります。バージョン文字列は形式も検証します。
 
 ```bash
 just release-upload        # バージョンは internal/version/version.go から
@@ -152,6 +154,7 @@ just publish
 > `just homebrew-update "<VERSION> -push"`（`-local` なし）で公開・Tap更新します。
 
 #### `just publish` 実行時の内部処理
+0. **成果物の事前検証**: Homebrewが必要とする6つのZIP（CLIのdarwin/linux各arm64・amd64、GUIのdarwin各arm64・amd64）が `release/` に揃っているか確認。不足があれば何もアップロード・公開せずに終了（一部のOSだけの不完全なリリースを公開しないため）。
 1. **ドラフトリリース作成**: `gh release create <VERSION> --draft` で未公開の下書きを作成。
 2. **成果物のアップロード**: `release/upload-<VERSION>.sh` を実行し、全ZIPをアップロード。
 3. **アトミック公開**: `gh release edit <VERSION> --draft=false --latest` で正式公開に切り替え。
@@ -169,6 +172,7 @@ just publish
 - インストーラーのフォールバック版（`install.sh` の `DEFAULT_VERSION` / `install.ps1` の `$defaultVersion`）は同期対象外です。`--stable <VERSION>` を付けたときだけ、この2箇所を切り替えます（`just publish` が公開後に実行）。
 
 ### `just release` (`scripts/build-release.go`)
+- Linux向けGUIは、ホストとアーキテクチャが違う場合（amd64ホストでarm64をビルドする等）はクロスCコンパイラ（`aarch64-linux-gnu-gcc` 等）が必要です。無ければそのGUIはスキップされます。
 - `just release` は実行中のOSを自動判定し、そのOS向けの CLI/GUI バイナリをクロスコンパイルして ZIP 圧縮します。実行前に `release/` を空にします。
 - OSを明示する場合は `just release-darwin` / `just release-windows` / `just release-linux` を使います。
 - あわせて `release/upload-<VERSION>.sh` および `release/upload-<VERSION>.bat` を出力します。

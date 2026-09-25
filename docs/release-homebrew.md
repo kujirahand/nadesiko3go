@@ -22,6 +22,7 @@ just publish                # ドラフト作成 → 成果物アップロード
 
 `scripts/publish-release.sh` が次の処理を順に行います。
 
+0. 全OS分のZIP（6ファイル）が `release/` に揃っているか事前検証（不足があれば何もせず中止）
 1. `gh release create <VERSION> --draft`（未公開の下書きとして作成）
 2. `release/upload-<VERSION>.sh` で全成果物をアップロード
 3. `gh release edit <VERSION> --draft=false --latest` で正式公開
@@ -93,7 +94,7 @@ CLI版とGUI版の各成果物（すべてZIP形式）が `release/` 配下に�
 > 空にするので、全OSをまとめて作りたい場合は個別レシピを使ってください。
 
 `just release-upload` で `release/*.zip` をGitHub Releasesへアップロードできます
-（リリースが無ければドラフトを自動作成、同名ファイルは上書き）。
+（リリースが無ければドラフトを自動作成、同名ファイルは上書き。ファイル名の版がタグと一致しないZIPがあれば中止）。
 
 ```bash
 just release-upload        # バージョンは internal/version/version.go から
