@@ -101,11 +101,20 @@ func ToNumber(v Value) float64 {
 // against this first.
 var decimalNumberRE = regexp.MustCompile(`^(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$`)
 
+// TrimJSSpace removes the characters JavaScript's String.prototype.trim
+// removes: the Unicode space separators, the line terminators, and the byte
+// order mark. It exists because strings.TrimSpace leaves U+FEFF in place, so
+// commands that decide whether a string is blank the way JavaScript does
+// (Number(U+FEFF) is NaN, not 0) cannot use it.
+func TrimJSSpace(s string) string {
+	return strings.TrimFunc(s, isJSSpace)
+}
+
 // stringToNumber implements JavaScript's string-to-number conversion, which
 // accepts a whole trimmed numeric literal and nothing else. An empty or
 // blank string is 0, unlike ParseFloat.
 func stringToNumber(s string) float64 {
-	s = strings.TrimFunc(s, isJSSpace)
+	s = TrimJSSpace(s)
 	if s == "" {
 		return 0
 	}

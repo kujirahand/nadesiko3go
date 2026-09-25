@@ -188,11 +188,22 @@ func arrayImpls(m map[string]Impl) {
 	// --- 生成 ---
 
 	m["配列連番作成"] = func(_ Context, a []value.Value) (value.Value, error) {
-		from := int(value.ToNumber(arg(a, 0)))
-		to := int(value.ToNumber(arg(a, 1)))
-		var items []value.Value
+		from, err := rangeEndpoint(arg(a, 0))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		to, err := rangeEndpoint(arg(a, 1))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		// 要素数は式で事前算出せず、生成しながら数える。2の52乗付近では加算の
+		// 刻み幅が1にならず、to-from+1 では実際の反復回数と食い違うため (#2472)
+		items := make([]value.Value, 0, rangeCapacity(from, to))
 		for i := from; i <= to; i++ {
-			items = append(items, value.Number(float64(i)))
+			if len(items) >= maxRangeLength {
+				return value.Undefined(), errors.New("『配列連番作成』で生成される配列の要素数が多すぎます。")
+			}
+			items = append(items, value.Number(i))
 		}
 		return value.ArrayValue(value.NewArray(items...)), nil
 	}
@@ -701,6 +712,60 @@ func reduceNumbers(f func(a, b float64) float64) Impl {
 		}
 		return value.Number(acc), nil
 	}
+}
+
+// maxRangeLength は『配列連番作成』が生成できる要素数の上限。
+// 本家 TypeScript 版 plugin_system_array.mts の MAX_RANGE_LENGTH と同じ値。
+// うっかり広い範囲を指定したときにメモリが枯渇するのを防ぐ (#2472)。
+const maxRangeLength = 1000000
+
+// maxSafeInteger は JS の Number.MAX_SAFE_INTEGER (2の53乗-1)。
+// 絶対値がこれを超える値は1を足しても値が変わらず、ループが進展しなくなる。
+const maxSafeInteger = 9007199254740991
+
+// rangeEndpoint は『配列連番作成』の端点を有限の数値に整える。
+//
+// 本家と同じく、数値はそのまま、空でない文字列は数値として読む。
+// 空文字列・空白だけの文字列や数値以外の値は有限な数値にできないので
+// エラーにする。小数の端点(1.5から3.5までなど)は従来どおり許すため、
+// 整数かどうかではなく絶対値の大きさだけを見る (#2472)。
+func rangeEndpoint(v value.Value) (float64, error) {
+	var n float64
+	switch v.Kind() {
+	case value.KindNumber:
+		n, _ = v.Number()
+	case value.KindString:
+		s, _ := v.String()
+		// 空白の判定は value.ToNumber と同じ JS の trim に合わせる。
+		// strings.TrimSpace は BOM(U+FEFF) を残すため、ToNumber が0にする
+		// 文字列を空と判定できず、本家ならエラーになる入力を通してしまう
+		if value.TrimJSSpace(s) == "" {
+			n = math.NaN()
+		} else {
+			n = value.ToNumber(v)
+		}
+	default:
+		n = math.NaN()
+	}
+	if math.IsNaN(n) || math.IsInf(n, 0) {
+		return 0, errors.New("『配列連番作成』には有限の数値を指定してください。")
+	}
+	if math.Abs(n) > maxSafeInteger {
+		return 0, errors.New("『配列連番作成』には絶対値が2の53乗-1(9007199254740991)以下の数値を指定してください。")
+	}
+	return n, nil
+}
+
+// rangeCapacity は確保量の目安を返す。実際の要素数は生成しながら数えるので、
+// ここでは上限を超えて確保しないことだけを守る (#2472)。
+func rangeCapacity(from, to float64) int {
+	if to < from {
+		return 0
+	}
+	if n := to - from + 1; n < maxRangeLength {
+		return int(n)
+	}
+	return maxRangeLength
 }
 
 // elementCount reports the number of elements: array length, dictionary key
