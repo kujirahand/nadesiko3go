@@ -21,6 +21,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/tomllib"
 )
 
 // CUIHost runs a program against a real terminal: output goes to a writer,
@@ -168,6 +169,7 @@ var defaultPlugins = []stdlib.Plugin{
 	nodelib.New(),
 	csvlib.New(),
 	mathlib.New(),
+	tomllib.New(),
 }
 
 // RegisterPlugin registers additional plugins to the default runtime registry.

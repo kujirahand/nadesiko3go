@@ -197,7 +197,7 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 // (AGENTS.md §12: the registry gengo compiles the source against and the one
 // generated code builds at run time must agree exactly, or a command's ID
 // silently resolves to the wrong one).
-var defaultGoGenPlugins = []string{"nodelib", "csvlib", "mathlib", "sqlitelib", "officelib", "pdflib", "imagelib"}
+var defaultGoGenPlugins = []string{"nodelib", "csvlib", "mathlib", "tomllib", "sqlitelib", "officelib", "pdflib", "imagelib"}
 
 // genGo writes a Go source file that, once built with `go build`, is the
 // program — no Go toolchain needed to receive it, only to make it (AGENTS.md
