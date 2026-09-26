@@ -1399,7 +1399,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     item.innerHTML = `
       <div class="item-left">
-        <span class="item-icon">⚡</span>
         <span class="item-name">${escapeHtml(cmd.name)}</span>
       </div>
       ${josiText ? `<span class="cmd-item-josi">${escapeHtml(josiText)}</span>` : ''}

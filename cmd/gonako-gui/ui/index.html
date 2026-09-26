@@ -14,31 +14,31 @@
         <!-- ファイル操作 -->
         <div class="new-menu-wrapper">
           <button id="btn-new" class="btn btn-secondary" title="新規作成 (Ctrl+N / Cmd+N)">
-            <span class="icon">📄</span> 新規 ▾
+            <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M9 11h6M9 15h6"/></svg> 新規 ▾
           </button>
           <div id="new-menu" class="new-menu" style="display: none;">
             <button id="menu-item-new-file" class="menu-item">
-              <span class="menu-icon">📄</span> 新規ファイル
+              <span class="menu-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M9 11h6M9 15h6"/></svg></span> 新規ファイル
             </button>
             <button id="menu-item-new-project" class="menu-item" title="フォルダを作成し、AGENTS.mdとCLAUDE.mdを自動で用意します">
-              <span class="menu-icon">📁</span> 新規プロジェクト
+              <span class="menu-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h6l2 3h10v12H3z"/></svg></span> 新規プロジェクト
             </button>
           </div>
         </div>
         <button id="btn-open" class="btn btn-secondary" title="ファイルを開く (Ctrl+O / Cmd+O)">
-          <span class="icon">📂</span> 開く
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5h6l2 3h10l-3 12H3z"/><path d="M3 12h18"/></svg> 開く
         </button>
         <button id="btn-save" class="btn btn-secondary" title="ファイルを保存 (Ctrl+S / Cmd+S)">
-          <span class="icon">💾</span> 保存
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3h14l3 3v15H3V3z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg> 保存
         </button>
         <div class="separator"></div>
         <!-- 実行 -->
         <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (F5 / Ctrl+R / Cmd+R)">
-          <span class="icon">▶</span> 実行 (F5)
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 5 11 7-11 7z"/></svg> 実行 (F5)
         </button>
         <!-- 文法チェック -->
-        <button id="btn-syntax-check" class="btn btn-secondary btn-icon-only" title="文法チェック（実行せずに構文だけ確認します）">
-          <span class="icon">✓</span>
+        <button id="btn-syntax-check" aria-label="文法チェック" class="btn btn-secondary btn-icon-only" title="文法チェック（実行せずに構文だけ確認します）">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg>
         </button>
         <div class="separator"></div>
         <!-- アプリ種類 -->
@@ -54,21 +54,21 @@
         </div>
         <div class="separator"></div>
         <!-- サイドバー開閉 -->
-        <button id="btn-toggle-sidebar" class="btn btn-secondary btn-icon-only active" title="ツールパネルの表示/非表示 (Ctrl+B / Cmd+B)">
-          <span class="icon">📖</span>
+        <button id="btn-toggle-sidebar" aria-label="ツールパネルの表示切替" class="btn btn-secondary btn-icon-only active" title="ツールパネルの表示/非表示 (Ctrl+B / Cmd+B)">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1z"/></svg>
         </button>
         <!-- ハンバーガーメニュー -->
         <div class="menu-dropdown-wrapper">
           <button id="btn-hamburger" class="btn-hamburger" title="メニュー">☰</button>
           <div id="hamburger-menu" class="hamburger-menu" style="display: none;">
             <button id="menu-item-new" class="menu-item">
-              <span class="menu-icon">📄</span> 新規作成
+              <span class="menu-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M9 11h6M9 15h6"/></svg></span> 新規作成
             </button>
             <button id="menu-item-open" class="menu-item">
-              <span class="menu-icon">📂</span> ファイルを開く...
+              <span class="menu-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5h6l2 3h10l-3 12H3z"/><path d="M3 12h18"/></svg></span> ファイルを開く...
             </button>
             <button id="menu-item-save" class="menu-item">
-              <span class="menu-icon">💾</span> 保存
+              <span class="menu-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3h14l3 3v15H3V3z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg></span> 保存
             </button>
             <button id="menu-item-save-as" class="menu-item">
               <span class="menu-icon">📑</span> 名前を付けて保存...
@@ -112,15 +112,15 @@
       <aside class="sidebar" id="sidebar">
         <!-- タブ切り替えボタン -->
         <div class="sidebar-tabs">
-          <button id="tab-btn-cmd" class="tab-btn active">📖 命令</button>
-          <button id="tab-btn-template" class="tab-btn">📄 ひな形</button>
-          <button id="tab-btn-file" class="tab-btn">📁 ファイル</button>
+          <button id="tab-btn-cmd" class="tab-btn active"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1z"/></svg> 命令</button>
+          <button id="tab-btn-template" class="tab-btn"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M9 11h6M9 15h6"/></svg> ひな形</button>
+          <button id="tab-btn-file" class="tab-btn"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h6l2 3h10v12H3z"/></svg> ファイル</button>
         </div>
 
         <!-- 命令タブコンテンツ -->
         <div id="tab-content-cmd" class="tab-content active">
           <div class="search-box-wrapper">
-            <input id="cmd-search" type="text" class="search-input" placeholder="命令を検索... (例: 表示, 文字, 配列)" />
+            <input id="cmd-search" type="text" class="search-input" placeholder="命令を検索" />
             <span id="cmd-count" class="badge">0件</span>
             <button id="cmd-search-clear" class="search-clear-btn" title="検索条件をクリア" hidden>×</button>
           </div>
@@ -179,7 +179,6 @@
         <section class="pane pane-editor">
           <div class="pane-header">
             <div class="pane-header-left">
-              <span class="pane-title">エディタ</span>
               <span id="active-file-name" class="file-badge">新規プログラム.nako3</span>
             </div>
             <div class="editor-tools">
@@ -204,8 +203,8 @@
             </div>
             <div class="output-actions">
               <span id="exec-status" class="status-indicator">待機中</span>
-              <button id="btn-clear-log" class="btn-sm" title="実行結果を消去">🗑 ログ消去</button>
-              <button id="btn-copy-log" class="btn-sm" title="実行結果をコピー">📋 コピー</button>
+              <button id="btn-clear-log" class="btn-sm" title="実行結果を消去"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg> ログ消去</button>
+              <button id="btn-copy-log" class="btn-sm" title="実行結果をコピー"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="5" y="5" width="14" height="16" rx="2"/><rect x="9" y="2" width="6" height="5" rx="1"/></svg> コピー</button>
               <button id="btn-close-output" class="btn-close-pane" title="実行結果を閉じる" aria-label="実行結果を閉じる">×</button>
             </div>
           </div>
