@@ -36,11 +36,15 @@ func TestNakoUtility(t *testing.T) {
 	if err := os.WriteFile(fixture, []byte(text), 0600); err != nil {
 		t.Fatal(err)
 	}
+	tempRoot := filepath.Join(dir, "temporary")
+	if err := os.Mkdir(tempRoot, 0700); err != nil {
+		t.Fatal(err)
+	}
 	run := func(wantCode int, want string, args ...string) {
 		t.Helper()
 		cmd := exec.Command(binary, append([]string{source}, args...)...)
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GONAKO_DOCTEST_RUNTIME="+binary)
+		cmd.Env = append(os.Environ(), "GONAKO_DOCTEST_RUNTIME="+binary, "TMPDIR="+tempRoot, "TMP="+tempRoot, "TEMP="+tempRoot)
 		output, err := cmd.CombinedOutput()
 		code := 0
 		if err != nil {
@@ -53,6 +57,25 @@ func TestNakoUtility(t *testing.T) {
 		if code != wantCode || !strings.Contains(string(output), want) {
 			t.Fatalf("args=%q: code=%d, 出力=%s; 期待=%d, %s", args, code, output, wantCode, want)
 		}
+
+		entries, err := os.ReadDir(tempRoot)
+		if err != nil || len(entries) != 0 {
+			t.Fatalf("一時フォルダが残りました: %v %v", entries, err)
+		}
+
+		err = filepath.WalkDir(dir, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if strings.HasPrefix(entry.Name(), ".gonako-doctest-") {
+				t.Errorf("一時ソースが残りました: %s", path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
 	}
 	run(0, "1件成功", fixture)
 	run(0, "1件成功", "--runtime", binary, "--subcommand", "run", "--label", "### L表示結果：", fixture)
@@ -71,6 +94,40 @@ func TestNakoUtility(t *testing.T) {
 	}
 	run(0, "1件省略", fixture)
 	run(0, "1件成功・0件省略", "--runtime="+binary, fixture)
+
+	// 子フォルダを含む探索と、元テキスト横の相対ライブラリの取込を確認する。
+	nested := filepath.Join(dir, "examples", "child")
+	if err := os.MkdirAll(nested, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nested, "lib.nako3"), []byte("●ライブラリ実行とは\n「隣」と表示\nここまで"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	caseText := "{{{#nako3\n!「./lib.nako3」を取り込む。\nライブラリ実行。\n### 表示結果: 隣\n}}}"
+	if err := os.WriteFile(filepath.Join(nested, "case.txt"), []byte(caseText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run(0, "1件成功", filepath.Join(dir, "examples"))
+	run(0, "1件成功", "--runtime="+binary, filepath.Join(dir, "examples"))
+	// 一時ソースを書いた直後に実行エラーを起こし、異常経路でも削除を確認する。
+	original := source
+	data, err := os.ReadFile(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := strings.Replace(string(data), "実行結果=実行設定をコマンド実行待機。", "「後始末試験」のエラー発生。\n実行結果=実行設定をコマンド実行待機。", 1)
+	source = filepath.Join(dir, "broken-doctest.nako3")
+	if err := os.WriteFile(source, []byte(broken), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run(2, "後始末試験", "--runtime="+binary, fixture)
+
+	broken = strings.Replace(string(data), "コードを一時ソースに保存。", "「保存試験」のエラー発生。", 1)
+	if err := os.WriteFile(source, []byte(broken), 0600); err != nil {
+		t.Fatal(err)
+	}
+	run(2, "保存試験", "--runtime="+binary, fixture)
+	source = original
 	// ビルドした実行ファイルから埋め込みの省略形で取り込む。
 	cmd := exec.Command(binary, "-e", "!「doctest」を取り込む。", "--help")
 	cmd.Dir = dir
