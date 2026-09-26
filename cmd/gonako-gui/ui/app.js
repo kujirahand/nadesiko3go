@@ -8,6 +8,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // refresh() / setEnabled() / destroy() を持つ実装に置き換えればよい。
   const highlighter = (window.GonakoHighlighter && window.GonakoHighlighter.create(editor)) || null;
   const output = document.getElementById('output');
+  const commandHelp = document.getElementById('command-help');
+  const resultPanel = document.getElementById('panel-output-result');
+  const helpPanel = document.getElementById('panel-output-help');
+  const resultTab = document.getElementById('tab-output-result');
+  const helpTab = document.getElementById('tab-output-help');
   const windowPreview = document.getElementById('window-preview');
   const docPreview = document.getElementById('doc-preview');
   const docFrame = document.getElementById('doc-frame');
@@ -1253,6 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cmdSourceWnakoBtn.classList.toggle('active', cmdSource === 'wnako');
 
   function hideDocPreview() {
+    selectOutputTab('result');
     if (docPreview) {
       docPreview.style.display = 'none';
     }
@@ -1305,18 +1311,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const category = cmd.category || '基本';
     const sourceName = cmd.file ? `${cmd.file}${cmd.line ? `#${cmd.line}` : ''}` : 'ソースを表示';
 
-    hideDocPreview();
-    windowPreview.style.display = 'none';
+    selectOutputTab('help');
     setOutputPanelOpen(true);
-    execStatus.textContent = '使い方表示';
-    execStatus.className = 'status-indicator';
 
-    output.style.display = 'grid';
-    output.className = 'output has-content has-command-help';
-    output.textContent = '';
+    commandHelp.style.display = 'grid';
+    commandHelp.className = 'output has-content has-command-help';
+    commandHelp.textContent = '';
 
     if (cmd.docUrl) {
-      output.appendChild(createExternalHelpLink(cmd.docUrl, '→Webマニュアル', 'help-web-link'));
+      commandHelp.appendChild(createExternalHelpLink(cmd.docUrl, '→Webマニュアル', 'help-web-link'));
     }
 
     const card = document.createElement('article');
@@ -1375,13 +1378,14 @@ document.addEventListener('DOMContentLoaded', () => {
     insertButton.disabled = editor.readOnly;
     insertButton.addEventListener('click', () => {
       if (editor.readOnly) return;
-      insertTextAtCursor(template);
+      insertTextAtCursor(template, true);
       setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
     });
-    footer.append(insertButton, hint);
+    syntaxField.appendChild(insertButton);
+    footer.appendChild(hint);
 
     card.append(header, grid, footer);
-    output.appendChild(card);
+    commandHelp.appendChild(card);
   }
 
   // openExternalLink は外部ブラウザでWebページを開く。
@@ -1431,7 +1435,7 @@ document.addEventListener('DOMContentLoaded', () => {
     item.addEventListener('dblclick', (e) => {
       e.preventDefault();
       const template = cmd.template || cmd.name;
-      insertTextAtCursor(template);
+      insertTextAtCursor(template, true);
       displayCommandHelp(cmd);
       setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
     });
@@ -1577,7 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (text) {
-      insertTextAtCursor(text);
+      insertTextAtCursor(text, true);
       setStatus(`構文「${text}」を挿入しました`);
     }
   });
@@ -2040,11 +2044,15 @@ document.addEventListener('DOMContentLoaded', () => {
     cursorPos.textContent = `行: ${row}, 列: ${col}`;
   }
 
-  function insertTextAtCursor(text) {
+  function insertTextAtCursor(text, selectPlaceholder = false) {
+    if (editor.readOnly) return;
     const start = editor.selectionStart;
     const end = editor.selectionEnd;
     editor.value = editor.value.substring(0, start) + text + editor.value.substring(end);
-    editor.selectionStart = editor.selectionEnd = start + text.length;
+    // 命令の引数をすぐ入力できるよう、最初のプレースホルダー全体を選ぶ。
+    const placeholder = selectPlaceholder ? /【[^】]+】/.exec(text) : null;
+    editor.selectionStart = placeholder ? start + placeholder.index : start + text.length;
+    editor.selectionEnd = placeholder ? editor.selectionStart + placeholder[0].length : start + text.length;
     editor.focus();
     updateFileTitleDisplay();
     updateLineNumbers();
@@ -2364,6 +2372,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 実行結果のDOMを保持したまま、ヘルプの表示だけを切り替える。
+  function selectOutputTab(tab) {
+    const isHelp = tab === 'help';
+    resultPanel.hidden = isHelp;
+    helpPanel.hidden = !isHelp;
+    paneOutput.classList.toggle('showing-help', isHelp);
+    resultTab.classList.toggle('active', !isHelp);
+    helpTab.classList.toggle('active', isHelp);
+    resultTab.setAttribute('aria-selected', String(!isHelp));
+    helpTab.setAttribute('aria-selected', String(isHelp));
+    resultTab.tabIndex = isHelp ? -1 : 0;
+    helpTab.tabIndex = isHelp ? 0 : -1;
+  }
+  resultTab.addEventListener('click', () => selectOutputTab('result'));
+  helpTab.addEventListener('click', () => selectOutputTab('help'));
+  [resultTab, helpTab].forEach((tab, index) => {
+    tab.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+      selectOutputTab(next === 0 ? 'result' : 'help');
+      [resultTab, helpTab][next].focus();
+    });
+  });
+
   function setOutputPanelOpen(open) {
     if (open === outputPanelOpen) return;
     outputPanelOpen = open;
@@ -2393,6 +2426,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function runCode() {
     setOutputPanelOpen(true);
+    selectOutputTab('result');
     if (runInFlight) return; // 実行中の再実行は、実行ボタンと同じく受け付けない
     const code = editor.value;
     if (!code.trim()) {
@@ -2686,6 +2720,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!data.ok) {
         setOutputPanelOpen(true);
+        selectOutputTab('result');
         output.textContent = data.error || '整形できませんでした';
         output.className = 'output has-error';
         setStatus('自動整形に失敗しました');

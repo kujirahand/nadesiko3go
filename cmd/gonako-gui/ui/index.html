@@ -199,7 +199,10 @@
         <section class="pane pane-output" id="pane-output">
           <div class="pane-header">
             <div class="pane-header-left">
-              <span class="pane-title">実行結果</span>
+              <div class="output-tabs" role="tablist" aria-label="下部パネル">
+                <button id="tab-output-result" class="output-tab active" role="tab" aria-selected="true" aria-controls="panel-output-result">実行結果</button>
+                <button id="tab-output-help" class="output-tab" role="tab" aria-selected="false" aria-controls="panel-output-help" tabindex="-1">命令ヘルプ</button>
+              </div>
               <span id="mode-badge" class="mode-badge" style="color: var(--accent-pink); background: rgba(243, 139, 168, 0.15);">インライン</span>
             </div>
             <div class="output-actions">
@@ -209,15 +212,18 @@
               <button id="btn-close-output" class="btn-close-pane" title="実行結果を閉じる" aria-label="実行結果を閉じる">×</button>
             </div>
           </div>
-          <div class="output-wrapper">
+          <div class="output-wrapper" id="panel-output-result" role="tabpanel" aria-labelledby="tab-output-result">
             <!-- ウィンドウアプリ用のプレビュー領域 -->
             <div id="window-preview" class="window-preview-area" style="display: none;"></div>
             <!-- Webマニュアル用のインライン表示領域 -->
             <div id="doc-preview" class="doc-preview-area" style="display: none;">
               <iframe id="doc-frame" class="doc-frame" title="マニュアル"></iframe>
             </div>
-            <!-- コンソール出力 / 命令ヘルプ -->
+            <!-- コンソール出力 -->
             <div id="output" class="output">ここに実行結果が表示されます。</div>
+          </div>
+          <div id="panel-output-help" class="output-wrapper" role="tabpanel" aria-labelledby="tab-output-help" hidden>
+            <div id="command-help" class="output has-content has-command-help">命令一覧から命令を選択すると、使い方を表示します。</div>
           </div>
         </section>
       </div>

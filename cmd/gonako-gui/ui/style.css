@@ -1565,3 +1565,19 @@ kbd {
 
 .help-insert-button { min-height: 32px; color: var(--text-main); }
 .help-insert-button:disabled { opacity: 0.5; cursor: default; }
+
+/* 結果とヘルプはそれぞれの表示内容とスクロール位置を保持する。 */
+.output-wrapper[hidden] { display: none; }
+.output-tabs { display: flex; gap: 12px; }
+.output-tab {
+  border: none; border-bottom: 2px solid transparent; background: transparent;
+  color: var(--text-muted); padding: 4px 0; font: inherit; cursor: pointer;
+}
+.output-tab.active { color: var(--text-main); border-bottom-color: var(--accent-pink); }
+.output-tab:focus-visible { outline: 2px solid var(--accent-pink); outline-offset: 2px; }
+.showing-help #mode-badge, .showing-help #exec-status,
+.showing-help #btn-clear-log, .showing-help #btn-copy-log { display: none; }
+.help-field-syntax { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.help-field-syntax .help-field-label { width: 100%; }
+.help-field-syntax .help-code { flex: 1; min-width: 0; }
+.help-field-syntax .help-insert-button { flex-shrink: 0; }
