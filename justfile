@@ -139,7 +139,7 @@ run-gui:
 
 # ビルド成果物を削除
 clean:
-    rm -rf bin out benchmark/build
+    rm -rf bin/gonako bin/gonako-cui bin/gonako-gui bin/gonako.exe bin/gonako-cui.exe bin/gonako-gui.exe bin/wasm out benchmark/build
 
 # ベンチマークを実行
 benchmark: cmd
@@ -158,6 +158,13 @@ analyze-gocode *args:
 doctest *args:
     @if [ ! -d manual ]; then echo '[警告] manualフォルダ(nadesiko3doc/data)を./manualとしてシンボリックリンクを作成してください'; fi
     {{go}} run ./cmd/gonako doctest {{args}}
+
+# なでしこ版DocTestを実行する（従来のGo版は doctest のまま）
+doctest-nako *args: cmd
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export GONAKO_DOCTEST_RUNTIME="$PWD/bin/gonako"
+    {{go}} run ./cmd/gonako gonako-package/doctest/index.nako3 {{args}}
 
 # 本家(nadesiko3)から差分fixtureをGo側へ同期する
 sync-compat:

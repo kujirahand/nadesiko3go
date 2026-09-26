@@ -14,7 +14,9 @@ homebrew-nadesiko3/
 *.swp
 nadesiko3go
 
-bin/
+/bin/*
+!/bin/gonako-doctest
+!/bin/gonako-doctest.ps1
 release/
 /out/
 benchmark/build/

@@ -3,12 +3,16 @@ package parser
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
 
+	packages "github.com/kujirahand/nadesiko3go"
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/indent"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
@@ -17,7 +21,7 @@ import (
 
 // resolveRequires は tok に含まれる `!「file」を取込` 文を展開する。
 //
-// 取り込むファイルは、取り込む側のファイルのディレクトリからの相対パスで
+// 取り込むファイルは、URL・相対パス・パッケージ探索順を解決して
 // 読み込み、単独で字句解析・インデント変換してから（本家TypeScript版の
 // NakoTokenizer.rawtokenize / nako_require.mts と同じ方式）、取込文3トー
 // クンの位置に、名前空間スコープ（『modName』に名前空間設定;『modName』
@@ -85,57 +89,127 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 	if strings.HasPrefix(name, "貯蔵庫:") {
 		module := strings.TrimPrefix(name, "貯蔵庫:")
 		if module == "" || filepath.Base(module) != module || strings.ContainsAny(module, `\\/?#`) || !strings.HasSuffix(module, ".nako3") {
-			return "", requireErr(tok, fmt.Sprintf("貯蔵庫のファイル名『%s』が不正です。拡張子.nako3のファイル名を指定してください。", module))
+			return "", requireErr(tok, fmt.Sprintf("URLのファイル名『%s』が不正です。拡張子.nako3のファイル名を指定してください。", module))
 		}
 		return "https://n3s.nadesi.com/plain/" + module, nil
 	}
 	if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
-		return "", requireErr(tok, fmt.Sprintf("URL『%s』からの取り込みは未対応です。", name))
+		return resolveRequireURL(name, "", tok)
 	}
 	if strings.HasPrefix(name, "拡張プラグイン:") || strings.HasPrefix(name, "拡張プラグイン：") {
 		return "", requireErr(tok, fmt.Sprintf("『%s』の取り込みは未対応です。ローカルの.nako3ファイルのみ取り込めます。", name))
 	}
+	// パッケージ名だけの指定は、そのパッケージの入口へ展開する。
+	if filepath.Ext(name) == "" && !filepath.IsAbs(name) && !strings.HasPrefix(name, ".") {
+		name = path.Join(filepath.ToSlash(name), "index.nako3")
+	}
 	if !strings.HasSuffix(name, ".nako3") && !strings.HasSuffix(name, ".nako") {
 		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』を取り込めません。取り込めるのは拡張子.nako3または.nakoのファイルだけです。", name))
 	}
-	full := name
-	if !filepath.IsAbs(full) {
-		dir := "."
-		if fromFile != "" {
-			dir = filepath.Dir(fromFile)
+	explicit := filepath.IsAbs(name) || strings.HasPrefix(name, "./") || strings.HasPrefix(name, "../") || strings.HasPrefix(name, `.\`) || strings.HasPrefix(name, `..\`)
+	if explicit {
+		if isRequireURL(fromFile) && !filepath.IsAbs(name) {
+			return resolveRequireURL(name, fromFile, tok)
 		}
-		full = filepath.Join(dir, name)
+		if strings.HasPrefix(fromFile, embeddedPrefix) && !filepath.IsAbs(name) {
+			candidate := path.Join(path.Dir(strings.TrimPrefix(fromFile, embeddedPrefix)), filepath.ToSlash(name))
+			if info, err := fs.Stat(packageFiles, candidate); err == nil && !info.IsDir() {
+				return embeddedPrefix + candidate, nil
+			}
+		} else {
+			full := name
+			if !filepath.IsAbs(name) {
+				full = filepath.Join(filepath.Dir(fromFile), name)
+			}
+			if full, ok := localRequirePath(full); ok {
+				return full, nil
+			}
+		}
+	} else {
+		for _, dir := range filepath.SplitList(os.Getenv("GONAKO_PACKAGE_PATH")) {
+			if dir == "" {
+				continue
+			}
+			if full, ok := localRequirePath(filepath.Join(dir, name)); ok {
+				return full, nil
+			}
+		}
+		if exe, err := runtimeExecutable(); err == nil {
+			// binのリンク配置よりも、実体のランタイムの位置を基準にする。
+			if real, err := filepath.EvalSymlinks(exe); err == nil {
+				exe = real
+			}
+			for _, dir := range []string{filepath.Dir(exe), filepath.Dir(filepath.Dir(exe))} {
+				if full, ok := localRequirePath(filepath.Join(dir, "gonako-package", name)); ok {
+					return full, nil
+				}
+			}
+		}
+		candidate := path.Join("gonako-package", filepath.ToSlash(name))
+		if fs.ValidPath(candidate) && strings.HasPrefix(candidate, "gonako-package/") {
+			if info, err := fs.Stat(packageFiles, candidate); err == nil && !info.IsDir() {
+				return embeddedPrefix + candidate, nil
+			}
+		}
 	}
-	// 相対パスと絶対パスで同じファイルを指定しても取込ガードのキーが
-	// 一致するように、必ず絶対パスへ正規化する（同一ファイルの二重取込を防ぐ）
-	full, err := filepath.Abs(full)
+	return "", requireErr(tok, fmt.Sprintf("ファイル『%s』が見つかりません。", name))
+}
+
+const embeddedPrefix = "embed:"
+
+// テストでも実行ファイルの配置と埋め込み内容を検証できるようにする。
+var runtimeExecutable = os.Executable
+var packageFiles fs.FS = packages.PackageFiles
+
+func localRequirePath(name string) (string, bool) {
+	full, err := filepath.Abs(name)
 	if err != nil {
-		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』のパスを解決できません。%s", name, err))
+		return "", false
 	}
 	info, err := os.Stat(full)
-	if err != nil || info.IsDir() {
-		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』が見つかりません。", name))
+	return full, err == nil && !info.IsDir()
+}
+
+func isRequireURL(name string) bool {
+	return strings.HasPrefix(name, "https://") || strings.HasPrefix(name, "http://")
+}
+
+func resolveRequireURL(name, fromFile string, tok lexer.Token) (string, error) {
+	u, err := url.Parse(name)
+	if err == nil && fromFile != "" {
+		base, baseErr := url.Parse(fromFile)
+		if baseErr != nil {
+			err = baseErr
+		} else {
+			u = base.ResolveReference(u)
+		}
 	}
-	return full, nil
+	if err != nil || u == nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || (!strings.HasSuffix(u.Path, ".nako3") && !strings.HasSuffix(u.Path, ".nako")) {
+		return "", requireErr(tok, fmt.Sprintf("URL『%s』を取り込めません。拡張子.nako3または.nakoのHTTP URLを指定してください。", name))
+	}
+	u.Fragment = ""
+	return u.String(), nil
 }
 
 func loadRequireFile(filePath string, tok lexer.Token) ([]lexer.Token, error) {
 	var data []byte
 	var err error
-	if strings.HasPrefix(filePath, "https://n3s.nadesi.com/plain/") {
+	if isRequireURL(filePath) {
 		client := &http.Client{Timeout: 15 * time.Second}
 		resp, requestErr := client.Get(filePath)
 		if requestErr != nil {
-			return nil, requireErr(tok, fmt.Sprintf("貯蔵庫のファイルを取得できません。%s", requestErr))
+			return nil, requireErr(tok, fmt.Sprintf("URLのファイルを取得できません。%s", requestErr))
 		}
 		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			return nil, requireErr(tok, fmt.Sprintf("貯蔵庫のファイルを取得できません。HTTP %d", resp.StatusCode))
+			return nil, requireErr(tok, fmt.Sprintf("URLのファイルを取得できません。HTTP %d", resp.StatusCode))
 		}
 		data, err = io.ReadAll(io.LimitReader(resp.Body, (8<<20)+1))
 		if err == nil && len(data) > 8<<20 {
-			return nil, requireErr(tok, "貯蔵庫のファイルが大きすぎます（上限8MiB）。")
+			return nil, requireErr(tok, "URLのファイルが大きすぎます（上限8MiB）。")
 		}
+	} else if strings.HasPrefix(filePath, embeddedPrefix) {
+		data, err = fs.ReadFile(packageFiles, strings.TrimPrefix(filePath, embeddedPrefix))
 	} else {
 		data, err = os.ReadFile(filePath)
 	}
