@@ -36,6 +36,20 @@ gonako doctest --runtime=lnako --subcommand=run --label=L表示結果 testdata/d
 gonako doctest --runtime=/path/to/cnako3 --label=表示結果 manual/plugin_system
 ```
 
+### なでしこ版ユーティリティで実行
+
+既存のGo版とは別に、なでしこで実装したDocTestも利用できます。
+
+```sh
+just doctest-nako testdata/doctest/core/plugin_system.txt
+bin/gonako install gonako-package/doctest.nako3
+bin/gonako-doctest --runtime=lnako --subcommand=run --label=L表示結果 testdata/doctest
+```
+
+`bin/gonako-doctest` は `gonako install` で生成し、インストール時のgonakoを起動します。Windowsでは `bin/gonako-doctest.ps1` を使います。
+実装は `gonako-package/doctest.nako3` にあり、Go版と同じ引数で対象・ラベル・サンプル用ランタイムを指定できます。
+詳しくは [gonako-packageの仕様](gonako-package.md) を参照してください。
+
 ### 2. just で実行
 
 ```bash
