@@ -101,7 +101,7 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 	}
 	// パッケージ名だけの指定は、そのパッケージの入口へ展開する。
 	if filepath.Ext(name) == "" && !filepath.IsAbs(name) && !strings.HasPrefix(name, ".") {
-		name = path.Join(filepath.ToSlash(name), "index.nako3")
+		name = filepath.ToSlash(name) + ".nako3"
 	}
 	if !strings.HasSuffix(name, ".nako3") && !strings.HasSuffix(name, ".nako") {
 		return "", requireErr(tok, fmt.Sprintf("ファイル『%s』を取り込めません。取り込めるのは拡張子.nako3または.nakoのファイルだけです。", name))

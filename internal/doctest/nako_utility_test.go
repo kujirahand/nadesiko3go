@@ -30,7 +30,7 @@ func TestNakoUtility(t *testing.T) {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("ビルド: %v\n%s", err, output)
 	}
-	source := filepath.Join(root, "gonako-package/doctest/index.nako3")
+	source := filepath.Join(root, "gonako-package/doctest.nako3")
 	fixture := filepath.Join(dir, "sample.txt")
 	text := "{{{#nako3\r\n「前」と表示。\r\n### 表示結果： 前\r\n### 後\r\n「後」と表示。\r\n}}}\r\n{{{#nako3\r\n「独自」と表示。\r\n### L表示結果: 独自\r\n}}}\r\n{{{#nako3\r\n「説明」と表示。\r\n}}}\r\n"
 	if err := os.WriteFile(fixture, []byte(text), 0600); err != nil {

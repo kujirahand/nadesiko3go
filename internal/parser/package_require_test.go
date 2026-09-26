@@ -17,7 +17,7 @@ func TestRequirePackageSearchOrder(t *testing.T) {
 	root := t.TempDir()
 	envDir := filepath.Join(root, "env")
 	runtimeDir := filepath.Join(root, "runtime")
-	name := "demo/index.nako3"
+	name := "demo.nako3"
 	write := func(dir string) string {
 		t.Helper()
 		file := filepath.Join(dir, name)
@@ -45,6 +45,9 @@ func TestRequirePackageSearchOrder(t *testing.T) {
 		}
 	}
 	check(envFile)
+	if got, err := resolveRequirePath("demo", "main.nako3", lexer.Token{}); err != nil || got != envFile {
+		t.Fatalf("省略形: %q, %v", got, err)
+	}
 	if err := os.Remove(envFile); err != nil {
 		t.Fatal(err)
 	}
@@ -59,10 +62,10 @@ func TestRequirePackageSearchOrder(t *testing.T) {
 	check("embed:gonako-package/" + name)
 	// 埋め込みの実読込と、兄弟ファイルの相対取込・重複ガードも確認する。
 	packageFiles = fstest.MapFS{
-		"gonako-package/demo/index.nako3": &fstest.MapFile{Data: []byte("!「./child.nako3」を取り込む。\n!「./child.nako3」を取り込む。")},
+		"gonako-package/demo.nako3":       &fstest.MapFile{Data: []byte("!「./demo/child.nako3」を取り込む。\n!「./demo/child.nako3」を取り込む。")},
 		"gonako-package/demo/child.nako3": &fstest.MapFile{Data: []byte("「埋込」と表示")},
 	}
-	if _, err := ParseSource("!「demo/index.nako3」を取り込む。", "main.nako3", requireTestFuncs()); err != nil {
+	if _, err := ParseSource("!「demo.nako3」を取り込む。", "main.nako3", requireTestFuncs()); err != nil {
 		t.Fatal(err)
 	}
 }

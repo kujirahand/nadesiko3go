@@ -595,3 +595,26 @@ func TestFormatKeepsIndentSyntaxMeaning(t *testing.T) {
 		t.Errorf("出力 = %q, want %q", out.String(), original)
 	}
 }
+
+// パッケージ入口のファイル名を分け、同名の内部関数を上書きしないことを確認する。
+func TestRunFlatPackagesKeepNamespaces(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("GONAKO_PACKAGE_PATH", dir)
+	files := map[string]string{
+		"alpha.nako3": "●計算とは\n「A」と表示\nここまで\n●アルファ実行とは\n計算\nここまで",
+		"beta.nako3":  "●計算とは\n「B」と表示\nここまで\n●ベータ実行とは\n計算\nここまで",
+		"main.nako3":  "!「alpha」を取り込む。\n!「beta.nako3」を取り込む。\nアルファ実行。\nベータ実行。",
+	}
+	for name, code := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(code), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{filepath.Join(dir, "main.nako3")}, &out, &errOut); err != nil {
+		t.Fatalf("実行: %v; %s", err, errOut.String())
+	}
+	if out.String() != "A\nB\n" {
+		t.Fatalf("名前空間が衝突しました: %q", out.String())
+	}
+}

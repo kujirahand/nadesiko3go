@@ -12,4 +12,4 @@ if [ -z "$runtime" ]; then
     fi
 fi
 export GONAKO_DOCTEST_RUNTIME="$runtime"
-exec "$runtime" "$root_dir/gonako-package/doctest/index.nako3" "$@"
+exec "$runtime" "$root_dir/gonako-package/doctest.nako3" "$@"

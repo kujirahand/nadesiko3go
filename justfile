@@ -164,7 +164,7 @@ doctest-nako *args: cmd
     #!/usr/bin/env bash
     set -euo pipefail
     export GONAKO_DOCTEST_RUNTIME="$PWD/bin/gonako"
-    {{go}} run ./cmd/gonako gonako-package/doctest/index.nako3 {{args}}
+    {{go}} run ./cmd/gonako gonako-package/doctest.nako3 {{args}}
 
 # 本家(nadesiko3)から差分fixtureをGo側へ同期する
 sync-compat:

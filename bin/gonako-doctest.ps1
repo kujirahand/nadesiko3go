@@ -10,7 +10,7 @@ if (-not $runtime) {
 $previousRuntime = $env:GONAKO_DOCTEST_RUNTIME
 try {
     $env:GONAKO_DOCTEST_RUNTIME = $runtime
-    $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'gonako-package/doctest/index.nako3'
+    $source = Join-Path (Split-Path $PSScriptRoot -Parent) 'gonako-package/doctest.nako3'
     & $runtime $source @args
     $code = $LASTEXITCODE
 } finally {

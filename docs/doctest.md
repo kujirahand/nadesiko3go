@@ -46,7 +46,7 @@ bin/gonako-doctest --runtime=lnako --subcommand=run --label=L表示結果 testda
 ```
 
 `bin/gonako-doctest` は同じフォルダのgonakoを起動します。Windowsでは `bin/gonako-doctest.ps1` を使います。
-実装は `gonako-package/doctest/index.nako3` にあり、Go版と同じ引数で対象・ラベル・サンプル用ランタイムを指定できます。
+実装は `gonako-package/doctest.nako3` にあり、Go版と同じ引数で対象・ラベル・サンプル用ランタイムを指定できます。
 詳しくは [gonako-packageの仕様](gonako-package.md) を参照してください。
 
 ### 2. just で実行
