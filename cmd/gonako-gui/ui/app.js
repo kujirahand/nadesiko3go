@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
   const btnClearLog = document.getElementById('btn-clear-log');
   const btnCopyLog = document.getElementById('btn-copy-log');
+  const copyLogLabel = document.getElementById('copy-log-label');
   const btnCloseOutput = document.getElementById('btn-close-output');
   const btnToggleOutput = document.getElementById('btn-toggle-output');
   const paneOutput = document.getElementById('pane-output');
@@ -2197,9 +2198,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ログコピー
   btnCopyLog.addEventListener('click', () => {
     navigator.clipboard.writeText(output.textContent).then(() => {
-      btnCopyLog.textContent = 'コピー完了!';
+      // アイコンを残したまま、コピー結果のラベルだけを更新する。
+      copyLogLabel.textContent = 'コピー完了!';
       setTimeout(() => {
-        btnCopyLog.innerHTML = '📋 コピー';
+        copyLogLabel.textContent = 'コピー';
       }, 1500);
     });
   });
