@@ -30,6 +30,33 @@ func TestNakoUtility(t *testing.T) {
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("ビルド: %v\n%s", err, output)
 	}
+	// installの生成物からパス・引数・終了コードがそのまま渡ることを確認する。
+	toolSource := filepath.Join(dir, "空白 ' $ utility.nako3")
+	if err := os.WriteFile(toolSource, []byte("コマンドラインをJSONエンコードして表示。\n7で強制終了。"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	install := exec.Command(binary, "install", toolSource, "--name", "test-tool")
+	install.Dir = dir
+	if output, err := install.CombinedOutput(); err != nil {
+		t.Fatalf("install: %v\n%s", err, output)
+	}
+	installed := filepath.Join(dir, "bin", "test-tool")
+	var launch *exec.Cmd
+	if runtime.GOOS == "windows" {
+		if pwsh, err := exec.LookPath("pwsh"); err == nil {
+			launch = exec.Command(pwsh, "-NoProfile", "-File", installed+".ps1", "空白 引数", "literal$(echo injected)")
+		}
+	} else {
+		launch = exec.Command(installed, "空白 引数", "literal$(echo injected)")
+	}
+	if launch != nil {
+		launch.Dir = dir
+		output, err := launch.CombinedOutput()
+		exit, ok := err.(*exec.ExitError)
+		if !ok || exit.ExitCode() != 7 || strings.TrimSpace(string(output)) != `["空白 引数","literal$(echo injected)"]` {
+			t.Fatalf("生成スクリプトの実行: %v\n%s", err, output)
+		}
+	}
 	source := filepath.Join(root, "gonako-package/doctest.nako3")
 	fixture := filepath.Join(dir, "sample.txt")
 	text := "{{{#nako3\r\n「前」と表示。\r\n### 表示結果： 前\r\n### 後\r\n「後」と表示。\r\n}}}\r\n{{{#nako3\r\n「独自」と表示。\r\n### L表示結果: 独自\r\n}}}\r\n{{{#nako3\r\n「説明」と表示。\r\n}}}\r\n"

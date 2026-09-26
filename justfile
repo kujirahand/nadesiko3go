@@ -139,7 +139,7 @@ run-gui:
 
 # ビルド成果物を削除
 clean:
-    rm -rf bin/gonako bin/gonako-cui bin/gonako-gui bin/gonako.exe bin/gonako-cui.exe bin/gonako-gui.exe bin/wasm out benchmark/build
+    rm -rf bin out benchmark/build
 
 # ベンチマークを実行
 benchmark: cmd

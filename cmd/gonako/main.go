@@ -46,6 +46,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
   gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
+  gonako install <ファイル> [オプション] bin/に起動用スクリプトを配置する
   gonako lint <ファイル>             文法をチェックする
   gonako format <ファイル> [-f] [--colon] コードを整形する
   gonako compat run [--cases DIR] [--out DIR]
@@ -60,6 +61,12 @@ build のオプション:
   --runtime PATH   土台にするランタイム (既定: 実行中のgonako)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
+
+install のオプション:
+  --bin DIR        配置先 (既定: カレントディレクトリのbin/)
+  --name NAME      コマンド名 (既定: gonako-ソース名)
+  --runtime PATH   使用するgonako (既定: 現在の実行ファイル)
+  --force          既存の起動用ファイルを置き換える
 
 doc のオプション:
   --command, -c    命令一覧(JSON)から検索する (既定)
@@ -614,6 +621,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return searchDoc(args[1:], stdout, stderr)
 	case "doctest":
 		return runDocTests(args[1:], stdout, stderr)
+	case "install":
+		return installScript(args[1:], stdout, stderr)
 	case "lint":
 		return lintFile(args[1:], stdout)
 	case "format":

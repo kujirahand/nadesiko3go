@@ -57,12 +57,16 @@ URL取得には15秒のタイムアウトと8MiBのサイズ上限がありま�
 既存の `gonako doctest`（Go版）はそのまま利用できます。
 
 ```sh
+# 先にランタイムをビルドして起動用ファイルを生成
+just cmd
+bin/gonako install gonako-package/doctest.nako3
+
 bin/gonako-doctest -max 0 testdata/doctest/core/plugin_system.txt
 bin/gonako-doctest --runtime=cnako3 --label=表示結果 manual/plugin_system
 bin/gonako-doctest --runtime=lnako --subcommand=run --label=L表示結果 testdata/doctest
 ```
 
-Windowsでは `bin/gonako-doctest.ps1` を使います。起動用ファイルは同じフォルダの `gonako` を優先し、なければPATHから探します。
+Windowsでは `bin/gonako-doctest.ps1` を使います。生成した起動用ファイルは、インストール時のgonakoとソースの絶対パスを使用します。
 `GONAKO_RUNTIME` で起動するgonakoを指定できます。サンプル用の既定ランタイムも同じ実行ファイルになります。
 ソースを直接起動する場合は `GONAKO_DOCTEST_RUNTIME` でサンプル用ランタイムを指定できます（既定はPATH上の `gonako`）。
 
@@ -89,3 +93,22 @@ Go版と同じ `-max`、`--runtime`、`--subcommand`、`--label` と対象パス
 戻り値のキーは `標準出力`、`標準エラー`、`終了コード`、`時間切れ`、`エラー` です。
 プロセスの失敗は戻り値で報告し、後続のテストを実行できます。起動できない場合の終了コードは-1です。
 `秒` は既定10、0より大きく3600以下を指定します。
+
+## 起動用スクリプトのインストール
+
+```sh
+gonako install xxx.nako3
+# カレントディレクトリのbin/gonako-xxxを生成
+
+gonako install xxx.nako3 --name my-tool --bin ./tools
+# ./tools/my-toolを生成
+```
+
+標準の名前は `gonako-` とソースの拡張子を除いたファイル名を結合します。
+Windowsでは `.ps1` を付けます。macOS/Linuxでは実行権限付きのシェルスクリプトを生成します。
+引数と終了コードをそのまま渡し、呼出元の作業ディレクトリを維持します。ソースや関連ファイルはコピーしません。
+ソースまたはgonakoを移動した場合は再インストールしてください。
+既存ファイルは上書きせず、更新時には `--force` を指定します。
+`--runtime /path/to/gonako` で使用するランタイムを指定できます。`go run` からインストールする場合は、一時実行ファイルではなく永続的なランタイムをこのオプションで指定してください。
+
+`bin/` 以下はすべて生成物としてGitのコミット対象外です。起動用スクリプトもリポジトリへ登録せず、必要な環境で `gonako install` により生成します。
