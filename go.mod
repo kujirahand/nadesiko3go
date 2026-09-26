@@ -3,6 +3,7 @@ module github.com/kujirahand/nadesiko3go
 go 1.26.0
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	github.com/xuri/excelize/v2 v2.11.0

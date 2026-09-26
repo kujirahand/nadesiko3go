@@ -30,6 +30,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/tomllib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
@@ -152,6 +153,7 @@ func SQLiteLib() Plugin { return sqlitelib.New() }
 func OfficeLib() Plugin { return officelib.New() }
 func PDFLib() Plugin    { return pdflib.New() }
 func ImageLib() Plugin  { return imagelib.New() }
+func TOMLLib() Plugin   { return tomllib.New() }
 
 // --- 実行 (internal/vm) ---
 

@@ -12,6 +12,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/tomllib"
 )
 
 // pluginRT names the pkg/runtime constructor that stands in for one plugin,
@@ -31,6 +32,7 @@ var pluginConstructors = map[string]struct {
 	"officelib": {func() stdlib.Plugin { return officelib.New() }, "rt.OfficeLib()"},
 	"pdflib":    {func() stdlib.Plugin { return pdflib.New() }, "rt.PDFLib()"},
 	"imagelib":  {func() stdlib.Plugin { return imagelib.New() }, "rt.ImageLib()"},
+	"tomllib":   {func() stdlib.Plugin { return tomllib.New() }, "rt.TOMLLib()"},
 }
 
 // PluginNames lists the plugins BuildRegistry and Generate know, sorted.
