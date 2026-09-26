@@ -223,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- 実行モード選択 ---
-  // 3つの実行モードがある(#97)。
+  // 4つの実行モードがある(#97, #63)。
   //   window     : インライン    --- エディタ内蔵の画面プレビューで実行する
   //   newwindow  : ウィンドウ(GUI) --- 別プロセス・別ウィンドウを起動して実行する
   //   cli        : コマンドライン(CLI) --- エディタ下部の出力欄に結果を表示する
@@ -266,12 +266,17 @@ document.addEventListener('DOMContentLoaded', () => {
     modalOverlay.style.display = 'flex';
   }
   btnRunModeHelp.addEventListener('click', openRunModeHelpModal);
-  selectAppType.addEventListener('change', () => {
+  function updateRunModeBadge() {
     const mode = selectAppType.value;
     const [color, background] = runModeColors[mode] || runModeColors.window;
     modeBadge.textContent = runModeLabels[mode] || mode;
     modeBadge.style.color = color;
     modeBadge.style.background = background;
+  }
+  updateRunModeBadge();
+  selectAppType.addEventListener('change', () => {
+    const mode = selectAppType.value;
+    updateRunModeBadge();
     // ブラウザ版で実行するときはwnako、それ以外はGo版の命令一覧を表示する（#124）。
     setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false);
     setStatus(`実行モードを「${runModeLabels[mode] || mode}」に変更しました`);
@@ -1363,7 +1368,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const hint = document.createElement('span');
     hint.className = 'help-card-hint';
     hint.textContent = 'ダブルクリックまたはドラッグで構文を挿入';
-    footer.appendChild(hint);
+    const insertButton = document.createElement('button');
+    insertButton.type = 'button';
+    insertButton.className = 'btn-sm help-insert-button';
+    insertButton.textContent = '構文を挿入';
+    insertButton.disabled = editor.readOnly;
+    insertButton.addEventListener('click', () => {
+      if (editor.readOnly) return;
+      insertTextAtCursor(template);
+      setStatus(`命令「${cmd.name}」の構文をエディタに挿入しました`);
+    });
+    footer.append(insertButton, hint);
 
     card.append(header, grid, footer);
     output.appendChild(card);
@@ -1486,10 +1501,15 @@ document.addEventListener('DOMContentLoaded', () => {
     cmdList.innerHTML = '';
     cmdCount.textContent = `${commands.length}件`;
 
+    // 表示順の設定を保ちつつ、完全一致の命令だけを先頭へ取り出す。
+    const query = cmdSearch.value.trim().toLowerCase();
+    const exactMatches = query ? commands.filter(cmd => cmd.name.toLowerCase() === query) : [];
+    exactMatches.forEach(cmd => cmdList.appendChild(createCmdItem(cmd)));
+    const remaining = commands.filter(cmd => !exactMatches.includes(cmd));
     if (cmdSortMode === 'group') {
-      renderCommandsGrouped(commands);
+      renderCommandsGrouped(remaining);
     } else {
-      renderCommandsFlat(commands);
+      renderCommandsFlat(remaining);
     }
   }
 

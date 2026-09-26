@@ -1562,3 +1562,6 @@ kbd {
   .output-actions { margin-left: auto; }
   .sidebar { width: 240px; }
 }
+
+.help-insert-button { min-height: 32px; color: var(--text-main); }
+.help-insert-button:disabled { opacity: 0.5; cursor: default; }
