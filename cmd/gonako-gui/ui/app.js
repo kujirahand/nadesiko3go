@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClearLog = document.getElementById('btn-clear-log');
   const btnCopyLog = document.getElementById('btn-copy-log');
   const btnCloseOutput = document.getElementById('btn-close-output');
+  const btnToggleOutput = document.getElementById('btn-toggle-output');
   const paneOutput = document.getElementById('pane-output');
   const splitterH = document.getElementById('splitter-h');
   const paneEditor = document.querySelector('.pane-editor');
@@ -2344,6 +2345,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function setOutputPanelOpen(open) {
     if (open === outputPanelOpen) return;
     outputPanelOpen = open;
+    btnToggleOutput.setAttribute('aria-expanded', String(open));
+    btnToggleOutput.classList.toggle('active', open);
     paneOutput.classList.toggle('is-closed', !open);
     splitterH.classList.toggle('is-closed', !open);
 
@@ -2364,6 +2367,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnCloseOutput.addEventListener('click', () => setOutputPanelOpen(false));
+  btnToggleOutput.addEventListener('click', () => setOutputPanelOpen(!outputPanelOpen));
 
   async function runCode() {
     setOutputPanelOpen(true);
@@ -2764,6 +2768,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
+
+  // 起動直後は編集に集中できるよう結果欄を閉じる。実行・命令ヘルプで再表示する。
+  setOutputPanelOpen(false);
 
   // --- 初期化呼び出し ---
   loadTemplates();

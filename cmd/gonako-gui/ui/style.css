@@ -1546,3 +1546,19 @@ kbd {
   outline: 2px solid var(--accent-pink);
   outline-offset: 2px;
 }
+
+/* 狭いウィンドウでは操作を折り返し、右端のメニューも画面内に保つ。 */
+.toolbar-actions { flex-wrap: wrap; padding-right: 40px; }
+.menu-dropdown-wrapper { position: absolute; top: 0; right: 0; }
+.main-pane { min-width: 0; }
+.editor-tools, .output-actions { flex-shrink: 0; }
+
+@media (max-width: 900px) {
+  .toolbar { padding: 8px; }
+  .toolbar-actions { gap: 4px; }
+  .btn { padding: 7px 8px; }
+  .separator { margin: 0 2px; }
+  .pane-header { flex-wrap: wrap; padding: 8px; }
+  .output-actions { margin-left: auto; }
+  .sidebar { width: 240px; }
+}
