@@ -67,7 +67,10 @@ func decodeTOML(s string) (value.Value, error) {
 // encodeTOML はなでしこの辞書をTOML文字列にエンコードする。
 // TOMLの仕様上、最上位は辞書（テーブル）でなければならない。
 func encodeTOML(v value.Value) (string, error) {
-	m, ok := valueToTomlTable(v)
+	m, ok, err := valueToTomlTable(v, make(map[any]bool))
+	if err != nil {
+		return "", err
+	}
 	if !ok {
 		return "", errors.New("TOMLエンコードできるのは辞書のみです。")
 	}
@@ -94,7 +97,7 @@ func tomlAnyToValue(v any) value.Value {
 	case string:
 		return value.String(t)
 	case time.Time:
-		return value.String(t.Format(time.RFC3339))
+		return value.String(formatTOMLTime(t))
 	case []map[string]any:
 		items := make([]value.Value, len(t))
 		for i, item := range t {
@@ -123,49 +126,93 @@ func tomlAnyToValue(v any) value.Value {
 	}
 }
 
-func valueToTomlTable(v value.Value) (map[string]any, bool) {
+// formatTOMLTime はデコードしたtime.Timeを、元のTOMLの表記（オフセット付き
+// 日時／オフセット無しのローカル日時／日付のみ／時刻のみ）に合わせて文字列化する。
+// BurntSushi/tomlは、オフセットの無い値を専用の*time.Locationの名前
+// （"date-local"/"time-local"/"datetime-local"）で表す。
+func formatTOMLTime(t time.Time) string {
+	switch t.Location().String() {
+	case "date-local":
+		return t.Format("2006-01-02")
+	case "time-local":
+		return t.Format("15:04:05.999999999")
+	case "datetime-local":
+		return t.Format("2006-01-02T15:04:05.999999999")
+	default:
+		return t.Format(time.RFC3339)
+	}
+}
+
+// valueToTomlTable はなでしこの辞書をTOMLエンコード用のmapに変換する。
+// seenは現在の再帰経路上にある辞書・配列を記録し、循環参照を検出する
+// （辞書・配列は参照型なので、自身や祖先を要素として持ちうる）。
+func valueToTomlTable(v value.Value, seen map[any]bool) (map[string]any, bool, error) {
 	d, ok := v.Dict()
 	if !ok || d == nil {
-		return nil, false
+		return nil, false, nil
 	}
+	if seen[d] {
+		return nil, true, errors.New("TOMLエンコードできません。辞書が循環参照しています。")
+	}
+	seen[d] = true
+	defer delete(seen, d)
 	m := make(map[string]any, d.Len())
 	for _, k := range d.Keys() {
 		item, _ := d.Get(k)
 		if item.Kind() == value.KindUndefined {
 			continue // undefined のキーは出力しない (JSONエンコードと同じ扱い)
 		}
-		m[k] = valueToTomlAny(item)
+		conv, err := valueToTomlAny(item, seen)
+		if err != nil {
+			return nil, true, err
+		}
+		m[k] = conv
 	}
-	return m, true
+	return m, true, nil
 }
 
-func valueToTomlAny(v value.Value) any {
+func valueToTomlAny(v value.Value, seen map[any]bool) (any, error) {
 	switch v.Kind() {
 	case value.KindUndefined, value.KindNull:
-		return "" // TOMLにnullは無いので空文字列にする
+		return "", nil // TOMLにnullは無いので空文字列にする
 	case value.KindBool:
-		return value.ToBool(v)
+		return value.ToBool(v), nil
 	case value.KindNumber:
 		n, _ := v.Number()
+		// float64は2^63をちょうど表現できるので、math.MaxInt64(float64に
+		// 丸めると2^63になる)との比較だとint64の範囲外を通してしまう。
+		// 上限は 0x1p63 (2^63) 未満で判定する。
 		if !math.IsNaN(n) && !math.IsInf(n, 0) && n == math.Trunc(n) &&
-			n >= math.MinInt64 && n <= math.MaxInt64 {
-			return int64(n)
+			n >= math.MinInt64 && n < 0x1p63 {
+			return int64(n), nil
 		}
-		return n
+		return n, nil
 	case value.KindString:
 		s, _ := v.String()
-		return s
+		return s, nil
 	case value.KindArray:
 		arr, _ := v.Array()
+		if seen[arr] {
+			return nil, errors.New("TOMLエンコードできません。配列が循環参照しています。")
+		}
+		seen[arr] = true
+		defer delete(seen, arr)
 		items := make([]any, arr.Len())
 		for i := 0; i < arr.Len(); i++ {
-			items[i] = valueToTomlAny(arr.Get(i))
+			conv, err := valueToTomlAny(arr.Get(i), seen)
+			if err != nil {
+				return nil, err
+			}
+			items[i] = conv
 		}
-		return items
+		return items, nil
 	case value.KindDict:
-		m, _ := valueToTomlTable(v)
-		return m
+		m, _, err := valueToTomlTable(v, seen)
+		if err != nil {
+			return nil, err
+		}
+		return m, nil
 	default:
-		return ""
+		return "", nil
 	}
 }
