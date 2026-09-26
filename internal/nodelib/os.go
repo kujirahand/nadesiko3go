@@ -1,6 +1,8 @@
 package nodelib
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +13,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -234,6 +237,9 @@ var decimalPromptRE = regexp.MustCompile(`^[-+]?\d+(\.\d+)?$`)
 
 // runCommand runs a shell command and returns what it printed.
 func runCommand(_ stdlib.Context, a []value.Value) (value.Value, error) {
+	if options, ok := argAt(a, 0).Dict(); ok {
+		return runCommandOptions(options)
+	}
 	line := str(a, 0)
 	if line == "" {
 		return value.String(""), nil
@@ -302,3 +308,54 @@ func argAt(args []value.Value, i int) value.Value {
 func isNaN(f float64) bool { return f != f }
 
 var _ = io.EOF
+
+// runCommandOptions はシェルを介さず引数を渡し、出力と終了状態を返す。
+func runCommandOptions(options *value.Dict) (value.Value, error) {
+	bin, _ := options.Get("実行ファイル")
+	if bin.Kind() != value.KindString || value.ToString(bin) == "" {
+		return value.Undefined(), errors.New("実行ファイルを指定してください")
+	}
+	var args []string
+	if v, ok := options.Get("引数"); ok {
+		items, ok := v.Array()
+		if !ok {
+			return value.Undefined(), errors.New("引数は配列で指定してください")
+		}
+		for _, item := range items.Values() {
+			args = append(args, value.ToString(item))
+		}
+	}
+	seconds := 10.0
+	if v, ok := options.Get("秒"); ok {
+		seconds = value.ToNumber(v)
+	}
+	if !(seconds > 0 && seconds <= 3600) {
+		return value.Undefined(), errors.New("秒は0より大きく3600以下で指定してください")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds*float64(time.Second)))
+	defer cancel()
+	cmd := exec.CommandContext(ctx, value.ToString(bin), args...)
+	// 子プロセスが出力パイプを保持し続けても待機時間を制限する。
+	cmd.WaitDelay = time.Second
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	result := value.NewDict()
+	result.Set("標準出力", value.String(stdout.String()))
+	result.Set("標準エラー", value.String(stderr.String()))
+	code := 0
+	if err != nil {
+		code = -1
+		if cmd.ProcessState != nil {
+			code = cmd.ProcessState.ExitCode()
+		}
+	}
+	result.Set("終了コード", value.Number(float64(code)))
+	result.Set("時間切れ", value.Bool(errors.Is(ctx.Err(), context.DeadlineExceeded)))
+	message := ""
+	if err != nil {
+		message = err.Error()
+	}
+	result.Set("エラー", value.String(message))
+	return value.DictValue(result), nil
+}

@@ -11,7 +11,7 @@ import (
 )
 
 // TestParseSourceRequireRejectsUnsupportedTargets は、取込が未対応の対象
-// （URL・貯蔵庫・拡張プラグイン・非対応拡張子）に対して、誤ってパースが
+// （不正な貯蔵庫名・非対応拡張子）に対して、誤ってパースが
 // 通ったりpanicしたりせず、なでしこ形式の明確なエラーになることを確認する
 // (#58)。
 func TestParseSourceRequireRejectsUnsupportedTargets(t *testing.T) {
@@ -23,7 +23,6 @@ func TestParseSourceRequireRejectsUnsupportedTargets(t *testing.T) {
 		code string
 		want string
 	}{
-		{"url", "!「https://example.com/lib.nako3」を取込。", "URL"},
 		{"storage-invalid-name", "!「貯蔵庫:../foo.nako3」を取込。", "不正"},
 		{"js-plugin", "!「foo.js」を取込。", "拡張子"},
 		{"bad-extension", "!「foo.txt」を取込。", "拡張子"},

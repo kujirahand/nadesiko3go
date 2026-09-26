@@ -112,7 +112,7 @@ func TestRunRequiresLocalFile(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "lib.nako3"), []byte(lib), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	main := "!「lib.nako3」を取込。\n21を二倍表示。"
+	main := "!「./lib.nako3」を取込。\n21を二倍表示。"
 	path := filepath.Join(dir, "main.nako3")
 	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
 		t.Fatal(err)
@@ -133,15 +133,15 @@ func TestRunRequiresLocalFile(t *testing.T) {
 func TestRunRequiresDedupesAndAllowsCircular(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
-		"a.nako3": "!「b.nako3」を取込。\n●A命令とは\n    「A」と表示\n    B命令\nここまで",
-		"b.nako3": "!「a.nako3」を取込。\n●B命令とは\n    「B」と表示\nここまで",
+		"a.nako3": "!「./b.nako3」を取込。\n●A命令とは\n    「A」と表示\n    B命令\nここまで",
+		"b.nako3": "!「./a.nako3」を取込。\n●B命令とは\n    「B」と表示\nここまで",
 	}
 	for name, code := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(code), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	main := "!「a.nako3」を取込。\n!「a.nako3」を取込。\nA命令。"
+	main := "!「./a.nako3」を取込。\n!「./a.nako3」を取込。\nA命令。"
 	path := filepath.Join(dir, "main.nako3")
 	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func TestRunRequiresDedupesRelativeAndAbsolutePaths(t *testing.T) {
 	if err := os.WriteFile(side, []byte("「LOAD」と表示"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	main := fmt.Sprintf("!「side.nako3」を取込。\n!「%s」を取込。\n", side)
+	main := fmt.Sprintf("!「./side.nako3」を取込。\n!「%s」を取込。\n", side)
 	path := filepath.Join(dir, "main.nako3")
 	if err := os.WriteFile(path, []byte(main), 0o644); err != nil {
 		t.Fatal(err)
@@ -495,7 +495,7 @@ func TestFormatDoesNotConfuseRequiredFileLineNumbers(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "lib.nako3"), []byte(lib), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	main := "!「lib.nako3」を取込。\n" +
+	main := "!「./lib.nako3」を取込。\n" +
 		"もし、1=1ならば\n" +
 		"「A」と表示。\n" +
 		"「B」と表示。\n" +
@@ -509,7 +509,7 @@ func TestFormatDoesNotConfuseRequiredFileLineNumbers(t *testing.T) {
 	if err := run([]string{"format", path}, &out, &errOut); err != nil {
 		t.Fatalf("format: %v; stderr=%s", err, errOut.String())
 	}
-	want := "!「lib.nako3」を取込。\n" +
+	want := "!「./lib.nako3」を取込。\n" +
 		"もし、1 = 1ならば\n" +
 		"    「A」と表示。\n" +
 		"    「B」と表示。\n" +
@@ -593,5 +593,28 @@ func TestFormatKeepsIndentSyntaxMeaning(t *testing.T) {
 	}
 	if out.String() != original {
 		t.Errorf("出力 = %q, want %q", out.String(), original)
+	}
+}
+
+// パッケージ入口のファイル名を分け、同名の内部関数を上書きしないことを確認する。
+func TestRunFlatPackagesKeepNamespaces(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("GONAKO_PACKAGE_PATH", dir)
+	files := map[string]string{
+		"alpha.nako3": "●計算とは\n「A」と表示\nここまで\n●アルファ実行とは\n計算\nここまで",
+		"beta.nako3":  "●計算とは\n「B」と表示\nここまで\n●ベータ実行とは\n計算\nここまで",
+		"main.nako3":  "!「alpha」を取り込む。\n!「beta.nako3」を取り込む。\nアルファ実行。\nベータ実行。",
+	}
+	for name, code := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(code), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errOut bytes.Buffer
+	if err := run([]string{filepath.Join(dir, "main.nako3")}, &out, &errOut); err != nil {
+		t.Fatalf("実行: %v; %s", err, errOut.String())
+	}
+	if out.String() != "A\nB\n" {
+		t.Fatalf("名前空間が衝突しました: %q", out.String())
 	}
 }
