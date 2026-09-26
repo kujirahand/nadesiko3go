@@ -21,6 +21,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
+	"github.com/kujirahand/nadesiko3go/internal/tomllib"
 )
 
 // GitHub上でこのリポジトリのソースを参照する際のブランチ名。
@@ -42,7 +43,7 @@ type CommandDoc struct {
 }
 
 // pluginForFile は定義ファイルのパスから、その命令が属するプラグインを返す。
-// stdlib/nodelib/csvlib/mathlibは本家のプラグイン名と対応させ、それ以外の
+// stdlib/nodelib/csvlib/mathlib/tomllibは本家のプラグイン名と対応させ、それ以外の
 // （本家に存在しない）gonako独自のライブラリはまとめて「gonako」とする。
 func pluginForFile(file string) string {
 	switch {
@@ -54,6 +55,8 @@ func pluginForFile(file string) string {
 		return "plugin_csv"
 	case strings.HasPrefix(file, "internal/mathlib/"):
 		return "plugin_math"
+	case strings.HasPrefix(file, "internal/tomllib/"):
+		return "plugin_toml"
 	case strings.HasPrefix(file, "internal/sqlitelib/"),
 		strings.HasPrefix(file, "internal/officelib/"),
 		strings.HasPrefix(file, "internal/pdflib/"),
@@ -91,6 +94,7 @@ var groupDirFallback = map[string]string{
 	"stdlib":    "システム",
 	"csvlib":    "CSV",
 	"mathlib":   "数学",
+	"tomllib":   "TOML",
 }
 
 // groupForFile は本家に対応する命令が無いGo独自命令について、
@@ -389,7 +393,7 @@ func main() {
 
 	reg := stdlib.NewRegistry(
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(), tomllib.New(),
 	)
 	list := reg.FuncList()
 

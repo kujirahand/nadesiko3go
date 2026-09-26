@@ -43,7 +43,7 @@ hello.go を作りました
 |---|---|---|
 | `--out` | `<ファイル名>.go` | 出力するGoソースファイル名 |
 | `--package` | `main` | 生成するGoソースのパッケージ名 |
-| `--plugins` | `nodelib,csvlib,mathlib,sqlitelib,officelib,pdflib,imagelib` | 生成コードのレジストリに含めるプラグイン（カンマ区切り）。空文字を渡すと標準命令（plugin_system）だけになる |
+| `--plugins` | `nodelib,csvlib,mathlib,tomllib,sqlitelib,officelib,pdflib,imagelib` | 生成コードのレジストリに含めるプラグイン（カンマ区切り）。空文字を渡すと標準命令（plugin_system）だけになる |
 
 ---
 
@@ -77,7 +77,7 @@ go build -o myapp .
 
 ## 3. プラグインを使う場合
 
-`ファイル読込` や `CSV取得` のようなplugin_system以外の命令（`nodelib`・`csvlib`など）を使うプログラムを変換するときは、`--plugins` で必要なプラグインを指定します。既定値（`nodelib,csvlib,mathlib,sqlitelib,officelib,pdflib,imagelib`）は `gonako` 本体が使っているのと同じ組み合わせなので、通常のなでしこプログラムはそのままで動きます。
+`ファイル読込` や `CSV取得` のようなplugin_system以外の命令（`nodelib`・`csvlib`など）を使うプログラムを変換するときは、`--plugins` で必要なプラグインを指定します。既定値（`nodelib,csvlib,mathlib,tomllib,sqlitelib,officelib,pdflib,imagelib`）は `gonako` 本体が使っているのと同じ組み合わせなので、通常のなでしこプログラムはそのままで動きます。
 
 ```bash
 # CSVの命令を使うプログラムを変換する（既定のままでよい）
