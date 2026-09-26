@@ -24,7 +24,7 @@ func TestParseSourceRequireRejectsUnsupportedTargets(t *testing.T) {
 		want string
 	}{
 		{"url", "!「https://example.com/lib.nako3」を取込。", "URL"},
-		{"storage", "!「貯蔵庫:foo.nako3」を取込。", "未対応"},
+		{"storage-invalid-name", "!「貯蔵庫:../foo.nako3」を取込。", "不正"},
 		{"js-plugin", "!「foo.js」を取込。", "拡張子"},
 		{"bad-extension", "!「foo.txt」を取込。", "拡張子"},
 	}

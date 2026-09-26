@@ -2,9 +2,12 @@ package parser
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/indent"
@@ -78,11 +81,18 @@ func isRequireStatement(tok []lexer.Token, i int) bool {
 }
 
 func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) {
+	name = strings.Replace(name, "貯蔵庫：", "貯蔵庫:", 1)
+	if strings.HasPrefix(name, "貯蔵庫:") {
+		module := strings.TrimPrefix(name, "貯蔵庫:")
+		if module == "" || filepath.Base(module) != module || strings.ContainsAny(module, `\\/?#`) || !strings.HasSuffix(module, ".nako3") {
+			return "", requireErr(tok, fmt.Sprintf("貯蔵庫のファイル名『%s』が不正です。拡張子.nako3のファイル名を指定してください。", module))
+		}
+		return "https://n3s.nadesi.com/plain/" + module, nil
+	}
 	if strings.HasPrefix(name, "http://") || strings.HasPrefix(name, "https://") {
 		return "", requireErr(tok, fmt.Sprintf("URL『%s』からの取り込みは未対応です。", name))
 	}
-	if strings.HasPrefix(name, "貯蔵庫:") || strings.HasPrefix(name, "貯蔵庫：") ||
-		strings.HasPrefix(name, "拡張プラグイン:") || strings.HasPrefix(name, "拡張プラグイン：") {
+	if strings.HasPrefix(name, "拡張プラグイン:") || strings.HasPrefix(name, "拡張プラグイン：") {
 		return "", requireErr(tok, fmt.Sprintf("『%s』の取り込みは未対応です。ローカルの.nako3ファイルのみ取り込めます。", name))
 	}
 	if !strings.HasSuffix(name, ".nako3") && !strings.HasSuffix(name, ".nako") {
@@ -110,7 +120,25 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 }
 
 func loadRequireFile(filePath string, tok lexer.Token) ([]lexer.Token, error) {
-	data, err := os.ReadFile(filePath)
+	var data []byte
+	var err error
+	if strings.HasPrefix(filePath, "https://n3s.nadesi.com/plain/") {
+		client := &http.Client{Timeout: 15 * time.Second}
+		resp, requestErr := client.Get(filePath)
+		if requestErr != nil {
+			return nil, requireErr(tok, fmt.Sprintf("貯蔵庫のファイルを取得できません。%s", requestErr))
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			return nil, requireErr(tok, fmt.Sprintf("貯蔵庫のファイルを取得できません。HTTP %d", resp.StatusCode))
+		}
+		data, err = io.ReadAll(io.LimitReader(resp.Body, (8<<20)+1))
+		if err == nil && len(data) > 8<<20 {
+			return nil, requireErr(tok, "貯蔵庫のファイルが大きすぎます（上限8MiB）。")
+		}
+	} else {
+		data, err = os.ReadFile(filePath)
+	}
 	if err != nil {
 		return nil, requireErr(tok, fmt.Sprintf("ファイル『%s』を読み込めません。%s", filePath, err))
 	}
