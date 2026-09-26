@@ -1,8 +1,16 @@
+// Package gonakopackages は直下のgonako-packageを埋め込み登録する。公開APIは持たない。
 package gonakopackages
 
-import "embed"
+import (
+	"embed"
+	"github.com/kujirahand/nadesiko3go/internal/nakopackage"
+)
 
-// PackageFiles はビルド時のなでしこパッケージを保持する。
+// go:embedは親ディレクトリを参照できないため、この宣言だけをルートに置く。
 //
 //go:embed all:gonako-package
-var PackageFiles embed.FS
+var packageFiles embed.FS
+
+func init() {
+	nakopackage.Files = packageFiles
+}

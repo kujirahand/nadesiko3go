@@ -130,3 +130,62 @@ func requireTestFuncs() lexer.FuncList {
 		"名前空間ポップ":  {Name: "名前空間ポップ", Type: "func"},
 	}
 }
+
+// パッケージの探索ルート外を途中の..やリンクで読めないことを確認する。
+func TestRequirePackagePathsStayWithinRoot(t *testing.T) {
+	root := t.TempDir()
+	envDir := filepath.Join(root, "env")
+	runtimeDir := filepath.Join(root, "runtime")
+	for _, dir := range []string{envDir, filepath.Join(runtimeDir, "gonako-package"), filepath.Join(root, "gonako-package")} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "safe.nako3"), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, dir := range []string{root, runtimeDir} {
+		if err := os.WriteFile(filepath.Join(dir, "secret.nako3"), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldExe, oldFS := runtimeExecutable, packageFiles
+	t.Cleanup(func() { runtimeExecutable, packageFiles = oldExe, oldFS })
+	runtimeExecutable = func() (string, error) { return filepath.Join(runtimeDir, "gonako"), nil }
+	packageFiles = fstest.MapFS{
+		"secret.nako3":              &fstest.MapFile{},
+		"gonako-package/safe.nako3": &fstest.MapFile{},
+	}
+	t.Setenv("GONAKO_PACKAGE_PATH", envDir)
+	if _, err := resolveRequirePath("sub/../../secret.nako3", "main.nako3", lexer.Token{}); err == nil {
+		t.Fatal("パッケージ探索がルート外を読みました")
+	}
+	if got, err := resolveRequirePath("sub/../safe.nako3", "main.nako3", lexer.Token{}); err != nil || got != filepath.Join(envDir, "safe.nako3") {
+		t.Fatalf("ルート内の正規化: %q %v", got, err)
+	}
+	if _, err := resolveRequirePath("../../secret.nako3", "embed:gonako-package/demo/main.nako3", lexer.Token{}); err == nil {
+		t.Fatal("埋め込みからルート外を読みました")
+	}
+	if got, err := resolveRequirePath("../safe.nako3", "embed:gonako-package/demo/main.nako3", lexer.Token{}); err != nil || got != "embed:gonako-package/safe.nako3" {
+		t.Fatalf("ルート内の相対取込: %q %v", got, err)
+	}
+	// 明示的なローカル相対パスによる取込は引き続き許可する。
+	if got, err := resolveRequirePath("../secret.nako3", filepath.Join(envDir, "main.nako3"), lexer.Token{}); err != nil || got != filepath.Join(root, "secret.nako3") {
+		t.Fatalf("明示相対取込: %q %v", got, err)
+	}
+	t.Run("symlink", func(t *testing.T) {
+		if err := os.Symlink(filepath.Join(root, "secret.nako3"), filepath.Join(envDir, "link.nako3")); err != nil {
+			t.Skipf("リンクを作成できません: %v", err)
+		}
+		if _, err := resolveRequirePath("link.nako3", "main.nako3", lexer.Token{}); err == nil {
+			t.Fatal("リンクを介してルート外を読みました")
+		}
+		alias := filepath.Join(root, "env-alias")
+		if err := os.Symlink(envDir, alias); err != nil {
+			t.Fatal(err)
+		}
+		if got, ok := localPackageRequirePath(alias, "safe.nako3"); !ok || got != filepath.Join(alias, "safe.nako3") {
+			t.Fatalf("探索ルート自体のリンク: %q %v", got, ok)
+		}
+	})
+}

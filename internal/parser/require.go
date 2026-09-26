@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
-	packages "github.com/kujirahand/nadesiko3go"
+	_ "github.com/kujirahand/nadesiko3go" // 直下のパッケージを埋め込み登録する。
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/indent"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
+	"github.com/kujirahand/nadesiko3go/internal/nakopackage"
 	"github.com/kujirahand/nadesiko3go/internal/prepare"
 )
 
@@ -113,8 +114,8 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 		}
 		if strings.HasPrefix(fromFile, embeddedPrefix) && !filepath.IsAbs(name) {
 			candidate := path.Join(path.Dir(strings.TrimPrefix(fromFile, embeddedPrefix)), filepath.ToSlash(name))
-			if info, err := fs.Stat(packageFiles, candidate); err == nil && !info.IsDir() {
-				return embeddedPrefix + candidate, nil
+			if full, ok := embeddedRequirePath(candidate); ok {
+				return full, nil
 			}
 		} else {
 			full := name
@@ -130,7 +131,7 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 			if dir == "" {
 				continue
 			}
-			if full, ok := localRequirePath(filepath.Join(dir, name)); ok {
+			if full, ok := localPackageRequirePath(dir, name); ok {
 				return full, nil
 			}
 		}
@@ -140,16 +141,14 @@ func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) 
 				exe = real
 			}
 			for _, dir := range []string{filepath.Dir(exe), filepath.Dir(filepath.Dir(exe))} {
-				if full, ok := localRequirePath(filepath.Join(dir, "gonako-package", name)); ok {
+				if full, ok := localPackageRequirePath(filepath.Join(dir, "gonako-package"), name); ok {
 					return full, nil
 				}
 			}
 		}
 		candidate := path.Join("gonako-package", filepath.ToSlash(name))
-		if fs.ValidPath(candidate) && strings.HasPrefix(candidate, "gonako-package/") {
-			if info, err := fs.Stat(packageFiles, candidate); err == nil && !info.IsDir() {
-				return embeddedPrefix + candidate, nil
-			}
+		if full, ok := embeddedRequirePath(candidate); ok {
+			return full, nil
 		}
 	}
 	return "", requireErr(tok, fmt.Sprintf("ファイル『%s』が見つかりません。", name))
@@ -159,7 +158,7 @@ const embeddedPrefix = "embed:"
 
 // テストでも実行ファイルの配置と埋め込み内容を検証できるようにする。
 var runtimeExecutable = os.Executable
-var packageFiles fs.FS = packages.PackageFiles
+var packageFiles fs.FS = nakopackage.Files
 
 func localRequirePath(name string) (string, bool) {
 	full, err := filepath.Abs(name)
@@ -168,6 +167,41 @@ func localRequirePath(name string) (string, bool) {
 	}
 	info, err := os.Stat(full)
 	return full, err == nil && !info.IsDir()
+}
+
+// localPackageRequirePath は字面とリンク解決後の両方で探索ルート内に限定する。
+func localPackageRequirePath(dir, name string) (string, bool) {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		return "", false
+	}
+	candidate := filepath.Join(root, name)
+	if !withinRequireRoot(root, candidate) {
+		return "", false
+	}
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", false
+	}
+	realCandidate, err := filepath.EvalSymlinks(candidate)
+	if err != nil || !withinRequireRoot(realRoot, realCandidate) {
+		return "", false
+	}
+	return localRequirePath(candidate)
+}
+
+func withinRequireRoot(root, candidate string) bool {
+	rel, err := filepath.Rel(root, candidate)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel)
+}
+
+// embeddedRequirePath は仮想FSの構成が増えてもパッケージ領域の外を読まない。
+func embeddedRequirePath(candidate string) (string, bool) {
+	if !fs.ValidPath(candidate) || !strings.HasPrefix(candidate, "gonako-package/") {
+		return "", false
+	}
+	info, err := fs.Stat(packageFiles, candidate)
+	return embeddedPrefix + candidate, err == nil && !info.IsDir()
 }
 
 func isRequireURL(name string) bool {
