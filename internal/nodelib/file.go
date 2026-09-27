@@ -561,12 +561,23 @@ func createSymbolicLink(_ stdlib.Context, a []value.Value) (value.Value, error) 
 }
 
 // createSymlink creates a symbolic link at 'to' pointing to 'from'.
+// 相対パスで保存先フォルダが異なっても壊れないよう、元ファイルは絶対パスに変換する。
 func createSymlink(from, to string) error {
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-		return fileError("シンボリックリンク作成でき", to, err)
+	absFrom, err := filepath.Abs(from)
+	if err != nil {
+		return fmt.Errorf("シンボリックリンクの元ファイル『%s』の絶対パスを取得できません: %w", from, err)
 	}
-	if err := os.Symlink(from, to); err != nil {
-		return fileError("シンボリックリンク作成でき", to, err)
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fmt.Errorf("シンボリックリンクの作成先フォルダ『%s』を作成できません: %w", filepath.Dir(to), err)
+	}
+	if err := os.Symlink(absFrom, to); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("シンボリックリンクの作成先『%s』に既にファイルまたはフォルダが存在します。", to)
+		}
+		if errors.Is(err, os.ErrPermission) {
+			return fmt.Errorf("シンボリックリンク『%s』を作成できません。権限がありません。", to)
+		}
+		return fmt.Errorf("シンボリックリンク『%s』を作成できません: %w", to, err)
 	}
 	return nil
 }
@@ -575,21 +586,28 @@ func createSymlink(from, to string) error {
 func createMacOSAlias(from, to string) error {
 	absFrom, err := filepath.Abs(from)
 	if err != nil {
-		return fileError("エイリアス作成元が解決でき", from, err)
+		return fmt.Errorf("エイリアスの元ファイル『%s』の絶対パスを取得できません: %w", from, err)
+	}
+	if _, err := os.Stat(absFrom); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("エイリアスの元ファイル『%s』が見つかりません。", absFrom)
+		}
+		return fmt.Errorf("エイリアスの元ファイル『%s』を確認できません: %w", absFrom, err)
 	}
 	absTo, err := filepath.Abs(to)
 	if err != nil {
-		return fileError("エイリアス作成先が解決でき", to, err)
+		return fmt.Errorf("エイリアスの作成先『%s』の絶対パスを取得できません: %w", to, err)
 	}
 	destDir := filepath.Dir(absTo)
 	destName := filepath.Base(absTo)
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return fileError("エイリアス作成先のフォルダを作成でき", destDir, err)
+		return fmt.Errorf("エイリアスの作成先フォルダ『%s』を作成できません: %w", destDir, err)
 	}
-	// Finder の「make new alias file」は既存ファイルがあると失敗するため削除する。
+	// Finder の「make new alias file」は同名の既存ファイルがあると失敗するので、
+	// 元ファイルの存在を確認してから削除する。
 	if _, err := os.Stat(absTo); err == nil {
 		if err := os.Remove(absTo); err != nil {
-			return fileError("エイリアス作成先の既存ファイルを削除でき", absTo, err)
+			return fmt.Errorf("エイリアスの作成先『%s』にある既存ファイルを削除できません: %w", absTo, err)
 		}
 	}
 	script := fmt.Sprintf(`tell application "Finder"
@@ -623,25 +641,25 @@ func appleScriptString(s string) string {
 // createWindowsShortcut creates a .lnk shortcut using Windows Script Host
 // through PowerShell.
 func createWindowsShortcut(from, to string) error {
-	if strings.ToLower(filepath.Ext(to)) != ".lnk" {
-		to += ".lnk"
-	}
 	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-		return fileError("ショートカットファイル作成でき", to, err)
+		return fmt.Errorf("ショートカットファイルの作成先フォルダ『%s』を作成できません: %w", filepath.Dir(to), err)
 	}
 	// ターゲットは絶対パスにして、ショートカットが動くようにする。
 	absFrom, err := filepath.Abs(from)
 	if err != nil {
-		return fileError("ショートカットファイル作成でき", from, err)
+		return fmt.Errorf("ショートカットの元ファイル『%s』の絶対パスを取得できません: %w", from, err)
 	}
 	script := fmt.Sprintf(
-		"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%s'); $s.TargetPath='%s'; $s.Save()",
+		"$ErrorActionPreference='Stop'; $s=(New-Object -ComObject WScript.Shell).CreateShortcut('%s'); $s.TargetPath='%s'; $s.Save()",
 		escapePSSingleQuotes(to),
 		escapePSSingleQuotes(absFrom),
 	)
 	cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
 	if _, err := cmd.CombinedOutput(); err != nil {
-		return errors.New("ショートカットファイル『" + to + "』を作成できませんでした。" + err.Error())
+		return fmt.Errorf("ショートカットファイル『%s』を作成できませんでした: %w", to, err)
+	}
+	if _, err := os.Stat(to); err != nil {
+		return fmt.Errorf("ショートカットファイル『%s』が作成後に見つかりません。", to)
 	}
 	return nil
 }
@@ -655,14 +673,21 @@ func escapePSSingleQuotes(s string) string {
 // Windows. If the process lacks the required privilege, it falls back to a
 // .lnk shortcut so the command succeeds for ordinary users too.
 func createWindowsSymlinkOrShortcut(from, to string) error {
-	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
-		return fileError("シンボリックリンク作成でき", to, err)
+	absFrom, err := filepath.Abs(from)
+	if err != nil {
+		return fmt.Errorf("シンボリックリンクの元ファイル『%s』の絶対パスを取得できません: %w", from, err)
 	}
-	if err := os.Symlink(from, to); err != nil {
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fmt.Errorf("シンボリックリンクの作成先フォルダ『%s』を作成できません: %w", filepath.Dir(to), err)
+	}
+	if err := os.Symlink(absFrom, to); err != nil {
 		if isWindowsSymlinkPrivilegeError(err) {
 			return createWindowsShortcut(from, to)
 		}
-		return fileError("シンボリックリンク作成でき", to, err)
+		if errors.Is(err, os.ErrExist) {
+			return fmt.Errorf("シンボリックリンクの作成先『%s』に既にファイルまたはフォルダが存在します。", to)
+		}
+		return fmt.Errorf("シンボリックリンク『%s』を作成できません: %w", to, err)
 	}
 	return nil
 }
