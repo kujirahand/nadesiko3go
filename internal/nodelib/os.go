@@ -172,6 +172,14 @@ func osCommands(m map[string]command) {
 		return value.String(runtime.GOARCH), nil
 	}}
 
+	m["CPU使用率取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
+		usage, err := getCPUUsagePercent()
+		if err != nil {
+			return value.Undefined(), err
+		}
+		return value.Number(usage), nil
+	}}
+
 	// --- 外部コマンド ---
 
 	m["コマンド実行待機"] = command{josi: [][]string{{"を", "の"}}, fn: runCommand}
