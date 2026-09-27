@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -62,6 +64,10 @@ func commands() map[string]command {
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			return value.Undefined(), os.Remove(str(a, 0))
 		}}
+	m["ショートカットファイル作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+		fn: createShortcut}
+	m["シンボリックリンク作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+		fn: createSymbolicLink}
 	m["ファイル削除時"] = command{josi: [][]string{{"で", "を", "の"}, {"の", "を"}},
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			if err := os.RemoveAll(str(a, 1)); err != nil {
@@ -525,6 +531,150 @@ func listAllFiles(_ stdlib.Context, a []value.Value) (value.Value, error) {
 		items[i] = value.String(r)
 	}
 	return value.ArrayValue(value.NewArray(items...)), nil
+}
+
+// createShortcut creates a Windows shortcut (.lnk) on Windows, a Finder alias
+// on macOS, or a symbolic link on other platforms.
+func createShortcut(_ stdlib.Context, a []value.Value) (value.Value, error) {
+	from := str(a, 0)
+	to := str(a, 1)
+	switch runtime.GOOS {
+	case "windows":
+		return value.Undefined(), createWindowsShortcut(from, to)
+	case "darwin":
+		return value.Undefined(), createMacOSAlias(from, to)
+	default:
+		return value.Undefined(), createSymlink(from, to)
+	}
+}
+
+// createSymbolicLink creates a symbolic link. On Windows, if the process does
+// not have the symlink privilege, it falls back to a .lnk shortcut so that the
+// command still works for users.
+func createSymbolicLink(_ stdlib.Context, a []value.Value) (value.Value, error) {
+	from := str(a, 0)
+	to := str(a, 1)
+	if runtime.GOOS == "windows" {
+		return value.Undefined(), createWindowsSymlinkOrShortcut(from, to)
+	}
+	return value.Undefined(), createSymlink(from, to)
+}
+
+// createSymlink creates a symbolic link at 'to' pointing to 'from'.
+func createSymlink(from, to string) error {
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fileError("シンボリックリンク作成でき", to, err)
+	}
+	if err := os.Symlink(from, to); err != nil {
+		return fileError("シンボリックリンク作成でき", to, err)
+	}
+	return nil
+}
+
+// createMacOSAlias creates a Finder alias using AppleScript.
+func createMacOSAlias(from, to string) error {
+	absFrom, err := filepath.Abs(from)
+	if err != nil {
+		return fileError("エイリアス作成元が解決でき", from, err)
+	}
+	absTo, err := filepath.Abs(to)
+	if err != nil {
+		return fileError("エイリアス作成先が解決でき", to, err)
+	}
+	destDir := filepath.Dir(absTo)
+	destName := filepath.Base(absTo)
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fileError("エイリアス作成先のフォルダを作成でき", destDir, err)
+	}
+	// Finder の「make new alias file」は既存ファイルがあると失敗するため削除する。
+	if _, err := os.Stat(absTo); err == nil {
+		if err := os.Remove(absTo); err != nil {
+			return fileError("エイリアス作成先の既存ファイルを削除でき", absTo, err)
+		}
+	}
+	script := fmt.Sprintf(`tell application "Finder"
+	set src to POSIX file %s
+	set dstFolder to POSIX file %s
+	make new alias file at dstFolder to src with properties {name:%s}
+end tell`, appleScriptString(absFrom), appleScriptString(destDir), appleScriptString(destName))
+	cmd := exec.Command("osascript", "-")
+	cmd.Stdin = strings.NewReader(script)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("エイリアス『%s』を作成できませんでした: %w\n%s", absTo, err, string(out))
+	}
+	return nil
+}
+
+// appleScriptString returns s quoted for use as an AppleScript string literal.
+func appleScriptString(s string) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range s {
+		if r == '\\' || r == '"' {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+// createWindowsShortcut creates a .lnk shortcut using Windows Script Host
+// through PowerShell.
+func createWindowsShortcut(from, to string) error {
+	if strings.ToLower(filepath.Ext(to)) != ".lnk" {
+		to += ".lnk"
+	}
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fileError("ショートカットファイル作成でき", to, err)
+	}
+	// ターゲットは絶対パスにして、ショートカットが動くようにする。
+	absFrom, err := filepath.Abs(from)
+	if err != nil {
+		return fileError("ショートカットファイル作成でき", from, err)
+	}
+	script := fmt.Sprintf(
+		"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%s'); $s.TargetPath='%s'; $s.Save()",
+		escapePSSingleQuotes(to),
+		escapePSSingleQuotes(absFrom),
+	)
+	cmd := exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+	if _, err := cmd.CombinedOutput(); err != nil {
+		return errors.New("ショートカットファイル『" + to + "』を作成できませんでした。" + err.Error())
+	}
+	return nil
+}
+
+// escapePSSingleQuotes escapes single quotes for PowerShell single-quoted strings.
+func escapePSSingleQuotes(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+// createWindowsSymlinkOrShortcut tries to create a real symbolic link on
+// Windows. If the process lacks the required privilege, it falls back to a
+// .lnk shortcut so the command succeeds for ordinary users too.
+func createWindowsSymlinkOrShortcut(from, to string) error {
+	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
+		return fileError("シンボリックリンク作成でき", to, err)
+	}
+	if err := os.Symlink(from, to); err != nil {
+		if isWindowsSymlinkPrivilegeError(err) {
+			return createWindowsShortcut(from, to)
+		}
+		return fileError("シンボリックリンク作成でき", to, err)
+	}
+	return nil
+}
+
+// isWindowsSymlinkPrivilegeError reports whether err is the Windows "A required
+// privilege is not held by the client" error.
+func isWindowsSymlinkPrivilegeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "privilege") || strings.Contains(msg, "特権")
 }
 
 // fileError wraps an OS error in a message that names the file.

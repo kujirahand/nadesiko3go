@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -100,6 +101,64 @@ A="a"と"b"をパス結合
 	if got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
+}
+
+func TestShortcutFileCreation(t *testing.T) {
+	dir := t.TempDir()
+	switch runtime.GOOS {
+	case "windows":
+		got := runIn(t, dir, `「元の内容」を"a.txt"に保存
+"a.txt"から"shortcut.lnk"へショートカットファイル作成
+「作成: {"shortcut.lnk"が存在}」と表示`)
+		want := "作成: true"
+		if got != want {
+			t.Errorf("got:\n%s\nwant:\n%s", got, want)
+		}
+	case "darwin":
+		got := runIn(t, dir, `「元の内容」を"a.txt"に保存
+"a.txt"から"alias"へショートカットファイル作成
+「作成: {"alias"が存在}」と表示`)
+		want := "作成: true"
+		if got != want {
+			t.Errorf("got:\n%s\nwant:\n%s", got, want)
+		}
+	default:
+		got := runIn(t, dir, `「元の内容」を"a.txt"に保存
+"a.txt"から"link.txt"へショートカットファイル作成
+「ショートカット経由: {"link.txt"を開く}」と表示`)
+		want := "ショートカット経由: 元の内容"
+		if got != want {
+			t.Errorf("got:\n%s\nwant:\n%s", got, want)
+		}
+	}
+}
+
+func TestSymbolicLinkCreation(t *testing.T) {
+	dir := t.TempDir()
+	got := runIn(t, dir, `「元の内容」を"a.txt"に保存
+"a.txt"から"link.txt"へシンボリックリンク作成
+「作成済み」と表示`)
+	if got != "作成済み" {
+		t.Fatalf("got: %q, want %q", got, "作成済み")
+	}
+
+	linkPath := filepath.Join(dir, "link.txt")
+	if _, err := os.Lstat(linkPath); err == nil {
+		if runtime.GOOS != "windows" {
+			content, err := os.ReadFile(linkPath)
+			if err != nil || string(content) != "元の内容" {
+				t.Fatalf("シンボリックリンク経由で読めません: err=%v content=%q", err, string(content))
+			}
+		}
+		return
+	}
+	// Windows で権限がない場合は .lnk フォールバックしている。
+	if runtime.GOOS == "windows" {
+		if _, err := os.Lstat(linkPath + ".lnk"); err == nil {
+			return
+		}
+	}
+	t.Fatal("シンボリックリンクまたはショートカットが作成されていません")
 }
 
 // TestMissingFileReportsPath pins that a missing file is reported by name,
