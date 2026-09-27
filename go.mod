@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/BurntSushi/toml v1.6.0
+	github.com/ebitengine/purego v0.10.1
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 	github.com/xuri/excelize/v2 v2.11.0
@@ -17,7 +18,6 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

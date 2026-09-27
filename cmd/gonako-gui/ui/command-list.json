@@ -338,8 +338,8 @@
     "template": "【A】と【B】がASSERT等",
     "yomi": "ASSERTひとしい",
     "file": "internal/nodelib/os.go",
-    "line": 207,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L207",
+    "line": 211,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L211",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2FASSERT%E7%AD%89"
   },
   {
@@ -3051,8 +3051,8 @@
     "template": "【S】をエクスプローラー起動",
     "yomi": "えくすぷろーらーきどう",
     "file": "internal/nodelib/os.go",
-    "line": 203,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L203",
+    "line": 207,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L207",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%A8%E3%82%AF%E3%82%B9%E3%83%97%E3%83%AD%E3%83%BC%E3%83%A9%E3%83%BC%E8%B5%B7%E5%8B%95"
   },
   {
@@ -3677,6 +3677,29 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E4%BD%9C%E6%88%90"
   },
   {
+    "name": "キー送信",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "へ"
+      ],
+      [
+        "を",
+        "の"
+      ]
+    ],
+    "plugin": "plugin_node",
+    "category": "キー操作",
+    "desc": "アクティブなウィンドウへキー操作を送信する",
+    "template": "【A】に【B】をキー送信",
+    "yomi": "きーそうしん",
+    "file": "internal/nodelib/key.go",
+    "line": 18,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/key.go#L18",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%AD%E3%83%BC%E9%80%81%E4%BF%A1"
+  },
+  {
     "name": "クリック時",
     "type": "func",
     "josi": [
@@ -3774,8 +3797,8 @@
     "template": "【S】をコマンド実行",
     "yomi": "こまんどじっこう",
     "file": "internal/nodelib/os.go",
-    "line": 189,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L189",
+    "line": 193,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L193",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89%E5%AE%9F%E8%A1%8C"
   },
   {
@@ -3793,8 +3816,8 @@
     "template": "【S】をコマンド実行待機",
     "yomi": "こまんどじっこうたいき",
     "file": "internal/nodelib/os.go",
-    "line": 185,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L185",
+    "line": 189,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L189",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89%E5%AE%9F%E8%A1%8C%E5%BE%85%E6%A9%9F"
   },
   {
@@ -3934,6 +3957,24 @@
     "line": 69,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L69",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AA%E3%83%83%E3%82%AF%E3%83%AA%E3%83%B3%E3%82%AF%E4%BD%9C%E6%88%90"
+  },
+  {
+    "name": "スクリーンショット撮影",
+    "type": "func",
+    "josi": [
+      [
+        "を"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "画面全体または指定タイトルを含むウィンドウを撮影して画像ハンドルを返す",
+    "template": "【S】をスクリーンショット撮影",
+    "yomi": "すくりーんしょっとさつえい",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 114,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L114",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%E6%92%AE%E5%BD%B1"
   },
   {
     "name": "セレクトボックスアイテム設定",
@@ -4833,8 +4874,8 @@
     "template": "【S】をブラウザ起動",
     "yomi": "ぶらうざきどう",
     "file": "internal/nodelib/os.go",
-    "line": 202,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L202",
+    "line": 206,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L206",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E8%B5%B7%E5%8B%95"
   },
   {
@@ -9293,8 +9334,8 @@
     "template": "【S】を起動",
     "yomi": "きどう",
     "file": "internal/nodelib/os.go",
-    "line": 188,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L188",
+    "line": 192,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L192",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E8%B5%B7%E5%8B%95"
   },
   {
@@ -9312,8 +9353,8 @@
     "template": "【S】を起動待機",
     "yomi": "きどうたいき",
     "file": "internal/nodelib/os.go",
-    "line": 186,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L186",
+    "line": 190,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L190",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E8%B5%B7%E5%8B%95%E5%BE%85%E6%A9%9F"
   },
   {
@@ -9335,8 +9376,8 @@
     "template": "【A】で【B】を起動時",
     "yomi": "きどうしたとき",
     "file": "internal/nodelib/os.go",
-    "line": 190,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L190",
+    "line": 194,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/os.go#L194",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E8%B5%B7%E5%8B%95%E6%99%82"
   },
   {
