@@ -111,6 +111,9 @@ func (p *Plugin) commands() map[string]command {
 		"画像閉": { // @現在の画像のハンドルを閉じる // @がぞうとじる
 			returnNone: true, fn: p.close,
 		},
+		"スクリーンショット撮影": { // @画面全体または指定タイトルを含むウィンドウを撮影して画像ハンドルを返す // @すくりーんしょっとさつえい
+			josi: [][]string{{"を"}}, fn: p.screenshot,
+		},
 	}
 }
 
