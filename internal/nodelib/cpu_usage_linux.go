@@ -29,13 +29,15 @@ var cpuUsageState struct {
 // 初回呼び出し時は差分が取れないため0を返します（v1マニュアルの
 // 「定期的に呼び出して使う」に合わせます）。
 func getCPUUsagePercent() (float64, error) {
+	// サンプル取得から前回値の更新まですべてロックで囲み、
+	// 複数の呼び出しが重なっても順序が崩れないようにします。
+	cpuUsageState.Lock()
+	defer cpuUsageState.Unlock()
+
 	sample, err := fetchCPUSample()
 	if err != nil {
 		return 0, err
 	}
-
-	cpuUsageState.Lock()
-	defer cpuUsageState.Unlock()
 
 	if !cpuUsageState.hasLast {
 		cpuUsageState.last = sample
@@ -88,6 +90,7 @@ func fetchCPUSample() (cpuSample, error) {
 		idle := vals[3]
 		if len(vals) > 4 {
 			total += vals[4] // iowait
+			idle += vals[4]  // iowaitもCPU待機時間として扱う
 		}
 		if len(vals) > 5 {
 			total += vals[5] // irq
