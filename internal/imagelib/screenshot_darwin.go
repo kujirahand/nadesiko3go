@@ -24,8 +24,10 @@ func captureScreen(target string) (*image.RGBA, error) {
 	defer os.Remove(name)
 
 	args := []string{"-x"}
-	if rect, ok := findWindowRectDarwin(target); ok {
-		args = append(args, "-R", fmt.Sprintf("%d,%d,%d,%d", rect[0], rect[1], rect[2], rect[3]))
+	if id, ok := findWindowIDDarwin(target); ok {
+		// -l はウィンドウID自身の内容を撮影するため、-R（矩形指定）と違って
+		// 対象ウィンドウの手前に別のウィンドウが重なっていても写り込まない。
+		args = append(args, "-l", strconv.Itoa(id))
 	}
 	args = append(args, name)
 	out, err := exec.Command("/usr/sbin/screencapture", args...).CombinedOutput()
@@ -35,13 +37,15 @@ func captureScreen(target string) (*image.RGBA, error) {
 	return decodePNGFile(name)
 }
 
-// findWindowRectDarwin は、タイトルにtargetを含む最初のウィンドウの位置と
-// サイズを[x, y, w, h]で返す。targetが空または「全体」のとき、および該当する
-// ウィンドウが見つからないときはokがfalseになり、呼び出し側は画面全体を撮る。
-func findWindowRectDarwin(target string) ([4]int, bool) {
+// findWindowIDDarwin は、タイトルにtargetを含む最初のウィンドウのCGWindowIDを
+// 返す。System Eventsのアクセシビリティ属性 AXWindowNumber はCGWindowIDと
+// 同じ値を返すため、これをscreencapture -lへそのまま渡せる。
+// targetが空または「全体」のとき、および該当するウィンドウが見つからない
+// ときはokがfalseになり、呼び出し側は画面全体を撮る。
+func findWindowIDDarwin(target string) (int, bool) {
 	target = strings.TrimSpace(target)
 	if target == "" || target == "全体" {
-		return [4]int{}, false
+		return 0, false
 	}
 	script := fmt.Sprintf(`
 tell application "System Events"
@@ -49,9 +53,7 @@ tell application "System Events"
 		try
 			repeat with w in windows of proc
 				if (name of w as string) contains %s then
-					set p to position of w
-					set s to size of w
-					return ((item 1 of p) as string) & "," & ((item 2 of p) as string) & "," & ((item 1 of s) as string) & "," & ((item 2 of s) as string)
+					return value of attribute "AXWindowNumber" of w
 				end if
 			end repeat
 		end try
@@ -61,21 +63,13 @@ return ""
 `, appleScriptQuote(target))
 	out, err := exec.Command("osascript", "-e", script).Output()
 	if err != nil {
-		return [4]int{}, false
+		return 0, false
 	}
-	fields := strings.Split(strings.TrimSpace(string(out)), ",")
-	if len(fields) != 4 {
-		return [4]int{}, false
+	id, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, false
 	}
-	var rect [4]int
-	for i, f := range fields {
-		n, err := strconv.Atoi(strings.TrimSpace(f))
-		if err != nil {
-			return [4]int{}, false
-		}
-		rect[i] = n
-	}
-	return rect, true
+	return id, true
 }
 
 // appleScriptQuote はAppleScriptの文字列リテラルとして安全な形へエスケープする。
