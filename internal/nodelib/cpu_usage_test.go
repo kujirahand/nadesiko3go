@@ -16,7 +16,12 @@ func TestCPUUsage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CPU使用率取得でエラー: %v", err)
 	}
-	if usage < 0 || usage > 100 {
-		t.Fatalf("CPU使用率取得は 0〜100 の範囲であるべきですが %v を返しました", usage)
+	if len(usage) == 0 {
+		t.Fatal("CPU使用率取得は少なくとも1要素を返すべきです")
+	}
+	for i, v := range usage {
+		if v < 0 || v > 100 {
+			t.Fatalf("CPU使用率取得[%d]は 0〜100 の範囲であるべきですが %v を返しました", i, v)
+		}
 	}
 }

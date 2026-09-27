@@ -8,80 +8,85 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
-// cpuSample はCPU使用率を計算するための1回分のサンプルです。
+// linuxCPUSample は1個のCPU（コア）の使用率を計算するための1回分のサンプルです。
 // /proc/stat の値はシステム起動時からの累積jiffiesなので、差分方式に適しています。
-type cpuSample struct {
+type linuxCPUSample struct {
 	total float64
 	idle  float64
 }
 
-var cpuUsageState struct {
+var linuxCPUUsageState struct {
 	sync.Mutex
-	last    cpuSample
-	hasLast bool
-	lastAt  time.Time
+	// last は前回取得したCPU（コア）ごとのサンプルです。
+	last []linuxCPUSample
 }
 
-// getCPUUsagePercent は前回呼び出しからのCPU使用率（0〜100）を返します。
-// 初回呼び出し時は差分が取れないため0を返します（v1マニュアルの
-// 「定期的に呼び出して使う」に合わせます）。
-func getCPUUsagePercent() (float64, error) {
+// getCPUUsagePercent はCPU（コア）ごとの使用率（0〜100）を配列で返します。
+// 要素は /proc/stat の cpu0, cpu1 ... の並び順に対応します。
+// 初回呼び出し時は差分が取れないため、すべて0の配列を返します
+// （v1マニュアルの「定期的に呼び出して使う」に合わせます）。
+func getCPUUsagePercent() ([]float64, error) {
 	// サンプル取得から前回値の更新まですべてロックで囲み、
 	// 複数の呼び出しが重なっても順序が崩れないようにします。
-	cpuUsageState.Lock()
-	defer cpuUsageState.Unlock()
+	linuxCPUUsageState.Lock()
+	defer linuxCPUUsageState.Unlock()
 
-	sample, err := fetchCPUSample()
+	samples, err := fetchCPUSamples()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	if !cpuUsageState.hasLast {
-		cpuUsageState.last = sample
-		cpuUsageState.hasLast = true
-		cpuUsageState.lastAt = time.Now()
-		return 0, nil
+	prev := linuxCPUUsageState.last
+	if len(prev) != len(samples) {
+		// CPU数が変わったら差分は取り直す。
+		prev = nil
 	}
 
-	dTotal := sample.total - cpuUsageState.last.total
-	dIdle := sample.idle - cpuUsageState.last.idle
-	cpuUsageState.last = sample
-	cpuUsageState.lastAt = time.Now()
-
-	if dTotal <= 0 {
-		return 0, nil
+	usage := make([]float64, len(samples))
+	for i, s := range samples {
+		if prev == nil {
+			continue // 初回は差分が取れない
+		}
+		dTotal := s.total - prev[i].total
+		dIdle := s.idle - prev[i].idle
+		if dTotal <= 0 {
+			continue
+		}
+		u := (dTotal - dIdle) / dTotal * 100
+		if u < 0 {
+			u = 0
+		} else if u > 100 {
+			u = 100
+		}
+		usage[i] = u
 	}
-	usage := (dTotal - dIdle) / dTotal * 100
-	if usage < 0 {
-		usage = 0
-	} else if usage > 100 {
-		usage = 100
-	}
+	linuxCPUUsageState.last = samples
 	return usage, nil
 }
 
-// fetchCPUSample は /proc/stat の先頭行（cpu）から total/idle を読み取ります。
-func fetchCPUSample() (cpuSample, error) {
+// fetchCPUSamples は /proc/stat の各CPU行（cpu0, cpu1 ...）から
+// total/idle を読み取ります。全体の集計行（「cpu 」で始まる行）は除きます。
+func fetchCPUSamples() ([]linuxCPUSample, error) {
 	data, err := os.ReadFile("/proc/stat")
 	if err != nil {
-		return cpuSample{}, err
+		return nil, err
 	}
+	var samples []linuxCPUSample
 	for _, line := range strings.Split(string(data), "\n") {
-		if !strings.HasPrefix(line, "cpu ") {
+		if !strings.HasPrefix(line, "cpu") || strings.HasPrefix(line, "cpu ") {
 			continue
 		}
 		fields := strings.Fields(line)[1:]
 		if len(fields) < 4 {
-			return cpuSample{}, fmt.Errorf("CPU使用率取得: /proc/stat の形式が想定外です")
+			return nil, fmt.Errorf("CPU使用率取得: /proc/stat の形式が想定外です")
 		}
 		vals := make([]float64, len(fields))
 		for i, f := range fields {
 			v, err := strconv.ParseFloat(f, 64)
 			if err != nil {
-				return cpuSample{}, fmt.Errorf("CPU使用率取得: /proc/stat の値が数値ではありません: %w", err)
+				return nil, fmt.Errorf("CPU使用率取得: /proc/stat の値が数値ではありません: %w", err)
 			}
 			vals[i] = v
 		}
@@ -101,7 +106,10 @@ func fetchCPUSample() (cpuSample, error) {
 		if len(vals) > 7 {
 			total += vals[7] // steal
 		}
-		return cpuSample{total: total, idle: idle}, nil
+		samples = append(samples, linuxCPUSample{total: total, idle: idle})
 	}
-	return cpuSample{}, fmt.Errorf("CPU使用率取得: /proc/stat に cpu 行が見つかりません")
+	if len(samples) == 0 {
+		return nil, fmt.Errorf("CPU使用率取得: /proc/stat に cpu 行が見つかりません")
+	}
+	return samples, nil
 }

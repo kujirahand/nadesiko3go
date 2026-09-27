@@ -177,7 +177,11 @@ func osCommands(m map[string]command) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return value.Number(usage), nil
+		items := make([]value.Value, len(usage))
+		for i, u := range usage {
+			items[i] = value.Number(u)
+		}
+		return value.ArrayValue(value.NewArray(items...)), nil
 	}}
 
 	// --- 外部コマンド ---
