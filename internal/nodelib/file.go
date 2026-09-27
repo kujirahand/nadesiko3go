@@ -533,8 +533,8 @@ func listAllFiles(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	return value.ArrayValue(value.NewArray(items...)), nil
 }
 
-// createShortcut creates a Windows shortcut (.lnk) on Windows, a Finder alias
-// on macOS, or a symbolic link on other platforms.
+// createShortcut は、Windowsでは.lnkショートカット、macOSではFinderエイリアス、
+// それ以外ではシンボリックリンクを作成する。
 func createShortcut(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	from := str(a, 0)
 	to := str(a, 1)
@@ -548,9 +548,8 @@ func createShortcut(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	}
 }
 
-// createSymbolicLink creates a symbolic link. On Windows, if the process does
-// not have the symlink privilege, it falls back to a .lnk shortcut so that the
-// command still works for users.
+// createSymbolicLink はシンボリックリンクを作成する。Windowsでシンボリックリンクの
+// 権限が無い場合は、命令が使えるように.lnkショートカットへフォールバックする。
 func createSymbolicLink(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	from := str(a, 0)
 	to := str(a, 1)
@@ -560,7 +559,7 @@ func createSymbolicLink(_ stdlib.Context, a []value.Value) (value.Value, error) 
 	return value.Undefined(), createSymlink(from, to)
 }
 
-// createSymlink creates a symbolic link at 'to' pointing to 'from'.
+// createSymlink は、fromを指すシンボリックリンクをtoに作成する。
 // 相対パスで保存先フォルダが異なっても壊れないよう、元ファイルは絶対パスに変換する。
 func createSymlink(from, to string) error {
 	absFrom, err := filepath.Abs(from)
@@ -582,7 +581,7 @@ func createSymlink(from, to string) error {
 	return nil
 }
 
-// createMacOSAlias creates a Finder alias using AppleScript.
+// createMacOSAlias は、AppleScript経由でFinderエイリアスを作成する。
 func createMacOSAlias(from, to string) error {
 	absFrom, err := filepath.Abs(from)
 	if err != nil {
@@ -603,12 +602,11 @@ func createMacOSAlias(from, to string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("エイリアスの作成先フォルダ『%s』を作成できません: %w", destDir, err)
 	}
-	// Finder の「make new alias file」は同名の既存ファイルがあると失敗するので、
-	// 元ファイルの存在を確認してから削除する。
-	if _, err := os.Stat(absTo); err == nil {
-		if err := os.Remove(absTo); err != nil {
-			return fmt.Errorf("エイリアスの作成先『%s』にある既存ファイルを削除できません: %w", absTo, err)
-		}
+	// 既存のファイルを誤って消さないよう、存在する場合はエラーにする。
+	if _, err := os.Lstat(absTo); err == nil {
+		return fmt.Errorf("エイリアスの作成先『%s』に既にファイルまたはフォルダが存在します。", absTo)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("エイリアスの作成先『%s』を確認できません: %w", absTo, err)
 	}
 	script := fmt.Sprintf(`tell application "Finder"
 	set src to POSIX file %s
@@ -624,7 +622,7 @@ end tell`, appleScriptString(absFrom), appleScriptString(destDir), appleScriptSt
 	return nil
 }
 
-// appleScriptString returns s quoted for use as an AppleScript string literal.
+// appleScriptString は、sをAppleScriptの文字列リテラルとして引用符で囲んで返す。
 func appleScriptString(s string) string {
 	var b strings.Builder
 	b.WriteByte('"')
@@ -638,11 +636,14 @@ func appleScriptString(s string) string {
 	return b.String()
 }
 
-// createWindowsShortcut creates a .lnk shortcut using Windows Script Host
-// through PowerShell.
+// createWindowsShortcut は、PowerShell経由でWindows Script Hostを使い.lnkを作成する。
 func createWindowsShortcut(from, to string) error {
 	if err := os.MkdirAll(filepath.Dir(to), 0o755); err != nil {
 		return fmt.Errorf("ショートカットファイルの作成先フォルダ『%s』を作成できません: %w", filepath.Dir(to), err)
+	}
+	// 既存のファイルを誤って上書きしないよう、存在する場合はエラーにする。
+	if _, err := os.Lstat(to); err == nil {
+		return fmt.Errorf("ショートカットファイルの作成先『%s』に既にファイルまたはフォルダが存在します。", to)
 	}
 	// ターゲットは絶対パスにして、ショートカットが動くようにする。
 	absFrom, err := filepath.Abs(from)
@@ -664,14 +665,13 @@ func createWindowsShortcut(from, to string) error {
 	return nil
 }
 
-// escapePSSingleQuotes escapes single quotes for PowerShell single-quoted strings.
+// escapePSSingleQuotes は、PowerShellの単一引用符文字列用に単一引用符をエスケープする。
 func escapePSSingleQuotes(s string) string {
 	return strings.ReplaceAll(s, "'", "''")
 }
 
-// createWindowsSymlinkOrShortcut tries to create a real symbolic link on
-// Windows. If the process lacks the required privilege, it falls back to a
-// .lnk shortcut so the command succeeds for ordinary users too.
+// createWindowsSymlinkOrShortcut は、Windowsで本物のシンボリックリンクを作成する。
+// 権限が無い場合は、一般ユーザーでも使えるよう「to.lnk」のショートカットにフォールバックする。
 func createWindowsSymlinkOrShortcut(from, to string) error {
 	absFrom, err := filepath.Abs(from)
 	if err != nil {
@@ -682,6 +682,9 @@ func createWindowsSymlinkOrShortcut(from, to string) error {
 	}
 	if err := os.Symlink(absFrom, to); err != nil {
 		if isWindowsSymlinkPrivilegeError(err) {
+			if !strings.EqualFold(filepath.Ext(to), ".lnk") {
+				to += ".lnk"
+			}
 			return createWindowsShortcut(from, to)
 		}
 		if errors.Is(err, os.ErrExist) {
@@ -692,8 +695,8 @@ func createWindowsSymlinkOrShortcut(from, to string) error {
 	return nil
 }
 
-// isWindowsSymlinkPrivilegeError reports whether err is the Windows "A required
-// privilege is not held by the client" error.
+// isWindowsSymlinkPrivilegeError は、errがWindowsの「クライアントは必要な特権を保有
+// していません」エラーかどうかを返す。
 func isWindowsSymlinkPrivilegeError(err error) bool {
 	if err == nil {
 		return false

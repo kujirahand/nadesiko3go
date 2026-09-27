@@ -143,12 +143,13 @@ func TestSymbolicLinkCreation(t *testing.T) {
 	}
 
 	linkPath := filepath.Join(dir, "link.txt")
-	if _, err := os.Lstat(linkPath); err == nil {
-		if runtime.GOOS != "windows" {
-			content, err := os.ReadFile(linkPath)
-			if err != nil || string(content) != "元の内容" {
-				t.Fatalf("シンボリックリンク経由で読めません: err=%v content=%q", err, string(content))
-			}
+	if fi, err := os.Lstat(linkPath); err == nil {
+		if fi.Mode()&os.ModeSymlink == 0 {
+			t.Fatalf("link.txt がシンボリックリンクではありません: mode=%v", fi.Mode())
+		}
+		content, err := os.ReadFile(linkPath)
+		if err != nil || string(content) != "元の内容" {
+			t.Fatalf("シンボリックリンク経由で読めません: err=%v content=%q", err, string(content))
 		}
 		return
 	}
