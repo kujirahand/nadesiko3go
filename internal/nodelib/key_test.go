@@ -88,6 +88,8 @@ func TestParseKeyStrokesError(t *testing.T) {
 		{name: "繰り返し回数が0", src: "{ENTER 0}"},
 		{name: "繰り返し回数が大きすぎる", src: "{ENTER 9999}"},
 		{name: "ストローク数が多すぎる", src: strings.Repeat("{F1}", maxKeyStrokes+1)},
+		// ストローク数と繰り返し回数はそれぞれ上限内でも、積の総量が多すぎる場合
+		{name: "キー入力の総数が多すぎる", src: strings.Repeat("{F1 100}", maxKeyTaps/100+1)},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -150,6 +152,43 @@ func containsParticle(josi []string, p string) bool {
 		}
 	}
 	return false
+}
+
+// TestKeyTapsLimit は上限ぎりぎりの記法が通ることを確認する。
+func TestKeyTapsLimit(t *testing.T) {
+	src := strings.Repeat("{F1 100}", maxKeyTaps/100)
+	strokes, err := parseKeyStrokes(src)
+	if err != nil {
+		t.Fatalf("上限内の記法が通りません: %v", err)
+	}
+	if got := countKeyTaps(strokes); got != maxKeyTaps {
+		t.Errorf("総数 = %d, 期待 = %d", got, maxKeyTaps)
+	}
+}
+
+// TestCountKeyTaps はキー入力の総数の数え上げを確認する。
+func TestCountKeyTaps(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want int
+	}{
+		{name: "素の文字列は文字数", src: "あいう", want: 3},
+		{name: "繰り返しを掛ける", src: "{ENTER 3}", want: 3},
+		{name: "文字と繰り返しの合計", src: "ab{F1 2}c", want: 5},
+		{name: "同時押しも1ストローク1回", src: "^v", want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			strokes, err := parseKeyStrokes(tt.src)
+			if err != nil {
+				t.Fatalf("記法の解析に失敗: %v", err)
+			}
+			if got := countKeyTaps(strokes); got != tt.want {
+				t.Errorf("総数 = %d, 期待 = %d", got, tt.want)
+			}
+		})
+	}
 }
 
 // TestFunctionKeyNumber はファンクションキー名の番号の取り出しを確認する。

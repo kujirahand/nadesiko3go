@@ -185,7 +185,14 @@ func sendKeyStrokes(strokes []keyStroke) error {
 	}
 	f := &darwinKeys.funcs
 	if f.cgPreflightPostEventAccess != nil && !f.cgPreflightPostEventAccess() {
-		return errors.New(macOSAccessibilityGuide)
+		// 初回実行などAccessibility権限が未許可のときが、実際にいちばん多い
+		// 失敗経路。System Eventsは別の権限(Automation)で動くことがあるため、
+		// CGEventを諦めて先にこちらを試す。
+		asErr := sendKeysViaAppleScript(strokes)
+		if asErr == nil {
+			return nil
+		}
+		return fmt.Errorf("%s（AppleScriptでも失敗しました: %v）", macOSAccessibilityGuide, asErr)
 	}
 	for _, st := range strokes {
 		for i := 0; i < st.repeat; i++ {
@@ -332,22 +339,12 @@ func pressModifierKeys(codes []uint16, down bool) {
 // --- osascript（System Events）によるフォールバック ---
 
 // sendKeysViaAppleScript は System Events の keystroke / key code でキーを送る。
-// CGEventが使えない環境向けの経路。低速だが外部依存なしで動く。
+// CGEventが使えない環境や権限が無い環境向けの経路。低速だが外部依存なしで動く。
 func sendKeysViaAppleScript(strokes []keyStroke) error {
-	var lines []string
-	for _, st := range strokes {
-		for i := 0; i < st.repeat; i++ {
-			line, err := appleScriptLine(st)
-			if err != nil {
-				return err
-			}
-			lines = append(lines, "  "+line)
-		}
+	script, err := appleScript(strokes)
+	if err != nil {
+		return err
 	}
-	if len(lines) == 0 {
-		return errors.New("送信するキーがありません")
-	}
-	script := "tell application \"System Events\"\n" + strings.Join(lines, "\n") + "\nend tell"
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "osascript", "-e", script).CombinedOutput()
@@ -355,6 +352,25 @@ func sendKeysViaAppleScript(strokes []keyStroke) error {
 		return fmt.Errorf("osascriptによるキー送信に失敗しました: %w: %s", err, strings.TrimSpace(string(out)))
 	}
 	return nil
+}
+
+// appleScript はストローク列から AppleScript のスクリプトを組み立てる。
+// 実行は sendKeysViaAppleScript が行う（テストでは生成結果だけを確認する）。
+func appleScript(strokes []keyStroke) (string, error) {
+	var lines []string
+	for _, st := range strokes {
+		for i := 0; i < st.repeat; i++ {
+			line, err := appleScriptLine(st)
+			if err != nil {
+				return "", err
+			}
+			lines = append(lines, "  "+line)
+		}
+	}
+	if len(lines) == 0 {
+		return "", errors.New("送信するキーがありません")
+	}
+	return "tell application \"System Events\"\n" + strings.Join(lines, "\n") + "\nend tell", nil
 }
 
 func appleScriptLine(st keyStroke) (string, error) {

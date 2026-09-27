@@ -44,10 +44,15 @@ func keyCommands(m map[string]command) {
 
 // 以下の上限は、タイポなどで巨大な繰り返しを指定したときに
 // OSへ膨大なイベントを流さないための安全弁。
+//
+// maxKeyStrokes と maxKeyRepeat は別々の軸の上限なので、この2つだけでは
+// 「{F1 100}」を1000個並べたときのように片方の上限をすり抜ける。積の総量を
+// maxKeyTaps で抑えることで、実際に送信されるイベント数を制限する。
 const (
 	maxKeyStrokes  = 1000 // 1回の命令で送るストローク数の上限
 	maxKeyRepeat   = 100  // {ENTER 3} の繰り返し回数の上限
 	maxKeyTextRune = 1024 // 1ストロークで入力する文字数の上限
+	maxKeyTaps     = 5000 // 1回の命令で送信するキー入力の総数（ストローク数×繰り返し数）の上限
 )
 
 // keyMods は同時押しする修飾キーを表すビットフラグ。
@@ -184,7 +189,27 @@ func parseKeyStrokes(src string) ([]keyStroke, error) {
 			continue
 		}
 	}
+	if total := countKeyTaps(out); total > maxKeyTaps {
+		return nil, fmt.Errorf("送信するキーの総数が多すぎます（上限%d）", maxKeyTaps)
+	}
 	return out, nil
+}
+
+// countKeyTaps はストローク列が実際に送信するキー入力の総数を数える。
+// 繰り返し回数を掛け、文字列ストロークは文字数ぶんとして数える。
+func countKeyTaps(strokes []keyStroke) int {
+	total := 0
+	for _, st := range strokes {
+		if st.repeat < 1 {
+			continue
+		}
+		units := 1
+		if st.name == "" {
+			units = utf8.RuneCountInString(st.text)
+		}
+		total += units * st.repeat
+	}
+	return total
 }
 
 // appendStroke は隣り合う素の文字入力をまとめ、ストローク列へ追加する。
