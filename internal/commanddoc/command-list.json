@@ -3681,18 +3681,18 @@
     "type": "func",
     "josi": [
       [
-        "に",
-        "へ"
-      ],
-      [
         "を",
         "の"
+      ],
+      [
+        "に",
+        "へ"
       ]
     ],
     "plugin": "plugin_node",
     "category": "キー操作",
     "desc": "アクティブなウィンドウへキー操作を送信する",
-    "template": "【A】に【B】をキー送信",
+    "template": "『S』をキー送信",
     "yomi": "きーそうしん",
     "file": "internal/nodelib/key.go",
     "line": 18,
@@ -3957,24 +3957,6 @@
     "line": 69,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L69",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%B7%E3%83%B3%E3%83%9C%E3%83%AA%E3%83%83%E3%82%AF%E3%83%AA%E3%83%B3%E3%82%AF%E4%BD%9C%E6%88%90"
-  },
-  {
-    "name": "スクリーンショット撮影",
-    "type": "func",
-    "josi": [
-      [
-        "を"
-      ]
-    ],
-    "plugin": "gonako",
-    "category": "画像",
-    "desc": "画面全体または指定タイトルを含むウィンドウを撮影して画像ハンドルを返す",
-    "template": "【S】をスクリーンショット撮影",
-    "yomi": "すくりーんしょっとさつえい",
-    "file": "internal/imagelib/imagelib.go",
-    "line": 114,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L114",
-    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%E6%92%AE%E5%BD%B1"
   },
   {
     "name": "セレクトボックスアイテム設定",

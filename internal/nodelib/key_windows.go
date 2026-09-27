@@ -5,6 +5,7 @@ package nodelib
 import (
 	"encoding/binary"
 	"fmt"
+	"unicode"
 	"unicode/utf16"
 	"unsafe"
 
@@ -12,15 +13,21 @@ import (
 )
 
 // Windows版の実装は user32!SendInput を直接呼ぶ（CGOを使わない）。
-// 文字の入力は KEYEVENTF_UNICODE を使うため、日本語などの非ASCII文字も
-// キーコード変換なしで送れる。
+// 修飾キーなしの文字は KEYEVENTF_UNICODE で送るため、日本語などの
+// 非ASCII文字もキーコード変換なしで入力できる。
+// ただし同時押しのときはVK_PACKET（Unicode入力）ではショートカットとして
+// 届かないので、仮想キーコードへ変換して送る。
 const (
 	inputTypeKeyboard = 1
 	keyEventFKeyUp    = 0x0002
 	keyEventFUnicode  = 0x0004
 )
 
-var procSendInput = windows.NewLazySystemDLL("user32.dll").NewProc("SendInput")
+var (
+	procSendInput = windows.NewLazySystemDLL("user32.dll").NewProc("SendInput")
+	// procVkKeyScan は文字から現在のキーボード配列の仮想キーコードを引くAPI。
+	procVkKeyScan = windows.NewLazySystemDLL("user32.dll").NewProc("VkKeyScanW")
+)
 
 // virtual key codes (Winuser.h)
 const (
@@ -135,12 +142,88 @@ func sendWindowsStroke(st keyStroke) error {
 		events := vkDownEvents(modKeys)
 		if code, ok := windowsStrokeCode(st); ok {
 			events = append(events, vkEvent(code, false), vkEvent(code, true))
+		} else if st.mods != 0 {
+			// 同時押しの文字は仮想キーで送る。UnicodeのままではVK_PACKETになり、
+			// Ctrl+Vのようなショートカットとして対象アプリに届かないため。
+			combos, err := windowsCharCombos(st.text, st.mods)
+			if err != nil {
+				return err
+			}
+			events = append(events, combos...)
 		} else {
 			events = append(events, unicodeEvents(st.text)...)
 		}
 		events = append(events, vkUpEvents(modKeys)...)
 		return sendInputKeys(events)
 	}
+}
+
+// windowsCharCombos は同時押しする文字を仮想キーの押下・解放イベント列へ変換する。
+func windowsCharCombos(text string, mods keyMods) ([]input, error) {
+	var events []input
+	for _, r := range text {
+		code, extra, ok := windowsCharToVK(r)
+		if !ok {
+			return nil, fmt.Errorf("修飾キーとの同時押しでは送信できない文字です: 『%c』", r)
+		}
+		keys := windowsModifierKeys(mods | extra)
+		events = append(events, keysDown(keys, code)...)
+		events = append(events, keysUp(keys, code)...)
+	}
+	return events, nil
+}
+
+// windowsCharToVK は文字を現在のキーボード配列の仮想キーコードへ変換する。
+// 戻り値の追加修飾子は、その文字を打つのに必要なShiftなどの同時押し。
+// VkKeyScanW が使えないときはUS配列の表にフォールバックする。
+func windowsCharToVK(r rune) (uint16, keyMods, bool) {
+	if units := utf16.Encode([]rune{r}); len(units) > 0 {
+		ret, _, _ := procVkKeyScan.Call(uintptr(units[0]))
+		if scan := int16(ret); scan != -1 {
+			vk := uint16(uint8(scan & 0xFF))
+			if vk != 0 {
+				var extra keyMods
+				if state := uint8(scan >> 8); state != 0 {
+					if state&1 != 0 {
+						extra |= modShift
+					}
+					if state&2 != 0 {
+						extra |= modCtrl
+					}
+					if state&4 != 0 {
+						extra |= modAlt
+					}
+				}
+				return vk, extra, true
+			}
+		}
+	}
+	if code, ok := windowsUSCharCodes[unicode.ToLower(r)]; ok {
+		return code, modShiftIfUpper(r), true
+	}
+	return 0, 0, false
+}
+
+// modShiftIfUpper は大文字を打つために必要なShiftの同時押しを返す。
+func modShiftIfUpper(r rune) keyMods {
+	if unicode.IsUpper(r) {
+		return modShift
+	}
+	return 0
+}
+
+// windowsUSCharCodes はUS配列の英数字・記号の仮想キーコード表。
+// VkKeyScanW が使えない環境のためのフォールバック。英数字は '0'〜'Z' が連番。
+var windowsUSCharCodes = map[rune]uint16{
+	'0': 0x30, '1': 0x31, '2': 0x32, '3': 0x33, '4': 0x34,
+	'5': 0x35, '6': 0x36, '7': 0x37, '8': 0x38, '9': 0x39,
+	'a': 0x41, 'b': 0x42, 'c': 0x43, 'd': 0x44, 'e': 0x45, 'f': 0x46,
+	'g': 0x47, 'h': 0x48, 'i': 0x49, 'j': 0x4A, 'k': 0x4B, 'l': 0x4C,
+	'm': 0x4D, 'n': 0x4E, 'o': 0x4F, 'p': 0x50, 'q': 0x51, 'r': 0x52,
+	's': 0x53, 't': 0x54, 'u': 0x55, 'v': 0x56, 'w': 0x57, 'x': 0x58,
+	'y': 0x59, 'z': 0x5A,
+	';': 0xBA, '=': 0xBB, ',': 0xBC, '-': 0xBD, '.': 0xBE, '/': 0xBF,
+	'`': 0xC0, '[': 0xDB, '\\': 0xDC, ']': 0xDD, '\'': 0xDE,
 }
 
 // windowsStrokeCode はストロークを仮想キーコードへ変換する。
@@ -287,8 +370,46 @@ func sendInputKeys(events []input) error {
 		uintptr(len(events)),
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(inputSize))
-	if ret == 0 {
-		return fmt.Errorf("キーの送信に失敗しました: %w", err)
+	// SendInput の戻り値は挿入できたイベント数。押下だけが届いて解放が欠けると
+	// 修飾キーが押しっぱなしになるため、部分送信はエラーとして扱う。
+	if ret != uintptr(len(events)) {
+		releaseStuckKeys(events)
+		if ret == 0 {
+			return fmt.Errorf("キーの送信に失敗しました: %w", err)
+		}
+		return fmt.Errorf("キーの送信に失敗しました（%d/%d件）: %w", ret, len(events), err)
 	}
 	return nil
+}
+
+// releaseStuckKeys は押したまま取り残された修飾キーを解放する（ベストエフォート）。
+func releaseStuckKeys(events []input) {
+	var ups []input
+	for _, e := range events {
+		if e.flags&keyEventFKeyUp != 0 || !isWindowsModifierVK(e.vk) {
+			continue
+		}
+		ups = append(ups, vkEvent(e.vk, true))
+	}
+	if len(ups) == 0 {
+		return
+	}
+	// 片付けに失敗しても呼び出し元へはエラーを返すので、結果は見ない。
+	buf := make([]byte, 0, len(ups)*inputSize)
+	for _, e := range ups {
+		buf = append(buf, e.bytes()...)
+	}
+	_, _, _ = procSendInput.Call(
+		uintptr(len(ups)),
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(inputSize))
+}
+
+// isWindowsModifierVK は修飾キーの仮想キーコードかを返す。
+func isWindowsModifierVK(vk uint16) bool {
+	switch vk {
+	case vkShift, vkControl, vkMenu, vkLWin, vkRWin, vkLShift, vkRShift, vkLControl, vkRControl, vkLMenu, vkRMenu:
+		return true
+	}
+	return false
 }

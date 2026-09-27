@@ -111,6 +111,45 @@ func TestKeyCommandsRegistered(t *testing.T) {
 	if c.fn == nil {
 		t.Fatal("実装が登録されていません")
 	}
+	// 第1引数は送信内容（必須）、第2引数がウィンドウタイトル。
+	// 省略された引数は空文字列になるため、空の送信内容と区別できるよう
+	// 必須の送信内容を先に置いている。
+	if !containsParticle(c.josi[0], "を") || !containsParticle(c.josi[1], "に") {
+		t.Fatalf("助詞の順序が想定と違います: %v", c.josi)
+	}
+}
+
+// TestUpdateHeldModifiersSentinel は修飾キーの押しっぱなしの追跡を確認する。
+// {CTRL DOWN} と {CTRL UP} の間の操作にCtrlを適用できるようにするための処理。
+func TestUpdateHeldModifiersSentinel(t *testing.T) {
+	if bit, ok := modifierBitForKey(keyNameCtrl); !ok || bit != modCtrl {
+		t.Errorf("CTRLのビット = %d, %v", bit, ok)
+	}
+	if _, ok := modifierBitForKey("ENTER"); ok {
+		t.Error("ENTERは修飾キーではありません")
+	}
+	held := updateHeldModifiers(0, keyStroke{name: keyNameCtrl, repeat: 1, mode: keyHoldMode})
+	if held != modCtrl {
+		t.Fatalf("押しっぱなしの追跡に失敗: %d", held)
+	}
+	held = updateHeldModifiers(held, keyStroke{text: "c", repeat: 1})
+	if held != modCtrl {
+		t.Fatalf("文字の送信で解除されてはいけません: %d", held)
+	}
+	held = updateHeldModifiers(held, keyStroke{name: keyNameCtrl, repeat: 1, mode: keyUpMode})
+	if held != 0 {
+		t.Fatalf("解放できていません: %d", held)
+	}
+}
+
+// containsParticle は助詞の一覧に p が含まれるかを返す。
+func containsParticle(josi []string, p string) bool {
+	for _, j := range josi {
+		if j == p {
+			return true
+		}
+	}
+	return false
 }
 
 // TestFunctionKeyNumber はファンクションキー名の番号の取り出しを確認する。

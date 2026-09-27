@@ -67,37 +67,40 @@ func x11ModifierNames(mods keyMods) []string {
 }
 
 // sendKeyStrokes は xdotool を呼び出してキー操作を送る。
+// {CTRL DOWN} のように明示的に押しっぱなしにした修飾キーは held で追跡し、
+// 解放されるまでの間のストロークにも適用する。この間の xdotool 呼び出しに
+// --clearmodifiers を付けると保持中の修飾キーが解除されてしまうため外す。
 func sendKeyStrokes(strokes []keyStroke) error {
 	bin, err := exec.LookPath("xdotool")
 	if err != nil {
 		return errors.New(xdotoolGuide)
 	}
+	held := keyMods(0)
 	for _, st := range strokes {
-		args, err := xdotoolArgs(st)
+		commands, err := xdotoolCommands(st, held)
 		if err != nil {
 			return err
 		}
 		for i := 0; i < st.repeat; i++ {
-			out, err := exec.Command(bin, args...).CombinedOutput()
-			if err != nil {
-				return fmt.Errorf("xdotoolに失敗しました: %w: %s", err, strings.TrimSpace(string(out)))
+			for _, args := range commands {
+				out, err := exec.Command(bin, args...).CombinedOutput()
+				if err != nil {
+					return fmt.Errorf("xdotoolに失敗しました: %w: %s", err, strings.TrimSpace(string(out)))
+				}
 			}
 		}
+		held = updateHeldModifiers(held, st)
 	}
 	return nil
 }
 
-// xdotoolArgs はストロークを xdotool の引数へ変換する。
-func xdotoolArgs(st keyStroke) ([]string, error) {
-	mods := x11ModifierNames(st.mods)
-	var command string
-	switch st.mode {
-	case keyHoldMode:
-		command = "keydown"
-	case keyUpMode:
-		command = "keyup"
-	default:
-		command = "key"
+// xdotoolCommands はストロークを xdotool の引数列へ変換する。
+// held は {CTRL DOWN} などで保持中（物理的に押されている）の修飾キー。
+func xdotoolCommands(st keyStroke, held keyMods) ([][]string, error) {
+	// 保持中のキーがあるときは --clearmodifiers を付けない（解除してしまうため）
+	var clear []string
+	if held == 0 {
+		clear = []string{"--clearmodifiers"}
 	}
 	// 名前付きキーはキーシンボル名で指定する
 	if st.name != "" {
@@ -105,26 +108,55 @@ func xdotoolArgs(st keyStroke) ([]string, error) {
 		if !ok {
 			return nil, fmt.Errorf("この環境では送信できないキーです: 『%s』", st.name)
 		}
-		return []string{command, "--clearmodifiers", strings.Join(append(mods, name), "+")}, nil
+		combo := strings.Join(append(x11ModifierNames(st.mods), name), "+")
+		return [][]string{joinArgs([]string{x11KeyCommand(st.mode)}, clear, []string{combo})}, nil
 	}
 	if st.text == "" {
 		return nil, errors.New("送信する文字がありません")
 	}
-	// 修飾キーなしの文字列は type でまとめて入力する（日本語もそのまま送れる）
-	if len(mods) == 0 {
-		if command != "key" {
-			return nil, errors.New("文字の押しっぱなしには対応していません")
-		}
-		return []string{"type", "--clearmodifiers", "--", st.text}, nil
-	}
-	// 修飾キー付きは1文字ずつ key で送る（ショートカットとして扱わせる）
-	if command != "key" {
+	if st.mode != keyTapMode {
 		return nil, errors.New("文字の押しっぱなしには対応していません")
 	}
-	if len([]rune(st.text)) != 1 {
-		return nil, errors.New("修飾キー付きで送れるのは1文字だけです")
+	// 同時押しの文字は1文字ずつキーの組み合わせとして送る。
+	// （type でまとめてUnicode入力する経路ではショートカットとして届かない）
+	if st.mods != 0 || held != 0 {
+		var commands [][]string
+		for _, r := range st.text {
+			// 保持中の修飾キーは物理的に押されているので、ここでは指定しない。
+			// 指定すると xdotool が最後にその修飾キーを解放してしまう。
+			var keys []string
+			if st.mods != 0 {
+				keys = append(x11ModifierNames(st.mods), string(r))
+			} else {
+				keys = []string{string(r)}
+			}
+			commands = append(commands, joinArgs([]string{"key"}, clear, []string{strings.Join(keys, "+")}))
+		}
+		return commands, nil
 	}
-	return []string{"key", "--clearmodifiers", strings.Join(append(mods, string([]rune(st.text)[0])), "+")}, nil
+	// 修飾キーなしの文字列は type でまとめて入力する（日本語もそのまま送れる）
+	return [][]string{joinArgs([]string{"type"}, clear, []string{"--", st.text})}, nil
+}
+
+// x11KeyCommand は押し方に対応する xdotool のサブコマンドを返す。
+func x11KeyCommand(mode keyMode) string {
+	switch mode {
+	case keyHoldMode:
+		return "keydown"
+	case keyUpMode:
+		return "keyup"
+	default:
+		return "key"
+	}
+}
+
+// joinArgs は引数の断片を1つの引数列につなげる（空の断片は無視する）。
+func joinArgs(parts ...[]string) []string {
+	var out []string
+	for _, p := range parts {
+		out = append(out, p...)
+	}
+	return out
 }
 
 // x11KeyName は論理キー名を X のキーシンボル名へ変換する。

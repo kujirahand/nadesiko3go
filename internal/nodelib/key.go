@@ -16,16 +16,17 @@ import (
 // 実体（実際のキーイベントの組み立てと送信）はOS別の key_*.go にある。
 func keyCommands(m map[string]command) {
 	m["キー送信"] = command{ // @アクティブなウィンドウへキー操作を送信する // @きーそうしん
-		josi:       [][]string{{"に", "へ"}, {"を", "の"}},
+		// 助詞は送信内容が第1引数、ウィンドウタイトルが第2引数。
+		// 助詞で対応づくため「A(タイトル)へS(送信内容)を」の語順でも書ける。
+		// 省略された引数は『それ』(空文字列)で埋まるため、「省略」と
+		// 「空文字列の指定」を区別できない。そこで必須の送信内容を先に置き、
+		// タイトルだけ渡されても何も送信しないようにしている。
+		josi:       [][]string{{"を", "の"}, {"に", "へ"}},
 		returnNone: true,
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
-			// v1の構文は「A(タイトル)にS(送信内容)を」。タイトルは省略できる。
-			// タイトルを省略した「Sをキー送信」では、パーサが第1引数を空にするので、
-			// 第2引数が空なら第1引数を送信内容として読む。
-			title, keys := str(a, 0), str(a, 1)
-			if keys == "" {
-				keys = title
-			}
+			keys := str(a, 0)
+			// TODO(#173): str(a, 1) のウィンドウタイトル指定は将来の課題。現状は
+			// アクティブなウィンドウへの送信のみ対応する。
 			if keys == "" {
 				return value.Undefined(), nil
 			}
@@ -361,6 +362,39 @@ var keyNameAliases = map[string]string{
 	"CAPS_LOCK":    keyNameCapsLock,
 	"SCROLLLOCK":   keyNameScrollLock,
 	"SCROLL_LOCK":  keyNameScrollLock,
+}
+
+// modifierBitForKey は修飾キーの論理キー名に対応するビットを返す。
+// {CTRL DOWN} のような明示的な押しっぱなしを追跡するために使う。
+func modifierBitForKey(name string) (keyMods, bool) {
+	switch name {
+	case keyNameCtrl, keyNameRCtrl:
+		return modCtrl, true
+	case keyNameAlt, keyNameRAlt:
+		return modAlt, true
+	case keyNameShift, keyNameRShift:
+		return modShift, true
+	case keyNameWin:
+		return modWin, true
+	}
+	return 0, false
+}
+
+// updateHeldModifiers は明示的な押下・解放に合わせて保持中の修飾キーを更新する。
+// 押しっぱなしにした修飾キーは、解放されるまでの間のストロークにも適用する。
+func updateHeldModifiers(held keyMods, st keyStroke) keyMods {
+	bit, ok := modifierBitForKey(st.name)
+	if !ok {
+		return held
+	}
+	switch st.mode {
+	case keyHoldMode:
+		return held | bit
+	case keyUpMode:
+		return held &^ bit
+	default:
+		return held
+	}
 }
 
 // normalizeKeyName は記法のキー名を論理キー名へ正規化する。
