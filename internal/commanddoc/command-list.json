@@ -3677,6 +3677,29 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9%E4%BD%9C%E6%88%90"
   },
   {
+    "name": "キー送信",
+    "type": "func",
+    "josi": [
+      [
+        "を",
+        "の"
+      ],
+      [
+        "に",
+        "へ"
+      ]
+    ],
+    "plugin": "plugin_node",
+    "category": "キー操作",
+    "desc": "アクティブなウィンドウへキー操作を送信する",
+    "template": "『S』をキー送信",
+    "yomi": "きーそうしん",
+    "file": "internal/nodelib/key.go",
+    "line": 18,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/key.go#L18",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%82%AD%E3%83%BC%E9%80%81%E4%BF%A1"
+  },
+  {
     "name": "クリック時",
     "type": "func",
     "josi": [

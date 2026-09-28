@@ -266,6 +266,7 @@ func commands() map[string]command {
 	netCommands(m)
 	zipCommands(m)
 	encodingCommands(m)
+	keyCommands(m)
 	return m
 }
 

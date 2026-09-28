@@ -77,6 +77,7 @@ var goOnlyGroup = map[string]string{
 	"internal/imagelib/imagelib.go":   "画像",
 	"internal/guilib/guilib.go":       "GUI",
 	"internal/nodelib/clipboard.go":   "クリップボード",
+	"internal/nodelib/key.go":         "キー操作",
 	"internal/nodelib/os.go":          "Nodeプロセス",
 	"internal/nodelib/file.go":        "ファイル入出力",
 	"internal/stdlib/string.go":       "文字列処理",
@@ -255,6 +256,7 @@ var insertionTemplateOverrides = map[string]string{
 	"ファイル選択":   "『S』のファイル選択",
 	"保存ファイル選択": "『S』の保存ファイル選択",
 	"フォルダ選択":   "『S』のフォルダ選択",
+	"キー送信":     "『S』をキー送信",
 }
 
 // --- Go実装側のソース走査 ---
