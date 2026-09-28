@@ -67,31 +67,63 @@ func x11ModifierNames(mods keyMods) []string {
 }
 
 // sendKeyStrokes は xdotool を呼び出してキー操作を送る。
-// {CTRL DOWN} のように明示的に押しっぱなしにした修飾キーは held で追跡し、
-// 解放されるまでの間のストロークにも適用する。この間の xdotool 呼び出しに
-// --clearmodifiers を付けると保持中の修飾キーが解除されてしまうため外す。
 func sendKeyStrokes(strokes []keyStroke) error {
+	if _, err := exec.LookPath("xdotool"); err != nil {
+		return errors.New(xdotoolGuide)
+	}
+	return forEachStroke(strokes, sendKeyStroke)
+}
+
+// sendKeyStroke は xdotool で1ストロークを送信する。
+// held は {CTRL DOWN} などで既に物理的に押されている修飾キー。
+// その間の呼び出しに --clearmodifiers を付けると保持中の修飾キーが解除されて
+// しまうため、呼び出し側で保持状態を追跡して引き渡している。
+func sendKeyStroke(st keyStroke, held keyMods) error {
 	bin, err := exec.LookPath("xdotool")
 	if err != nil {
 		return errors.New(xdotoolGuide)
 	}
-	held := keyMods(0)
-	for _, st := range strokes {
-		commands, err := xdotoolCommands(st, held)
+	commands, err := xdotoolCommands(st, held)
+	if err != nil {
+		return err
+	}
+	for _, args := range commands {
+		out, err := exec.Command(bin, args...).CombinedOutput()
 		if err != nil {
-			return err
+			return fmt.Errorf("xdotoolに失敗しました: %w: %s", err, strings.TrimSpace(string(out)))
 		}
-		for i := 0; i < st.repeat; i++ {
-			for _, args := range commands {
-				out, err := exec.Command(bin, args...).CombinedOutput()
-				if err != nil {
-					return fmt.Errorf("xdotoolに失敗しました: %w: %s", err, strings.TrimSpace(string(out)))
-				}
-			}
-		}
-		held = updateHeldModifiers(held, st)
 	}
 	return nil
+}
+
+// releaseOSHeldModifiers は保持中の修飾キーを解放する（ベストエフォート）。
+func releaseOSHeldModifiers(held keyMods) {
+	bin, err := exec.LookPath("xdotool")
+	if err != nil {
+		return
+	}
+	for _, name := range heldModifierKeyNames(held) {
+		_, _ = exec.Command(bin, "keyup", name).CombinedOutput()
+	}
+}
+
+// heldModifierKeyNames は保持中の修飾キーを解放するための xdotool のキー名。
+// keydown で押したのと同じキー名を使う必要がある。
+func heldModifierKeyNames(held keyMods) []string {
+	var names []string
+	if held&modCtrl != 0 {
+		names = append(names, x11KeyNames[keyNameCtrl])
+	}
+	if held&modAlt != 0 {
+		names = append(names, x11KeyNames[keyNameAlt])
+	}
+	if held&modShift != 0 {
+		names = append(names, x11KeyNames[keyNameShift])
+	}
+	if held&modWin != 0 {
+		names = append(names, x11KeyNames[keyNameWin])
+	}
+	return names
 }
 
 // xdotoolCommands はストロークを xdotool の引数列へ変換する。

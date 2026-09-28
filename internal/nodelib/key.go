@@ -422,6 +422,38 @@ func updateHeldModifiers(held keyMods, st keyStroke) keyMods {
 	}
 }
 
+// releaseHeldHook はテストから解放処理を差し替えるためのフック。nilなら通常処理。
+var releaseHeldHook func(keyMods)
+
+// releaseHeldModifiers は保持中の修飾キーをOSの実装で解放する。
+// 押しっぱなしが残ると利用者の後続操作まで壊れるため、必ず呼ぶ。
+func releaseHeldModifiers(held keyMods) {
+	if releaseHeldHook != nil {
+		releaseHeldHook(held)
+		return
+	}
+	releaseOSHeldModifiers(held)
+}
+
+// OSごとの実装はこの関数を経由して sendKeyStroke を呼ぶ。
+//
+// {CTRL DOWN}c{CTRL UP} のように書いたとき、間のストロークにも保持中の
+// 修飾キーを適用する。送信に失敗したときは、押しっぱなしの修飾キーが残って
+// 利用者の後続操作まで壊さないよう、ベストエフォートで解放してから戻る。
+func forEachStroke(strokes []keyStroke, fn func(st keyStroke, held keyMods) error) error {
+	held := keyMods(0)
+	for _, st := range strokes {
+		for i := 0; i < st.repeat; i++ {
+			if err := fn(st, held); err != nil {
+				releaseHeldModifiers(held)
+				return err
+			}
+		}
+		held = updateHeldModifiers(held, st)
+	}
+	return nil
+}
+
 // normalizeKeyName は記法のキー名を論理キー名へ正規化する。
 func normalizeKeyName(name string) (string, bool) {
 	upper := strings.ToUpper(strings.TrimSpace(name))

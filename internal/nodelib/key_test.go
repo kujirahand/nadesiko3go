@@ -1,6 +1,7 @@
 package nodelib
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -118,6 +119,57 @@ func TestKeyCommandsRegistered(t *testing.T) {
 	// 必須の送信内容を先に置いている。
 	if !containsParticle(c.josi[0], "を") || !containsParticle(c.josi[1], "に") {
 		t.Fatalf("助詞の順序が想定と違います: %v", c.josi)
+	}
+}
+
+// TestForEachStrokeHeldModifiers は {CTRL DOWN} と {CTRL UP} の間で
+// 保持中の修飾キーが渡されることを確認する（実際の送信は行わない）。
+func TestForEachStrokeHeldModifiers(t *testing.T) {
+	strokes, err := parseKeyStrokes("{CTRL DOWN}c{CTRL UP}")
+	if err != nil {
+		t.Fatalf("記法の解析に失敗: %v", err)
+	}
+	var got []keyMods
+	err = forEachStroke(strokes, func(st keyStroke, held keyMods) error {
+		got = append(got, held)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("予期しないエラー: %v", err)
+	}
+	want := []keyMods{0, modCtrl, modCtrl}
+	if len(got) != len(want) {
+		t.Fatalf("呼び出し回数 = %d, 期待 = %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("[%d] held = %d, 期待 = %d", i, got[i], want[i])
+		}
+	}
+}
+
+// TestForEachStrokeReleasesOnError は送信に失敗したときに保持中の修飾キーが
+// 解放されることを確認する（実際の送信は行わない）。
+func TestForEachStrokeReleasesOnError(t *testing.T) {
+	strokes, err := parseKeyStrokes("{CTRL DOWN}c")
+	if err != nil {
+		t.Fatalf("記法の解析に失敗: %v", err)
+	}
+	released := keyMods(0)
+	injectedErr := errors.New("送信の失敗を再現")
+	releaseHeldHook = func(h keyMods) { released = h }
+	defer func() { releaseHeldHook = nil }()
+	err = forEachStroke(strokes, func(st keyStroke, held keyMods) error {
+		if st.name == "" {
+			return injectedErr
+		}
+		return nil
+	})
+	if !errors.Is(err, injectedErr) {
+		t.Fatalf("エラー = %v, 期待 = %v", err, injectedErr)
+	}
+	if released != modCtrl {
+		t.Errorf("解放された修飾キー = %d, 期待 = %d", released, modCtrl)
 	}
 }
 

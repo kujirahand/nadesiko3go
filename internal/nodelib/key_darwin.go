@@ -194,14 +194,47 @@ func sendKeyStrokes(strokes []keyStroke) error {
 		}
 		return fmt.Errorf("%s（AppleScriptでも失敗しました: %v）", macOSAccessibilityGuide, asErr)
 	}
-	for _, st := range strokes {
-		for i := 0; i < st.repeat; i++ {
-			if err := postKeyStroke(st); err != nil {
-				return err
-			}
+	return forEachStroke(strokes, sendKeyStroke)
+}
+
+// sendKeyStroke は macOS に1ストロークを送信する。
+// held は {CTRL DOWN} などで既に物理的に押されている修飾キー。
+// CGEventFlagsには保持中も含めて反映し、押し直すのは新しく押す分だけにする。
+func sendKeyStroke(st keyStroke, held keyMods) error {
+	targets := macOSTargets(st, st.mods|held)
+	if len(targets) == 0 {
+		return fmt.Errorf("送信できないキーです: 『%s%s』", st.name, st.text)
+	}
+	flags := macOSFlags(st.mods | held)
+	press := macOSModifierKeys(st.mods &^ held)
+	switch st.mode {
+	case keyHoldMode:
+		pressModifierKeys(press, true)
+		for _, t := range targets {
+			postKeyEvent(t, flags, true)
 		}
+	case keyUpMode:
+		for _, t := range targets {
+			postKeyEvent(t, flags, false)
+		}
+		pressModifierKeys(press, false)
+	default:
+		pressModifierKeys(press, true)
+		for _, t := range targets {
+			postKeyEvent(t, flags, true)
+			postKeyEvent(t, flags, false)
+		}
+		pressModifierKeys(press, false)
 	}
 	return nil
+}
+
+// releaseOSHeldModifiers は保持中の修飾キーを解放する（ベストエフォート）。
+func releaseOSHeldModifiers(held keyMods) {
+	if held == 0 || darwinSetup() != nil {
+		return
+	}
+	pressModifierKeys(macOSModifierKeys(held), false)
 }
 
 // darwinKeyTarget は送信する1キー（キーコード、またはユニコード文字列）。
@@ -210,37 +243,9 @@ type darwinKeyTarget struct {
 	uni  []uint16
 }
 
-func postKeyStroke(st keyStroke) error {
-	targets := macOSTargets(st)
-	if len(targets) == 0 {
-		return fmt.Errorf("送信できないキーです: 『%s%s』", st.name, st.text)
-	}
-	flags := macOSFlags(st.mods)
-	modKeys := macOSModifierKeys(st.mods)
-	switch st.mode {
-	case keyHoldMode:
-		pressModifierKeys(modKeys, true)
-		for _, t := range targets {
-			postKeyEvent(t, flags, true)
-		}
-	case keyUpMode:
-		for _, t := range targets {
-			postKeyEvent(t, flags, false)
-		}
-		pressModifierKeys(modKeys, false)
-	default:
-		pressModifierKeys(modKeys, true)
-		for _, t := range targets {
-			postKeyEvent(t, flags, true)
-			postKeyEvent(t, flags, false)
-		}
-		pressModifierKeys(modKeys, false)
-	}
-	return nil
-}
-
 // macOSTargets はストロークを送信対象のキー列へ変換する。
-func macOSTargets(st keyStroke) []darwinKeyTarget {
+// mods は同時押しする修飾キー（保持中も含む）。
+func macOSTargets(st keyStroke, mods keyMods) []darwinKeyTarget {
 	var targets []darwinKeyTarget
 	if st.name != "" {
 		if code, ok := macOSKeyCode(st.name); ok {
@@ -250,7 +255,7 @@ func macOSTargets(st keyStroke) []darwinKeyTarget {
 	}
 	for _, r := range st.text {
 		// 修飾キー付きはショートカットとして届くようキーコードで組む。
-		if st.mods != 0 {
+		if mods != 0 {
 			lower := r
 			if r >= 'A' && r <= 'Z' {
 				lower = r - 'A' + 'a'

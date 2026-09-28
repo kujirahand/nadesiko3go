@@ -121,56 +121,88 @@ func windowsModifierKeys(mods keyMods) []uint16 {
 
 // sendKeyStrokes はストローク列を SendInput で順番に送信する。
 func sendKeyStrokes(strokes []keyStroke) error {
-	for _, st := range strokes {
-		for i := 0; i < st.repeat; i++ {
-			if err := sendWindowsStroke(st); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return forEachStroke(strokes, sendKeyStroke)
 }
 
-func sendWindowsStroke(st keyStroke) error {
-	modKeys := windowsModifierKeys(st.mods)
+// held は {CTRL DOWN} などで既に物理的に押されている修飾キー。
+// ここで押し直すと最後の解放で解除されてしまうため、新しく押す分だけを処理する。
+func sendKeyStroke(st keyStroke, held keyMods) error {
+	press := windowsModifierKeys(st.mods &^ held)
+	// 文字を仮想キーへ変換する経路の判定には保持中の修飾キーも含める。
+	// Unicode(VK_PACKET)のままではショートカットとして届かないため。
+	effective := st.mods | held
 	switch st.mode {
 	case keyHoldMode:
-		return sendInputKeys(keysDown(modKeys, modifierOrKeyCode(st)))
+		return sendInputKeys(keysDown(press, modifierOrKeyCode(st)))
 	case keyUpMode:
-		return sendInputKeys(keysUp(modKeys, modifierOrKeyCode(st)))
+		return sendInputKeys(keysUp(press, modifierOrKeyCode(st)))
 	default:
-		events := vkDownEvents(modKeys)
-		if code, ok := windowsStrokeCode(st); ok {
+		events := vkDownEvents(press)
+		switch {
+		case st.name != "":
+			code, ok := windowsStrokeCode(st)
+			if !ok {
+				return fmt.Errorf("この環境では送信できないキーです: 『%s』", st.name)
+			}
 			events = append(events, vkEvent(code, false), vkEvent(code, true))
-		} else if st.mods != 0 {
-			// 同時押しの文字は仮想キーで送る。UnicodeのままではVK_PACKETになり、
-			// Ctrl+Vのようなショートカットとして対象アプリに届かないため。
-			combos, err := windowsCharCombos(st.text, st.mods)
+		case effective != 0:
+			combos, err := windowsCharCombos(st.text, press)
 			if err != nil {
 				return err
 			}
 			events = append(events, combos...)
-		} else {
+		default:
 			events = append(events, unicodeEvents(st.text)...)
 		}
-		events = append(events, vkUpEvents(modKeys)...)
+		events = append(events, vkUpEvents(press)...)
 		return sendInputKeys(events)
 	}
 }
 
+// releaseOSHeldModifiers は保持中の修飾キーを解放する（ベストエフォート）。
+func releaseOSHeldModifiers(held keyMods) {
+	codes := windowsModifierKeys(held)
+	if len(codes) == 0 {
+		return
+	}
+	var ups []input
+	for _, code := range codes {
+		ups = append(ups, vkEvent(code, true))
+	}
+	// 片付けに失敗しても呼び出し元では元のエラーを返すので、結果は見ない。
+	_ = sendInputKeys(ups)
+}
+
 // windowsCharCombos は同時押しする文字を仮想キーの押下・解放イベント列へ変換する。
-func windowsCharCombos(text string, mods keyMods) ([]input, error) {
+// press はこのストロークで新しく押す修飾キー（保持中は含まない）。
+func windowsCharCombos(text string, press []uint16) ([]input, error) {
 	var events []input
 	for _, r := range text {
 		code, extra, ok := windowsCharToVK(r)
 		if !ok {
 			return nil, fmt.Errorf("修飾キーとの同時押しでは送信できない文字です: 『%c』", r)
 		}
-		keys := windowsModifierKeys(mods | extra)
+		// VkKeyScanW が返す追加の修飾子(Shiftなど)はここで押す必要がある
+		keys := windowsModifierKeys(extra)
+		for _, code := range press {
+			if !containsVK(keys, code) {
+				keys = append(keys, code)
+			}
+		}
 		events = append(events, keysDown(keys, code)...)
 		events = append(events, keysUp(keys, code)...)
 	}
 	return events, nil
+}
+
+// containsVK は仮想キーコードの一覧に code が含まれるかを返す。
+func containsVK(codes []uint16, code uint16) bool {
+	for _, c := range codes {
+		if c == code {
+			return true
+		}
+	}
+	return false
 }
 
 // windowsCharToVK は文字を現在のキーボード配列の仮想キーコードへ変換する。
