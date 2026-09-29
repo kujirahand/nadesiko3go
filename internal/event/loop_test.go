@@ -127,6 +127,64 @@ func TestRunUntilIdleLeavesRepeating(t *testing.T) {
 	}
 }
 
+// TestRunUntilIdleSkipsRepeating pins that a repeating timer at the head of
+// the queue does not hide the one-shots behind it: the drain still finishes
+// them, in scheduled order, and leaves the repeat alone (issue #203).
+func TestRunUntilIdleSkipsRepeating(t *testing.T) {
+	l := event.New(start)
+	l.PostEvery(start.Add(10*time.Millisecond), 10*time.Millisecond, 1)
+	l.Post(start.Add(50*time.Millisecond), 2)
+	l.Post(start.Add(30*time.Millisecond), 3)
+
+	var got []host.CallbackID
+	if err := l.RunUntilIdle(record(&got)); err != nil {
+		t.Fatal(err)
+	}
+	// 単発は予定時刻の早い順に、繰返しの有無に関わらず実行される
+	want := []host.CallbackID{3, 2}
+	if len(got) != len(want) {
+		t.Fatalf("実行したもの = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("実行したもの = %v, want %v", got, want)
+		}
+	}
+	if l.Pending() != 1 {
+		t.Errorf("残り = %d, want 1 (繰り返しタイマー)", l.Pending())
+	}
+}
+
+// TestRunUntilIdleChainedOneShot pins that a one-shot posted by a drained
+// callback still runs, even while a repeating timer holds the queue head.
+func TestRunUntilIdleChainedOneShot(t *testing.T) {
+	l := event.New(start)
+	l.PostEvery(start.Add(time.Millisecond), time.Millisecond, 1)
+	l.Post(start.Add(10*time.Millisecond), 2)
+
+	var got []host.CallbackID
+	err := l.RunUntilIdle(func(id host.CallbackID) error {
+		got = append(got, id)
+		if id == 2 {
+			// コールバック中に積んだ単発も取りこぼさない
+			l.Post(l.Now().Add(5*time.Millisecond), 3)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []host.CallbackID{2, 3}
+	if len(got) != len(want) {
+		t.Fatalf("実行したもの = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("実行したもの = %v, want %v", got, want)
+		}
+	}
+}
+
 // TestMaxCallbacks pins the guard against a repeating timer nobody stops.
 func TestMaxCallbacks(t *testing.T) {
 	l := event.New(start)
