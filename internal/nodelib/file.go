@@ -389,6 +389,10 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 
 // checkMoveTarget は、移動元 src と移動先 dest の関係を調べ、移動先が
 // 移動元と同一実体またはその子孫にある場合はエラーを返す。
+// 移動先から祖先を深い方へ順に辿り、移動元と同一の実体にぶつかったら
+// 拒否する。os.Stat がシンボリックリンクを実体へ解決し、大小文字を
+// 区別しないファイルシステムでは表記違いのパスも同一実体として返る
+// ため、文字列表記の比較では捕捉できない経路も検出できる (#186, #195)。
 func checkMoveTarget(src, dest string) error {
 	if strings.TrimSpace(dest) == "" {
 		return errors.New("ファイル移動先が指定されていません。")
@@ -397,49 +401,28 @@ func checkMoveTarget(src, dest string) error {
 	if err != nil {
 		return nil // 読み取り可否の報告は copyMergeWithProgress が行う
 	}
-	// 移動先が既に存在するなら、シンボリックリンクやハードリンク、
-	// 大小文字違いの同一実体を os.SameFile で判定する
-	if destInfo, err := os.Stat(dest); err == nil && os.SameFile(srcInfo, destInfo) {
-		return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
+	paths := []string{filepath.Clean(dest)}
+	// 移動先自身がシンボリックリンクのとき、Stat はリンク先の実体を返す。
+	// リンク先が移動元の内側にある場合を捕捉するため、解決後の実パスも調べる。
+	if resolved, err := filepath.EvalSymlinks(dest); err == nil && resolved != paths[0] {
+		paths = append(paths, resolved)
 	}
-	// 移動先がまだ存在しない場合に備え、シンボリックリンクを解決した
-	// 絶対パス同士でも比較する
-	srcPath := resolvePath(src)
-	destPath := resolvePath(dest)
-	rel, err := filepath.Rel(srcPath, destPath)
-	if err != nil {
-		return nil // 別ボリュームなどで比較できないときは従来どおり実行する
-	}
-	if rel == "." {
-		return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
-	}
-	if rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("ファイル移動先は移動元の内側です: %s → %s", src, dest)
+	for _, p := range paths {
+		for cur, first := p, true; ; first = false {
+			if info, err := os.Stat(cur); err == nil && os.SameFile(srcInfo, info) {
+				if first {
+					return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
+				}
+				return fmt.Errorf("ファイル移動先は移動元の内側です: %s → %s", src, dest)
+			}
+			parent := filepath.Dir(cur)
+			if parent == cur {
+				break
+			}
+			cur = parent
+		}
 	}
 	return nil
-}
-
-// resolvePath は、シンボリックリンクを解決した絶対パスを返す。
-// パスの末尾がまだ存在しない場合は、存在する最も深い祖先まで解決して
-// 残りの要素を結合する。
-func resolvePath(p string) string {
-	abs, err := filepath.Abs(p)
-	if err != nil {
-		return filepath.Clean(p)
-	}
-	var tail []string
-	cur := abs
-	for {
-		if resolved, err := filepath.EvalSymlinks(cur); err == nil {
-			return filepath.Join(append([]string{resolved}, tail...)...)
-		}
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			return abs
-		}
-		tail = append([]string{filepath.Base(cur)}, tail...)
-		cur = parent
-	}
 }
 
 func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context) error {

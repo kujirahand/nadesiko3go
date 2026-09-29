@@ -94,7 +94,7 @@ func TestMoveFileOntoItselfIsRejected(t *testing.T) {
 func TestMoveDirIntoSymlinkInsideItself(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "src")
-	if err := os.MkdirAll(src, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(src, "inner"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("data"), 0o644); err != nil {
@@ -104,12 +104,49 @@ func TestMoveDirIntoSymlinkInsideItself(t *testing.T) {
 	if err := os.Symlink(src, filepath.Join(dir, "link")); err != nil {
 		t.Skipf("シンボリックリンクを作れません: %v", err)
 	}
-	err := runExpectError(t, dir, `「src」を「link/x」にファイル上書移動`)
-	if err == nil {
-		t.Fatal("リンク経由で内側を指す移動がエラーになりませんでした")
+	// link2 → src/inner。移動先そのものが移動元の内側を指すリンク
+	if err := os.Symlink(filepath.Join(src, "inner"), filepath.Join(dir, "link2")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
 	}
-	if _, e := os.Stat(filepath.Join(src, "file.txt")); e != nil {
-		t.Errorf("移動元の file.txt が失われました: %v", e)
+	for _, dest := range []string{"link/x", "link2"} {
+		err := runExpectError(t, dir, `「src」を「`+dest+`」にファイル上書移動`)
+		if err == nil {
+			t.Fatalf("リンク経由で内側を指す移動(%s)がエラーになりませんでした", dest)
+		}
+		if _, e := os.Stat(filepath.Join(src, "file.txt")); e != nil {
+			t.Errorf("移動元の file.txt が失われました: %v", e)
+		}
+	}
+}
+
+// TestMoveDirIntoOwnChildDifferentCase は、大文字小文字を区別しない
+// ファイルシステム（macOSの既定APFS・WindowsのNTFS）で、表記の異なる
+// パス経由の子孫移動も拒否されることを確認する (#186)。
+func TestMoveDirIntoOwnChildDifferentCase(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// 大文字小文字を区別するFSでは「SRC」は移動元とは別の正当なパスなので、
+	// このテストは区別しないFSでのみ意味を持つ
+	if _, err := os.Stat(filepath.Join(dir, "SRC")); err != nil {
+		t.Skip("このファイルシステムはパスの大文字小文字を区別します")
+	}
+	for _, code := range []string{
+		`「src」を「SRC/newchild」にファイル上書移動`,
+		`「SRC」を「src/sub」にファイル上書移動`,
+	} {
+		err := runExpectError(t, dir, code)
+		if err == nil {
+			t.Fatalf("大小文字違いの子孫への移動がエラーになりませんでした: %s", code)
+		}
+		if _, e := os.Stat(filepath.Join(src, "file.txt")); e != nil {
+			t.Errorf("移動元の file.txt が失われました: %v", e)
+		}
 	}
 }
 
