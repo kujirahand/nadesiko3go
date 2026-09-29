@@ -571,3 +571,45 @@ func TestThemeScript(t *testing.T) {
 		}
 	}
 }
+
+// Issue #183: -url で外部ページを開くときは特権ブリッジ（ファイル操作・
+// コード実行などのBind）を登録しない。Bindはページ遷移先にもJS shimを
+// 注入するため、targetURL=="" の内部UI限定にする。
+func TestPrivilegedBridgeBoundOnlyForInternalUI(t *testing.T) {
+	src, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mainSrc := string(src)
+
+	// main() 本体に特権Bindを直接登録しない（bindPrivilegedBridgeへ集約）
+	mainStart := strings.Index(mainSrc, "func main() {")
+	mainEnd := strings.Index(mainSrc, "func bindPrivilegedBridge(")
+	if mainStart < 0 || mainEnd < 0 || mainEnd < mainStart {
+		t.Fatal("main.go に func main() / func bindPrivilegedBridge() がありません")
+	}
+	mainBody := mainSrc[mainStart:mainEnd]
+	if strings.Contains(mainBody, "w.Bind(") {
+		t.Fatal("main() が特権ブリッジのBindを直接登録しています")
+	}
+	// bindPrivilegedBridge の呼び出しは targetURL=="" の内部UIに限定する
+	call := "if targetURL == \"\" {\n\t\tbindPrivilegedBridge("
+	if !strings.Contains(mainBody, call) {
+		t.Fatal("main() が targetURL==\"\" のときだけ bindPrivilegedBridge を呼んでいません")
+	}
+	if strings.Count(mainBody, "bindPrivilegedBridge(") != 1 {
+		t.Fatal("bindPrivilegedBridge の呼び出しが1箇所ではありません")
+	}
+
+	// ファイル操作・コード実行の特権Bindが専用関数の中にあること
+	bridge := mainSrc[mainEnd:]
+	for _, name := range []string{
+		`w.Bind("runNakoCode"`, `w.Bind("runNakoFile"`, `w.Bind("readFile"`,
+		`w.Bind("saveFile"`, `w.Bind("listFiles"`, `w.Bind("showSaveFileDialog"`,
+		`w.Bind("openExternalURL"`,
+	} {
+		if !strings.Contains(bridge, name) {
+			t.Fatalf("bindPrivilegedBridge に %s がありません", name)
+		}
+	}
+}
