@@ -91,6 +91,14 @@ func (c *Compiler) foldOp(n *ast.Node) (value.Value, bool) {
 	if n.Operator == "and" || n.Operator == "or" {
 		return value.Undefined(), false
 	}
+	// 単項マイナスはオペランドが1つだけの『-』ノード
+	if n.Operator == "-" && len(n.Blocks) == 1 {
+		a, ok := c.foldConst(n.Block(0))
+		if !ok {
+			return value.Undefined(), false
+		}
+		return ops.Unary(ir.UnaryNeg, a), true
+	}
 	op, ok := binaryOps[n.Operator]
 	if !ok {
 		return value.Undefined(), false

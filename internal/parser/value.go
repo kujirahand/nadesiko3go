@@ -125,19 +125,20 @@ func (p *Parser) yValue() *ast.Node {
 	if p.check("(") {
 		return p.yValueKakko()
 	}
-	if p.check2([][]lexer.TokenType{{"-"}, {lexer.TypeNumber, lexer.TypeWord, lexer.TypeFunc}}) {
-		minus := p.get()
+	// マイナス記号 (#2488)
+	// 単項マイナスは『-1を掛ける』に展開せず、単項演算子『-』として生成する。
+	// BigIntに対して『-1 * A』を行うと型混在でTypeErrorになるため。
+	if p.check2([][]lexer.TokenType{{"-"}, {lexer.TypeNumber, lexer.TypeBigInt, lexer.TypeString, lexer.TypeWord, lexer.TypeFunc, "("}}) {
+		p.get() // skip '-'
 		v := p.yValue()
 		josi := ""
 		if v != nil {
 			josi = v.Josi
 		}
-		left := &ast.Node{Type: ast.Number, Value: -1.0, SourceMap: p.peekSourceMap(minus)}
 		if v == nil {
 			v = p.yNop()
 		}
-		end := p.peekSourceMap(nil)
-		return &ast.Node{Type: ast.Op, Operator: "*", Blocks: []*ast.Node{left, v}, Josi: josi, SourceMap: m, End: &end}
+		return p.yMinus(v, josi, m)
 	}
 	if p.check(lexer.TypeNot) {
 		p.get()
@@ -216,6 +217,41 @@ func (p *Parser) yValue() *ast.Node {
 		return &ast.Node{Type: ast.FuncPointer, Name: t.StringValue(), Josi: t.Josi, SourceMap: m, End: &end}
 	}
 	return nil
+}
+
+// yMinus は単項マイナスを適用する。数値・巨大整数リテラルは定数に畳み込み、
+// それ以外は単項演算子ノード(op operator: '-' blocks: [value])にする (#2488)。
+// 畳み込むことで『--2』のような不正なコードの生成を防ぐ。
+// ただし数値の 0 は畳み込まない。畳み込むと「0」となり負のゼロ(-0)を失うため、
+// 単項演算子として生成して評価に任せる。
+// なお bigint リテラルの Value は '5n' / '-5n' のような末尾 n 付き文字列である。
+func (p *Parser) yMinus(value *ast.Node, josi string, m ast.SourceMap) *ast.Node {
+	end := p.peekSourceMap(nil)
+	if value.Type == ast.Number {
+		if f, ok := value.Value.(float64); ok && f != 0 {
+			n := *value
+			n.Value = -f
+			n.Josi = josi
+			n.SourceMap = m
+			n.End = &end
+			return &n
+		}
+	}
+	if value.Type == ast.BigInt {
+		if s, ok := value.Value.(string); ok {
+			n := *value
+			if strings.HasPrefix(s, "-") {
+				n.Value = s[1:]
+			} else {
+				n.Value = "-" + s
+			}
+			n.Josi = josi
+			n.SourceMap = m
+			n.End = &end
+			return &n
+		}
+	}
+	return &ast.Node{Type: ast.Op, Operator: "-", Blocks: []*ast.Node{value}, Josi: josi, SourceMap: m, End: &end}
 }
 
 func (p *Parser) wordNode(t *lexer.Token) *ast.Node {
