@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"math"
 	"strings"
 
@@ -195,6 +196,11 @@ func decodeJSON(s string) (value.Value, error) {
 	}
 	v, err := decodeJSONValue(dec, tok)
 	if err != nil {
+		return value.Undefined(), errors.New("JSONデコードに失敗しました。")
+	}
+	// 先頭の値の後に空白以外が残っていればエラーにする。
+	// JSON.parse が末尾のゴミを許さないのと同じ規則。
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return value.Undefined(), errors.New("JSONデコードに失敗しました。")
 	}
 	return v, nil
