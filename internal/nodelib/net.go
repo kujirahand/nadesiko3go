@@ -3,6 +3,7 @@ package nodelib
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -446,7 +447,16 @@ func parseJSONBytes(data []byte) (value.Value, error) {
 	if err != nil {
 		return value.Undefined(), err
 	}
-	return parseJSONValue(dec, tok)
+	v, err := parseJSONValue(dec, tok)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	// 先頭の値の後に空白以外が残っていればエラーにする。
+	// JSON.parse が末尾のゴミを許さないのと同じ規則。
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return value.Undefined(), errors.New("JSONデコードに失敗しました。")
+	}
+	return v, nil
 }
 
 func parseJSONValue(dec *json.Decoder, tok json.Token) (value.Value, error) {
