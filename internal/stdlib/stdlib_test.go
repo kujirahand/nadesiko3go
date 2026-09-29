@@ -284,10 +284,11 @@ func TestNewlyAddedCommands(t *testing.T) {
 		t.Errorf("表示ログ = %q, want empty", s)
 	}
 
+	// 言 は表示ログを更新しない stdout 書き出し（末尾改行）へ変わった (#224)
 	say, _ := r.Lookup("言")
 	say.Fn(ctx, []value.Value{value.String("test")})
-	if len(ctx.out) == 0 || ctx.out[len(ctx.out)-1] != "test" {
-		t.Errorf("言 output = %v, want 'test'", ctx.out)
+	if len(ctx.out) == 0 || ctx.out[len(ctx.out)-1] != "test\n" {
+		t.Errorf("言 output = %v, want 'test\\n'", ctx.out)
 	}
 
 	// 時間ミリ秒取得
