@@ -345,7 +345,12 @@ func (c *Compiler) compileFor(n *ast.Node) {
 		c.emit(ir.OpLoadLocal, limit, 0, n)
 		c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
 		toDown := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+		// 本体を2経路でemitするため、増パスのemitで記録された定数マークは
+		// 減パスの前に一度戻す。戻さないと本体内の『定数』宣言が2回目で
+		// 「既に定義済み」になり、実行可能なプログラムがコンパイル不能になる。
+		constState := c.saveConstMarks()
 		c.compileForLoop(n, counter, limit, step, false)
+		c.restoreConstMarks(constState)
 		toEnd := c.emit(ir.OpJump, 0, 0, n)
 		c.patch(toDown, c.here())
 		c.compileForLoop(n, counter, limit, step, true)
