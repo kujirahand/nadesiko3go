@@ -61,6 +61,36 @@ d"」のCSV取得。a[5][1]を表示`,
 			want: "3",
 		},
 		{
+			name: "CSV取得 空引用符セル(途中) #204",
+			code: `a=「a,"",b」のCSV取得。aをJSONエンコードして表示`,
+			want: `[["a","","b"]]`,
+		},
+		{
+			name: "CSV取得 空引用符セル(先頭) #204",
+			code: `a=「"",a,b」のCSV取得。aをJSONエンコードして表示`,
+			want: `[["","a","b"]]`,
+		},
+		{
+			name: "CSV取得 空引用符セル(末尾) #204",
+			code: `a=「a,b,""」のCSV取得。aをJSONエンコードして表示`,
+			want: `[["a","b",""]]`,
+		},
+		{
+			name: "CSV取得 空引用符セルと空白 #204",
+			code: `a=「a,"" ,b」のCSV取得。aをJSONエンコードして表示`,
+			want: `[["a","","b"]]`,
+		},
+		{
+			name: "CSV取得 引用符付き非空セル #204",
+			code: `a=「a,"x",b」のCSV取得。aをJSONエンコードして表示`,
+			want: `[["a","x","b"]]`,
+		},
+		{
+			name: "TSV取得 空引用符セル #204",
+			code: "a=「a\t\"\"\tb」のTSV取得。aをJSONエンコードして表示",
+			want: `[["a","","b"]]`,
+		},
+		{
 			name: "CSV取得 trailing comma",
 			code: `a=「1,2,3,
 4,5,6」のCSV取得。a[1][0]を表示`,

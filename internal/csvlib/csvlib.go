@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -221,15 +222,34 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 			continue
 		}
 
-		// "" ... blank data
-		if strings.HasPrefix(txt, `""`) {
+		// "" ... 空引用符フィールドか、Excel方言の空セルかを判定する (#2476)
+		// """" のように隣接する引用符エスケープは、通常の引用フィールド解析に任せる
+		runes := []rune(txt)
+		if len(runes) >= 3 && runes[1] == '"' && runes[2] != '"' {
+			// 区切り文字・改行に達するまで空白文字をスキップして判定する
+			idx := 2
+			for idx < len(runes) {
+				ch := runes[idx]
+				if ch == delimRune || ch == '\n' {
+					break
+				}
+				if !unicode.IsSpace(ch) {
+					break
+				}
+				idx++
+			}
+			if idx < len(runes) && (runes[idx] == delimRune || runes[idx] == '\n') {
+				// 空引用符フィールドとして扱い、""と後続の空白を捨てて区切り/改行の処理に委ねる
+				txt = string(runes[idx:])
+				continue
+			}
+			// Excel方言の空セルとして扱い、続きを通常のセルとして解析する
 			cells = append(cells, value.String(""))
-			txt = txt[2:]
+			txt = string(runes[2:])
 			continue
 		}
 
 		// "..."
-		runes := []rune(txt)
 		i := 1
 		var sb strings.Builder
 		for i < len(runes) {
