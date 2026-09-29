@@ -64,9 +64,9 @@ func commands() map[string]command {
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			return value.Undefined(), os.Remove(str(a, 0))
 		}}
-	m["ショートカットファイル作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+	m["ショートカットファイル作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true, // @ファイルへのショートカットファイル(.lnk)を作成する // @しょーとかっとふぁいるさくせい
 		fn: createShortcut}
-	m["シンボリックリンク作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
+	m["シンボリックリンク作成"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true, // @ファイルへのシンボリックリンクを作成する // @しんぼりっくりんくさくせい
 		fn: createSymbolicLink}
 	m["ファイル削除時"] = command{josi: [][]string{{"で", "を", "の"}, {"の", "を"}},
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
