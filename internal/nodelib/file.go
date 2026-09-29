@@ -28,7 +28,7 @@ func constants() map[string]any {
 		"母艦パス":           "",
 		"ファイルコピーデフォルト動作": "上書禁止",
 		"AJAXオプション":      "",
-		"圧縮解凍ツールパス":      "zip",
+		"圧縮解凍ツールパス":      "7z",
 	}
 }
 
@@ -56,7 +56,7 @@ func commands() map[string]command {
 		info, err := os.Stat(str(a, 0))
 		return value.Bool(err == nil && info.IsDir()), nil
 	}}
-	m["フォルダ作成"] = command{josi: [][]string{{"に", "へ", "の"}}, returnNone: true,
+	m["フォルダ作成"] = command{josi: [][]string{{"の", "を", "に", "へ"}}, returnNone: true,
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			return value.Undefined(), os.MkdirAll(str(a, 0), 0o755)
 		}}
@@ -80,37 +80,16 @@ func commands() map[string]command {
 		}}
 	m["ファイル移動"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			src := str(a, 0)
-			dest := str(a, 1)
-			if err := copyMergeWithProgress(src, dest, isOverwrite(ctx), ctx); err != nil {
-				return value.Undefined(), err
-			}
-			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
-				_ = os.RemoveAll(src)
-			}
-			return value.Undefined(), nil
+			return value.Undefined(), moveEntry(ctx, str(a, 0), str(a, 1), isOverwrite(ctx))
 		}}
 	m["ファイル上書移動"] = command{josi: [][]string{{"を", "から"}, {"に", "へ"}}, returnNone: true,
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			src := str(a, 0)
-			dest := str(a, 1)
-			if err := copyMergeWithProgress(src, dest, true, ctx); err != nil {
-				return value.Undefined(), err
-			}
-			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
-				_ = os.RemoveAll(src)
-			}
-			return value.Undefined(), nil
+			return value.Undefined(), moveEntry(ctx, str(a, 0), str(a, 1), true)
 		}}
 	m["ファイル移動時"] = command{josi: [][]string{{"で", "を", "の"}, {"から", "を"}, {"に", "へ"}},
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			src := str(a, 1)
-			dest := str(a, 2)
-			if err := copyMergeWithProgress(src, dest, isOverwrite(ctx), ctx); err != nil {
+			if err := moveEntry(ctx, str(a, 1), str(a, 2), isOverwrite(ctx)); err != nil {
 				return value.Undefined(), err
-			}
-			if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
-				_ = os.RemoveAll(src)
 			}
 			if fn, ok := toFunc(ctx, argAt(a, 0)); ok {
 				return ctx.CallFunc(fn, nil)
@@ -229,13 +208,22 @@ func commands() map[string]command {
 	m["テンポラリフォルダ"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
 		return value.String(os.TempDir()), nil
 	}}
-	m["一時フォルダ作成"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
-		dir, err := os.MkdirTemp("", "nako3_*")
-		if err != nil {
-			return value.Undefined(), err
-		}
-		return value.String(dir), nil
-	}}
+	m["一時フォルダ作成"] = command{josi: [][]string{{"に", "へ"}},
+		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+			// 省略・空白・文字列以外が指定されたときはOSのテンポラリフォルダを使う
+			dir := ""
+			if a0 := argAt(a, 0); a0.Kind() == value.KindString {
+				dir = strings.TrimSpace(value.ToString(a0))
+			}
+			if dir == "" {
+				dir = os.TempDir()
+			}
+			tmp, err := os.MkdirTemp(dir, "nako-")
+			if err != nil {
+				return value.Undefined(), fileError("作成でき", dir, err)
+			}
+			return value.String(tmp), nil
+		}}
 	m["ホームディレクトリ取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
 		dir, err := os.UserHomeDir()
 		if err != nil {
@@ -380,6 +368,67 @@ func listFilesRecursive(baseDir, curPath string) []filePair {
 		res = append(res, sub...)
 	}
 	return res
+}
+
+// moveEntry は『ファイル移動』系命令の共通処理。コピーしてから移動元を
+// 削除する順序なので、移動先が移動元と同一実体またはその内側にあると、
+// コピーしたばかりの内容まで削除に巻き込まれる。それを防ぐため、
+// 実行前に checkMoveTarget で拒否する (#186, #195)。
+func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
+	if err := checkMoveTarget(src, dest); err != nil {
+		return err
+	}
+	if err := copyMergeWithProgress(src, dest, overwrite, ctx); err != nil {
+		return err
+	}
+	if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
+		_ = os.RemoveAll(src)
+	}
+	return nil
+}
+
+// checkMoveTarget は、移動元 src と移動先 dest の関係を調べ、移動先が
+// 移動元と同一実体またはその子孫にある場合はエラーを返す。
+// 移動先から祖先を深い方へ順に辿り、移動元と同一の実体にぶつかったら
+// 拒否する。os.Stat がシンボリックリンクを実体へ解決し、大小文字を
+// 区別しないファイルシステムでは表記違いのパスも同一実体として返る
+// ため、文字列表記の比較では捕捉できない経路も検出できる (#186, #195)。
+func checkMoveTarget(src, dest string) error {
+	if strings.TrimSpace(dest) == "" {
+		return errors.New("ファイル移動先が指定されていません。")
+	}
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return nil // 読み取り可否の報告は copyMergeWithProgress が行う
+	}
+	// 相対パスのままでは祖先走査が「.」(作業フォルダ)で止まり、その上位の
+	// 実祖先や「..」の先を検査できないため、必ず絶対パスにしてから辿る
+	abs, err := filepath.Abs(dest)
+	if err != nil {
+		abs = filepath.Clean(dest)
+	}
+	paths := []string{abs}
+	// 移動先自身がシンボリックリンクのとき、Stat はリンク先の実体を返す。
+	// リンク先が移動元の内側にある場合を捕捉するため、解決後の実パスも調べる。
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil && resolved != abs {
+		paths = append(paths, resolved)
+	}
+	for _, p := range paths {
+		for cur, first := p, true; ; first = false {
+			if info, err := os.Stat(cur); err == nil && os.SameFile(srcInfo, info) {
+				if first {
+					return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
+				}
+				return fmt.Errorf("ファイル移動先は移動元の内側です: %s → %s", src, dest)
+			}
+			parent := filepath.Dir(cur)
+			if parent == cur {
+				break
+			}
+			cur = parent
+		}
+	}
+	return nil
 }
 
 func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context) error {
