@@ -187,6 +187,10 @@ compat-check:
 gen-command-list:
     {{go}} run ./scripts/gen-command-list.go
 
+# manual/gonako/*.txt の雛形(未作成分のみ)と manual/gonako-commands.db を生成する
+gen-manual: gen-command-list
+    {{go}} run ./scripts/gen-manual.go
+
 # wnako(本家ブラウザ版)の命令一覧を生成する（GUIエディタの[wnako]表示用 / #101）
 # 入力は just copy-nadesiko3 が取り込む ui/wnako3/command.json.js
 gen-wnako-command-list:
