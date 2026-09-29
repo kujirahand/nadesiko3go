@@ -328,26 +328,62 @@ func (c *Compiler) compileFor(n *ast.Node) {
 		c.emit(ir.OpStoreLocal, limit, 0, n)
 	}
 
+	// 増分は常に正の値として保持し、減方向のパスでは引き算で進める。
+	// （『AからBまで繰り返す』の素の形は実行時に向きが決まる #196）
 	if inc != nil && inc.Type != ast.Nop {
 		c.compileExpr(inc)
 	} else {
 		c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	}
-	if n.LoopDirection == "down" {
-		c.emit(ir.OpUnary, int(ir.UnaryNeg), 0, n)
-	}
 	c.emit(ir.OpStoreLocal, step, 0, n)
 
-	top := c.here()
-	// 増分の向きで比較を変える。減る向きなら下限との比較になる。
-	c.emit(ir.OpLoadLocal, counter, 0, n)
-	c.emit(ir.OpLoadLocal, limit, 0, n)
-	if n.LoopDirection == "down" {
-		c.emit(ir.OpBinary, int(ir.BinGtEq), 0, n)
-	} else {
-		c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
+	if n.LoopDirection == "" {
+		// 方向の指定がない素の『繰返』は、実行時に向きを一度だけ判定して
+		// フラグに保持する (本家convForと同じ実行時分岐 #196)。
+		// from==to は増方向側で1回だけ実行される。
+		dir := c.slot(c.tempName("繰返向き"))
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, limit, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinGt), 0, n)
+		c.emit(ir.OpStoreLocal, dir, 0, n)
+		c.compileForLoop(n, counter, limit, step, dir, false)
+		return
 	}
-	toEnd := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+	c.compileForLoop(n, counter, limit, step, -1, n.LoopDirection == "down")
+}
+
+// compileForLoop は『AからBまで繰り返す』のループをemitする。dirSlot >= 0 の
+// ときはスロットに保持した実行時フラグ(1なら減方向)で比較と更新だけを分岐し、
+// 本体は1回だけemitする。dirSlot < 0 のときはコンパイル時の down で向きを固定する。
+// step は正の値を持ち、減方向では引き算で進める。
+func (c *Compiler) compileForLoop(n *ast.Node, counter, limit, step, dirSlot int, down bool) {
+	top := c.here()
+	var toEnd []int
+	if dirSlot >= 0 {
+		// 向きフラグで継続条件を選ぶ (減方向: counter>=limit、増方向: counter<=limit)。
+		c.emit(ir.OpLoadLocal, dirSlot, 0, n)
+		toUpCheck := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, limit, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinGtEq), 0, n)
+		toEnd = append(toEnd, c.emit(ir.OpJumpIfFalse, 0, 0, n))
+		toBody := c.emit(ir.OpJump, 0, 0, n)
+		c.patch(toUpCheck, c.here())
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, limit, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
+		toEnd = append(toEnd, c.emit(ir.OpJumpIfFalse, 0, 0, n))
+		c.patch(toBody, c.here())
+	} else {
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, limit, 0, n)
+		if down {
+			c.emit(ir.OpBinary, int(ir.BinGtEq), 0, n)
+		} else {
+			c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
+		}
+		toEnd = append(toEnd, c.emit(ir.OpJumpIfFalse, 0, 0, n))
+	}
 
 	// ループ変数と『それ』に現在値を入れる
 	c.emit(ir.OpLoadLocal, counter, 0, n)
@@ -367,12 +403,35 @@ func (c *Compiler) compileFor(n *ast.Node) {
 	c.compileStatement(n.Block(3))
 	c.patchContinues(loop, c.here())
 
-	c.emit(ir.OpLoadLocal, counter, 0, n)
-	c.emit(ir.OpLoadLocal, step, 0, n)
-	c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
-	c.emit(ir.OpStoreLocal, counter, 0, n)
-	c.emit(ir.OpJump, top, 0, n)
-	c.patch(toEnd, c.here())
+	if dirSlot >= 0 {
+		// 向きフラグで増減を選ぶ (減方向: counter-=step、増方向: counter+=step)。
+		c.emit(ir.OpLoadLocal, dirSlot, 0, n)
+		toUpdUp := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, step, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinSub), 0, n)
+		c.emit(ir.OpStoreLocal, counter, 0, n)
+		c.emit(ir.OpJump, top, 0, n)
+		c.patch(toUpdUp, c.here())
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, step, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
+		c.emit(ir.OpStoreLocal, counter, 0, n)
+		c.emit(ir.OpJump, top, 0, n)
+	} else {
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, step, 0, n)
+		if down {
+			c.emit(ir.OpBinary, int(ir.BinSub), 0, n)
+		} else {
+			c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
+		}
+		c.emit(ir.OpStoreLocal, counter, 0, n)
+		c.emit(ir.OpJump, top, 0, n)
+	}
+	for _, p := range toEnd {
+		c.patch(p, c.here())
+	}
 	c.popLoop(loop)
 }
 
