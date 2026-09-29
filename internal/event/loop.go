@@ -130,11 +130,13 @@ func (l *Loop) RunUntil(until time.Time, dispatch Dispatch) error {
 // RunUntilIdle runs the one-shot callbacks that are still scheduled.
 //
 // Repeating timers are left alone: nothing would ever stop them, and the
-// TypeScript version's process ends with them still ticking.
+// TypeScript version's process ends with them still ticking. A repeat that
+// sits at the head of the queue is skipped rather than ending the drain,
+// so the one-shots behind it still run.
 func (l *Loop) RunUntilIdle(dispatch Dispatch) error {
 	for {
-		next := l.nextDue()
-		if next == nil || next.interval > 0 {
+		next := l.nextDueOneShot()
+		if next == nil {
 			return nil
 		}
 		if err := l.runOne(next, dispatch); err != nil {
@@ -149,6 +151,17 @@ func (l *Loop) nextDue() *timer {
 		return nil
 	}
 	return l.queue[0]
+}
+
+// nextDueOneShot returns the earliest one-shot still scheduled, skipping the
+// repeating timers that would otherwise hide everything queued behind them.
+func (l *Loop) nextDueOneShot() *timer {
+	for _, t := range l.queue {
+		if t.interval == 0 {
+			return t
+		}
+	}
+	return nil
 }
 
 // runOne advances the clock to a timer's time and dispatches it, re-scheduling
