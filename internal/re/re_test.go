@@ -64,6 +64,10 @@ func TestFindAndReplace(t *testing.T) {
 		// 参照でないドル記号はそのまま残る
 		{"/b/g", "abc", "$", "a$c"},
 		{"/[いう]/g", "あいうえお", "*", "あ**えお"},
+		// 非gでも元文字列上の一致位置の文脈を保つ（Issue #208）
+		{`/\Boo/g`, "foo", "X", "fX"},
+		{`/\Boo/`, "foo", "X", "fX"},
+		{`/\B(o+)/`, "foo", "[$1]", "f[oo]"},
 	}
 	for _, tt := range tests {
 		if got := mustCompile(t, tt.pattern).Replace(tt.in, tt.template); got != tt.want {
