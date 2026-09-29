@@ -142,3 +142,81 @@ func TestExtractZipDestSymlink(t *testing.T) {
 		t.Errorf("リンク先へ展開されていません: %q err=%v", body, err)
 	}
 }
+
+// Issue #189: 圧縮の入出力が同じ実体なら拒否し、元データを残す。
+func TestCreateZipSameFile(t *testing.T) {
+	dir := t.TempDir()
+	payload := []byte("zip payload")
+	src := filepath.Join(dir, "f.zip")
+	if err := os.WriteFile(src, payload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := createZip(src, src); err == nil {
+		t.Error("入出力が同じファイルでもエラーになりませんでした")
+	}
+	if got, err := os.ReadFile(src); err != nil || string(got) != string(payload) {
+		t.Errorf("元データが失われました: %q err=%v", got, err)
+	}
+
+	// 「./f.zip」やシンボリックリンクなど表記違いで同じ実体でも拒否する
+	if err := createZip(src, filepath.Join(dir, "sub", "..", "f.zip")); err == nil {
+		t.Error("表記違いの同一ファイルでもエラーになりませんでした")
+	}
+	if runtime.GOOS != "windows" {
+		link := filepath.Join(dir, "link.zip")
+		if err := os.Symlink(src, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := createZip(src, link); err == nil {
+			t.Error("シンボリックリンク経由の同一実体でもエラーになりませんでした")
+		}
+	}
+}
+
+// 出力が入力フォルダの内側にあると、作成中のZIP自身を梱包するため拒否する。
+func TestCreateZipDestInsideSrc(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "zsrc")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("a"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := createZip(srcDir, filepath.Join(srcDir, "x.zip")); err == nil {
+		t.Error("圧縮先が圧縮元フォルダの内側でもエラーになりませんでした")
+	}
+}
+
+// 通常の圧縮→解凍の往復が維持されていること。
+func TestZipRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "zsrc")
+	dest := filepath.Join(dir, "dest")
+	if err := os.MkdirAll(filepath.Join(srcDir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "sub", "b.txt"), []byte("world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	zipPath := filepath.Join(dir, "out.zip")
+	if err := createZip(srcDir, zipPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := extractZip(zipPath, dest); err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		filepath.Join("zsrc", "a.txt"):        "hello",
+		filepath.Join("zsrc", "sub", "b.txt"): "world",
+	} {
+		if got, err := os.ReadFile(filepath.Join(dest, name)); err != nil || string(got) != want {
+			t.Errorf("%s = %q, want %q (err=%v)", name, got, want, err)
+		}
+	}
+}

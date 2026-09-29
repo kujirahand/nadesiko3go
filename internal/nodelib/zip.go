@@ -2,6 +2,7 @@ package nodelib
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -91,6 +92,19 @@ func zipCommands(m map[string]command) {
 }
 
 func createZip(src, dst string) error {
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+	// 出力が入力と同じ実体だと、os.Createの切り詰めで元データが消える (#189)
+	if dstInfo, err := os.Stat(dst); err == nil && os.SameFile(srcInfo, dstInfo) {
+		return fmt.Errorf("圧縮先が圧縮元と同じファイルです: %s", dst)
+	}
+	// 出力が入力フォルダの内側だと、作成中のZIP自身を梱包してしまうため拒否する
+	if srcInfo.IsDir() && pathInside(src, dst) {
+		return fmt.Errorf("圧縮先が圧縮元フォルダの内側です: %s", dst)
+	}
+
 	zipFile, err := os.Create(dst)
 	if err != nil {
 		return err
@@ -100,13 +114,8 @@ func createZip(src, dst string) error {
 	zw := zip.NewWriter(zipFile)
 	defer zw.Close()
 
-	info, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-
 	var baseDir string
-	if info.IsDir() {
+	if srcInfo.IsDir() {
 		baseDir = filepath.Dir(filepath.Clean(src))
 	}
 
@@ -237,6 +246,16 @@ func resolveExisting(path string) string {
 		tail = append(tail, filepath.Base(cur))
 		cur = parent
 	}
+}
+
+// pathInside はtargetがbaseフォルダの内側（自身を含む）にあるかを返す。
+// 実体パスで比較するため、シンボリックリンク越しの表記差も拾う。
+func pathInside(base, target string) bool {
+	rel, err := filepath.Rel(resolveExisting(base), resolveExisting(target))
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
 
 // hasSymlinkComponent はbaseからrelを辿り、途中に既存のシンボリックリンクが
