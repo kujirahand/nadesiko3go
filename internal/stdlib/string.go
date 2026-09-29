@@ -134,7 +134,15 @@ func stringImpls(m map[string]Impl) {
 		return value.String(strings.Join(splitString(str(a, 0), str(a, 1)), str(a, 2))), nil
 	}
 	m["単置換"] = func(_ Context, a []value.Value) (value.Value, error) {
-		return value.String(strings.Replace(str(a, 0), str(a, 1), str(a, 2), 1)), nil
+		// 本家は String(s).replace(a, b) なので、最初の1回だけの置換で
+		// 置換文字列の $ パターンが展開される (#222)
+		s, from, to := str(a, 0), str(a, 1), str(a, 2)
+		at := strings.Index(s, from)
+		if at < 0 {
+			return value.String(s), nil
+		}
+		repl := expandDollarPattern(to, from, s[:at], s[at+len(from):])
+		return value.String(s[:at] + repl + s[at+len(from):]), nil
 	}
 	m["区切"] = func(_ Context, a []value.Value) (value.Value, error) {
 		parts := splitString(str(a, 0), str(a, 1))
@@ -525,6 +533,36 @@ func spliceRunes(runes []rune, start, count int) []rune {
 	out := make([]rune, 0, len(runes)-(end-start))
 	out = append(out, runes[:start]...)
 	return append(out, runes[end:]...)
+}
+
+// expandDollarPattern は JavaScript の String.prototype.replace が置換
+// 文字列に行う $ パターン展開（GetSubstitution）を再現する。
+// 文字列検索による1回置換にはキャプチャがないため、$$（$そのもの）、
+// $&（一致した部分文字列）、$`（一致位置より前）、$'（一致位置より後）
+// だけが展開され、$n・$nn・$<name>・末尾の孤立した $ はそのまま残る。
+func expandDollarPattern(repl, matched, before, after string) string {
+	var b strings.Builder
+	for i := 0; i < len(repl); i++ {
+		if repl[i] != '$' || i+1 >= len(repl) {
+			b.WriteByte(repl[i])
+			continue
+		}
+		switch repl[i+1] {
+		case '$':
+			b.WriteByte('$')
+		case '&':
+			b.WriteString(matched)
+		case '`':
+			b.WriteString(before)
+		case '\'':
+			b.WriteString(after)
+		default:
+			b.WriteByte('$')
+			continue
+		}
+		i++
+	}
+	return b.String()
 }
 
 // splitString splits s by sep. An empty separator splits into single
