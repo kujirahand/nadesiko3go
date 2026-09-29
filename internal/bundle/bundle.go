@@ -312,28 +312,70 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 	if !info.IsDir() {
 		return fmt.Errorf("リソース『%s』はフォルダではありません", dir)
 	}
+	// リンク先の実体がフォルダ内にあるか判定するため、フォルダ自身も
+	// シンボリックリンクを解決したパスにしておく (macOSの/tmp等でも
+	// 正しく比較できるように)。ルート自身がフォルダへのリンクでも、
+	// 実体側を歩いて中身を梱包する。
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("リソース『%s』を読み込めません: %w", dir, err)
+	}
 
-	return filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
+	// skip はリンク未解決のパスで来ることがあるので、解決後の形でも
+	// 照合できるようにしておく
+	skipPaths := make(map[string]bool, len(skip))
+	for k := range skip {
+		skipPaths[k] = true
+		if resolved, err := filepath.EvalSymlinks(k); err == nil {
+			skipPaths[resolved] = true
+		}
+	}
+
+	return filepath.Walk(realRoot, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		// 「.git」のような隠しフォルダは、丸ごと梱包すると邪魔なので飛ばす
-		if name := fi.Name(); strings.HasPrefix(name, ".") && p != root {
+		if name := fi.Name(); strings.HasPrefix(name, ".") && p != realRoot {
 			if fi.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
+		// シンボリックリンクは、リンク先の実体がフォルダ内にあるかを
+		// 確かめてから扱う。外を指すリンクは、外部のファイルを配布
+		// バイナリへ取り込んでしまうので拒否する (Issue #187)
+		resolved := ""
+		if fi.Mode()&os.ModeSymlink != 0 {
+			r, err := filepath.EvalSymlinks(p)
+			if err != nil {
+				return fmt.Errorf("リソース内のリンク『%s』を解決できません: %w", p, err)
+			}
+			if !withinDir(realRoot, r) {
+				return fmt.Errorf("リソース内のリンク『%s』がフォルダ外の『%s』を指しているため梱包できません", p, r)
+			}
+			resolved = r
+			target, err := os.Stat(p)
+			if err != nil {
+				return err
+			}
+			if target.IsDir() {
+				// フォルダへのリンクは実体側が別途走査されるので、
+				// 別名での重複梱包を避けて飛ばす
+				return nil
+			}
+		}
 		if fi.IsDir() {
 			return nil
 		}
-		// 出力先の実行ファイル自身を巻き込まない
-		if skip[p] {
-			return nil
-		}
-		rel, err := filepath.Rel(root, p)
+		rel, err := filepath.Rel(realRoot, p)
 		if err != nil {
 			return err
+		}
+		// 出力先の実行ファイル自身を巻き込まない。歩いているのは実体側の
+		// パスなので、指定されたときのパスの形やリンクの実体でも照合する
+		if skipPaths[p] || skipPaths[filepath.Join(root, rel)] || skipPaths[resolved] {
+			return nil
 		}
 		w, err := zw.Create(resourcePrefix + prefix + filepath.ToSlash(rel))
 		if err != nil {
@@ -346,6 +388,13 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 		_, err = w.Write(data)
 		return err
 	})
+}
+
+// withinDir は resolved が dir の中にあるかを返す。どちらも実体パス
+// (EvalSymlinks済み) で渡すこと。
+func withinDir(dir, resolved string) bool {
+	rel, err := filepath.Rel(dir, resolved)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // resourcePrefixFor decides what folder name the resources keep.
