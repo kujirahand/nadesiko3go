@@ -95,6 +95,54 @@ func TestArrayJoinNullUndefined(t *testing.T) {
 	}
 }
 
+// 上流Issue #222 の回帰テスト。本家 TypeScript 版の『単置換』は
+// String(s).replace(a, b) なので、置換文字列の $ パターンが展開される。
+// 文字列検索の置換にはキャプチャがないため、$$・$&・$`・$' だけが
+// 展開され、$1・$<name>・末尾の孤立した $ はそのまま残る。
+func TestReplaceOnceDollarPattern(t *testing.T) {
+	r := stdlib.NewRegistry()
+	ctx := newContext()
+
+	e, ok := r.Lookup("単置換")
+	if !ok || e.Fn == nil {
+		t.Fatal("単置換 が登録されていない")
+	}
+	call := func(s, from, to string) string {
+		got, err := e.Fn(ctx, []value.Value{value.String(s), value.String(from), value.String(to)})
+		if err != nil {
+			t.Fatalf("単置換(%q, %q, %q): %v", s, from, to, err)
+		}
+		return value.ToString(got)
+	}
+
+	tests := []struct {
+		name       string
+		s, from, to string
+		want       string
+	}{
+		{"$&は一致文字列", "あXあ", "X", "$&$&", "あXXあ"},
+		{"$$は$1文字", "あXあ", "X", "$$$&", "あ$Xあ"},
+		{"$$の後の&はそのまま", "あXあ", "X", "$$&$&", "あ$&Xあ"},
+		{"$`は一致位置より前", "あXあ", "X", "$`", "あああ"},
+		{"$'は一致位置より後", "あXあ", "X", "$'", "あああ"},
+		{"キャプチャなしの$nはそのまま", "あXあ", "X", "[$1]", "あ[$1]あ"},
+		{"キャプチャなしの$<name>はそのまま", "あXあ", "X", "[$<g>]", "あ[$<g>]あ"},
+		{"末尾の孤立した$はそのまま", "あXあ", "X", "Y$", "あY$あ"},
+		{"普通の文字はそのまま", "あXあ", "X", "Y", "あYあ"},
+		{"最初の1回だけ置換", "X-X", "X", "$&$&", "XX-X"},
+		{"マッチしない", "あいう", "X", "$&", "あいう"},
+		{"空の検索文字列は先頭に挿入", "abc", "", "x", "xabc"},
+		{"空マッチでの$'は全体", "abc", "", "$'", "abcabc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := call(tt.s, tt.from, tt.to); got != tt.want {
+				t.Errorf("単置換(%q, %q, %q) = %q, want %q", tt.s, tt.from, tt.to, got, tt.want)
+			}
+		})
+	}
+}
+
 // 『連続表示』『連続無改行表示』も本家は a.join('') してから表示するので、
 // 出力内容に null/undefined の名前が残らないことを確かめる。
 func TestContinuousPrintNullUndefined(t *testing.T) {
