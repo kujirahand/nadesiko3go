@@ -326,6 +326,8 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 	skipPaths := make(map[string]bool, len(skip))
 	for k := range skip {
 		skipPaths[k] = true
+		// EvalSymlinksが失敗する（パスが存在しないなど）場合は、
+		// 解決前のパスのみで照合する
 		if resolved, err := filepath.EvalSymlinks(k); err == nil {
 			skipPaths[resolved] = true
 		}
@@ -374,7 +376,7 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 		}
 		// 出力先の実行ファイル自身を巻き込まない。歩いているのは実体側の
 		// パスなので、指定されたときのパスの形やリンクの実体でも照合する
-		if skipPaths[p] || skipPaths[filepath.Join(root, rel)] || skipPaths[resolved] {
+		if skipPaths[p] || skipPaths[filepath.Join(root, rel)] || (resolved != "" && skipPaths[resolved]) {
 			return nil
 		}
 		w, err := zw.Create(resourcePrefix + prefix + filepath.ToSlash(rel))
@@ -392,6 +394,9 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 
 // withinDir は resolved が dir の中にあるかを返す。どちらも実体パス
 // (EvalSymlinks済み) で渡すこと。
+// dir と resolved が同じ場合（rel == "."）は許可する。リソースルート
+// 自身がシンボリックリンクの場合、realRoot と resolved が同じになる
+// 可能性があるため。
 func withinDir(dir, resolved string) bool {
 	rel, err := filepath.Rel(dir, resolved)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
