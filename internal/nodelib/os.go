@@ -172,7 +172,7 @@ func osCommands(m map[string]command) {
 		return value.String(runtime.GOARCH), nil
 	}}
 
-	m["CPU使用率取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
+	m["CPU使用率取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) { // @CPUの使用率を取得する // @CPUしようりつしゅとく
 		usage, err := getCPUUsagePercent()
 		if err != nil {
 			return value.Undefined(), err
