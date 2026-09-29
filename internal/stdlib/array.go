@@ -345,14 +345,14 @@ func arrayImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return transposeTable(table, false), nil
+		return transposeTable("表行列交換", table, false)
 	}
 	m["表右回転"] = func(_ Context, a []value.Value) (value.Value, error) {
 		table, err := requireTable("表右回転", arg(a, 0))
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return transposeTable(table, true), nil
+		return transposeTable("表右回転", table, true)
 	}
 	m["表重複削除"] = func(_ Context, a []value.Value) (value.Value, error) {
 		table, err := requireTable("表重複削除", arg(a, 0))
@@ -395,7 +395,10 @@ func arrayImpls(m map[string]Impl) {
 		at := int(value.ToNumber(arg(a, 1)))
 		rows := make([]value.Value, 0, table.Len())
 		for i := 0; i < table.Len(); i++ {
-			row, _ := table.Get(i).Array()
+			row, ok := table.Get(i).Array()
+			if !ok {
+				return value.Undefined(), errors.New("『表列挿入』の各行は配列でなければなりません。")
+			}
 			copyRow := value.NewArray(row.Values()...)
 			copyRow.Insert(at, column.Get(i))
 			rows = append(rows, value.ArrayValue(copyRow))
@@ -410,7 +413,10 @@ func arrayImpls(m map[string]Impl) {
 		at := int(value.ToNumber(arg(a, 1)))
 		rows := make([]value.Value, 0, table.Len())
 		for i := 0; i < table.Len(); i++ {
-			row, _ := table.Get(i).Array()
+			row, ok := table.Get(i).Array()
+			if !ok {
+				return value.Undefined(), errors.New("『表列削除』の各行は配列でなければなりません。")
+			}
 			copyRow := value.NewArray(row.Values()...)
 			copyRow.Remove(at, 1)
 			rows = append(rows, value.ArrayValue(copyRow))
@@ -528,10 +534,13 @@ func tableFilter(match func(cell, wanted value.Value) bool) Impl {
 	}
 }
 
-func transposeTable(table *value.Array, rotate bool) value.Value {
+func transposeTable(name string, table *value.Array, rotate bool) (value.Value, error) {
 	cols := 1
 	for i := 0; i < table.Len(); i++ {
-		row, _ := table.Get(i).Array()
+		row, ok := table.Get(i).Array()
+		if !ok {
+			return value.Undefined(), errors.New("『" + name + "』の各行は配列でなければなりません。")
+		}
 		if row.Len() > cols {
 			cols = row.Len()
 		}
@@ -552,7 +561,7 @@ func transposeTable(table *value.Array, rotate bool) value.Value {
 		}
 		rows = append(rows, value.ArrayValue(value.NewArray(items...)))
 	}
-	return value.ArrayValue(value.NewArray(rows...))
+	return value.ArrayValue(value.NewArray(rows...)), nil
 }
 
 func arrayReference(container, index value.Value) (value.Value, error) {
