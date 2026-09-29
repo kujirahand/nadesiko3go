@@ -300,7 +300,7 @@ func openBrowser(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	case "darwin":
 		cmd = exec.Command("open", target)
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", target)
+		cmd = shellCommand(windowsStartLine(target))
 	default:
 		cmd = exec.Command("xdg-open", target)
 	}
@@ -308,6 +308,15 @@ func openBrowser(_ stdlib.Context, a []value.Value) (value.Value, error) {
 		return value.Undefined(), fmt.Errorf("起動に失敗しました: %w", err)
 	}
 	return value.Undefined(), nil
+}
+
+// windowsStartLine は cmd.exe の start に渡すコマンド行を組み立てる。
+// start は最初の引用符付き引数をウィンドウタイトルと解釈するため空の
+// タイトルを明示し、対象に空白や & が含まれてもコマンド区切りや
+// タイトル扱いにならないよう必ず引用符で囲む。対象中の引用符は囲みを
+// 壊せないよう取り除く（WindowsのパスやURLに生の " は現れない）。
+func windowsStartLine(target string) string {
+	return `start "" "` + strings.ReplaceAll(target, `"`, "") + `"`
 }
 
 func argAt(args []value.Value, i int) value.Value {
