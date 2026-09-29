@@ -126,11 +126,13 @@ func (r *Regexp) Replace(s, template string) string {
 	if r.Global {
 		return r.re.ReplaceAllString(s, expanded)
 	}
-	loc := r.re.FindStringIndex(s)
+	// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
+	// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
+	loc := r.re.FindStringSubmatchIndex(s)
 	if loc == nil {
 		return s
 	}
-	first := r.re.ReplaceAllString(s[loc[0]:loc[1]], expanded)
+	first := string(r.re.ExpandString(nil, expanded, s, loc))
 	return s[:loc[0]] + first + s[loc[1]:]
 }
 
