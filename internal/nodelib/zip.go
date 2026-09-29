@@ -168,11 +168,15 @@ func extractZip(src, destDir string) error {
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return err
 	}
+	// 展開先を実体の絶対パスに直す。「.」指定でも包含判定が効くようにし、
+	// 展開先自身がシンボリックリンクでも内側判定がずれないようにする (#194)
+	absDest := resolveExisting(destDir)
 
 	for _, f := range r.File {
-		fpath := filepath.Join(destDir, f.Name)
-		// Check for Zip Slip vulnerability
-		if !strings.HasPrefix(filepath.Clean(fpath), filepath.Clean(destDir)+string(os.PathSeparator)) && filepath.Clean(fpath) != filepath.Clean(destDir) {
+		fpath := filepath.Join(absDest, filepath.FromSlash(f.Name))
+		// Zip Slip対策: 展開先の外へ出るエントリは飛ばす
+		rel, err := filepath.Rel(absDest, fpath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			continue
 		}
 
@@ -204,4 +208,29 @@ func extractZip(src, destDir string) error {
 		}
 	}
 	return nil
+}
+
+// resolveExisting はpathを絶対パスにし、実在する最長の先祖までシンボリック
+// リンクを解決してから未作成の末尾を連結した実体パスを返す。
+func resolveExisting(path string) string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return filepath.Clean(path)
+	}
+	var tail []string
+	cur := abs
+	for {
+		if resolved, err := filepath.EvalSymlinks(cur); err == nil {
+			for i := len(tail) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, tail[i])
+			}
+			return resolved
+		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			return abs
+		}
+		tail = append(tail, filepath.Base(cur))
+		cur = parent
+	}
 }
