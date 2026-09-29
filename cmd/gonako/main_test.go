@@ -411,6 +411,10 @@ func TestBuildIncludeSymlink(t *testing.T) {
 	if err := run(args, &out, &errOut); err != nil {
 		t.Fatalf("build --include-symlink: %v (%s)", err, errOut.String())
 	}
+	// 範囲外を指すリンクは警告を出す (Issue #263 のレビュー指定)
+	if !strings.Contains(errOut.String(), "警告") {
+		t.Errorf("警告が stderr に出ていない: %q", errOut.String())
+	}
 
 	packed, err := bundle.Open(filepath.Join(dir, "pkg"))
 	if err != nil {

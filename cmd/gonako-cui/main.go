@@ -42,8 +42,8 @@ build のオプション:
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
   --include-symlink
-                   フォルダ外を指すシンボリックリンクも、リンク先を
-                   辿って梱包する (既定ではエラー)
+                   フォルダ外を指すシンボリックリンクも、警告を出して
+                   リンク先を辿って梱包する (既定ではエラー)
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
@@ -162,6 +162,9 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 		Name:           source,
 		ResourceDir:    *resource,
 		IncludeSymlink: *includeSymlink,
+		Warn: func(format string, args ...any) {
+			fmt.Fprintf(stderr, "警告: "+format+"\n", args...)
+		},
 	}); err != nil {
 		return err
 	}

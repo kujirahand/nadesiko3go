@@ -62,8 +62,8 @@ build のオプション:
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
   --include-symlink
-                   フォルダ外を指すシンボリックリンクも、リンク先を
-                   辿って梱包する (既定ではエラー)
+                   フォルダ外を指すシンボリックリンクも、警告を出して
+                   リンク先を辿って梱包する (既定ではエラー)
 
 install のオプション:
   --bin DIR        配置先 (既定: カレントディレクトリのbin/)
@@ -201,6 +201,9 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 		Name:           source,
 		ResourceDir:    *resource,
 		IncludeSymlink: *includeSymlink,
+		Warn: func(format string, args ...any) {
+			fmt.Fprintf(stderr, "警告: "+format+"\n", args...)
+		},
 	}); err != nil {
 		return err
 	}
