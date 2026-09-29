@@ -82,9 +82,16 @@ func tryTargets(code []ir.Inst) []int {
 // reaches the next instruction with no label at all. 0 is always included:
 // it is where the dispatch switch (in a function using エラー監視) sends a
 // fresh call, and where genSimple's initial goto lands.
-func jumpTargets(code []ir.Inst) map[int]bool {
+//
+// emitBody skips unreachable instructions, so a jump sitting in dead code
+// never becomes a goto. It must not mark a target either: the label would
+// stand with no goto using it, and Go rejects an unused label (#193).
+func jumpTargets(code []ir.Inst, depths []int) map[int]bool {
 	targets := map[int]bool{0: true}
-	for _, inst := range code {
+	for pc, inst := range code {
+		if pc < len(depths) && depths[pc] == ir.Unvisited {
+			continue
+		}
 		switch inst.Op {
 		case ir.OpJump, ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpTry,
 			ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
@@ -446,7 +453,7 @@ func (g *generator) emitBody(out *bytes.Buffer, fi int, fn *ir.Func, ret retKind
 		gpromoted: g.types.promotedGlobalsFor(fi),
 		ret:       ret, specials: specials,
 	}
-	targets := jumpTargets(fn.Code)
+	targets := jumpTargets(fn.Code, e.depths)
 	for pc, inst := range fn.Code {
 		if e.depths[pc] == ir.Unvisited {
 			continue

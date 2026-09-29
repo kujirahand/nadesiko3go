@@ -31,6 +31,9 @@ type funcCtx struct {
 	captures     []ir.Capture
 	// loops stacks the jump targets a 『抜ける』 or 『続ける』 needs.
 	loops []*loopCtx
+	// trys はこの関数の中で現在開いているエラー監視領域の数。
+	// ジャンプが領域をまたぐときに外すべきハンドラの数を数える (#193)。
+	trys int
 }
 
 func newFuncCtx(name string) *funcCtx {
@@ -65,6 +68,9 @@ type varRef struct {
 type loopCtx struct {
 	breaks    []int // 後で飛び先を埋める Jump のアドレス
 	continues []int
+	// tryDepth はこのループに入る時点で開いていたエラー監視領域の数。
+	// ループの中のジャンプは、これを超えて開いた分のハンドラを外す (#193)。
+	tryDepth int
 }
 
 // Compiler walks the tree and emits IR.

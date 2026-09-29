@@ -125,6 +125,10 @@ func (c *Compiler) compileStatement(n *ast.Node) {
 
 	case ast.Return:
 		c.compileExpr(n.Block(0))
+		// 戻るとこの関数で開いた監視領域をすべて抜ける。フレームごと
+		// 終わるので不要に見えるが、抜ける/続けると同じく明示的に外して
+		// 「実行中の領域だけハンドラが残る」不変条件を保つ (#193)。
+		c.emitEndTrys(c.fn.trys, n)
 		c.emit(ir.OpReturn, 1, 0, n)
 		return
 
@@ -483,7 +487,11 @@ func (c *Compiler) compileSwitch(n *ast.Node) {
 func (c *Compiler) compileTryExcept(n *ast.Node) {
 	defer c.enterBranch()()
 	toHandler := c.emit(ir.OpTry, 0, 0, n)
+	c.fn.trys++
 	c.compileStatement(n.Block(0))
+	// 監視領域はここで閉じる。エラーならば節自体はこのハンドラに
+	// 守られない（実行時にも protect() が先に外してから飛び込む）。
+	c.fn.trys--
 	c.emit(ir.OpEndTry, 0, 0, n)
 	toEnd := c.emit(ir.OpJump, 0, 0, n)
 	c.patch(toHandler, c.here())
@@ -501,7 +509,7 @@ func (c *Compiler) enterBranch() func() {
 // --- ループの出入り ---
 
 func (c *Compiler) pushLoop() *loopCtx {
-	l := &loopCtx{}
+	l := &loopCtx{tryDepth: c.fn.trys}
 	c.fn.loops = append(c.fn.loops, l)
 	return l
 }
@@ -532,11 +540,23 @@ func (c *Compiler) emitLoopJump(n *ast.Node, isBreak bool) {
 		c.fail(fmt.Sprintf("『%s』文がありますが、それは繰り返しの中で利用してください。", word), n)
 	}
 	l := c.fn.loops[len(c.fn.loops)-1]
+	// ループの内側で開いた監視領域をジャンプがまたぐとき、跨ぐ数だけ
+	// ハンドラを外す。外さないと脱出後のエラーで、死んだはずの
+	// エラーならば節へ飛んでしまう (#193)。
+	c.emitEndTrys(c.fn.trys-l.tryDepth, n)
 	at := c.emit(ir.OpJump, 0, 0, n)
 	if isBreak {
 		l.breaks = append(l.breaks, at)
 	} else {
 		l.continues = append(l.continues, at)
+	}
+}
+
+// emitEndTrys emits n OpEndTry, unwinding that many innermost monitored
+// regions before a jump that leaves them.
+func (c *Compiler) emitEndTrys(n int, node *ast.Node) {
+	for i := 0; i < n; i++ {
+		c.emit(ir.OpEndTry, 0, 0, node)
 	}
 }
 
