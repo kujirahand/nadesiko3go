@@ -232,6 +232,12 @@ func (m *VM) Vars(prefix string, names []string) map[string]value.Value {
 			continue
 		}
 		if id, ok := ir.SpecialByName(name); ok {
+			// 実行中ならフレーム系システム値はアクティブフレームが持つ。
+			// 実行後は callClosure が最終値を m.specials へ書き戻している。
+			if id.IsFrameSpecial() && m.current != nil {
+				out[name] = m.current.specials[id]
+				continue
+			}
 			out[name] = m.specials[id]
 			continue
 		}
@@ -525,6 +531,18 @@ func (m *VM) callClosure(index int, captured []*value.Cell, args []value.Value) 
 	prev := m.current
 	m.current = f
 	defer func() {
+		// 最上位の呼び出しが終わったら、フレーム系システム値の最終値を
+		// VM 側へ書き戻す。Vars が実行後の『それ』などを読めるようにする。
+		// フレーム系以外（『抽出文字列』など）は実行中に m.specials へ
+		// 直接書かれているので、フレーム作製時の古い複写で上書きしない。
+		// freeLeafFrame が specials を消すので、その前に取り出す。
+		if prev == nil {
+			for id := ir.Special(0); id < ir.SpecialCount; id++ {
+				if id.IsFrameSpecial() {
+					m.specials[id] = f.specials[id]
+				}
+			}
+		}
 		if isLeaf {
 			m.freeLeafFrame(f)
 		}
