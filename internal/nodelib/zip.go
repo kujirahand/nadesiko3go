@@ -98,11 +98,11 @@ func createZip(src, dst string) error {
 	}
 	// 出力が入力と同じ実体だと、os.Createの切り詰めで元データが消える (#189)
 	if dstInfo, err := os.Stat(dst); err == nil && os.SameFile(srcInfo, dstInfo) {
-		return fmt.Errorf("圧縮先が圧縮元と同じファイルです: %s", dst)
+		return fmt.Errorf("圧縮先が圧縮元と同一です: %s", dst)
 	}
 	// 出力が入力フォルダの内側だと、作成中のZIP自身を梱包してしまうため拒否する
 	if srcInfo.IsDir() && pathInside(src, dst) {
-		return fmt.Errorf("圧縮先が圧縮元フォルダの内側です: %s", dst)
+		return fmt.Errorf("圧縮先が圧縮元フォルダと同一またはその内側です: %s", dst)
 	}
 
 	zipFile, err := os.Create(dst)
@@ -181,15 +181,20 @@ func extractZip(src, destDir string) error {
 	// 展開先自身がシンボリックリンクでも内側判定がずれないようにする (#194)
 	absDest := resolveExisting(destDir)
 
+	// 安全なエントリは全て展開し、拒否したエントリは最後にまとめて
+	// エラーとして報告する（黙って飛ばすと利用者が気付けない）
+	var rejected []string
 	for _, f := range r.File {
 		fpath := filepath.Join(absDest, filepath.FromSlash(f.Name))
-		// Zip Slip対策: 展開先の外へ出るエントリは飛ばす
+		// Zip Slip対策: 展開先の外へ出るエントリは拒否する
 		rel, err := filepath.Rel(absDest, fpath)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+			rejected = append(rejected, f.Name)
 			continue
 		}
 		// 途中の既存シンボリックリンクを通ると展開先の外へ書き出すため拒否する (#185)
 		if hasSymlinkComponent(absDest, rel) {
+			rejected = append(rejected, f.Name)
 			continue
 		}
 
@@ -219,6 +224,9 @@ func extractZip(src, destDir string) error {
 		if err != nil {
 			return err
 		}
+	}
+	if len(rejected) > 0 {
+		return fmt.Errorf("展開先の外へ出るエントリを%d件拒否しました: %s", len(rejected), strings.Join(rejected, ", "))
 	}
 	return nil
 }
@@ -260,6 +268,8 @@ func pathInside(base, target string) bool {
 
 // hasSymlinkComponent はbaseからrelを辿り、途中に既存のシンボリックリンクが
 // あれば真を返す。存在しない要素以降は新規作成されるので調べない。
+// なお検査と実際の作成・書き込みの間に他プロセスがリンクを差し替える
+// TOCTOUの余地は残るが、CLI用途では現実的な脅威が小さいため許容とする。
 func hasSymlinkComponent(base, rel string) bool {
 	cur := base
 	for _, elem := range strings.Split(rel, string(os.PathSeparator)) {

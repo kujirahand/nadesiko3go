@@ -52,7 +52,8 @@ func TestExtractZipDestDot(t *testing.T) {
 	}
 }
 
-// Zip Slip対策が維持されていること（".."を含むエントリは飛ばす）。
+// Zip Slip対策が維持されていること（".."を含むエントリは拒否し、
+// 安全なエントリだけを展開した上でエラーを返す）。
 func TestExtractZipZipSlip(t *testing.T) {
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "dest")
@@ -62,8 +63,8 @@ func TestExtractZipZipSlip(t *testing.T) {
 		"ok/good.txt":         "good",
 	})
 
-	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err != nil {
-		t.Fatal(err)
+	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err == nil {
+		t.Error("範囲外エントリを含むのにエラーになりませんでした")
 	}
 	for _, name := range []string{"evil.txt", "evil2.txt"} {
 		if _, err := os.Lstat(filepath.Join(dir, name)); !os.IsNotExist(err) {
@@ -99,17 +100,30 @@ func TestExtractZipSymlinkEscape(t *testing.T) {
 	if err := os.Symlink(filepath.Join(outside, "keep.txt"), filepath.Join(dest, "victim.txt")); err != nil {
 		t.Fatal(err)
 	}
+	// 存在しないファイルを指す壊れたリンク（dangling）も置く。
+	// StatではなくLstatで検査しているので、リンク先が無くても拒否できる。
+	if err := os.Symlink(filepath.Join(outside, "nonexistent.txt"), filepath.Join(dest, "broken.txt")); err != nil {
+		t.Fatal(err)
+	}
 	writeTestZip(t, filepath.Join(dir, "f.zip"), map[string]string{
 		"link/pwn.txt": "pwn",
+		"link/sub/":    "", // ディレクトリエントリが既存リンクに当たるケース
 		"victim.txt":   "overwritten",
+		"broken.txt":   "dangling",
 		"ok.txt":       "ok",
 	})
 
-	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err != nil {
-		t.Fatal(err)
+	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err == nil {
+		t.Error("リンク経由エントリを含むのにエラーになりませんでした")
 	}
 	if _, err := os.Lstat(filepath.Join(outside, "pwn.txt")); !os.IsNotExist(err) {
 		t.Error("シンボリックリンク経由で展開先の外に書き込まれました")
+	}
+	if _, err := os.Lstat(filepath.Join(outside, "sub")); !os.IsNotExist(err) {
+		t.Error("シンボリックリンク経由で展開先の外にフォルダが作られました")
+	}
+	if _, err := os.Lstat(filepath.Join(outside, "nonexistent.txt")); !os.IsNotExist(err) {
+		t.Error("壊れたリンクの先に書き込まれました")
 	}
 	if body, err := os.ReadFile(filepath.Join(outside, "keep.txt")); err != nil || string(body) != "keep" {
 		t.Errorf("リンク先の既存ファイルが上書きされました: %q err=%v", body, err)
