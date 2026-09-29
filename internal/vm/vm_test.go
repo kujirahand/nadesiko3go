@@ -2,6 +2,7 @@ package vm_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -377,5 +378,32 @@ func TestLeafFrameErrorRecovery(t *testing.T) {
 `
 	if got := run(t, code); got != "ゼロ除算エラー\n10" {
 		t.Errorf("got %q, want \"ゼロ除算エラー\\n10\"", got)
+	}
+}
+
+// TestUnaryMinus pins issue #212: a unary minus accepts a parenthesised
+// expression, a string or a bigint literal, matching the upstream yMinus.
+func TestUnaryMinus(t *testing.T) {
+	tests := []struct{ code, want string }{
+		{"-(1+2)を表示", "-3"},
+		{"-(1+2)*2を表示", "-6"},
+		{"-「5」を表示", "-5"},
+		{"-「あ」を表示", "NaN"},
+		{"-0を表示", "0"}, // JSでは -0 も "0" と表示される
+		{"A=5\n-(A*2)を表示", "-10"},
+		{"A=5\n-Aを表示", "-5"},
+		// lexer が負の数値トークンを作るので『--5』は二重否定の -(-5) になる
+		{"--5を表示", "5"},
+	}
+	for _, tt := range tests {
+		if got := run(t, tt.code); got != tt.want {
+			t.Errorf("%q = %q, want %q", tt.code, got, tt.want)
+		}
+	}
+	// bigint は字句・構文では受理するが実行は未対応。構文エラーではなく
+	// 「bigint はまだ実行に対応していません」になることを確認する。
+	if _, err := vm.RunSource("-5nを表示", "main.nako3", nil); err == nil ||
+		!strings.Contains(err.Error(), "bigint") {
+		t.Errorf("-5n: got %v, want bigint 未対応エラー", err)
 	}
 }

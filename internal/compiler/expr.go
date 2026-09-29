@@ -145,6 +145,17 @@ func (c *Compiler) compileOp(n *ast.Node) {
 		return
 	}
 
+	// 単項マイナス。yMinus が定数に畳めなかった『-(式)』『-A』などが
+	// オペランド1つの『-』ノードになる。
+	if n.Operator == "-" && len(n.Blocks) == 1 {
+		if c.tryEmitFolded(n) {
+			return
+		}
+		c.compileExpr(n.Block(0))
+		c.emit(ir.OpUnary, int(ir.UnaryNeg), 0, n)
+		return
+	}
+
 	op, ok := binaryOps[n.Operator]
 	if !ok {
 		c.fail(fmt.Sprintf("演算子『%s』はまだ実行に対応していません。", n.Operator), n)

@@ -46,6 +46,9 @@ func nodeToStr(node any, depth int, typeName string) string {
 			op := operatorLabel(n.Operator)
 			if depth >= 0 {
 				left := nodeToStr(n.Block(0), depth, "")
+				if len(n.Blocks) == 1 {
+					return fmt.Sprintf("%s『%sに演算子『%s』を適用した式』", named(""), left, op)
+				}
 				right := nodeToStr(n.Block(1), depth, "")
 				if n.Operator == "eq" {
 					return fmt.Sprintf("%s『%sと%sが等しいかどうかの比較』", named(""), left, right)
