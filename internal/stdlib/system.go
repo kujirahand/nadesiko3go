@@ -109,9 +109,14 @@ func implementations() map[string]Impl {
 		return value.Bool(allDigitsRE.MatchString(value.ToString(arg(args, 0)))), nil
 	}
 	m["非数判定"] = func(_ Context, args []value.Value) (value.Value, error) {
+		// Number.isNaN 相当: 値そのものが数値型のNaNのときのみ真 (#223)
+		n, isNumber := arg(args, 0).Number()
+		return value.Bool(isNumber && math.IsNaN(n)), nil
+	}
+	m["NAN判定"] = func(_ Context, args []value.Value) (value.Value, error) {
+		// isNaN 相当: 数値へ変換してから判定する
 		return value.Bool(math.IsNaN(value.ToNumber(arg(args, 0)))), nil
 	}
-	m["NAN判定"] = m["非数判定"]
 	m["HEX"] = func(_ Context, args []value.Value) (value.Value, error) {
 		return value.String(strconv.FormatInt(int64(value.ToNumber(arg(args, 0))), 16)), nil
 	}
