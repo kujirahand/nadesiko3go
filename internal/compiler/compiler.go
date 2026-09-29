@@ -2,7 +2,6 @@
 package compiler
 
 import (
-	"maps"
 	"sort"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
@@ -101,35 +100,6 @@ type Compiler struct {
 
 // compileError carries a failure out of the recursive walk.
 type compileError struct{ err *errs.NakoError }
-
-// constMarks is the compile-time record of which slots hold a 『定数』,
-// saved so a body emitted on two paths can be re-marked cleanly on the
-// second pass (#196).
-type constMarks struct {
-	slots   map[int]bool
-	locals  map[int]value.Value
-	globals map[int]bool
-	values  map[int]value.Value
-}
-
-// saveConstMarks snapshots the constant marks this emit point starts from.
-func (c *Compiler) saveConstMarks() constMarks {
-	return constMarks{
-		slots:   maps.Clone(c.fn.constSlots),
-		locals:  maps.Clone(c.fn.constLocals),
-		globals: maps.Clone(c.constGlobals),
-		values:  maps.Clone(c.constGlobalValues),
-	}
-}
-
-// restoreConstMarks puts back a snapshot taken by saveConstMarks. Emit is
-// deterministic, so after the second pass the marks cover the same slots.
-func (c *Compiler) restoreConstMarks(m constMarks) {
-	c.fn.constSlots = m.slots
-	c.fn.constLocals = m.locals
-	c.constGlobals = m.globals
-	c.constGlobalValues = m.values
-}
 
 // Compile turns a parsed program into IR.
 func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *ir.Program, err error) {
