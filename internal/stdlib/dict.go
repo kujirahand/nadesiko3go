@@ -104,13 +104,18 @@ func DecodeJSON(s string) (value.Value, error) { return decodeJSON(s) }
 // order, no HTML escaping, and undefined dropped.
 func encodeJSON(v value.Value) (string, error) {
 	var b strings.Builder
-	if err := writeJSON(&b, v); err != nil {
+	if err := writeJSON(&b, v, make(map[any]bool)); err != nil {
 		return "", err
 	}
 	return b.String(), nil
 }
 
-func writeJSON(b *strings.Builder, v value.Value) error {
+// writeJSON は値をJSONとして書き出す。seen は現在の再帰経路上にある
+// 辞書・配列を記録し、循環参照を検出する（辞書・配列は参照型なので、
+// 自身や祖先を要素として持ちうる）。循環参照は JavaScript の
+// JSON.stringify が投げる TypeError と同じく、明示的なエラーにする。
+// Go のスタックオーバーフローは回復不能なので、ここで止める。
+func writeJSON(b *strings.Builder, v value.Value, seen map[any]bool) error {
 	switch v.Kind() {
 	case value.KindUndefined, value.KindNull, value.KindFunc:
 		b.WriteString("null")
@@ -132,12 +137,17 @@ func writeJSON(b *strings.Builder, v value.Value) error {
 		return writeJSONString(b, s)
 	case value.KindArray:
 		arr, _ := v.Array()
+		if seen[arr] {
+			return errors.New("JSONエンコードできません。配列が循環参照しています。")
+		}
+		seen[arr] = true
+		defer delete(seen, arr)
 		b.WriteByte('[')
 		for i := 0; i < arr.Len(); i++ {
 			if i > 0 {
 				b.WriteByte(',')
 			}
-			if err := writeJSON(b, arr.Get(i)); err != nil {
+			if err := writeJSON(b, arr.Get(i), seen); err != nil {
 				return err
 			}
 		}
@@ -145,6 +155,11 @@ func writeJSON(b *strings.Builder, v value.Value) error {
 		return nil
 	case value.KindDict:
 		d, _ := v.Dict()
+		if seen[d] {
+			return errors.New("JSONエンコードできません。辞書が循環参照しています。")
+		}
+		seen[d] = true
+		defer delete(seen, d)
 		b.WriteByte('{')
 		first := true
 		for _, k := range d.Keys() {
@@ -160,7 +175,7 @@ func writeJSON(b *strings.Builder, v value.Value) error {
 				return err
 			}
 			b.WriteByte(':')
-			if err := writeJSON(b, item); err != nil {
+			if err := writeJSON(b, item, seen); err != nil {
 				return err
 			}
 		}

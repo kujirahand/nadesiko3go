@@ -33,7 +33,7 @@ func ToString(v Value) string {
 		return s
 	case KindArray:
 		arr, _ := v.Array()
-		return arrayToString(arr)
+		return arrayToString(arr, nil)
 	case KindDict:
 		return "[object Object]"
 	case KindFunc:
@@ -44,10 +44,23 @@ func ToString(v Value) string {
 
 // arrayToString joins the elements with commas. JavaScript renders a hole,
 // undefined, or null as an empty string rather than as its own name.
-func arrayToString(a *Array) string {
+//
+// seen は現在の再帰経路上にある配列を記録する。循環した配列は JavaScript
+// では RangeError になるが、Go のスタックオーバーフローは回復不能なので、
+// 検出した要素は "(循環)" と表記して処理を続ける。経路を降りたら抹消する
+// ので、同じ配列を別の場所から共有しているだけの場合はそのまま出る。
+func arrayToString(a *Array, seen map[*Array]bool) string {
 	if a == nil {
 		return ""
 	}
+	if seen[a] {
+		return "(循環)"
+	}
+	if seen == nil {
+		seen = make(map[*Array]bool)
+	}
+	seen[a] = true
+	defer delete(seen, a)
 	parts := make([]string, 0, a.Len())
 	for i := 0; i < a.Len(); i++ {
 		item := a.Get(i)
@@ -55,10 +68,21 @@ func arrayToString(a *Array) string {
 		case KindUndefined, KindNull:
 			parts = append(parts, "")
 		default:
-			parts = append(parts, ToString(item))
+			parts = append(parts, toStringSeen(item, seen))
 		}
 	}
 	return strings.Join(parts, ",")
+}
+
+// toStringSeen は ToString に再帰経路上の配列集合を引き渡す内部版。
+// 配列だけが配列を要素として再帰しうるので、辞書や他の型はそのまま
+// ToString に流す。
+func toStringSeen(v Value, seen map[*Array]bool) string {
+	if v.Kind() == KindArray {
+		arr, _ := v.Array()
+		return arrayToString(arr, seen)
+	}
+	return ToString(v)
 }
 
 // ToPrimitive reduces an array or dictionary to the primitive JavaScript would
