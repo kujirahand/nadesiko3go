@@ -28,6 +28,10 @@ type Regexp struct {
 	// Global is the JavaScript 『g』 flag. It decides whether a replacement
 	// touches every match or only the first.
 	Global bool
+	// hasNames はパターンが名前付きキャプチャを持つか。JavaScriptでは
+	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
+	// リテラルになるため、その判定に使う
+	hasNames bool
 }
 
 // jsPatternRE splits the 『/pattern/flags』 form nadesiko writes patterns in.
@@ -68,7 +72,14 @@ func Compile(pattern string) (*Regexp, error) {
 		}
 		return nil, err
 	}
-	return &Regexp{re: compiled, Global: global}, nil
+	hasNames := false
+	for _, name := range compiled.SubexpNames()[1:] {
+		if name != "" {
+			hasNames = true
+			break
+		}
+	}
+	return &Regexp{re: compiled, Global: global, hasNames: hasNames}, nil
 }
 
 var (
@@ -120,44 +131,93 @@ func (r *Regexp) Find(s string) []string { return r.re.FindStringSubmatch(s) }
 // Replace substitutes matches with the template, honouring the 『g』 flag: only
 // the first match changes without it.
 //
-// The template is written in JavaScript's style, where 『$1』 refers to a group.
+// The template is written in JavaScript's style: 『$$』 is a literal dollar,
+// 『$&』 the match, 『$`』 and 『$'』 the parts before and after it, 『$n』
+// a capture group and 『$<name>』 a named one.
 func (r *Regexp) Replace(s, template string) string {
-	expanded := jsTemplate(template)
-	if r.Global {
-		return r.re.ReplaceAllString(s, expanded)
+	limit := -1
+	if !r.Global {
+		limit = 1
 	}
 	// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
 	// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
-	loc := r.re.FindStringSubmatchIndex(s)
-	if loc == nil {
+	matches := r.re.FindAllStringSubmatchIndex(s, limit)
+	if len(matches) == 0 {
 		return s
 	}
-	first := string(r.re.ExpandString(nil, expanded, s, loc))
-	return s[:loc[0]] + first + s[loc[1]:]
+	var out strings.Builder
+	out.Grow(len(s) + len(template)*len(matches))
+	last := 0
+	for _, m := range matches {
+		out.WriteString(s[last:m[0]])
+		r.expandTemplate(&out, template, s, m)
+		last = m[1]
+	}
+	out.WriteString(s[last:])
+	return out.String()
+}
+
+// expandTemplate expands a JavaScript replacement template for one match.
+// match indexes src, as FindStringSubmatchIndex returns. It runs per match
+// because 『$`』 and 『$'』 depend on where the match sits in src.
+func (r *Regexp) expandTemplate(out *strings.Builder, template, src string, match []int) {
+	groups := len(match)/2 - 1
+	for i := 0; i < len(template); {
+		if template[i] != '$' || i+1 >= len(template) {
+			out.WriteByte(template[i])
+			i++
+			continue
+		}
+		next := template[i+1]
+		switch {
+		case next == '$':
+			out.WriteByte('$')
+			i += 2
+		case next == '&':
+			out.WriteString(src[match[0]:match[1]])
+			i += 2
+		case next == '`':
+			out.WriteString(src[:match[0]])
+			i += 2
+		case next == '\'':
+			out.WriteString(src[match[1]:])
+			i += 2
+		case next >= '0' && next <= '9':
+			// 組番号は最大2桁を整数として読む。2桁が範囲外なら1桁に
+			// フォールバックし、それも無効なら『$』をリテラルにする
+			n, size := int(next-'0'), 1
+			if i+2 < len(template) && template[i+2] >= '0' && template[i+2] <= '9' {
+				if nn := n*10 + int(template[i+2]-'0'); nn >= 1 && nn <= groups {
+					n, size = nn, 2
+				}
+			}
+			if n < 1 || n > groups {
+				out.WriteByte('$')
+				i++
+				continue
+			}
+			if match[2*n] >= 0 {
+				out.WriteString(src[match[2*n]:match[2*n+1]])
+			}
+			i += 1 + size
+		case next == '<' && r.hasNames:
+			// 存在しない名前や一致しなかった組は空文字になる
+			end := strings.IndexByte(template[i+2:], '>')
+			if end < 0 {
+				out.WriteByte('$')
+				i++
+				continue
+			}
+			if idx := r.re.SubexpIndex(template[i+2 : i+2+end]); idx >= 0 && match[2*idx] >= 0 {
+				out.WriteString(src[match[2*idx]:match[2*idx+1]])
+			}
+			i += 3 + end
+		default:
+			out.WriteByte('$')
+			i++
+		}
+	}
 }
 
 // Split cuts the string at every match.
 func (r *Regexp) Split(s string) []string { return r.re.Split(s, -1) }
-
-// groupRefRE finds a JavaScript group reference in a replacement template.
-var groupRefRE = regexp.MustCompile(`\$(\d+|&)`)
-
-// jsTemplate rewrites a JavaScript replacement template into Go's form.
-//
-// Go reads 『$1年』 as a group named 「1年」, so every reference is wrapped in
-// braces. A literal 『$』 that is not a reference is escaped as 『$$』.
-func jsTemplate(template string) string {
-	var out strings.Builder
-	last := 0
-	for _, loc := range groupRefRE.FindAllStringSubmatchIndex(template, -1) {
-		out.WriteString(strings.ReplaceAll(template[last:loc[0]], "$", "$$"))
-		ref := template[loc[2]:loc[3]]
-		if ref == "&" {
-			ref = "0" // $& は一致した全体
-		}
-		out.WriteString("${" + ref + "}")
-		last = loc[1]
-	}
-	out.WriteString(strings.ReplaceAll(template[last:], "$", "$$"))
-	return out.String()
-}
