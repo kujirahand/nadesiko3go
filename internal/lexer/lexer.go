@@ -65,8 +65,8 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 					if len(list) == 1 {
 						// 展開なし(埋め込み式なし)の場合
 						result = append(result, Token{
-							Type: TypeString, Value: list[0], Josi: rp.josi, Indent: indent,
-							File: filename, Line: line, Column: column,
+							Type: TypeString, Value: list[0], Josi: rp.josi, RawJosi: rp.josi,
+							Indent: indent, File: filename, Line: line, Column: column,
 							Offset: offsetBase, Length: consumed,
 						})
 						line += rp.numEOL
@@ -108,15 +108,15 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 					if rp.numEOL > 0 {
 						column = 1
 					}
-					result = append(result, Token{Type: ")", Value: ")", Josi: rp.josi, Indent: indent, File: filename, Line: line, Column: column, Offset: srcLen - runeLen(src)})
+					result = append(result, Token{Type: ")", Value: ")", Josi: rp.josi, RawJosi: rp.josi, Indent: indent, File: filename, Line: line, Column: column, Offset: srcLen - runeLen(src)})
 					break
 				}
 
 				columnCurrent := column
 				column += consumed
 				result = append(result, Token{
-					Type: r.name, Value: rp.res, Josi: rp.josi, Indent: indent,
-					Line: line, Column: columnCurrent, File: filename,
+					Type: r.name, Value: rp.res, Josi: rp.josi, RawJosi: rp.josi,
+					Indent: indent, Line: line, Column: columnCurrent, File: filename,
 					Offset: srcLen - runeLen(src), Length: consumed,
 				})
 				src = rp.src
@@ -186,7 +186,8 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			result = append(result, Token{
 				Type: ruleName, Value: value, Indent: indent,
 				Line: lineCurrent, Column: columnCurrent, File: filename,
-				Josi:   particle,
+				// RawJosi には書かれた助詞をそのまま保持する(本家rawJosi相当 #216)
+				Josi:   particle, RawJosi: particle,
 				Offset: srcOffset, Length: (srcLen - runeLen(src)) - srcOffset,
 			})
 			// 改行のとき次の行のインデントを調べる。改行の後は必ずcolumnが1になる。

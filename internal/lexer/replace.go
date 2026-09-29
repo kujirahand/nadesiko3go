@@ -540,8 +540,10 @@ func (l *Lexer) replaceWord(tokens []Token) ([]Token, error) {
 			if t.Josi == "でなければ" || t.Josi == "なければ" {
 				value = "でなければ"
 			}
+			// 正規化名(value)ではなく生の助詞を保持する。正規化名を入れると
+			// 文字数が違う(たら→ならば)ため挿入位置と元トークンの長さが壊れる #216
 			if t.RawJosi == "" {
-				t.RawJosi = value
+				t.RawJosi = t.Josi
 			}
 			offset := t.Offset + t.Length - runeLen(t.RawJosi)
 			tokens = insertToken(tokens, i+1, Token{
