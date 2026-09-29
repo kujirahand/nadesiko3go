@@ -179,6 +179,10 @@ func extractZip(src, destDir string) error {
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			continue
 		}
+		// 途中の既存シンボリックリンクを通ると展開先の外へ書き出すため拒否する (#185)
+		if hasSymlinkComponent(absDest, rel) {
+			continue
+		}
 
 		if f.FileInfo().IsDir() {
 			_ = os.MkdirAll(fpath, f.Mode())
@@ -233,4 +237,21 @@ func resolveExisting(path string) string {
 		tail = append(tail, filepath.Base(cur))
 		cur = parent
 	}
+}
+
+// hasSymlinkComponent はbaseからrelを辿り、途中に既存のシンボリックリンクが
+// あれば真を返す。存在しない要素以降は新規作成されるので調べない。
+func hasSymlinkComponent(base, rel string) bool {
+	cur := base
+	for _, elem := range strings.Split(rel, string(os.PathSeparator)) {
+		cur = filepath.Join(cur, elem)
+		fi, err := os.Lstat(cur)
+		if err != nil {
+			return false
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return true
+		}
+	}
+	return false
 }
