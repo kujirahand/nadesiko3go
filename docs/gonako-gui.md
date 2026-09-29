@@ -80,6 +80,7 @@ gonako-gui [オプション] [HTMLフォルダ / HTMLファイル / なでしこ
    - `webview.New(*debugFlag)` により、OS標準のWebViewインスタンス（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を生成。
    - ウィンドウタイトル（`-title`）およびサイズ（`-width`, `-height`）を設定。
 5. **Go ↔ JavaScript双方向バインディング関数の登録 (`w.Bind`)**:
+   - **外部URL指定時（`targetURL` ≠ 空）**: 特権ブリッジは登録しない。BindのJS shimは遷移先の外部ページにも注入されるため、ファイル操作・コード実行APIは内部UI（内蔵エディタ／`-dir` の独自HTML）限定とする（#183）。
    - JavaScript側から呼び出せる各種APIをWebViewに登録：
      - **なでしこプログラム実行・制御**: `runNakoCode`, `startNakoCode`, `runNakoFile`, `startNakoFile`, `pollNakoRun`, `resolveNakoDialog`
      - **画面部品（GUI）イベント連携**: `startNakoEvent`（イベントも非同期に実行し、`pollNakoRun` / `resolveNakoDialog` で進める。同期実行するとハンドラ内の『言う』でウィンドウが固まる → #59）

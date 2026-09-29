@@ -613,6 +613,22 @@ func main() {
 		installWNako3(w, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
 	}
 
+	// 特権ブリッジ（ファイル操作・コード実行・ダイアログ等）は信頼できる
+	// 内部UI（内蔵エディタ・-dirの独自HTML）にだけ公開する。外部URL(-url)の
+	// ページにもBindのJS shimが注入されてしまうため、その場合は登録しない（#183）。
+	if targetURL == "" {
+		bindPrivilegedBridge(w, guiRuntime, directWindow, initialWorkingDir, initialFile, editorMode)
+	}
+
+	// WebViewを開く
+	w.Navigate(finalURL)
+	w.Run()
+}
+
+// bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ
+// 公開するGo側APIをまとめてBindする。ファイル操作やコード実行を含むため、
+// 外部URL(-url)を表示するウィンドウでは呼んではいけない（#183）。
+func bindPrivilegedBridge(w webview.WebView, guiRuntime *guiSession, directWindow *directNativeWindowController, initialWorkingDir, initialFile string, editorMode bool) {
 	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
 	_ = w.Bind("runNakoCode", func(code string) string {
 		result := guiRuntime.runWithWindow(code, "gui.nako3", false, nil, nil, directWindow)
@@ -971,10 +987,6 @@ func main() {
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
-
-	// WebViewを開く
-	w.Navigate(finalURL)
-	w.Run()
 }
 
 // clipboardReady は initClipboard での golang.design/x/clipboard の初期化に
