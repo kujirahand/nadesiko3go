@@ -401,10 +401,16 @@ func checkMoveTarget(src, dest string) error {
 	if err != nil {
 		return nil // 読み取り可否の報告は copyMergeWithProgress が行う
 	}
-	paths := []string{filepath.Clean(dest)}
+	// 相対パスのままでは祖先走査が「.」(作業フォルダ)で止まり、その上位の
+	// 実祖先や「..」の先を検査できないため、必ず絶対パスにしてから辿る
+	abs, err := filepath.Abs(dest)
+	if err != nil {
+		abs = filepath.Clean(dest)
+	}
+	paths := []string{abs}
 	// 移動先自身がシンボリックリンクのとき、Stat はリンク先の実体を返す。
 	// リンク先が移動元の内側にある場合を捕捉するため、解決後の実パスも調べる。
-	if resolved, err := filepath.EvalSymlinks(dest); err == nil && resolved != paths[0] {
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil && resolved != abs {
 		paths = append(paths, resolved)
 	}
 	for _, p := range paths {

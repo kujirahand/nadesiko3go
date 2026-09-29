@@ -150,6 +150,76 @@ func TestMoveDirIntoOwnChildDifferentCase(t *testing.T) {
 	}
 }
 
+// TestMoveAncestorOfCwdIsRejected は、作業フォルダが移動元の内側にあり、
+// 移動先が相対パスの新規名の場合でも拒否されることを確認する (#186)。
+// 相対パスの祖先走査は絶対パス化しないと「.」で止まってしまい、
+// 移動元である実祖先を検出できない。
+func TestMoveAncestorOfCwdIsRejected(t *testing.T) {
+	dir := t.TempDir()
+	sub := filepath.Join(dir, "sub")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "file.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// cwd は移動元 dir の内側 (dir/sub)。移動先の「x」は dir/sub/x なので
+	// 移動元の子孫にあたる
+	src := filepath.ToSlash(dir) // なでしこの文字列中のパスは / 区切りに揃える
+	err := runExpectError(t, sub, `「`+src+`」を「x」にファイル上書移動`)
+	if err == nil {
+		t.Fatal("CWDの祖先への包含移動がエラーになりませんでした")
+	}
+	for _, name := range []string{"file.txt", "sub"} {
+		if _, e := os.Stat(filepath.Join(dir, name)); e != nil {
+			t.Errorf("移動元の %s が失われました: %v", name, e)
+		}
+	}
+}
+
+// TestMoveViaDotDotIsRejected は、移動先が「..」経由で移動元の内側に
+// 落ちる場合も拒否されることを確認する (#186)。
+func TestMoveViaDotDotIsRejected(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "src")
+	deep := filepath.Join(src, "a", "b")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// cwd は src/a/b。「../x」は src/a/x で移動元の子孫
+	err := runExpectError(t, deep, `「`+filepath.ToSlash(src)+`」を「../x」にファイル上書移動`)
+	if err == nil {
+		t.Fatal("「..」経由で内側に落ちる移動がエラーになりませんでした")
+	}
+	if _, e := os.Stat(filepath.Join(src, "file.txt")); e != nil {
+		t.Errorf("移動元の file.txt が失われました: %v", e)
+	}
+}
+
+// TestMoveDotDirToSiblingAllowed は、作業フォルダ自身を兄弟パスへ移動する
+// 正当な操作が誤って拒否されないことを確認する (#186 の偽陽性対策)。
+func TestMoveDotDirToSiblingAllowed(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "B")
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	got := runIn(t, src, `「.」を「../B_moved」にファイル上書移動
+「{"../B_moved/file.txt"を開く}」と表示`)
+	if got != "data" {
+		t.Errorf("got: %q, want %q", got, "data")
+	}
+}
+
 // TestMoveToIndependentPathStillWorks は、包含関係のない通常の移動が
 // 引き続き成功することを確認する。
 func TestMoveToIndependentPathStillWorks(t *testing.T) {

@@ -4158,8 +4158,8 @@
     "template": "デスクトップ",
     "yomi": "ですくとっぷ",
     "file": "internal/nodelib/file.go",
-    "line": 225,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L225",
+    "line": 234,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L234",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%83%87%E3%82%B9%E3%82%AF%E3%83%88%E3%83%83%E3%83%97"
   },
   {
@@ -4941,8 +4941,8 @@
     "template": "ホームディレクトリ取得",
     "yomi": "ほーむでぃれくとりしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 218,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L218",
+    "line": 227,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L227",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%83%9B%E3%83%BC%E3%83%A0%E3%83%87%E3%82%A3%E3%83%AC%E3%82%AF%E3%83%88%E3%83%AA%E5%8F%96%E5%BE%97"
   },
   {
@@ -4991,8 +4991,8 @@
     "template": "マイドキュメント",
     "yomi": "まいどきゅめんと",
     "file": "internal/nodelib/file.go",
-    "line": 228,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L228",
+    "line": 237,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L237",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E3%83%9E%E3%82%A4%E3%83%89%E3%82%AD%E3%83%A5%E3%83%A1%E3%83%B3%E3%83%88"
   },
   {
@@ -7655,8 +7655,8 @@
     "template": "母艦パス取得",
     "yomi": "ぼかんぱすしゅとく",
     "file": "internal/nodelib/file.go",
-    "line": 232,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L232",
+    "line": 241,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L241",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_node%2F%E6%AF%8D%E8%89%A6%E3%83%91%E3%82%B9%E5%8F%96%E5%BE%97"
   },
   {
