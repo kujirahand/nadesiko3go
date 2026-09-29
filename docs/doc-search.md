@@ -76,3 +76,10 @@ Webへつながらないことは普通にあるので、失敗しても命令�
 
 なお、個々の命令の解説ページのURLは `https://nadesi.com/v3/doc/index.php?gonako/命令名` です。
 Web検索をしなくても、検索結果の各命令に `マニュアル:`（JSONでは `doc_url`）として表示されます。
+
+## マニュアルとDBの自動生成（#256）
+
+`just gen-manual` は `just gen-command-list` を実行したうえで、`scripts/gen-manual.go` により次を更新します。
+
+- `manual/gonako/<命令>.txt` --- マニュアルが無い命令（`gonako` / `plugin_node` 所属）の雛形を作ります。既存ファイルは上書きしません。雛形には説明だけが入るので、利用例などを書き足してください。
+- `manual/gonako-commands.db` --- nadesiko3doc用のSQLite命令一覧です。`manual/gonako/` にページがある命令だけを毎回ゼロから登録します（スキーマは nadesiko3doc#88 に準拠）。
