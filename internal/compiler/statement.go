@@ -328,21 +328,41 @@ func (c *Compiler) compileFor(n *ast.Node) {
 		c.emit(ir.OpStoreLocal, limit, 0, n)
 	}
 
+	// 増分は常に正の値として保持し、減方向のパスでは引き算で進める。
+	// （『AからBまで繰り返す』の素の形は実行時に向きが決まる #196）
 	if inc != nil && inc.Type != ast.Nop {
 		c.compileExpr(inc)
 	} else {
 		c.emit(ir.OpLoadConst, c.constNumber(1), 0, n)
 	}
-	if n.LoopDirection == "down" {
-		c.emit(ir.OpUnary, int(ir.UnaryNeg), 0, n)
-	}
 	c.emit(ir.OpStoreLocal, step, 0, n)
 
+	if n.LoopDirection == "" {
+		// 方向の指定がない素の『繰返』は、from<=to なら増方向、
+		// from>to なら減方向に実行する (本家convForと同じ実行時分岐 #196)。
+		// from==to は増方向のパスで1回だけ実行される。
+		c.emit(ir.OpLoadLocal, counter, 0, n)
+		c.emit(ir.OpLoadLocal, limit, 0, n)
+		c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
+		toDown := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+		c.compileForLoop(n, counter, limit, step, false)
+		toEnd := c.emit(ir.OpJump, 0, 0, n)
+		c.patch(toDown, c.here())
+		c.compileForLoop(n, counter, limit, step, true)
+		c.patch(toEnd, c.here())
+		return
+	}
+	c.compileForLoop(n, counter, limit, step, n.LoopDirection == "down")
+}
+
+// compileForLoop emits one direction of 『AからBまで繰り返す』.
+// step は正の値を持ち、down のときだけ引いて進む。
+func (c *Compiler) compileForLoop(n *ast.Node, counter, limit, step int, down bool) {
 	top := c.here()
 	// 増分の向きで比較を変える。減る向きなら下限との比較になる。
 	c.emit(ir.OpLoadLocal, counter, 0, n)
 	c.emit(ir.OpLoadLocal, limit, 0, n)
-	if n.LoopDirection == "down" {
+	if down {
 		c.emit(ir.OpBinary, int(ir.BinGtEq), 0, n)
 	} else {
 		c.emit(ir.OpBinary, int(ir.BinLtEq), 0, n)
@@ -369,7 +389,11 @@ func (c *Compiler) compileFor(n *ast.Node) {
 
 	c.emit(ir.OpLoadLocal, counter, 0, n)
 	c.emit(ir.OpLoadLocal, step, 0, n)
-	c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
+	if down {
+		c.emit(ir.OpBinary, int(ir.BinSub), 0, n)
+	} else {
+		c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
+	}
 	c.emit(ir.OpStoreLocal, counter, 0, n)
 	c.emit(ir.OpJump, top, 0, n)
 	c.patch(toEnd, c.here())
