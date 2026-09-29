@@ -23,11 +23,8 @@ func arrayImpls(m map[string]Impl) {
 	m["配列結合"] = func(_ Context, a []value.Value) (value.Value, error) {
 		sep := str(a, 1)
 		if arr, ok := arg(a, 0).Array(); ok {
-			parts := make([]string, arr.Len())
-			for i := range parts {
-				parts[i] = value.ToString(arr.Get(i))
-			}
-			return value.String(strings.Join(parts, sep)), nil
+			// 本家は a.join(s) なので、join 規則で null/undefined は空文字になる (#221)
+			return value.String(value.JoinString(arr.Values(), sep)), nil
 		}
 		// 配列でなければ改行で区切ってから繋ぎ直す
 		return value.String(strings.Join(strings.Split(str(a, 0), "\n"), sep)), nil
