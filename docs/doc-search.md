@@ -81,5 +81,5 @@ Web検索をしなくても、検索結果の各命令に `マニュアル:`（J
 
 `just gen-manual` は `just gen-command-list` を実行したうえで、`scripts/gen-manual.go` により次を更新します。
 
-- `manual/gonako/<命令>.txt` --- マニュアルが無い命令（`gonako` / `plugin_node` 所属）の雛形を作ります。既存ファイルは上書きしません。雛形には説明だけが入るので、利用例などを書き足してください。
+- `manual/gonako/<命令>.txt` --- 未作成の命令ページを作ります。`plugin_system` / `plugin_node` / `plugin_csv` / `plugin_math` / `plugin_toml` に同名のページがあれば `#include(プラグイン名/命令名)` で参照します。参照先がない命令と `gonako` 独自命令には説明の雛形を作ります。既存ファイルは上書きしません。
 - `manual/gonako-commands.db` --- nadesiko3doc用のSQLite命令一覧です。`manual/gonako/` にページがある命令だけを毎回ゼロから登録します（スキーマは nadesiko3doc#88 に準拠）。

@@ -2,7 +2,7 @@
 
 // gen-manual.go は、命令一覧(command-list.json)から次の2つを更新する。
 //
-//  1. manual/gonako/<命令>.txt  --- マニュアルが無い命令の雛形（既存ファイルは上書きしない）
+//  1. manual/gonako/<命令>.txt  --- 未作成ページの雛形または本家ページへのinclude（既存ファイルは上書きしない）
 //  2. manual/gonako-commands.db --- nadesiko3doc用の命令一覧DB（毎回ゼロから作り直す）
 //
 // 先に `just gen-command-list` で command-list.json を更新しておくこと。
@@ -12,6 +12,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,11 +38,14 @@ type commandDoc struct {
 	URL      string     `json:"url"`
 }
 
-// skeletonPlugins は、マニュアルの雛形を自動生成する対象のプラグイン。
-// plugin_math/plugin_csv/plugin_toml は本家nadesiko3docに同名のページがあるため対象外。
-var skeletonPlugins = map[string]bool{
-	"gonako":      true,
-	"plugin_node": true,
+// manualPlugins は、gonako配下にマニュアルを生成する対象のプラグイン。
+var manualPlugins = map[string]bool{
+	"gonako":        true,
+	"plugin_node":   true,
+	"plugin_system": true,
+	"plugin_csv":    true,
+	"plugin_math":   true,
+	"plugin_toml":   true,
 }
 
 // makeArgs は助詞リストから nadesiko3doc 形式の引数表記を作る。
@@ -86,6 +90,49 @@ func skeleton(c commandDoc) string {
 	return fmt.Sprintf("●説明\n\n%s\n\n●参照\n\n", desc)
 }
 
+// manualContent は本家のページがあればincludeを、なければ説明の雛形を返す。
+func manualContent(c commandDoc, root string) string {
+	if c.Plugin != "gonako" {
+		upstream := filepath.Join(root, c.Plugin, c.Name+".txt")
+		if info, err := os.Stat(upstream); err == nil && !info.IsDir() {
+			return fmt.Sprintf("#include(%s/%s)\n", c.Plugin, c.Name)
+		}
+	}
+	return skeleton(c)
+}
+
+// createManualPages は未作成の命令ページだけを追加する。
+func createManualPages(cmds []commandDoc, root string) (int, error) {
+	dir := filepath.Join(root, "gonako")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return 0, err
+	}
+	created := 0
+	for _, c := range cmds {
+		if !manualPlugins[c.Plugin] {
+			continue
+		}
+		path := filepath.Join(dir, c.Name+".txt")
+		file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if errors.Is(err, os.ErrExist) {
+			continue
+		}
+		if err != nil {
+			return created, fmt.Errorf("%s: %w", path, err)
+		}
+		if _, err := file.WriteString(manualContent(c, root)); err != nil {
+			file.Close()
+			return created, fmt.Errorf("%s: %w", path, err)
+		}
+		if err := file.Close(); err != nil {
+			return created, fmt.Errorf("%s: %w", path, err)
+		}
+		fmt.Println("[新規] " + path)
+		created++
+	}
+	return created, nil
+}
+
 func fatal(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", a...)
 	os.Exit(1)
@@ -100,22 +147,10 @@ func main() {
 	if err := json.Unmarshal(data, &cmds); err != nil {
 		fatal("命令一覧のJSONエラー: %v", err)
 	}
-	if err := os.MkdirAll(manualDir, 0o755); err != nil {
-		fatal("フォルダ作成エラー: %v", err)
-	}
-
-	// 1. マニュアルの雛形を生成（既存は上書きしない）
-	created := 0
-	for _, c := range cmds {
-		path := filepath.Join(manualDir, c.Name+".txt")
-		if _, err := os.Stat(path); err == nil || !skeletonPlugins[c.Plugin] {
-			continue
-		}
-		if err := os.WriteFile(path, []byte(skeleton(c)), 0o644); err != nil {
-			fatal("マニュアル出力エラー: %v", err)
-		}
-		fmt.Println("[新規] " + path)
-		created++
+	// 1. マニュアルを生成（既存は上書きしない）
+	created, err := createManualPages(cmds, filepath.Dir(manualDir))
+	if err != nil {
+		fatal("マニュアル出力エラー: %v", err)
 	}
 
 	// 2. DBを作り直す
@@ -182,5 +217,5 @@ func main() {
 	if err := tx.Commit(); err != nil {
 		fatal("コミットエラー: %v", err)
 	}
-	fmt.Printf("[OK] マニュアル雛形 %d 件を作成、%s に %d 件を登録しました。\n", created, dbPath, count)
+	fmt.Printf("[OK] マニュアル %d 件を作成、%s に %d 件を登録しました。\n", created, dbPath, count)
 }
