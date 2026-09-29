@@ -149,13 +149,14 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			if r.name == TypeNumber {
 				if um := UnitRE.FindString(src); um != "" {
 					src = src[len(um):]
-					column += runeLen(matched)
+					// 消費した単位の長さだけ進める(数値の長さを足すと後続がずれる) #231
+					column += runeLen(um)
 				}
 				// CSSの単位なら文字列として認識させる #1811
 				if cssUnit := CSSUnitRE.FindString(src); cssUnit != "" {
 					ruleName = TypeString
 					src = src[len(cssUnit):]
-					column += runeLen(matched)
+					column += runeLen(cssUnit)
 					value = jsNumberToString(value) + cssUnit
 				}
 			}
