@@ -40,9 +40,10 @@ func datetimeImpls(m map[string]Impl) {
 	}
 	m["時間ミリ秒取得"] = m["システム時間ミリ秒"]
 	m["曜日"] = func(ctx Context, a []value.Value) (value.Value, error) {
+		// 解析失敗を ctx.Now() で隠蔽せず、日数差などと同じくエラーにする (#213)
 		t, err := parseDate(str(a, 0), ctx.Now().Location())
 		if err != nil {
-			t = ctx.Now()
+			return value.Undefined(), err
 		}
 		weekdays := []rune("日月火水木金土")
 		return value.String(string(weekdays[int(t.Weekday())])), nil
@@ -50,7 +51,7 @@ func datetimeImpls(m map[string]Impl) {
 	m["曜日番号取得"] = func(ctx Context, a []value.Value) (value.Value, error) {
 		t, err := parseDate(str(a, 0), ctx.Now().Location())
 		if err != nil {
-			t = ctx.Now()
+			return value.Undefined(), err
 		}
 		return value.Number(float64(t.Weekday())), nil
 	}
@@ -103,9 +104,15 @@ func unixTime(ctx Context, a []value.Value) (value.Value, error) {
 
 func parseDate(s string, loc *time.Location) (time.Time, error) {
 	s = strings.TrimSpace(s)
+	// 本家の __str2date は空白・コロン・ハイフン・T をすべて '/' に
+	// 置き換えて解釈するので、TなしISO日付（2006-01-02）や
+	// 空白区切りの日時（2006-01-02 15:04:05）も受理される (#213)
 	for _, layout := range []string{
 		"2006/01/02 15:04:05", "2006/1/2 15:04:05", "2006/01/02", "2006/1/2",
-		"2006-01-02T15:04:05", "2006-01-02T15:04", "15:04:05", "15:04",
+		"2006-01-02T15:04:05", "2006-01-02T15:04",
+		"2006-01-02 15:04:05", "2006-1-2 15:04:05", "2006-01-02 15:04", "2006-1-2 15:04",
+		"2006-01-02", "2006-1-2",
+		"15:04:05", "15:04",
 	} {
 		if t, err := time.ParseInLocation(layout, s, loc); err == nil {
 			return t, nil
@@ -294,7 +301,7 @@ func addDateTime(ctx Context, a []value.Value) (value.Value, error) {
 }
 
 func formatLike(t time.Time, source string) string {
-	if strings.Contains(source, ":") && (strings.Contains(source, "/") || strings.Contains(source, "T")) {
+	if strings.Contains(source, ":") && (strings.Contains(source, "/") || strings.Contains(source, "T") || strings.Contains(source, "-")) {
 		return t.Format("2006/01/02 15:04:05")
 	}
 	if strings.Contains(source, ":") {
