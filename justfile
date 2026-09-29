@@ -148,6 +148,7 @@ benchmark: cmd
 # テストを実行
 test:
     {{go}} test ./...
+    {{go}} test ./scripts/gen-manual.go ./scripts/gen-manual_test.go
 
 # Go言語コードの行数・文字数・ファイル数を集計・分析する
 analyze-gocode *args:
@@ -187,7 +188,7 @@ compat-check:
 gen-command-list:
     {{go}} run ./scripts/gen-command-list.go
 
-# manual/gonako/*.txt の雛形(未作成分のみ)と manual/gonako-commands.db を生成する
+# manual/gonako/*.txt の未作成ページと manual/gonako-commands.db を生成する
 gen-manual: gen-command-list
     {{go}} run ./scripts/gen-manual.go
 
