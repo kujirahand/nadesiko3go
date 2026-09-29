@@ -453,6 +453,11 @@ func main() {
 		if plugin == "" {
 			plugin = "gonako"
 		}
+		// plugin_node の命令のマニュアルは manual/gonako/ に置く（just gen-manual が
+		// 雛形を作る）ので、Webマニュアルのリンク先も gonako/<命令> に揃える。
+		if plugin == "plugin_node" {
+			plugin = "gonako"
+		}
 		doc.DocURL = "https://nadesi.com/v3/doc/index.php?" + url.QueryEscape(plugin+"/"+name)
 
 		// 本家(TS)に対応する命令が無いもの（≒Go独自命令）は、「命令」という
