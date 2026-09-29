@@ -314,11 +314,20 @@ func (p *Plugin) getCell(_ stdlib.Context, args []value.Value) (value.Value, err
 	if err != nil {
 		return value.Undefined(), err
 	}
-	s, err := b.file.GetCellValue(b.sheet, strings.ToUpper(value.ToString(arg(args, 0))))
+	return p.readCell(b, strings.ToUpper(value.ToString(arg(args, 0))))
+}
+
+// readCell はセルの値をセル型に基づいてなでしこの値へ変換して返す。
+func (p *Plugin) readCell(b *workbook, cell string) (value.Value, error) {
+	s, err := b.file.GetCellValue(b.sheet, cell)
 	if err != nil {
 		return value.Undefined(), err
 	}
-	return cellValue(s), nil
+	cellType, err := b.file.GetCellType(b.sheet, cell)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return cellValue(s, cellType), nil
 }
 
 func (p *Plugin) getRange(_ stdlib.Context, args []value.Value) (value.Value, error) {
@@ -342,11 +351,11 @@ func (p *Plugin) getRange(_ stdlib.Context, args []value.Value) (value.Value, er
 		cells := make([]value.Value, 0, c2-c1+1)
 		for col := c1; col <= c2; col++ {
 			name, _ := excelize.CoordinatesToCellName(col, row)
-			s, getErr := b.file.GetCellValue(b.sheet, name)
+			cellVal, getErr := p.readCell(b, name)
 			if getErr != nil {
 				return value.Undefined(), getErr
 			}
-			cells = append(cells, cellValue(s))
+			cells = append(cells, cellVal)
 		}
 		rows = append(rows, value.ArrayValue(value.NewArray(cells...)))
 	}
@@ -470,12 +479,23 @@ func excelValue(v value.Value) any {
 	}
 }
 
-func cellValue(s string) value.Value {
+// cellValue はセルの表示文字列をセル型に基づいてなでしこの値へ変換する。
+// 文字列セル（共有文字列・インライン文字列・数式文字列）は「00123」のように
+// 数値に見える内容でも文字列のまま返す。
+func cellValue(s string, cellType excelize.CellType) value.Value {
+	switch cellType {
+	case excelize.CellTypeBool:
+		if b, err := strconv.ParseBool(s); err == nil {
+			return value.Bool(b)
+		}
+		return value.String(s)
+	case excelize.CellTypeSharedString, excelize.CellTypeInlineString,
+		excelize.CellTypeFormula, excelize.CellTypeError:
+		return value.String(s)
+	}
+	// 数値セル（t省略・"n"）や日付・未設定セルは表示文字列が数値なら数値として返す
 	if s == "" {
 		return value.String("")
-	}
-	if b, err := strconv.ParseBool(s); err == nil {
-		return value.Bool(b)
 	}
 	if n, err := strconv.ParseFloat(s, 64); err == nil {
 		return value.Number(n)
