@@ -41,6 +41,9 @@ build のオプション:
   --runtime PATH   土台にするランタイム (既定: 実行中のgonako-cui)
                    他のOS向けのランタイムを指定すれば、そのOS向けに固められる
   --list           同梱されているリソースの一覧を表示する
+  --include-symlink
+                   フォルダ外を指すシンボリックリンクも、リンク先を
+                   辿って梱包する (既定ではエラー)
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
@@ -97,6 +100,7 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 	resource := flags.String("resource", "", "同梱するリソースのフォルダ")
 	runtimePath := flags.String("runtime", "", "土台にするランタイム")
 	list := flags.Bool("list", false, "同梱されているリソースの一覧を表示する")
+	includeSymlink := flags.Bool("include-symlink", false, "フォルダ外のシンボリックリンクもリンク先を辿って梱包する")
 	source, rest := splitSource(args)
 	if err := flags.Parse(rest); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -152,7 +156,13 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 		*out = defaultOutputName(source, *runtimePath)
 	}
 
-	if err := bundle.Build(*out, *runtimePath, prog, source, *resource); err != nil {
+	if err := bundle.BuildSpec(*out, *runtimePath, bundle.Spec{
+		Kind:           bundle.KindProgram,
+		Program:        prog,
+		Name:           source,
+		ResourceDir:    *resource,
+		IncludeSymlink: *includeSymlink,
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "%s を作りました\n", *out)

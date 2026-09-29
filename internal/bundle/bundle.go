@@ -145,6 +145,10 @@ type Spec struct {
 	// Flat stores the resources without the folder's own name in front, so
 	// that a folder packed whole keeps the paths its files had inside it.
 	Flat bool
+	// IncludeSymlink は、フォルダ外を指すシンボリックリンクも
+	// リンク先を辿って梱包する。既定ではそうしたリンクを拒否する
+	// (Issue #187、オプション自体は Issue #263)
+	IncludeSymlink bool
 	// Skip names files that must not be packed, by absolute path. The
 	// executable being written into the folder it packs is the usual case.
 	Skip map[string]bool
@@ -265,7 +269,7 @@ func buildPayload(spec Spec) ([]byte, error) {
 	}
 
 	if spec.ResourceDir != "" {
-		if err := addResources(zw, spec.ResourceDir, spec.Flat, spec.Skip); err != nil {
+		if err := addResources(zw, spec.ResourceDir, spec.Flat, spec.Skip, spec.IncludeSymlink); err != nil {
 			return nil, err
 		}
 	}
@@ -296,7 +300,7 @@ func addJSON(zw *zip.Writer, name string, v any) error {
 // path once packed, so the prefix has to survive (AGENTS.md §10). Packing a
 // whole folder as an application is the exception: there the program already
 // runs from inside the folder, so flat is what keeps its paths working.
-func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) error {
+func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, includeSymlink bool) error {
 	root, err := filepath.Abs(dir)
 	if err != nil {
 		return err
@@ -333,6 +337,9 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 		}
 	}
 
+	// フォルダ外リンクを辿る際の再帰防止。辿った実体フォルダを保持する
+	visited := map[string]bool{}
+
 	return filepath.Walk(realRoot, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -345,8 +352,10 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 			return nil
 		}
 		// シンボリックリンクは、リンク先の実体がフォルダ内にあるかを
-		// 確かめてから扱う。外を指すリンクは、外部のファイルを配布
-		// バイナリへ取り込んでしまうので拒否する (Issue #187)
+		// 確かめてから扱う。外を指すリンクは、既定では外部のファイルを
+		// 配布バイナリへ取り込んでしまうので拒否する (Issue #187)。
+		// --include-symlink を指定したときはリンク先を辿って梱包する
+		// (Issue #263)
 		resolved := ""
 		if fi.Mode()&os.ModeSymlink != 0 {
 			r, err := filepath.EvalSymlinks(p)
@@ -354,7 +363,14 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 				return fmt.Errorf("リソース内のリンク『%s』を解決できません: %w", p, err)
 			}
 			if !withinDir(realRoot, r) {
-				return fmt.Errorf("リソース内のリンク『%s』がフォルダ外の『%s』を指しているため梱包できません", p, r)
+				if !includeSymlink {
+					return fmt.Errorf("リソース内のリンク『%s』がフォルダ外の『%s』を指しているため梱包できません", p, r)
+				}
+				rel, err := filepath.Rel(realRoot, p)
+				if err != nil {
+					return err
+				}
+				return addLinkTarget(zw, prefix, rel, p, r, skipPaths, visited)
 			}
 			resolved = r
 			target, err := os.Stat(p)
@@ -379,17 +395,78 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool) e
 		if skipPaths[p] || skipPaths[filepath.Join(root, rel)] || (resolved != "" && skipPaths[resolved]) {
 			return nil
 		}
-		w, err := zw.Create(resourcePrefix + prefix + filepath.ToSlash(rel))
-		if err != nil {
-			return err
-		}
-		data, err := os.ReadFile(p)
-		if err != nil {
-			return err
-		}
-		_, err = w.Write(data)
-		return err
+		return writeFileEntry(zw, resourcePrefix+prefix+filepath.ToSlash(rel), p)
 	})
+}
+
+// addLinkTarget はリンク p の先を辿り、リンクの相対パス linkRel の
+// 位置に実体として梱包する (--include-symlink、Issue #263)。
+// 先がファイルならその内容をそのまま同名のファイルへ、フォルダなら
+// 配下をまとめて linkRel のフォルダとして書き込む。visited は辿った
+// 実体フォルダで、リンクが環状に繋がっても無限に再帰しないようにする。
+// prefix と skipPaths は addResources から受け継ぐものと同じ。
+func addLinkTarget(zw *zip.Writer, prefix, linkRel, p, realTarget string, skipPaths map[string]bool, visited map[string]bool) error {
+	target, err := os.Stat(p)
+	if err != nil {
+		return err
+	}
+	if !target.IsDir() {
+		if skipPaths[realTarget] {
+			return nil
+		}
+		return writeFileEntry(zw, resourcePrefix+prefix+filepath.ToSlash(linkRel), realTarget)
+	}
+	if visited[realTarget] {
+		return nil
+	}
+	visited[realTarget] = true
+	defer delete(visited, realTarget)
+	return filepath.Walk(realTarget, func(tp string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		// フォルダを歩くときと同じ規則で、隠しファイルは飛ばす
+		if name := fi.Name(); strings.HasPrefix(name, ".") && tp != realTarget {
+			if fi.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if fi.IsDir() {
+			return nil
+		}
+		sub, err := filepath.Rel(realTarget, tp)
+		if err != nil {
+			return err
+		}
+		entryRel := filepath.Join(linkRel, sub)
+		if fi.Mode()&os.ModeSymlink != 0 {
+			r, err := filepath.EvalSymlinks(tp)
+			if err != nil {
+				return fmt.Errorf("リソース内のリンク『%s』を解決できません: %w", tp, err)
+			}
+			return addLinkTarget(zw, prefix, entryRel, tp, r, skipPaths, visited)
+		}
+		if skipPaths[tp] {
+			return nil
+		}
+		return writeFileEntry(zw, resourcePrefix+prefix+filepath.ToSlash(entryRel), tp)
+	})
+}
+
+// writeFileEntry は p の中身を、ペイロード内の name というエントリへ
+// 書き込む。
+func writeFileEntry(zw *zip.Writer, name, p string) error {
+	w, err := zw.Create(name)
+	if err != nil {
+		return err
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
 }
 
 // withinDir は resolved が dir の中にあるかを返す。どちらも実体パス
