@@ -127,9 +127,9 @@ func TestRunUntilIdleLeavesRepeating(t *testing.T) {
 	}
 }
 
-// TestRunUntilIdleSkipsRepeating pins that a repeating timer at the head of
-// the queue does not hide the one-shots behind it: the drain still finishes
-// them, in scheduled order, and leaves the repeat alone (issue #203).
+// TestRunUntilIdleSkipsRepeating は、キュー先頭の繰返しタイマーが後続の
+// 単発タイマーを隠さず、予定時刻順に単発を実行して繰返しを残すことを確認する
+//（issue #203）。
 func TestRunUntilIdleSkipsRepeating(t *testing.T) {
 	l := event.New(start)
 	l.PostEvery(start.Add(10*time.Millisecond), 10*time.Millisecond, 1)
