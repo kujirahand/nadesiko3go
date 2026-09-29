@@ -36,7 +36,7 @@ import (
 // と同じ挙動にする（循環取込の無限再帰も同時に防げる）。modNames には、
 // こうして読み込んだモジュール名を集めておき、呼び出し元が残りのトークン
 // 置換パスを実行する前に Lexer.ModList にまとめて設定できるようにする。
-func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, modNames *[]string) ([]lexer.Token, error) {
+func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, modNames *[]string, funcs lexer.FuncList) ([]lexer.Token, error) {
 	out := make([]lexer.Token, 0, len(tok))
 	for i := 0; i < len(tok); i++ {
 		if !isRequireStatement(tok, i) {
@@ -45,11 +45,14 @@ func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, 
 		}
 		nameTok := tok[i+1]
 		name := nameTok.StringValue()
+		i += 2 // not/string/取込の3トークン分を読み進める
+		if isBuiltinPlugin(name, funcs) {
+			continue // 実行ファイルに組み込み済みのプラグイン名は読み飛ばす
+		}
 		filePath, err := resolveRequirePath(name, filename, nameTok)
 		if err != nil {
 			return nil, err
 		}
-		i += 2 // not/string/取込の3トークン分を読み進める
 		if guard[filePath] {
 			continue // 同じファイルは一度だけ取り込む
 		}
@@ -59,7 +62,7 @@ func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, 
 		if err != nil {
 			return nil, err
 		}
-		children, err = resolveRequires(children, filePath, guard, modNames)
+		children, err = resolveRequires(children, filePath, guard, modNames, funcs)
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +86,36 @@ func isRequireStatement(tok []lexer.Token, i int) bool {
 		return false
 	}
 	return tok[i+2].Type == lexer.TypeWord && tok[i+2].StringValue() == "取込"
+}
+
+// builtinPluginSentinels は、実行ファイルに組み込まれうるプラグイン名と、
+// 組み込み済みかどうかを FuncList で確かめるための代表命令名の対応表。
+// 本家TypeScript版はこれらを外部ファイルとして読み込むが、Go版は
+// ランタイムに組み込んで配布するため、『取込』は「既に読み込み済み」
+// として読み飛ばす。代表命令がFuncListにない（＝そのバイナリには
+// 組み込まれていない）ときは従来どおりファイル解決のエラーになる。
+var builtinPluginSentinels = map[string]string{
+	"plugin_system":     "表示",
+	"plugin_node":       "開",
+	"plugin_math":       "SIN",
+	"plugin_csv":        "CSV取得",
+	"plugin_toml":       "TOMLデコード",
+	"nadesiko3-toml":    "TOMLデコード",
+	"nadesiko3-sqlite3": "SQLITE3開",
+	"nadesiko3-office":  "OFFICEバージョン",
+}
+
+// isBuiltinPlugin は name が組み込みプラグインの取込名で、そのプラグインが
+// この実行ファイルに組み込み済みかを返す。`.js`/`.mjs`/`.mts` 付きの名前も
+// 素の名前として扱う（`.nako3` を指す名前はここでは拾わず、実ファイルが
+// 優先する）。
+func isBuiltinPlugin(name string, funcs lexer.FuncList) bool {
+	base := name
+	for _, ext := range []string{".mjs", ".mts", ".js"} {
+		base = strings.TrimSuffix(base, ext)
+	}
+	sentinel, ok := builtinPluginSentinels[base]
+	return ok && funcs[sentinel] != nil
 }
 
 func resolveRequirePath(name, fromFile string, tok lexer.Token) (string, error) {

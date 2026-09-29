@@ -22,7 +22,7 @@ func ParseSource(code, filename string, funcList lexer.FuncList) (*ast.Node, err
 		return nil, err
 	}
 	var modNames []string
-	raw, err = resolveRequires(raw, filename, map[string]bool{}, &modNames)
+	raw, err = resolveRequires(raw, filename, map[string]bool{}, &modNames, funcList)
 	if err != nil {
 		return nil, err
 	}
