@@ -111,7 +111,8 @@ var builtinPluginSentinels = map[string]string{
 // 優先する）。
 func isBuiltinPlugin(name string, funcs lexer.FuncList) bool {
 	base := name
-	for _, ext := range []string{".mjs", ".mts", ".js"} {
+	ext := path.Ext(base)
+	if ext == ".js" || ext == ".mjs" || ext == ".mts" {
 		base = strings.TrimSuffix(base, ext)
 	}
 	sentinel, ok := builtinPluginSentinels[base]
