@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
@@ -31,19 +30,13 @@ func implementations() map[string]Impl {
 		return value.Undefined(), nil
 	}
 	m["連続表示"] = func(ctx Context, args []value.Value) (value.Value, error) {
-		var b strings.Builder
-		for _, item := range args {
-			b.WriteString(value.ToString(item))
-		}
-		ctx.Print(b.String())
+		// 本家は a.join('') してから表示するので、join 規則で
+		// null/undefined は空文字になる (#221)
+		ctx.Print(value.JoinString(args, ""))
 		return value.Undefined(), nil
 	}
 	m["連続無改行表示"] = func(ctx Context, args []value.Value) (value.Value, error) {
-		var b strings.Builder
-		for _, item := range args {
-			b.WriteString(value.ToString(item))
-		}
-		ctx.Write(b.String())
+		ctx.Write(value.JoinString(args, ""))
 		return value.Undefined(), nil
 	}
 	m["ハテナ関数実行"] = m["表示"] // 『??』のエイリアス #1745

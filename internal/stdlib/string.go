@@ -28,11 +28,9 @@ func stringImpls(m map[string]Impl) {
 		return value.ArrayValue(value.NewArray(items...)), nil
 	}
 	m["文字列連結"] = func(_ Context, a []value.Value) (value.Value, error) {
-		var b strings.Builder
-		for _, v := range a {
-			b.WriteString(value.ToString(v))
-		}
-		return value.String(b.String()), nil
+		// 本家は a.join('') で連結するので、JavaScript の join 規則に従い
+		// null と undefined は空文字として扱う (#221)
+		return value.String(value.JoinString(a, "")), nil
 	}
 	m["連結"] = m["文字列連結"]
 	m["追加"] = func(_ Context, a []value.Value) (value.Value, error) {
