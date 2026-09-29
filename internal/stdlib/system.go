@@ -51,7 +51,9 @@ func implementations() map[string]Impl {
 				return value.Undefined(), nil
 			}
 		}
-		ctx.Print(message)
+		// ダイアログ非対応では stdout への書き出しだけにし、表示ログには
+		// 残さない。本家の sys.logger.send('stdout', ...) 相当 (#224)
+		ctx.Write(message + "\n")
 		return value.Undefined(), nil
 	}
 	m["コンソール表示"] = m["表示"]
