@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
+	"github.com/kujirahand/nadesiko3go/internal/doctest"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
@@ -676,5 +678,102 @@ func TestRunFlatPackagesKeepNamespaces(t *testing.T) {
 	}
 	if out.String() != "A\nB\n" {
 		t.Fatalf("名前空間が衝突しました: %q", out.String())
+	}
+}
+
+// DocTest の JSON 出力をテストする。
+func TestRunDocTestJSON(t *testing.T) {
+	dir := t.TempDir()
+	// 失敗するサンプルを作成
+	text := "{{{#nako3\n「さようなら」と表示。\n### 表示結果: こんにちは\n}}}\n"
+	path := filepath.Join(dir, "sample.txt")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	// JSON出力で実行
+	err := run([]string{"doctest", "--json", path}, &stdout, &stderr)
+	if err == nil {
+		t.Fatal("失敗するDocTestでエラーになりませんでした")
+	}
+	// JSONとしてパースできることを確認
+	var report doctest.JSONReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("JSON出力がパースできません: %v\n出力: %s", err, stdout.String())
+	}
+	if report.Tool != "gonako-doctest" {
+		t.Errorf("ツール名 = %q, want gonako-doctest", report.Tool)
+	}
+	if report.Count != 1 {
+		t.Errorf("件数 = %d, want 1", report.Count)
+	}
+	if report.Failed != 1 {
+		t.Errorf("失敗数 = %d, want 1", report.Failed)
+	}
+	if len(report.Results) != 1 {
+		t.Fatalf("結果数 = %d, want 1", len(report.Results))
+	}
+	if report.Results[0].Expect != "こんにちは" {
+		t.Errorf("期待値 = %q, want こんにちは", report.Results[0].Expect)
+	}
+	if report.Results[0].Actual != "さようなら" {
+		t.Errorf("実際値 = %q, want さようなら", report.Results[0].Actual)
+	}
+}
+
+// DocTest の JSON ファイル出力をテストする。
+func TestRunDocTestJSONFile(t *testing.T) {
+	dir := t.TempDir()
+	text := "{{{#nako3\n「さようなら」と表示。\n### 表示結果: こんにちは\n}}}\n"
+	path := filepath.Join(dir, "sample.txt")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	jsonFile := filepath.Join(dir, "result.json")
+	var stdout, stderr bytes.Buffer
+	_ = run([]string{"doctest", "--json=" + jsonFile, path}, &stdout, &stderr)
+	// ファイルが作成されたことを確認
+	data, err := os.ReadFile(jsonFile)
+	if err != nil {
+		t.Fatalf("JSONファイルが作成されていません: %v", err)
+	}
+	var report doctest.JSONReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatalf("JSONファイルがパースできません: %v", err)
+	}
+	if report.Failed != 1 {
+		t.Errorf("失敗数 = %d, want 1", report.Failed)
+	}
+}
+
+// DocTest の --label カンマ区切り複数指定をテストする。
+func TestRunDocTestMultipleLabels(t *testing.T) {
+	dir := t.TempDir()
+	text := "{{{#nako3\n1を表示\n### 表示結果: 1\n}}}\n" +
+		"{{{#nako3\n2を表示\n### L表示結果: 2\n}}}\n" +
+		"{{{#nako3\n3を表示\n### GO表示結果: 3\n}}}\n"
+	path := filepath.Join(dir, "sample.txt")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	// 表示結果とL表示結果の両方を対象にする
+	if err := run([]string{"doctest", "--label", "表示結果,L表示結果", path}, &stdout, &stderr); err != nil {
+		t.Fatalf("doctest: %v; stderr=%s", err, stderr.String())
+	}
+	// 2件成功するはず
+	if !strings.Contains(stdout.String(), "2件成功") {
+		t.Errorf("出力に '2件成功' がありません: %s", stdout.String())
+	}
+}
+
+// DocTest の --usage をテストする。
+func TestRunDocTestUsage(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"doctest", "--usage"}, &stdout, &stderr); err != nil {
+		t.Fatalf("doctest --usage: %v", err)
+	}
+	if !strings.Contains(stdout.String(), "DocTest の使い方") {
+		t.Errorf("出力に使い方がありません: %s", stdout.String())
 	}
 }
