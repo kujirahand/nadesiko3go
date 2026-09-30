@@ -1,9 +1,8 @@
 package parser
 
 import (
-	"fmt"
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,25 +92,34 @@ func TestRequireExplicitLocalPath(t *testing.T) {
 }
 
 func TestRequireURLAndRelativeImport(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
+	oldClient := requireHTTPClient
+	requireHTTPClient = &http.Client{Transport: requireTestRoundTripper(func(req *http.Request) (*http.Response, error) {
+		status, body := http.StatusOK, ""
+		switch req.URL.Path {
 		case "/index.nako3":
-			fmt.Fprint(w, "!「./child.nako3」を取り込む。")
+			body = "!「./child.nako3」を取り込む。"
 		case "/child.nako3":
-			fmt.Fprint(w, "「URL」と表示")
+			body = "「URL」と表示"
 		default:
-			http.NotFound(w, r)
+			status = http.StatusNotFound
 		}
-	}))
-	defer server.Close()
-	if _, err := ParseSource("!「"+server.URL+"/index.nako3」を取り込む。", "main.nako3", requireTestFuncs()); err != nil {
+		return &http.Response{
+			StatusCode: status,
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Header:     make(http.Header),
+			Request:    req,
+		}, nil
+	})}
+	t.Cleanup(func() { requireHTTPClient = oldClient })
+	baseURL := "https://require.test"
+	if _, err := ParseSource("!「"+baseURL+"/index.nako3」を取り込む。", "main.nako3", requireTestFuncs()); err != nil {
 		t.Fatal(err)
 	}
-	_, err := loadRequireFile(server.URL+"/missing.nako3", lexer.Token{})
+	_, err := loadRequireFile(baseURL+"/missing.nako3", lexer.Token{})
 	if err == nil || !strings.Contains(err.Error(), "HTTP 404") {
 		t.Fatalf("404エラー=%v", err)
 	}
-	for _, name := range []string{server.URL + "/file.txt", "https:///lib.nako3"} {
+	for _, name := range []string{baseURL + "/file.txt", "https:///lib.nako3"} {
 		if _, err := resolveRequirePath(name, "", lexer.Token{}); err == nil {
 			t.Fatalf("不正URL: %s", name)
 		}
@@ -120,6 +128,12 @@ func TestRequireURLAndRelativeImport(t *testing.T) {
 	if err != nil || got != "https://n3s.nadesi.com/plain/demo.nako3" {
 		t.Fatalf("貯蔵庫: %q %v", got, err)
 	}
+}
+
+type requireTestRoundTripper func(*http.Request) (*http.Response, error)
+
+func (roundTrip requireTestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	return roundTrip(req)
 }
 
 func requireTestFuncs() lexer.FuncList {
