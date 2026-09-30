@@ -14,7 +14,11 @@ import (
 // ウィンドウ(ハンドル0)にドロップ受付が登録されたときに画面側が呼ぶ。
 func bindFileDrop(w webview.WebView) {
 	_ = w.Bind("enableFileDropPaths", func() {
-		platformInstallFileDrop(w.Window())
+		// RPCの実行中にWebView2のIDropTargetを差し替えると、WebViewの
+		// ドロップ処理へ再入してクラッシュするため、RPCが戻ってからUIスレッドで行う。
+		w.Dispatch(func() {
+			platformInstallFileDrop(w.Window())
+		})
 	})
 }
 
