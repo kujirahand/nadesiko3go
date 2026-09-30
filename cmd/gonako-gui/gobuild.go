@@ -23,6 +23,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/gogen"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/safepath"
 )
 
 // goBuildPlugins is what a program built through this menu item can call.
@@ -198,64 +199,18 @@ func extractDownloadedSource(src io.Reader, destDir string) error {
 	}
 	defer r.Close()
 
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return err
-	}
-	destAbs, err := filepath.Abs(destDir)
+	// GitHubのzipballは "nadesiko3go-master/" というトップフォルダを
+	// 持つので、StripTopDir でそれを取り除いて destDir 直下に展開する。
+	// safepath.Extract は os.Root を使うため、Zip Slip やシンボリック
+	// リンク経由の脱出を自動的に防ぐ（Issue #261）。
+	result, err := safepath.Extract(&r.Reader, destDir, safepath.ExtractOptions{
+		StripTopDir: true,
+	})
 	if err != nil {
 		return err
 	}
-	for _, f := range r.File {
-		// GitHubのzipballは "nadesiko3go-master/" というトップフォルダを
-		// 持つので、それを取り除いて destDir 直下に展開する。
-		rel := stripZipTopDir(f.Name)
-		if rel == "" {
-			continue
-		}
-		target := filepath.Join(destAbs, filepath.FromSlash(rel))
-		// zip slip対策: 展開先が必ずdestAbsの内側になることを確かめる
-		if target != destAbs && !strings.HasPrefix(target, destAbs+string(os.PathSeparator)) {
-			continue
-		}
-		if f.FileInfo().IsDir() {
-			if err := os.MkdirAll(target, 0o755); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		if err := extractZipFile(f, target); err != nil {
-			return err
-		}
+	if result.Rejected() > 0 {
+		return fmt.Errorf("安全でないパスのエントリを%d件拒否しました", result.Rejected())
 	}
 	return nil
-}
-
-func stripZipTopDir(name string) string {
-	_, rest, found := strings.Cut(name, "/")
-	if !found {
-		return ""
-	}
-	return rest
-}
-
-func extractZipFile(f *zip.File, target string) error {
-	rc, err := f.Open()
-	if err != nil {
-		return err
-	}
-	defer rc.Close()
-	mode := f.Mode()
-	if mode == 0 {
-		mode = 0o644
-	}
-	out, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-	_, err = io.Copy(out, rc)
-	return err
 }

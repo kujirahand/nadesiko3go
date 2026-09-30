@@ -172,10 +172,9 @@ func TestExtractZipDestSymlink(t *testing.T) {
 	}
 }
 
-// 展開先の**内側**を指す無害なシンボリックリンクも現時点では拒否する、
-// という仕様を固定する検査。透過的に辿れるようにする改善は Issue #261 で
-// os.Root による方式として管理しており、実装時に本テストは更新される。
-func TestExtractZipInsideSymlinkRejected(t *testing.T) {
+// 展開先の**内側**を指す無害なシンボリックリンクは os.Root により
+// 透過的に辿れる（Issue #261 の os.Root 移行による改善）。
+func TestExtractZipInsideSymlinkFollowed(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("シンボリックリンクの作成に権限が必要なため")
 	}
@@ -184,8 +183,9 @@ func TestExtractZipInsideSymlinkRejected(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dest, "inside"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// dest/inlink -> dest/inside （内側を指す無害なリンク）
-	if err := os.Symlink(filepath.Join(dest, "inside"), filepath.Join(dest, "inlink")); err != nil {
+	// dest/inlink -> inside （内側を指す無害な相対リンク）
+	// os.Root は絶対パスを指すシンボリックリンクを拒否するため、相対パスで張る
+	if err := os.Symlink("inside", filepath.Join(dest, "inlink")); err != nil {
 		t.Fatal(err)
 	}
 	writeTestZip(t, filepath.Join(dir, "f.zip"), map[string]string{
@@ -194,14 +194,12 @@ func TestExtractZipInsideSymlinkRejected(t *testing.T) {
 	})
 
 	err := extractZip(filepath.Join(dir, "f.zip"), dest)
-	if err == nil {
-		t.Fatal("内側を指すリンク経由のエントリが拒否されませんでした（仕様変更時は本テストも更新）")
+	if err != nil {
+		t.Fatalf("内側を指すリンク経由のエントリが拒否された: %v", err)
 	}
-	if !strings.Contains(err.Error(), "シンボリックリンク経由") {
-		t.Errorf("エラー文言に「シンボリックリンク経由」が含まれません: %v", err)
-	}
-	if _, err := os.Lstat(filepath.Join(dest, "inside", "a.txt")); !os.IsNotExist(err) {
-		t.Errorf("リンク経由エントリが展開されています: %v", err)
+	// inlink/a.txt は dest/inside/a.txt に展開されるはず
+	if body, err := os.ReadFile(filepath.Join(dest, "inside", "a.txt")); err != nil || string(body) != "hello" {
+		t.Errorf("リンク経由で展開されませんでした: %q err=%v", body, err)
 	}
 	if body, err := os.ReadFile(filepath.Join(dest, "ok.txt")); err != nil || string(body) != "ok" {
 		t.Errorf("通常エントリが展開されていません: %q err=%v", body, err)
