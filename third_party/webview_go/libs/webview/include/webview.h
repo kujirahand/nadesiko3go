@@ -2074,6 +2074,7 @@ using browser_engine = detail::cocoa_wkwebview_engine;
 #include <windows.h>
 
 #include "WebView2.h"
+#include "gonako_file_drop_interfaces.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib, "advapi32.lib")
@@ -2908,10 +2909,10 @@ public:
           "{\"type\":\"gonako-file-drop-paths\",\"requestId\":" +
           json_escape(narrow_string(request.substr(prefix.size()))) +
           ",\"paths\":[";
-      ICoreWebView2WebMessageReceivedEventArgs2 *args2 = nullptr;
-      ICoreWebView2ObjectCollectionView *objects = nullptr;
+      IGonakoWebMessageReceivedEventArgs2 *args2 = nullptr;
+      IGonakoWebView2ObjectCollectionView *objects = nullptr;
       if (SUCCEEDED(args->QueryInterface(
-              IID_ICoreWebView2WebMessageReceivedEventArgs2,
+              IID_GonakoWebMessageReceivedEventArgs2,
               reinterpret_cast<void **>(&args2))) &&
           args2 &&
           SUCCEEDED(args2->get_AdditionalObjects(&objects)) && objects) {
@@ -2920,13 +2921,13 @@ public:
           bool first = true;
           for (UINT32 i = 0; i < count; ++i) {
             IUnknown *object = nullptr;
-            ICoreWebView2File *file = nullptr;
+            IGonakoWebView2File *file = nullptr;
             LPWSTR path = nullptr;
             if (FAILED(objects->GetValueAtIndex(i, &object)) || !object) {
               continue;
             }
             HRESULT result = object->QueryInterface(
-                IID_ICoreWebView2File, reinterpret_cast<void **>(&file));
+                IID_GonakoWebView2File, reinterpret_cast<void **>(&file));
             object->Release();
             if (FAILED(result) || !file) {
               continue;
