@@ -279,6 +279,89 @@ func TestOfficeLibStringCellKeepsText(t *testing.T) {
 	}
 }
 
+// PR #259 レビュー対応: 数式セルの結果は型を判定して返すこと
+func TestOfficeLibFormulaCellValue(t *testing.T) {
+	p := officelib.New()
+	impls := p.Impls()
+
+	if _, err := impls["エクセル新規ブック"](nil, nil); err != nil {
+		t.Fatalf("エクセル新規ブック failed: %v", err)
+	}
+	formulas := []struct {
+		name string
+		text string
+	}{
+		{"D1", "=1+2"},
+		{"E1", `="00123"`},
+	}
+	for _, f := range formulas {
+		if _, err := impls["エクセルセル設定"](nil, []value.Value{value.String(f.name), value.String(f.text)}); err != nil {
+			t.Fatalf("エクセルセル設定 %s failed: %v", f.name, err)
+		}
+	}
+
+	// 数式の結果が数値の場合は数値として返ること
+	got, err := impls["エクセルセル取得"](nil, []value.Value{value.String("D1")})
+	if err != nil {
+		t.Fatalf("エクセルセル取得 D1 failed: %v", err)
+	}
+	if n, ok := got.Number(); !ok || n != 3 {
+		t.Fatalf("D1 = %v (kind=%v), want number 3", got, got.Kind())
+	}
+
+	// 数式の結果が文字列の場合は先頭ゼロを保って文字列として返ること
+	got, err = impls["エクセルセル取得"](nil, []value.Value{value.String("E1")})
+	if err != nil {
+		t.Fatalf("エクセルセル取得 E1 failed: %v", err)
+	}
+	if got.Kind() != value.KindString || value.ToString(got) != "00123" {
+		t.Fatalf("E1 = %v (kind=%v), want string \"00123\"", got, got.Kind())
+	}
+
+	// 一括取得でも同じ方針で型が保持されること
+	gotRange, err := impls["エクセル一括取得"](nil, []value.Value{value.String("D1"), value.String("E1")})
+	if err != nil {
+		t.Fatalf("エクセル一括取得 failed: %v", err)
+	}
+	arr, ok := gotRange.Array()
+	if !ok || arr.Len() != 1 {
+		t.Fatalf("gotRange invalid: %v", gotRange)
+	}
+	row, _ := arr.Get(0).Array()
+	if n, ok := row.Get(0).Number(); !ok || n != 3 {
+		t.Fatalf("range D1 = %v (kind=%v), want number 3", row.Get(0), row.Get(0).Kind())
+	}
+	if row.Get(1).Kind() != value.KindString || value.ToString(row.Get(1)) != "00123" {
+		t.Fatalf("range E1 = %v (kind=%v), want string \"00123\"", row.Get(1), row.Get(1).Kind())
+	}
+
+	// 保存して開き直しても数式セルの型の判定が変わらないこと
+	xlsxPath := filepath.Join(t.TempDir(), "formula.xlsx")
+	if _, err := impls["エクセル保存"](nil, []value.Value{value.String(xlsxPath)}); err != nil {
+		t.Fatalf("エクセル保存 failed: %v", err)
+	}
+	if _, err := impls["エクセル閉"](nil, nil); err != nil {
+		t.Fatalf("エクセル閉 failed: %v", err)
+	}
+	if _, err := impls["エクセル開"](nil, []value.Value{value.String(xlsxPath)}); err != nil {
+		t.Fatalf("エクセル開 failed: %v", err)
+	}
+	got, err = impls["エクセルセル取得"](nil, []value.Value{value.String("D1")})
+	if err != nil {
+		t.Fatalf("reopened エクセルセル取得 D1 failed: %v", err)
+	}
+	if n, ok := got.Number(); !ok || n != 3 {
+		t.Fatalf("reopened D1 = %v (kind=%v), want number 3", got, got.Kind())
+	}
+	got, err = impls["エクセルセル取得"](nil, []value.Value{value.String("E1")})
+	if err != nil {
+		t.Fatalf("reopened エクセルセル取得 E1 failed: %v", err)
+	}
+	if got.Kind() != value.KindString || value.ToString(got) != "00123" {
+		t.Fatalf("reopened E1 = %v (kind=%v), want string \"00123\"", got, got.Kind())
+	}
+}
+
 func TestOfficeLibErrors(t *testing.T) {
 	p := officelib.New()
 	impls := p.Impls()

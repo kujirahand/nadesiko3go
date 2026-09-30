@@ -327,6 +327,14 @@ func (p *Plugin) readCell(b *workbook, cell string) (value.Value, error) {
 	if err != nil {
 		return value.Undefined(), err
 	}
+	// gonakoが書いた数式セルは結果のキャッシュ値を持たないため、
+	// 計算して結果の型（数値/文字列）を判定する。計算に失敗したら
+	// 従来どおり空文字のセルとして返す。
+	if cellType == excelize.CellTypeFormula && s == "" {
+		if calc, calcErr := b.file.CalcCellValue(b.sheet, cell, excelize.Options{RawCellValue: true}); calcErr == nil {
+			return formulaResult(calc), nil
+		}
+	}
 	return cellValue(s, cellType), nil
 }
 
@@ -480,8 +488,10 @@ func excelValue(v value.Value) any {
 }
 
 // cellValue はセルの表示文字列をセル型に基づいてなでしこの値へ変換する。
-// 文字列セル（共有文字列・インライン文字列・数式文字列）は「00123」のように
-// 数値に見える内容でも文字列のまま返す。
+// 文字列セル（共有文字列・インライン文字列）や、Excelが保存した文字列結果の
+// 数式セル（t="str"）は「00123」のように数値に見える内容でも文字列のまま返す。
+// 数値結果の数式セルは t 属性を持たないので CellTypeUnset となり、
+// 下のフォールバック分支で数値として扱われる。
 func cellValue(s string, cellType excelize.CellType) value.Value {
 	switch cellType {
 	case excelize.CellTypeBool:
@@ -498,6 +508,26 @@ func cellValue(s string, cellType excelize.CellType) value.Value {
 		return value.String("")
 	}
 	if n, err := strconv.ParseFloat(s, 64); err == nil {
+		return value.Number(n)
+	}
+	return value.String(s)
+}
+
+// formulaResult は CalcCellValue の計算結果をなでしこの値へ変換する。
+// excelize は数値結果を常に正規形（FormatFloat の最小表現）で返すため、
+// 「00123」のように数値として解析できるが正規形ではない文字列は
+// 文字列結果（="00123" など）と判定して文字列のまま返す。
+func formulaResult(s string) value.Value {
+	if s == "" {
+		return value.String("")
+	}
+	n, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return value.String(s)
+	}
+	f := strconv.FormatFloat(n, 'f', -1, 64)
+	g := strings.ToUpper(strconv.FormatFloat(n, 'G', -1, 64))
+	if strings.EqualFold(s, f) || strings.ToUpper(s) == g {
 		return value.Number(n)
 	}
 	return value.String(s)
