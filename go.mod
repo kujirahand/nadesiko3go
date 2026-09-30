@@ -16,6 +16,8 @@ require (
 	modernc.org/sqlite v1.57.0
 )
 
+replace github.com/webview/webview_go => ./third_party/webview_go
+
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect

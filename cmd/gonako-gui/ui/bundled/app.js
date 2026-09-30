@@ -73,9 +73,26 @@ function apply(ops) {
       document.addEventListener('dragover', event => event.preventDefault(), true);
       document.addEventListener('drop', event => {
         event.preventDefault();
-        const files = Array.from(event.dataTransfer?.files || [])
-          .map(file => file.path || file.name).filter(Boolean);
-        send(0, 'drop', { __gonako_drop_files: JSON.stringify(files) });
+        const files = Array.from(event.dataTransfer?.files || []);
+        const bridge = window.chrome?.webview;
+        if (bridge && typeof bridge.postMessageWithAdditionalObjects === 'function') {
+          const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const onMessage = messageEvent => {
+            const result = messageEvent.data;
+            if (result?.type !== 'gonako-file-drop-paths' || result.requestId !== requestId) return;
+            bridge.removeEventListener('message', onMessage);
+            send(0, 'drop', { __gonako_drop_files: JSON.stringify(result.paths || []) });
+          };
+          bridge.addEventListener('message', onMessage);
+          try {
+            bridge.postMessageWithAdditionalObjects(`gonako-file-drop-paths:${requestId}`, files);
+            return;
+          } catch (_) {
+            bridge.removeEventListener('message', onMessage);
+          }
+        }
+        const names = files.map(file => file.path || file.name).filter(Boolean);
+        send(0, 'drop', { __gonako_drop_files: JSON.stringify(names) });
       }, true);
       return;
     }
