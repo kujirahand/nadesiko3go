@@ -16,6 +16,9 @@ func TestWindowsStartLine(t *testing.T) {
 		{"&を含むURL", "https://example.com/?a=1&b=2", `start "" "https://example.com/?a=1&b=2"`},
 		{"空白を含むパス", `C:\Program Files\app\file.txt`, `start "" "C:\Program Files\app\file.txt"`},
 		{"引用符を含む対象", `bad"target`, `start "" "badtarget"`},
+		{"%を含むURL", "https://example.com/%E3%83%86%E3%82%B9%E3%83%88", `start "" "https://example.com/%%E3%%83%%86%%E3%%82%%B9%%E3%%83%%88"`},
+		{"%を含むパス", `C:\Users\test\50%\file.txt`, `start "" "C:\Users\test\50%%\file.txt"`},
+		{"末尾に単独の%", `C:\Users\test\50%`, `start "" "C:\Users\test\50%%"`},
 	}
 	for _, tt := range tests {
 		if got := windowsStartLine(tt.target); got != tt.want {
