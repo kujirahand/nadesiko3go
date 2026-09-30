@@ -70,6 +70,7 @@ type command struct {
 // FuncList returns the command signatures for parser and lexer.
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
+	list["ドロップファイル"] = &lexer.FuncItem{Name: "ドロップファイル", Type: "const", Value: value.ArrayValue(value.NewArray())}
 	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
 	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
 	list["DOMスキン"] = &lexer.FuncItem{Name: "DOMスキン", Type: "const", Value: ""}
@@ -106,6 +107,10 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 
 func (p *Plugin) commands() map[string]command {
 	return map[string]command{
+		"ファイルドロップ時": { // @ウィンドウへのファイルドロップ時に実行する関数を登録する // @ふぁいるどろっぷじ
+			josi: [][]string{{"の", "を"}},
+			fn:   p.cmdOnFileDrop,
+		},
 		"HTML表示": { // @HTML文字列をウィンドウ画面に追加する // @HTMLひょうじ
 			josi:       [][]string{{"を", "と"}},
 			returnNone: true,
@@ -1053,6 +1058,14 @@ func (p *Plugin) cmdOnChange(ctx stdlib.Context, args []value.Value) (value.Valu
 
 func (p *Plugin) cmdOnSubmit(ctx stdlib.Context, args []value.Value) (value.Value, error) {
 	return p.bindEvent(ctx, args, "submit")
+}
+
+func (p *Plugin) cmdOnFileDrop(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	fn, err := callable(ctx, arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.bind(0, "drop", eventBinding{ctx: ctx, fn: fn})
 }
 
 func (p *Plugin) cmdSelectFile(ctx stdlib.Context, args []value.Value) (value.Value, error) {

@@ -26,9 +26,9 @@ function values() {
 // イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
 // ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
 // この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
-async function send(h, n) {
+async function send(h, n, extraValues) {
   const err = document.getElementById('gonako-error');
-  const raw = await window.startNakoEvent(state.runId, Number(h), n, values());
+  const raw = await window.startNakoEvent(state.runId, Number(h), n, { ...values(), ...(extraValues || {}) });
   const st = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (st.error) {
     err.textContent = st.error;
@@ -64,6 +64,19 @@ function apply(ops) {
     return found;
   };
   ops.forEach(o => {
+    // ウィンドウのハンドル0はGo側のJSONでは省略される。
+    if (o.type === 'listen' && Number(o.handle || 0) === 0 && o.event === 'drop') {
+      if (root.dataset.gonakoWindowDrop) return;
+      root.dataset.gonakoWindowDrop = '1';
+      document.addEventListener('dragover', event => event.preventDefault(), true);
+      document.addEventListener('drop', event => {
+        event.preventDefault();
+        const files = Array.from(event.dataTransfer?.files || [])
+          .map(file => file.path || file.name).filter(Boolean);
+        send(0, 'drop', { __gonako_drop_files: JSON.stringify(files) });
+      }, true);
+      return;
+    }
     if (o.type === 'create') {
       let e;
       if (o.tag === 'submit') {

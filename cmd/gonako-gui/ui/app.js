@@ -2262,11 +2262,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // イベント処理はGo側で非同期に走る。同期実行だとハンドラ内の『言う』が
   // ダイアログの応答を待ち、その応答を返すこの関数はイベントの終了を
   // 待っている、という行き詰まりでウィンドウが固まっていた（#59）。
-  async function sendGUIEvent(handle, eventName) {
+  async function sendGUIEvent(handle, eventName, extraValues) {
     if (!activeGUIRunID || typeof window.startNakoEvent !== 'function') return;
     try {
       const started = parseBoundJSON(await window.startNakoEvent(
-        activeGUIRunID, Number(handle), eventName, collectGUIValues()
+        activeGUIRunID, Number(handle), eventName, { ...collectGUIValues(), ...(extraValues || {}) }
       ));
       if (started.error) {
         reportGUIEventError(started.error);
@@ -2308,6 +2308,19 @@ document.addEventListener('DOMContentLoaded', () => {
       return found;
     };
     operations.forEach(op => {
+      // ウィンドウのハンドル0はGo側のJSONでは省略される。
+      if (op.type === 'listen' && Number(op.handle || 0) === 0 && op.event === 'drop') {
+        if (windowPreview.dataset.gonakoWindowDrop) return;
+        windowPreview.dataset.gonakoWindowDrop = '1';
+        document.addEventListener('dragover', event => event.preventDefault(), true);
+        document.addEventListener('drop', event => {
+          event.preventDefault();
+          const files = Array.from(event.dataTransfer?.files || [])
+            .map(file => file.path || file.name).filter(Boolean);
+          sendGUIEvent(0, 'drop', { __gonako_drop_files: JSON.stringify(files) });
+        }, true);
+        return;
+      }
       if (op.type === 'create') {
         let el;
         if (op.tag === 'submit') {

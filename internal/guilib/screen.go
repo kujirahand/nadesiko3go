@@ -1,6 +1,7 @@
 package guilib
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -559,8 +560,12 @@ func (s *Screen) setAttributes(handle int, attrs map[string]string) error {
 func (s *Screen) bind(handle int, event string, binding eventBinding) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if _, err := s.node(handle, eventName(event)); err != nil {
-		return err
+	if handle != 0 {
+		if _, err := s.node(handle, eventName(event)); err != nil {
+			return err
+		}
+	} else if event != "drop" {
+		return fmt.Errorf("ウィンドウに%sイベントは登録できません。", event)
 	}
 	if s.events[handle] == nil {
 		s.events[handle] = map[string]eventBinding{}
@@ -604,6 +609,16 @@ func (s *Screen) DispatchEvent(handle int, event string, values map[string]strin
 
 	binding.ctx.SetSysVar("対象", value.Number(float64(handle)))
 	binding.ctx.SetSysVar("フォーム値", value.DictValue(formValues))
+	if event == "drop" {
+		var paths []string
+		if err := json.Unmarshal([]byte(values["__gonako_drop_files"]), &paths); err == nil {
+			items := make([]value.Value, len(paths))
+			for i, path := range paths {
+				items[i] = value.String(path)
+			}
+			binding.ctx.SetSysVar("ドロップファイル", value.ArrayValue(value.NewArray(items...)))
+		}
+	}
 	_, err := binding.ctx.CallFunc(binding.fn, nil)
 	return err
 }
