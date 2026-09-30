@@ -39,7 +39,8 @@ static void gonakoRecordDrop(IDataObject *data) {
 	FORMATETC fmt = {CF_HDROP, NULL, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
 	STGMEDIUM medium;
 	if (data == NULL || FAILED(IDataObject_GetData(data, &fmt, &medium))) return;
-	HDROP drop = (HDROP)GlobalLock(medium.hGlobal);
+	// CF_HDROPはGlobalLockの戻り値ではなく、hGlobal自体がHDROPハンドル。
+	HDROP drop = (HDROP)medium.hGlobal;
 	char *buf = NULL;
 	int len = 0;
 	if (drop != NULL) {
@@ -59,7 +60,6 @@ static void gonakoRecordDrop(IDataObject *data) {
 			}
 			free(wide);
 		}
-		GlobalUnlock(medium.hGlobal);
 	}
 	ReleaseStgMedium(&medium);
 	EnterCriticalSection(&gonakoDropLock);
