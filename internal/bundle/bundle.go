@@ -150,7 +150,8 @@ type Spec struct {
 	// (Issue #187、オプション自体は Issue #263)
 	IncludeSymlink bool
 	// Warn は梱包中の警告を受け取る。リンクが範囲外を指す・壊れている・
-	// 隠しファイルを指すときに呼ぶ (Issue #263 のレビュー指定)。
+	// 隠しファイルを指す・同じフォルダを複数リンクが参照しているときに呼ぶ
+	// (Issue #263 のレビュー指定とレビュー指摘)。
 	// nil なら黙る。
 	Warn func(format string, args ...any)
 	// Skip names files that must not be packed, by absolute path. The
@@ -345,8 +346,11 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 		}
 	}
 
-	// フォルダ外リンクを辿る際の再帰防止。辿った実体フォルダを保持する
+	// フォルダ外リンクを辿る際の再帰防止。現在辿っている実体フォルダを保持する
 	visited := map[string]bool{}
+	// 同じ外部フォルダが複数のリンクから参照されたときの警告用。
+	// visited と違い一度梱包したら消さない (Issue #263 レビュー指摘)
+	packed := map[string]bool{}
 
 	return filepath.Walk(realRoot, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -375,19 +379,22 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 				warn("リンク『%s』は先が存在しないのでスキップしました", p)
 				return nil
 			}
+			outside := !withinDir(realRoot, r)
+			if outside && !includeSymlink {
+				return fmt.Errorf("リソース内のリンク『%s』がフォルダ外の『%s』を指しているため梱包できません", p, r)
+			}
+			// 警告は梱包に進むリンクに対してだけ出す。エラーになる
+			// 判断より前に出すとノイズになる (Issue #263 レビュー指摘)
 			if hiddenTarget(r) {
 				warn("リンク『%s』は隠しファイル『%s』を指しています", p, r)
 			}
-			if !withinDir(realRoot, r) {
-				if !includeSymlink {
-					return fmt.Errorf("リソース内のリンク『%s』がフォルダ外の『%s』を指しているため梱包できません", p, r)
-				}
+			if outside {
 				warn("リンク『%s』はフォルダ外の『%s』を指していますが、梱包します", p, r)
 				rel, err := filepath.Rel(realRoot, p)
 				if err != nil {
 					return err
 				}
-				return addLinkTarget(zw, prefix, rel, p, r, skipPaths, visited, warn)
+				return addLinkTarget(zw, prefix, rel, p, r, realRoot, skipPaths, visited, packed, warn)
 			}
 			resolved = r
 			target, err := os.Stat(p)
@@ -422,8 +429,13 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 // 配下をまとめて linkRel のフォルダとして書き込む。visited は現在
 // 辿っている実体フォルダで、リンクが環状につながって同じフォルダへ
 // 再び到達したらエラーにする (Issue #263 のレビュー指定)。
+// packed はこれまでにリンク先として梱包した実体フォルダで、同じ
+// フォルダを二度目に参照したときは警告を出して梱包は続ける
+// (Issue #263 レビュー指摘)。realRoot はリソースフォルダの実体で、
+// 再帰途中でフォルダ外を指すリンクを見つけたときの警告に使う
+// (Issue #263 レビュー指摘)。
 // prefix と skipPaths は addResources から受け継ぐものと同じ。
-func addLinkTarget(zw *zip.Writer, prefix, linkRel, p, realTarget string, skipPaths map[string]bool, visited map[string]bool, warn func(string, ...any)) error {
+func addLinkTarget(zw *zip.Writer, prefix, linkRel, p, realTarget, realRoot string, skipPaths map[string]bool, visited, packed map[string]bool, warn func(string, ...any)) error {
 	target, err := os.Stat(p)
 	if err != nil {
 		return err
@@ -440,6 +452,10 @@ func addLinkTarget(zw *zip.Writer, prefix, linkRel, p, realTarget string, skipPa
 	}
 	visited[realTarget] = true
 	defer delete(visited, realTarget)
+	if packed[realTarget] {
+		warn("フォルダ『%s』は複数のリンクから参照されているため、内容が重複して梱包されます", p)
+	}
+	packed[realTarget] = true
 	return filepath.Walk(realTarget, func(tp string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -468,7 +484,22 @@ func addLinkTarget(zw *zip.Writer, prefix, linkRel, p, realTarget string, skipPa
 			if hiddenTarget(r) {
 				warn("リンク『%s』は隠しファイル『%s』を指しています", tp, r)
 			}
-			return addLinkTarget(zw, prefix, entryRel, tp, r, skipPaths, visited, warn)
+			if !withinDir(realRoot, r) {
+				// 再帰先で見つけたフォルダ外リンクも、トップレベルと
+				// 同じ規則で警告を出す (Issue #263 レビュー指摘)
+				warn("リンク『%s』はフォルダ外の『%s』を指していますが、梱包します", tp, r)
+			} else {
+				target, err := os.Stat(tp)
+				if err != nil {
+					return err
+				}
+				if target.IsDir() {
+					// フォルダ内のフォルダへのリンクは、実体側が別途
+					// 歩かれるので重複梱包を避けて飛ばす (トップレベルと同じ)
+					return nil
+				}
+			}
+			return addLinkTarget(zw, prefix, entryRel, tp, r, realRoot, skipPaths, visited, packed, warn)
 		}
 		if skipPaths[tp] {
 			return nil
