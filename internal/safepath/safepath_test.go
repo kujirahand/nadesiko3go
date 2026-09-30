@@ -300,3 +300,41 @@ func TestExtractManyRejected(t *testing.T) {
 		t.Errorf("Escaped = %d, want 10", len(result.Escaped))
 	}
 }
+
+// TestExtractENOTDIRNotClassifiedAsSymlink は、通常ファイルのサブパスを作成しようとした場合
+// （例: ファイル "a" に対して "a/child.txt"）に、ENOTDIR エラーがシンボリックリンク脱出として
+// 分類されず、通常のエラーとして返されることを確認する（PR #272 レビュー指摘）。
+func TestExtractENOTDIRNotClassifiedAsSymlink(t *testing.T) {
+	destDir := t.TempDir()
+
+	// 先に通常ファイル "a" を作成
+	err := os.WriteFile(filepath.Join(destDir, "a"), []byte("file a"), 0644)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// ZIP には "a/child.txt" を含める（ファイル "a" の下にディレクトリを作ろうとする）
+	r := makeZipReader(t, map[string]string{
+		"a/child.txt": "child",
+	})
+
+	result, err := Extract(r, destDir, ExtractOptions{})
+
+	// エラーが返されることを確認
+	if err == nil {
+		t.Fatal("ENOTDIR/EEXIST エラーが返されなかった")
+	}
+	// エラーメッセージはプラットフォーム依存なので、具体的な文言はチェックしない
+	// 重要なのは、ViaSymlink に分類されないこと
+
+	// result が nil の場合、ViaSymlink/Escaped は空とみなせる
+	if result != nil {
+		// シンボリックリンク脱出ではないので、ViaSymlink には分類されない
+		if len(result.ViaSymlink) != 0 {
+			t.Errorf("ENOTDIR/EEXIST が ViaSymlink に分類された: %v", result.ViaSymlink)
+		}
+		if len(result.Escaped) != 0 {
+			t.Errorf("パス脱出でもないのに Escaped に分類された: %v", result.Escaped)
+		}
+	}
+}

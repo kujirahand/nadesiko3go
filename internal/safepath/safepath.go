@@ -56,7 +56,10 @@ func (r *ExtractResult) Rejected() int {
 //
 // 拒否されたエントリは ExtractResult に分類して返す:
 //   - Escaped: filepath.Localize が拒否（".." や絶対パス）
-//   - ViaSymlink: os.Root が拒否（既存シンボリックリンク経由の脱出）
+//   - ViaSymlink: 既存シンボリックリンク経由で root が脱出した
+//
+// シンボリックリンク脱出以外での失敗（ENOTDIR、EACCES 等）は通常の
+// エラーとして即座に返す。黙って飛ばすと利用者が気付けないため。
 //
 // 拒否されたエントリがあっても展開自体は続き、最後にまとめて結果を返す。
 func Extract(r *zip.Reader, destDir string, opts ExtractOptions) (*ExtractResult, error) {
@@ -108,8 +111,11 @@ func Extract(r *zip.Reader, destDir string, opts ExtractOptions) (*ExtractResult
 
 		if isDir {
 			if err := root.MkdirAll(localPath, opts.DirPerm); err != nil {
-				// os.Root が拒否 = シンボリックリンク経由の脱出
-				result.ViaSymlink = append(result.ViaSymlink, f.Name)
+				if pathHasEscapingSymlink(root, localPath) {
+					result.ViaSymlink = append(result.ViaSymlink, f.Name)
+					continue
+				}
+				return nil, err
 			}
 			continue
 		}
@@ -118,8 +124,11 @@ func Extract(r *zip.Reader, destDir string, opts ExtractOptions) (*ExtractResult
 		parent := filepath.Dir(localPath)
 		if parent != "." {
 			if err := root.MkdirAll(parent, opts.DirPerm); err != nil {
-				result.ViaSymlink = append(result.ViaSymlink, f.Name)
-				continue
+				if pathHasEscapingSymlink(root, parent) {
+					result.ViaSymlink = append(result.ViaSymlink, f.Name)
+					continue
+				}
+				return nil, err
 			}
 		}
 
@@ -131,8 +140,11 @@ func Extract(r *zip.Reader, destDir string, opts ExtractOptions) (*ExtractResult
 
 		outFile, err := root.OpenFile(localPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, perm)
 		if err != nil {
-			result.ViaSymlink = append(result.ViaSymlink, f.Name)
-			continue
+			if pathHasEscapingSymlink(root, localPath) {
+				result.ViaSymlink = append(result.ViaSymlink, f.Name)
+				continue
+			}
+			return nil, err
 		}
 
 		rc, err := f.Open()
@@ -150,6 +162,70 @@ func Extract(r *zip.Reader, destDir string, opts ExtractOptions) (*ExtractResult
 	}
 
 	return result, nil
+}
+
+// pathHasEscapingSymlink は root 内の localPath に、root の外を指す
+// シンボリックリンクが含まれているかを調べる。
+//
+// os.Root の MkdirAll/OpenFile はリンク脱出以外（ENOTDIR、EACCES 等）でも
+// 失敗するため、エラー原因が実際にシンボリックリンク脱出かどうかを
+// 判定するために使う。root.Lstat はリンクを辿らず成功し、root.Readlink
+// はリンク先が root 外でもターゲット文字列を返す（PR #272 レビュー指摘）。
+func pathHasEscapingSymlink(root *os.Root, localPath string) bool {
+	dir := filepath.Dir(localPath)
+	elems := strings.Split(dir, string(filepath.Separator))
+	if len(elems) == 1 && elems[0] == "." {
+		elems = nil
+	}
+	// localPath 自体の最終コンポーネントも調べる（ファイル自身が脱出リンクの場合）
+	if base := filepath.Base(localPath); base != "." && base != "" {
+		elems = append(elems, base)
+	}
+
+	cur := ""
+	for _, elem := range elems {
+		if elem == "." || elem == "" {
+			continue
+		}
+		if cur == "" {
+			cur = elem
+		} else {
+			cur = cur + string(filepath.Separator) + elem
+		}
+
+		fi, err := root.Lstat(cur)
+		if err != nil {
+			// 存在しない = これ以降のコンポーネントも未作成なので脱出しない
+			return false
+		}
+		if fi.Mode()&os.ModeSymlink == 0 {
+			// 通常ファイル/ディレクトリ = root が解決するので安全
+			continue
+		}
+		// シンボリックリンクを見つけた。ターゲットを読む。
+		// root.Readlink はターゲットが root 外でも成功する。
+		target, err := root.Readlink(cur)
+		if err != nil {
+			return false
+		}
+		if symlinkTargetEscapes(target) {
+			return true
+		}
+	}
+	return false
+}
+
+// symlinkTargetEscapes はシンボリックリンクのターゲットがリンクの位置から
+// 見て root の外に出るかどうかを判定する。絶対パス、または解決後に root から
+// 出る相対パス（".." が先頭に残る）を脱出とみなす。
+func symlinkTargetEscapes(target string) bool {
+	if filepath.IsAbs(target) {
+		return true
+	}
+	// ターゲットをクリーンにして、.. が先頭に残るかで判定する。
+	// 例: "../evil" → "../evil"（脱出）、"inside/../ok" → "ok"（安全）
+	cleaned := filepath.Clean(target)
+	return cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator))
 }
 
 // stripTopDir はスラッシュ区切りのパスから先頭コンポーネントを取り除く。
