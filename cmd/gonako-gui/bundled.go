@@ -212,6 +212,7 @@ func newAppWindow(settings guilib.WindowSettings) webview.WebView {
 		fmt.Fprintln(os.Stderr, "WebViewの初期化に失敗しました。")
 		return nil
 	}
+	bindFileDrop(w)
 	if !settings.HasTitle || settings.Title == "" {
 		settings.HasTitle = true
 		settings.Title = "なでしこ3"

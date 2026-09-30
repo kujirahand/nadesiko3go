@@ -26,9 +26,9 @@ function values() {
 // イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
 // ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
 // この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
-async function send(h, n) {
+async function send(h, n, extraValues) {
   const err = document.getElementById('gonako-error');
-  const raw = await window.startNakoEvent(state.runId, Number(h), n, values());
+  const raw = await window.startNakoEvent(state.runId, Number(h), n, { ...values(), ...(extraValues || {}) });
   const st = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (st.error) {
     err.textContent = st.error;
@@ -64,6 +64,38 @@ function apply(ops) {
     return found;
   };
   ops.forEach(o => {
+    // ウィンドウのハンドル0はGo側のJSONでは省略される。
+    if (o.type === 'listen' && Number(o.handle || 0) === 0 && o.event === 'drop') {
+      if (root.dataset.gonakoWindowDrop) return;
+      root.dataset.gonakoWindowDrop = '1';
+      // フルパスはネイティブ側で取得する(未対応環境ではファイル名のまま)。
+      if (typeof window.enableFileDropPaths === 'function') window.enableFileDropPaths().catch(() => {});
+      document.addEventListener('dragover', event => event.preventDefault(), true);
+      document.addEventListener('drop', event => {
+        event.preventDefault();
+        const files = Array.from(event.dataTransfer?.files || []);
+        const bridge = window.chrome?.webview;
+        if (bridge && typeof bridge.postMessageWithAdditionalObjects === 'function') {
+          const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const onMessage = messageEvent => {
+            const result = messageEvent.data;
+            if (result?.type !== 'gonako-file-drop-paths' || result.requestId !== requestId) return;
+            bridge.removeEventListener('message', onMessage);
+            send(0, 'drop', { __gonako_drop_files: JSON.stringify(result.paths || []) });
+          };
+          bridge.addEventListener('message', onMessage);
+          try {
+            bridge.postMessageWithAdditionalObjects(`gonako-file-drop-paths:${requestId}`, files);
+            return;
+          } catch (_) {
+            bridge.removeEventListener('message', onMessage);
+          }
+        }
+        const names = files.map(file => file.path || file.name).filter(Boolean);
+        send(0, 'drop', { __gonako_drop_files: JSON.stringify(names) });
+      }, true);
+      return;
+    }
     if (o.type === 'create') {
       let e;
       if (o.tag === 'submit') {
