@@ -208,7 +208,7 @@ func pathHasEscapingSymlink(root *os.Root, localPath string) bool {
 		if err != nil {
 			return false
 		}
-		if symlinkTargetEscapes(target) {
+		if symlinkTargetEscapes(cur, target) {
 			return true
 		}
 	}
@@ -218,13 +218,22 @@ func pathHasEscapingSymlink(root *os.Root, localPath string) bool {
 // symlinkTargetEscapes はシンボリックリンクのターゲットがリンクの位置から
 // 見て root の外に出るかどうかを判定する。絶対パス、または解決後に root から
 // 出る相対パス（".." が先頭に残る）を脱出とみなす。
-func symlinkTargetEscapes(target string) bool {
+//
+// linkPath はリンク自身のパス（root からの相対パス）。
+// target はリンクのターゲット文字列。
+//
+// 例:
+//   - linkPath="sub/link", target="../inside" → sub/../inside = inside（安全）
+//   - linkPath="sub/link", target="../../outside" → sub/../../outside = ../outside（脱出）
+func symlinkTargetEscapes(linkPath, target string) bool {
 	if filepath.IsAbs(target) {
 		return true
 	}
-	// ターゲットをクリーンにして、.. が先頭に残るかで判定する。
-	// 例: "../evil" → "../evil"（脱出）、"inside/../ok" → "ok"（安全）
-	cleaned := filepath.Clean(target)
+	// リンクの親ディレクトリを基準にターゲットを解決
+	linkDir := filepath.Dir(linkPath)
+	resolved := filepath.Join(linkDir, target)
+	// クリーンにして、.. が先頭に残るかで判定
+	cleaned := filepath.Clean(resolved)
 	return cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator))
 }
 
