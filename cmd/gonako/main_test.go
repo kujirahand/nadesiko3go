@@ -370,6 +370,66 @@ func TestBuildList(t *testing.T) {
 	}
 }
 
+// TestBuildIncludeSymlink pins the --include-symlink flag end to end: without
+// it a link reaching outside the resource folder fails the build, with it the
+// link's target is packed under the link's name (Issue #263)。
+func TestBuildIncludeSymlink(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "res"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "outside.txt"), []byte("外部の実体"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "outside.txt"), filepath.Join(dir, "res", "link.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+	for name, body := range map[string]string{
+		"app.nako3": "1を表示",
+		"runtime":   "ランタイムの代わり",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	previous, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	var out, errOut bytes.Buffer
+	args := []string{"build", "app.nako3", "--resource", "./res", "--runtime", "runtime", "--out", "pkg"}
+	if err := run(args, &out, &errOut); err == nil {
+		t.Fatal("オプションなしではフォルダ外リンクでエラーになるはず")
+	}
+
+	out.Reset()
+	errOut.Reset()
+	args = append(args, "--include-symlink")
+	if err := run(args, &out, &errOut); err != nil {
+		t.Fatalf("build --include-symlink: %v (%s)", err, errOut.String())
+	}
+	// 範囲外を指すリンクは警告を出す (Issue #263 のレビュー指定)
+	if !strings.Contains(errOut.String(), "警告") {
+		t.Errorf("警告が stderr に出ていない: %q", errOut.String())
+	}
+
+	packed, err := bundle.Open(filepath.Join(dir, "pkg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+	got, ok := packed.ReadResource("res/link.txt")
+	if !ok {
+		t.Fatalf("res/link.txt が見つからない (入っているのは %v)", packed.Resources())
+	}
+	if string(got) != "外部の実体" {
+		t.Errorf("res/link.txt = %q, want 外部の実体", got)
+	}
+}
+
 func TestBundledExitCode(t *testing.T) {
 	dir := t.TempDir()
 	code := "3で強制終了"

@@ -2,6 +2,7 @@ package bundle_test
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -266,6 +267,442 @@ func TestSkipsSymlinkToInsideDir(t *testing.T) {
 		if strings.HasPrefix(name, "res/alias") {
 			t.Errorf("リンク名で重複梱包されている: %s", name)
 		}
+	}
+}
+
+// TestPacksSymlinkOutsideWithIncludeOption pins that with Spec.IncludeSymlink
+// set, a link reaching outside the resource folder is packed by following its
+// target instead of failing the build (Issue #263)。
+func TestPacksSymlinkOutsideWithIncludeOption(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(res, "ok.txt"), []byte("中身"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(dir, "secret.txt")
+	if err := os.WriteFile(outside, []byte("外部の実体"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(res, "link.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	capture := func(format string, args ...any) {
+		warns = append(warns, fmt.Sprintf(format, args...))
+	}
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+		Warn:           capture,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	got, ok := packed.ReadResource("res/link.txt")
+	if !ok {
+		t.Fatalf("リンク名のリソースが見つからない (入っているのは %v)", packed.Resources())
+	}
+	if string(got) != "外部の実体" {
+		t.Errorf("link.txt = %q, want 外部の実体", got)
+	}
+	// 範囲外を指すリンクは警告を出す (Issue #263 のレビュー指定)
+	if !hasWarning(warns, "フォルダ外") {
+		t.Errorf("範囲外リンクの警告が出ていない: %v", warns)
+	}
+}
+
+// hasWarning は警告のどれかが part を含むかを返す。
+func hasWarning(warns []string, part string) bool {
+	for _, w := range warns {
+		if strings.Contains(w, part) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestPacksSymlinkedDirOutsideWithIncludeOption pins that with the option set,
+// a link to a folder outside the resources packs the whole tree under the
+// link's name.
+func TestPacksSymlinkedDirOutsideWithIncludeOption(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ext := filepath.Join(dir, "ext")
+	if err := os.MkdirAll(filepath.Join(ext, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "a.txt"), []byte("外のa"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "sub", "b.txt"), []byte("外のb"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "sub", ".hidden"), []byte("伏せ字"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(ext, filepath.Join(res, "alias")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	for name, want := range map[string]string{
+		"res/alias/a.txt":     "外のa",
+		"res/alias/sub/b.txt": "外のb",
+	} {
+		got, ok := packed.ReadResource(name)
+		if !ok {
+			t.Fatalf("%s が見つからない (入っているのは %v)", name, packed.Resources())
+		}
+		if string(got) != want {
+			t.Errorf("%s = %q, want %q", name, got, want)
+		}
+	}
+	for _, name := range packed.Resources() {
+		if strings.Contains(name, ".hidden") {
+			t.Errorf("隠しファイルが梱包されている: %s", name)
+		}
+	}
+}
+
+// TestIncludeSymlinkCycleIsError pins that links forming a loop report an
+// error instead of recursing forever (Issue #263 のレビュー指定では循環は
+// エラー)。
+func TestIncludeSymlinkCycleIsError(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ext := filepath.Join(dir, "ext")
+	if err := os.MkdirAll(ext, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "a.txt"), []byte("外のa"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// ext の中に ext 自身へ戻るリンク (ループ)
+	if err := os.Symlink(ext, filepath.Join(ext, "loop")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+	// res の中の ext へ向かうリンク
+	if err := os.Symlink(ext, filepath.Join(res, "alias")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	err = bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+	})
+	if err == nil {
+		t.Fatal("循環リンクはエラーになるはず")
+	}
+	if !strings.Contains(err.Error(), "循環") {
+		t.Errorf("循環が分かるエラーにする: %v", err)
+	}
+}
+
+// TestIncludeSymlinkBrokenLinkWarnsAndSkips pins that a link with no target
+// is skipped with a warning instead of failing the build (Issue #263 の
+// レビュー指定)。
+func TestIncludeSymlinkBrokenLinkWarnsAndSkips(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(res, "ok.txt"), []byte("中身"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "gone.txt"), filepath.Join(res, "broken.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+		Warn: func(format string, args ...any) {
+			warns = append(warns, fmt.Sprintf(format, args...))
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	if _, ok := packed.ReadResource("res/broken.txt"); ok {
+		t.Error("壊れたリンクが梱包されている")
+	}
+	if _, ok := packed.ReadResource("res/ok.txt"); !ok {
+		t.Errorf("他のリソースが失われている: %v", packed.Resources())
+	}
+	if !hasWarning(warns, "broken.txt") {
+		t.Errorf("壊れたリンクの警告が出ていない: %v", warns)
+	}
+}
+
+// TestIncludeSymlinkHiddenTargetWarns pins that a link reaching a hidden
+// file warns (Issue #263 のレビュー指定)。
+func TestIncludeSymlinkHiddenTargetWarns(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(res, ".secret.txt"), []byte("隠し"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(".secret.txt", filepath.Join(res, "shown.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+		Warn: func(format string, args ...any) {
+			warns = append(warns, fmt.Sprintf(format, args...))
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	if !hasWarning(warns, "隠し") {
+		t.Errorf("隠しファイルリンクの警告が出ていない: %v", warns)
+	}
+	// 警告を出しつつも、リンクはリンク名側で梱包される。可視リンク経由で
+	// 隠し実体の内容が配布物に入る挙動をピン留めする (Issue #263 レビュー指摘)
+	shown, ok := packed.ReadResource("res/shown.txt")
+	if !ok {
+		t.Fatalf("res/shown.txt が梱包されていない (入っているのは %v)", packed.Resources())
+	}
+	if string(shown) != "隠し" {
+		t.Errorf("res/shown.txt = %q, want 隠し", shown)
+	}
+}
+
+// TestSymlinkNoOptionErrorHasNoHiddenWarning pins that a link reaching outside
+// the folder fails with the rejection error without emitting the hidden-target
+// warning first, even when the target is hidden (Issue #263 レビュー指摘:
+// エラーになる判断より前に警告を出さない)。
+func TestSymlinkNoOptionErrorHasNoHiddenWarning(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".secret.txt"), []byte("隠し"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, ".secret.txt"), filepath.Join(res, "shown.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	err = bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:     prog,
+		Name:        "main.nako3",
+		ResourceDir: res,
+		Warn: func(format string, args ...any) {
+			warns = append(warns, fmt.Sprintf(format, args...))
+		},
+	})
+	if err == nil {
+		t.Fatal("オプションなしではフォルダ外リンクはエラーになるはず")
+	}
+	if len(warns) != 0 {
+		t.Errorf("エラーになるだけのリンクに警告を出していないか: %v", warns)
+	}
+}
+
+// TestIncludeSymlinkNestedOutsideWarns pins that a link found while recursing
+// into an outside folder warns under the same rule as a top-level link
+// (Issue #263 レビュー指摘: 再帰先のフォルダ外リンクに警告が出ない)。
+func TestIncludeSymlinkNestedOutsideWarns(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ext := filepath.Join(dir, "ext")
+	if err := os.MkdirAll(ext, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "a.txt"), []byte("外のa"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(dir, "other.txt")
+	if err := os.WriteFile(other, []byte("よその実体"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(ext, filepath.Join(res, "alias")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+	// 外部フォルダの中に、さらにリソースフォルダ外を指すリンク
+	if err := os.Symlink(other, filepath.Join(ext, "deep.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+		Warn: func(format string, args ...any) {
+			warns = append(warns, fmt.Sprintf(format, args...))
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	got, ok := packed.ReadResource("res/alias/deep.txt")
+	if !ok {
+		t.Fatalf("res/alias/deep.txt が梱包されていない (入っているのは %v)", packed.Resources())
+	}
+	if string(got) != "よその実体" {
+		t.Errorf("res/alias/deep.txt = %q, want よその実体", got)
+	}
+	if !hasWarning(warns, "deep.txt") {
+		t.Errorf("再帰先のフォルダ外リンクに警告が出ていない: %v", warns)
+	}
+}
+
+// TestIncludeSymlinkDuplicateDirReferenceWarns pins that two links reaching
+// the same outside folder pack the contents under each link name (so every
+// path the program asks for exists) but warn about the duplication
+// (Issue #263 レビュー指摘: 重複梱包が無警告だった)。
+func TestIncludeSymlinkDuplicateDirReferenceWarns(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.MkdirAll(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ext := filepath.Join(dir, "ext")
+	if err := os.MkdirAll(ext, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ext, "a.txt"), []byte("外のa"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(ext, filepath.Join(res, "one")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+	if err := os.Symlink(ext, filepath.Join(res, "two")); err != nil {
+		t.Skipf("シンボリックリンクを作れない環境なので飛ばす: %v", err)
+	}
+
+	prog, err := vm.CompileProgram("1を表示", "main.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "packed")
+	var warns []string
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Program:        prog,
+		Name:           "main.nako3",
+		ResourceDir:    res,
+		IncludeSymlink: true,
+		Warn: func(format string, args ...any) {
+			warns = append(warns, fmt.Sprintf(format, args...))
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer packed.Close()
+
+	for _, name := range []string{"res/one/a.txt", "res/two/a.txt"} {
+		if _, ok := packed.ReadResource(name); !ok {
+			t.Errorf("%s が梱包されていない (入っているのは %v)", name, packed.Resources())
+		}
+	}
+	if !hasWarning(warns, "重複") {
+		t.Errorf("同じフォルダの二度目の参照に警告が出ていない: %v", warns)
 	}
 }
 
