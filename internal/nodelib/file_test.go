@@ -235,14 +235,18 @@ func TestMoveToIndependentPathStillWorks(t *testing.T) {
 	}
 }
 
-// TestFolderCreateWoJosi は #227 の回帰テスト。
-// 『フォルダ作成』が本家と同じく「を」助詞を受理すること。
-func TestFolderCreateWoJosi(t *testing.T) {
-	dir := t.TempDir()
-	got := runIn(t, dir, `「fdir」をフォルダ作成
+// TestFolderCreateJosi は #227 の回帰テスト。
+// 『フォルダ作成』が本家と同じ助詞を受理すること。
+func TestFolderCreateJosi(t *testing.T) {
+	for _, josi := range []string{"を", "に", "へ", "の"} {
+		t.Run(josi, func(t *testing.T) {
+			dir := t.TempDir()
+			got := runIn(t, dir, `「fdir」`+josi+`フォルダ作成
 「存在: {"fdir"がフォルダ存在}」と表示`)
-	if got != "存在: true" {
-		t.Errorf("got: %q, want %q", got, "存在: true")
+			if got != "存在: true" {
+				t.Errorf("got: %q, want %q", got, "存在: true")
+			}
+		})
 	}
 }
 
