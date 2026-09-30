@@ -274,3 +274,45 @@ func indent(s string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// JSONResult はJSON出力用の1件の失敗結果。
+// 本家(nadesiko3/doc/doctest.md)の形式に合わせる。
+type JSONResult struct {
+	File   string `json:"ファイル"`
+	Line   int    `json:"行"`
+	Label  string `json:"ラベル"`
+	Code   string `json:"コード"`
+	Expect string `json:"期待"`
+	Actual string `json:"実際"`
+	Error  string `json:"エラー"`
+}
+
+// JSONReport はJSON出力全体の構造。
+type JSONReport struct {
+	Tool    string       `json:"ツール"`
+	Count   int          `json:"件数"`
+	Passed  int          `json:"成功数"`
+	Failed  int          `json:"失敗数"`
+	Skipped int          `json:"省略数"`
+	Results []JSONResult `json:"結果"`
+}
+
+// FormatJSONResult は1件の失敗をJSON出力用の構造体に変換する。
+func FormatJSONResult(test Test, r Result, root string) JSONResult {
+	return JSONResult{
+		File:   shortPath(test.File, root),
+		Line:   test.Line,
+		Label:  test.Label,
+		Code:   test.Code,
+		Expect: test.Expect,
+		Actual: r.Actual,
+		Error:  errString(r.Err),
+	}
+}
+
+func errString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -82,7 +83,9 @@ doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
   --runtime PATH   サンプルを実行するランタイム (既定: 内蔵VM)
   --subcommand NAME ランタイムに渡すサブコマンド (例: run → lnako run ファイル)
-  --label NAME     対象にする表示結果ラベル (既定: 表示結果とGO表示結果)
+  --label NAME     対象にする表示結果ラベル (既定: 表示結果とGO表示結果。カンマ区切りで複数指定可)
+  --json[=FILE]    失敗した結果をJSONで出力する (ファイル名を省略すると標準出力)
+  --usage          使い方を表示する
   パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
 
 format のオプション:
@@ -352,6 +355,33 @@ func defaultOutputName(source, runtimePath string) string {
 // environments where the nadesiko3doc symlink is absent.
 var defaultDocTestTargets = []string{"manual/plugin_system", "manual/gonako", "testdata/doctest"}
 
+// jsonFlag は --json[=FILE] のカスタムフラグ。
+// --json だけなら標準出力、--json=file.json ならファイルに出力。
+type jsonFlag struct {
+	enabled bool
+	file    string // 空文字列なら標準出力
+}
+
+func (f *jsonFlag) String() string {
+	if !f.enabled {
+		return ""
+	}
+	return f.file
+}
+
+func (f *jsonFlag) Set(value string) error {
+	f.enabled = true
+	// --json だけのときは value="true" になるが、これは標準出力を意味する
+	if value == "true" || value == "" {
+		f.file = ""
+	} else {
+		f.file = value
+	}
+	return nil
+}
+
+func (f *jsonFlag) IsBoolFlag() bool { return true }
+
 // runDocTests runs sample code from the manual and fixed test data, then
 // reports what did not match. Failures are summarised by reason and only the
 // first few are shown.
@@ -361,12 +391,19 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	max := flags.Int("max", 10, "失敗の詳細を表示する件数 (0で全件)")
 	runtimePath := flags.String("runtime", "", "サンプルを実行するランタイムのパス (省略時は内蔵VM)")
 	subcommand := flags.String("subcommand", "", "ランタイムに渡すサブコマンド (例: run)")
-	label := flags.String("label", "", "対象にする表示結果ラベル (省略時は表示結果とGO表示結果)")
+	label := flags.String("label", "", "対象にする表示結果ラベル (カンマ区切りで複数指定可)")
+	jsonOut := &jsonFlag{}
+	flags.Var(jsonOut, "json", "失敗した結果をJSONで出力する (省略時は標準出力)")
+	usage := flags.Bool("usage", false, "使い方を表示する")
 	if err := flags.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
+	}
+	if *usage {
+		fmt.Fprint(stdout, usageDoctest)
+		return nil
 	}
 	targets := flags.Args()
 	if len(targets) == 0 {
@@ -375,7 +412,14 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 
 	labels := doctest.DefaultLabels
 	if *label != "" {
-		labels = []string{doctest.NormalizeLabel(*label)}
+		// カンマ区切りで複数指定可能にする
+		parts := strings.Split(*label, ",")
+		labels = make([]string, 0, len(parts))
+		for _, p := range parts {
+			if n := doctest.NormalizeLabel(p); n != "" {
+				labels = append(labels, n)
+			}
+		}
 	}
 	runOne := doctest.Run
 	if *runtimePath != "" {
@@ -397,15 +441,21 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("DocTest対象を読み込めません: %w", err)
 	}
 	if len(tests) == 0 {
+		if jsonOut.enabled {
+			return writeJSONReport(stdout, jsonOut.file, 0, 0, 0, 0, nil)
+		}
 		fmt.Fprintln(stdout, "[DocTest] 対象のサンプルコードがありません。")
 		return nil
 	}
-	fmt.Fprintf(stdout, "[DocTest] %d件のサンプルコードを実行します。\n", len(tests))
+	if !jsonOut.enabled {
+		fmt.Fprintf(stdout, "[DocTest] %d件のサンプルコードを実行します。\n", len(tests))
+	}
 
 	root, _ := os.Getwd()
 	shown, passed, skipped := 0, 0, 0
 	skipReasons := map[string]int{}
 	byReason := map[doctest.Failure]int{}
+	var jsonResults []doctest.JSONResult
 	for _, test := range tests {
 		result := runOne(test)
 		if result.Skipped {
@@ -418,7 +468,9 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 			continue
 		}
 		byReason[doctest.Classify(result)]++
-		if *max == 0 || shown < *max {
+		if jsonOut.enabled {
+			jsonResults = append(jsonResults, doctest.FormatJSONResult(test, result, root))
+		} else if *max == 0 || shown < *max {
 			shown++
 			fmt.Fprintln(stderr, doctest.FormatFailure(test, result, root))
 			fmt.Fprintln(stderr)
@@ -426,6 +478,18 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	}
 
 	failed := len(tests) - passed - skipped
+
+	// JSON出力モード
+	if jsonOut.enabled {
+		if err := writeJSONReport(stdout, jsonOut.file, len(tests), passed, failed, skipped, jsonResults); err != nil {
+			return err
+		}
+		if failed > 0 {
+			return fmt.Errorf("DocTestが%d件失敗しました", failed)
+		}
+		return nil
+	}
+
 	if failed == 0 {
 		fmt.Fprintf(stdout, "[DocTest] %d件成功・%d件省略・失敗なし。\n", passed, skipped)
 		for _, reason := range sortedCountKeys(skipReasons) {
@@ -450,6 +514,51 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 	return fmt.Errorf("DocTestが%d件失敗しました", failed)
+}
+
+// usageDoctest は doctest サブコマンドの使い方。
+const usageDoctest = `DocTest の使い方:
+
+gonako doctest [オプション] [パス...]
+
+オプション:
+  --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
+  --runtime PATH   サンプルを実行するランタイム (省略時は内蔵VM)
+  --subcommand NAME ランタイムに渡すサブコマンド (例: run → lnako run ファイル)
+  --label NAME     対象にする表示結果ラベル (既定: 表示結果とGO表示結果。カンマ区切りで複数指定可)
+  --json[=FILE]    失敗した結果をJSONで出力する (ファイル名を省略すると標準出力)
+  --usage          この使い方を表示する
+
+パスを省略すると manual/plugin_system と manual/gonako と testdata/doctest を対象にします。
+`
+
+// writeJSONReport はJSON形式で結果を出力する。
+func writeJSONReport(stdout io.Writer, file string, count, passed, failed, skipped int, results []doctest.JSONResult) error {
+	if results == nil {
+		results = []doctest.JSONResult{}
+	}
+	report := doctest.JSONReport{
+		Tool:    "gonako-doctest",
+		Count:   count,
+		Passed:  passed,
+		Failed:  failed,
+		Skipped: skipped,
+		Results: results,
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return fmt.Errorf("JSON出力に失敗しました: %w", err)
+	}
+	if file == "" {
+		// 標準出力
+		fmt.Fprintln(stdout, string(data))
+		return nil
+	}
+	// ファイルに保存
+	if err := os.WriteFile(file, data, 0o644); err != nil {
+		return fmt.Errorf("JSONファイルを書き込めません: %w", err)
+	}
+	return nil
 }
 
 // lintFile はプログラムを実行せずに構文解析だけ行う。間違いは、実行中に

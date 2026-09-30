@@ -235,3 +235,53 @@ func TestExternalRunnerTimesOut(t *testing.T) {
 		t.Fatalf("ExternalRunner timeout = %#v", result)
 	}
 }
+
+func TestFormatJSONResult(t *testing.T) {
+	test := Test{
+		File:    "/repo/manual/sample.txt",
+		Line:    5,
+		Label:   "表示結果",
+		Code:    "「こんにちは」と表示。",
+		Expect:  "さようなら",
+		Runtime: CNako,
+	}
+	result := Result{OK: false, Actual: "こんにちは"}
+	got := FormatJSONResult(test, result, "/repo")
+	if got.File != "manual/sample.txt" {
+		t.Errorf("File = %q, want manual/sample.txt", got.File)
+	}
+	if got.Line != 5 {
+		t.Errorf("Line = %d, want 5", got.Line)
+	}
+	if got.Label != "表示結果" {
+		t.Errorf("Label = %q, want 表示結果", got.Label)
+	}
+	if got.Code != "「こんにちは」と表示。" {
+		t.Errorf("Code = %q", got.Code)
+	}
+	if got.Expect != "さようなら" {
+		t.Errorf("Expect = %q, want さようなら", got.Expect)
+	}
+	if got.Actual != "こんにちは" {
+		t.Errorf("Actual = %q, want こんにちは", got.Actual)
+	}
+	if got.Error != "" {
+		t.Errorf("Error = %q, want empty", got.Error)
+	}
+}
+
+func TestFormatJSONResultWithError(t *testing.T) {
+	test := Test{
+		File:    "sample.txt",
+		Line:    1,
+		Label:   "表示結果",
+		Code:    "未知命令",
+		Expect:  "1",
+		Runtime: CNako,
+	}
+	result := Result{OK: false, Err: fmt.Errorf("構文エラー")}
+	got := FormatJSONResult(test, result, "")
+	if got.Error != "構文エラー" {
+		t.Errorf("Error = %q, want 構文エラー", got.Error)
+	}
+}
