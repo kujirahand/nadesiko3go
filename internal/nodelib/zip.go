@@ -182,19 +182,21 @@ func extractZip(src, destDir string) error {
 	absDest := resolveExisting(destDir)
 
 	// 安全なエントリは全て展開し、拒否したエントリは最後にまとめて
-	// エラーとして報告する（黙って飛ばすと利用者が気付けない）
-	var rejected []string
+	// エラーとして報告する（黙って飛ばすと利用者が気付けない）。
+	// 理由は「展開先の外へ出る」と「シンボリックリンク経由」に分類し、
+	// 実態と合わない文面にならないようにする
+	var escaped, viaLink []string
 	for _, f := range r.File {
 		fpath := filepath.Join(absDest, filepath.FromSlash(f.Name))
 		// Zip Slip対策: 展開先の外へ出るエントリは拒否する
 		rel, err := filepath.Rel(absDest, fpath)
 		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-			rejected = append(rejected, f.Name)
+			escaped = append(escaped, f.Name)
 			continue
 		}
 		// 途中の既存シンボリックリンクを通ると展開先の外へ書き出すため拒否する (#185)
 		if hasSymlinkComponent(absDest, rel) {
-			rejected = append(rejected, f.Name)
+			viaLink = append(viaLink, f.Name)
 			continue
 		}
 
@@ -225,10 +227,27 @@ func extractZip(src, destDir string) error {
 			return err
 		}
 	}
-	if len(rejected) > 0 {
-		return fmt.Errorf("展開先の外へ出るエントリを%d件拒否しました: %s", len(rejected), strings.Join(rejected, ", "))
+	if n := len(escaped) + len(viaLink); n > 0 {
+		var parts []string
+		if len(escaped) > 0 {
+			parts = append(parts, fmt.Sprintf("展開先の外へ出る%d件（%s）", len(escaped), summarizeNames(escaped)))
+		}
+		if len(viaLink) > 0 {
+			parts = append(parts, fmt.Sprintf("シンボリックリンク経由の%d件（%s）", len(viaLink), summarizeNames(viaLink)))
+		}
+		return fmt.Errorf("安全でないパスのエントリを%d件拒否しました: %s", n, strings.Join(parts, "および"))
 	}
 	return nil
+}
+
+// summarizeNames はエラー文言に載せる名前を先頭5件に絞り、
+// 残りは件数だけ示す。悪意あるZIPが数千件を並べても文言が巨大化しないようにする。
+func summarizeNames(names []string) string {
+	const maxShow = 5
+	if len(names) <= maxShow {
+		return strings.Join(names, ", ")
+	}
+	return strings.Join(names[:maxShow], ", ") + fmt.Sprintf(", 他%d件", len(names)-maxShow)
 }
 
 // resolveExisting はpathを絶対パスにし、実在する最長の先祖までシンボリック
@@ -267,8 +286,11 @@ func pathInside(base, target string) bool {
 }
 
 // hasSymlinkComponent はbaseからrelを辿り、途中に既存のシンボリックリンクが
-// あれば真を返す。存在しない要素以降は新規作成されるので調べない。
-// なお検査と実際の作成・書き込みの間に他プロセスがリンクを差し替える
+// あれば真を返す。存在しない要素は将来新規作成されるためそれ以深を調べないが、
+// EACCES などのその他のエラーは判定続行不能として安全側（真=拒否）に倒す。
+// なお、展開先の**内側**を指す無害なリンクまで拒否するのは現時点の仕様である。
+// 透過的に辿れるようにする根本改善は os.Root での閉じ込めとして Issue #261 に切り出し。
+// 検査と実際の作成・書き込みの間に他プロセスがリンクを差し替える
 // TOCTOUの余地は残るが、CLI用途では現実的な脅威が小さいため許容とする。
 func hasSymlinkComponent(base, rel string) bool {
 	cur := base
@@ -276,7 +298,8 @@ func hasSymlinkComponent(base, rel string) bool {
 		cur = filepath.Join(cur, elem)
 		fi, err := os.Lstat(cur)
 		if err != nil {
-			return false
+			// 存在しないだけなら安全、それ以外のエラーは拒否に倒す
+			return !os.IsNotExist(err)
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
 			return true

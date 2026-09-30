@@ -2,9 +2,11 @@ package nodelib
 
 import (
 	"archive/zip"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +67,14 @@ func TestExtractZipZipSlip(t *testing.T) {
 
 	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err == nil {
 		t.Error("範囲外エントリを含むのにエラーになりませんでした")
+	} else {
+		// リンク経由ではないので、理由の分類が「外へ出る」側になっていること
+		if !strings.Contains(err.Error(), "展開先の外へ出る") {
+			t.Errorf("エラー文言に「展開先の外へ出る」が含まれません: %v", err)
+		}
+		if strings.Contains(err.Error(), "シンボリックリンク経由") {
+			t.Errorf("リンク経由でないのにエラー文言に分類が含まれます: %v", err)
+		}
 	}
 	for _, name := range []string{"evil.txt", "evil2.txt"} {
 		if _, err := os.Lstat(filepath.Join(dir, name)); !os.IsNotExist(err) {
@@ -115,6 +125,11 @@ func TestExtractZipSymlinkEscape(t *testing.T) {
 
 	if err := extractZip(filepath.Join(dir, "f.zip"), dest); err == nil {
 		t.Error("リンク経由エントリを含むのにエラーになりませんでした")
+	} else {
+		// 「外へ出る」ではなく「リンク経由」として分類されていること
+		if !strings.Contains(err.Error(), "シンボリックリンク経由") {
+			t.Errorf("エラー文言に「シンボリックリンク経由」が含まれません: %v", err)
+		}
 	}
 	if _, err := os.Lstat(filepath.Join(outside, "pwn.txt")); !os.IsNotExist(err) {
 		t.Error("シンボリックリンク経由で展開先の外に書き込まれました")
@@ -157,6 +172,71 @@ func TestExtractZipDestSymlink(t *testing.T) {
 	}
 }
 
+// 展開先の**内側**を指す無害なシンボリックリンクも現時点では拒否する、
+// という仕様を固定する検査。透過的に辿れるようにする改善は Issue #261 で
+// os.Root による方式として管理しており、実装時に本テストは更新される。
+func TestExtractZipInsideSymlinkRejected(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("シンボリックリンクの作成に権限が必要なため")
+	}
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "dest")
+	if err := os.MkdirAll(filepath.Join(dest, "inside"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// dest/inlink -> dest/inside （内側を指す無害なリンク）
+	if err := os.Symlink(filepath.Join(dest, "inside"), filepath.Join(dest, "inlink")); err != nil {
+		t.Fatal(err)
+	}
+	writeTestZip(t, filepath.Join(dir, "f.zip"), map[string]string{
+		"inlink/a.txt": "hello",
+		"ok.txt":       "ok",
+	})
+
+	err := extractZip(filepath.Join(dir, "f.zip"), dest)
+	if err == nil {
+		t.Fatal("内側を指すリンク経由のエントリが拒否されませんでした（仕様変更時は本テストも更新）")
+	}
+	if !strings.Contains(err.Error(), "シンボリックリンク経由") {
+		t.Errorf("エラー文言に「シンボリックリンク経由」が含まれません: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(dest, "inside", "a.txt")); !os.IsNotExist(err) {
+		t.Errorf("リンク経由エントリが展開されています: %v", err)
+	}
+	if body, err := os.ReadFile(filepath.Join(dest, "ok.txt")); err != nil || string(body) != "ok" {
+		t.Errorf("通常エントリが展開されていません: %q err=%v", body, err)
+	}
+}
+
+// 大量の不正エントリを持つZIPでもエラー文言が巨大化しないこと
+// （表示は先頭5件し、残りは「他N件」にまとめる）。
+func TestExtractZipManyRejectedLimited(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "dest")
+	entries := make(map[string]string)
+	for i := 0; i < 8; i++ {
+		entries[fmt.Sprintf("../evil%02d.txt", i)] = "evil"
+	}
+	writeTestZip(t, filepath.Join(dir, "f.zip"), entries)
+
+	err := extractZip(filepath.Join(dir, "f.zip"), dest)
+	if err == nil {
+		t.Fatal("範囲外エントリを含むのにエラーになりませんでした")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "8件") {
+		t.Errorf("拒否件数が8件として報告されません: %v", err)
+	}
+	if !strings.Contains(msg, "他3件") {
+		t.Errorf("先頭5件を超えた分が「他N件」に集約されません: %v", err)
+	}
+	// 表示は先頭5件のはず（mapの列挙順に依存しない検証として
+	// 名前中出现数を数える）
+	if n := strings.Count(msg, "evil"); n != 5 {
+		t.Errorf("表示されるエントリ名が5件ではありません(出現%d件): %v", n, err)
+	}
+}
+
 // Issue #189: 圧縮の入出力が同じ実体なら拒否し、元データを残す。
 func TestCreateZipSameFile(t *testing.T) {
 	dir := t.TempDir()
@@ -173,9 +253,15 @@ func TestCreateZipSameFile(t *testing.T) {
 		t.Errorf("元データが失われました: %q err=%v", got, err)
 	}
 
-	// 「./f.zip」やシンボリックリンクなど表記違いで同じ実体でも拒否する
-	if err := createZip(src, filepath.Join(dir, "sub", "..", "f.zip")); err == nil {
-		t.Error("表記違いの同一ファイルでもエラーになりませんでした")
+	// 表記違いの同一実体を拒否する検査。filepath.Joinは内部でCleanするため、
+	// 「dir/sub/../f.zip」は「dir/f.zip」に正規化され意味がない。
+	// カレントを移動し、Cleanされない生の文字列「./f.zip」で渡す。
+	t.Chdir(dir)
+	if err := createZip(src, "./f.zip"); err == nil {
+		t.Error("表記違い（./f.zip）の同一ファイルでもエラーになりませんでした")
+	}
+	if got, err := os.ReadFile(src); err != nil || string(got) != string(payload) {
+		t.Errorf("元データが失われました: %q err=%v", got, err)
 	}
 	if runtime.GOOS != "windows" {
 		link := filepath.Join(dir, "link.zip")
