@@ -287,7 +287,7 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 	}
 	if len(tests) == 0 {
 		if jsonOut.enabled {
-			return writeJSONReport(stdout, jsonOut.file, 0, 0, 0, nil)
+			return writeJSONReport(stdout, jsonOut.file, 0, 0, 0, 0, nil)
 		}
 		fmt.Fprintln(stdout, "[DocTest] 対象のサンプルコードがありません。")
 		return nil
@@ -326,7 +326,7 @@ func runDocTests(args []string, stdout, stderr io.Writer) error {
 
 	// JSON出力モード
 	if jsonOut.enabled {
-		if err := writeJSONReport(stdout, jsonOut.file, len(tests), passed, failed, jsonResults); err != nil {
+		if err := writeJSONReport(stdout, jsonOut.file, len(tests), passed, failed, skipped, jsonResults); err != nil {
 			return err
 		}
 		if failed > 0 {
@@ -378,7 +378,7 @@ gonako-cui doctest [オプション] [パス...]
 `
 
 // writeJSONReport はJSON形式で結果を出力する。
-func writeJSONReport(stdout io.Writer, file string, count, passed, failed int, results []doctest.JSONResult) error {
+func writeJSONReport(stdout io.Writer, file string, count, passed, failed, skipped int, results []doctest.JSONResult) error {
 	if results == nil {
 		results = []doctest.JSONResult{}
 	}
@@ -387,7 +387,7 @@ func writeJSONReport(stdout io.Writer, file string, count, passed, failed int, r
 		Count:   count,
 		Passed:  passed,
 		Failed:  failed,
-		Skipped: 0,
+		Skipped: skipped,
 		Results: results,
 	}
 	data, err := json.MarshalIndent(report, "", "  ")

@@ -721,6 +721,41 @@ func TestRunDocTestJSON(t *testing.T) {
 	}
 }
 
+// DocTest の JSON 出力でスキップが正しくカウントされることをテストする。
+func TestRunDocTestJSONSkipped(t *testing.T) {
+	dir := t.TempDir()
+	// 成功するサンプルと、省略される命令（JS実行）を含むサンプル
+	text := "{{{#nako3\n「こんにちは」と表示。\n### 表示結果: こんにちは\n}}}\n" +
+		"{{{#nako3\n1をJS実行して表示。\n### 表示結果: 1\n}}}\n"
+	path := filepath.Join(dir, "sample.txt")
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	// JSON出力で実行（成功するのでエラーは返らない）
+	err := run([]string{"doctest", "--json", path}, &stdout, &stderr)
+	if err != nil {
+		t.Fatalf("DocTestが失敗しました: %v", err)
+	}
+	// JSONとしてパースできることを確認
+	var report doctest.JSONReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("JSON出力がパースできません: %v\n出力: %s", err, stdout.String())
+	}
+	if report.Count != 2 {
+		t.Errorf("件数 = %d, want 2", report.Count)
+	}
+	if report.Passed != 1 {
+		t.Errorf("成功数 = %d, want 1", report.Passed)
+	}
+	if report.Skipped != 1 {
+		t.Errorf("省略数 = %d, want 1", report.Skipped)
+	}
+	if report.Failed != 0 {
+		t.Errorf("失敗数 = %d, want 0", report.Failed)
+	}
+}
+
 // DocTest の JSON ファイル出力をテストする。
 func TestRunDocTestJSONFile(t *testing.T) {
 	dir := t.TempDir()
