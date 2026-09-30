@@ -440,16 +440,19 @@ func netCommands(m map[string]command) {
 	}
 }
 
+// parseJSONBytes はJSONバイト列をパースしてなでしこの値に変換する。
+// 『JSONデコード』（stdlib.decodeJSON）と同じ規則・文面で、
+// 解析失敗はすべて「JSONデコードに失敗しました。」を返す。
 func parseJSONBytes(data []byte) (value.Value, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	tok, err := dec.Token()
 	if err != nil {
-		return value.Undefined(), err
+		return value.Undefined(), errors.New("JSONデコードに失敗しました。")
 	}
 	v, err := parseJSONValue(dec, tok)
 	if err != nil {
-		return value.Undefined(), err
+		return value.Undefined(), errors.New("JSONデコードに失敗しました。")
 	}
 	// 先頭の値の後に空白以外が残っていればエラーにする。
 	// JSON.parse が末尾のゴミを許さないのと同じ規則。

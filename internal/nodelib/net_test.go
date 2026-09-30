@@ -1,6 +1,7 @@
 package nodelib_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,18 +15,22 @@ import (
 // 無視していた。JSON.parse と同じく、先頭の値の後に空白以外が残る
 // 応答はエラーになる。
 func TestAjaxJSONTrailingGarbage(t *testing.T) {
-	originalTransport := http.DefaultTransport
-	t.Cleanup(func() { http.DefaultTransport = originalTransport })
-
+	// body を応答するHTTPサーバーをその都度立てて『AJAX_JSON取得』を実行する。
+	// http.DefaultTransport などのグローバル状態を書き換えないので、
+	// 他のテストと並行実行しても干渉しない。
 	run := func(body string) error {
-		http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			recorder := httptest.NewRecorder()
-			recorder.WriteString(body)
-			return recorder.Result(), nil
-		})
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(body))
+		}))
+		defer server.Close()
+
 		var out strings.Builder
 		host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
-		return vm.RunProgram(`J = "http://nodelib.test/"からAJAX_JSON取得`, "main.nako3", host)
+		return vm.RunProgram(
+			fmt.Sprintf(`J = "%s"からAJAX_JSON取得`, server.URL),
+			"main.nako3",
+			host,
+		)
 	}
 
 	// 先頭のJSON値の後に別の値やゴミが続く応答はエラー
@@ -33,17 +38,26 @@ func TestAjaxJSONTrailingGarbage(t *testing.T) {
 		`{"ok":true} {"bad":true}`,
 		`{"ok":true} garbage`,
 		`1 2`,
+		`[1, 2, 3] [4, 5, 6]`,
 	} {
-		if err := run(body); err == nil {
+		err := run(body)
+		if err == nil {
 			t.Errorf("応答 %q がエラーにならなかった", body)
+			continue
+		}
+		if !strings.Contains(err.Error(), "JSONデコードに失敗しました。") {
+			t.Errorf("応答 %q のエラー文面が『JSONデコードに失敗しました。』でない: %v", body, err)
 		}
 	}
 
-	// 末尾の空白だけなら従来どおり読み取る
-	if err := run("{\"ok\":true}  \n\t"); err != nil {
-		t.Errorf("末尾が空白だけの応答は通るはず: %v", err)
-	}
-	if err := run(`{"ok":true}`); err != nil {
-		t.Errorf("単一のJSON値は通るはず: %v", err)
+	// 単一のJSON値と、末尾の空白だけなら従来どおり読み取る
+	for _, body := range []string{
+		`{"ok":true}`,
+		"{\"ok\":true}  \n\t",
+		`[1, 2, 3]`,
+	} {
+		if err := run(body); err != nil {
+			t.Errorf("応答 %q は通るはず: %v", body, err)
+		}
 	}
 }
