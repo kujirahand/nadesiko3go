@@ -315,8 +315,15 @@ func openBrowser(_ stdlib.Context, a []value.Value) (value.Value, error) {
 // タイトルを明示し、対象に空白や & が含まれてもコマンド区切りや
 // タイトル扱いにならないよう必ず引用符で囲む。対象中の引用符は囲みを
 // 壊せないよう取り除く（WindowsのパスやURLに生の " は現れない）。
+// また、cmd.exe は "%VAR%" 形式の環境変数展開を引用符内でも行うため、
+// URLのパーセントエンコーディングなどに含まれる "%" を "%%" に
+// エスケープする（#262）。
 func windowsStartLine(target string) string {
-	return `start "" "` + strings.ReplaceAll(target, `"`, "") + `"`
+	// エスケープの順序は独立しているため、先に "%" を処理してから
+	// 引用符を取り除いても結果は変わらない。
+	target = strings.ReplaceAll(target, "%", "%%")
+	target = strings.ReplaceAll(target, `"`, "")
+	return `start "" "` + target + `"`
 }
 
 func argAt(args []value.Value, i int) value.Value {
