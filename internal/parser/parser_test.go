@@ -13,7 +13,7 @@ import (
 func parse(t *testing.T, code string) (*ast.Node, error) {
 	t.Helper()
 	lx := lexer.NewLexer()
-	lx.FuncList["表示"] = &lexer.FuncItem{Name: "表示", Type: "func", Josi: [][]string{{"を", "と"}}}
+	lx.FuncList["表示"] = &lexer.FuncItem{Name: "表示", Type: "func", Josi: [][]string{{"を", "と"}}, ReturnNone: true}
 	raw, err := lexer.Tokenize(prepare.Text(prepare.Convert(code)), 0, "main.nako3")
 	if err != nil {
 		return nil, err
@@ -43,6 +43,23 @@ func TestParseLiteralAssignmentAndCall(t *testing.T) {
 	call := tree.Blocks[2]
 	if call.Type != ast.Func || call.Name != "表示" || call.Block(0).StringValue() != "main__A" {
 		t.Fatalf("call = %#v", call)
+	}
+}
+
+func TestParseAssignmentRejectsReturnNoneFunction(t *testing.T) {
+	_, err := parse(t, "A=「x」を表示")
+	if err == nil || err.Error() != "[文法エラー]main.nako3(1行目): 関数『表示』は戻り値がないので結果を代入できません。" {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestParseAssignmentFallsBackToSentence(t *testing.T) {
+	tree, err := parse(t, "A=もし1=1ならば\n「x」を表示\nここまで")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tree.Blocks[0].Block(0).Type; got != ast.If {
+		t.Fatalf("assignment value type = %q, want %q", got, ast.If)
 	}
 }
 
@@ -199,4 +216,3 @@ func TestParse2DArrayLiteral(t *testing.T) {
 		t.Fatalf("unexpected row0 node: %#v", row0)
 	}
 }
-
