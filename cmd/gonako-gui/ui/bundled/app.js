@@ -68,6 +68,8 @@ function apply(ops) {
     if (o.type === 'listen' && Number(o.handle || 0) === 0 && o.event === 'drop') {
       if (root.dataset.gonakoWindowDrop) return;
       root.dataset.gonakoWindowDrop = '1';
+      // フルパスはネイティブ側で取得する(未対応環境ではファイル名のまま)。
+      if (typeof window.enableFileDropPaths === 'function') window.enableFileDropPaths().catch(() => {});
       document.addEventListener('dragover', event => event.preventDefault(), true);
       document.addEventListener('drop', event => {
         event.preventDefault();

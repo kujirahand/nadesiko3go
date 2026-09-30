@@ -2312,6 +2312,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (op.type === 'listen' && Number(op.handle || 0) === 0 && op.event === 'drop') {
         if (windowPreview.dataset.gonakoWindowDrop) return;
         windowPreview.dataset.gonakoWindowDrop = '1';
+        // フルパスはネイティブ側で取得する(未対応環境ではファイル名のまま)。
+        if (typeof window.enableFileDropPaths === 'function') window.enableFileDropPaths().catch(() => {});
         document.addEventListener('dragover', event => event.preventDefault(), true);
         document.addEventListener('drop', event => {
           event.preventDefault();

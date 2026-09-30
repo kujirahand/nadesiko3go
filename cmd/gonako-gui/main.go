@@ -592,6 +592,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer w.Destroy()
+	bindFileDrop(w)
 
 	if err := applyWindowSettings(w, windowSettings, false); err != nil {
 		fmt.Fprintf(os.Stderr, "ウィンドウ設定を適用できません: %v\n", err)

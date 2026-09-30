@@ -15,6 +15,7 @@ for (const [file, start, end, applyName] of [
   assert.ok(begin >= 0 && finish > begin);
   const listeners = new Map();
   const calls = [];
+  const enabled = [];
   const screen = { dataset: {}, querySelector: () => null };
   const context = vm.createContext({
     document: { addEventListener: (type, fn) => listeners.set(type, fn) },
@@ -22,6 +23,7 @@ for (const [file, start, end, applyName] of [
     guiElements: new Map(), elements: new Map(),
     send: (...args) => calls.push(args),
     sendGUIEvent: (...args) => calls.push(args),
+    window: { enableFileDropPaths: () => { enabled.push(1); return Promise.resolve(); } },
     operations,
   });
   vm.runInContext(source.slice(begin, finish) + `\n${applyName}(operations);`, context);
@@ -34,6 +36,7 @@ for (const [file, start, end, applyName] of [
     preventDefault: () => prevented++,
     dataTransfer: { files: [{ name: '日本語.txt' }, { name: '画像.png' }] },
   });
+  assert.equal(enabled.length, 1, file);
   assert.equal(prevented, 2, file);
   assert.equal(calls.length, 1, file);
   assert.equal(calls[0][0], 0, file);

@@ -512,7 +512,7 @@ func (s *guiSession) startEvent(runID uint64, handle int, event string, values m
 			defer wg.Done()
 			streamPendingOutput(state, exec.host, exec.screen, done)
 		}()
-		err := exec.screen.DispatchEvent(handle, event, values)
+		err := exec.screen.DispatchEvent(handle, event, withDroppedFiles(event, values))
 		close(done)
 		wg.Wait()
 
