@@ -110,8 +110,11 @@ winget install MSYS2.MSYS2
 インストール後、`MSYS2 UCRT64` ショートカットを開いて、GCCをインストールします。
 
 ```bash
+pacman -Syu
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc
 ```
+
+`pacman -Syu`でMSYS2本体の更新後にターミナルを閉じるよう案内された場合は、UCRT64を開き直してからGCCのインストールを実行してください。
 
 インストールされたGCCをPATHに通します。次のいずれかの方法で設定します。
 
@@ -155,7 +158,15 @@ go env CC
 gcc
 ```
 
-でOKです（PATH上に `gcc` が見つかればよい）。
+でOKです（PATH上に `gcc` が見つかればよい）。`g++ --version`も実行できることを確認してください。`webview_go`はCとC++の両方をビルドします。
+
+次のコマンドでcgoが有効になっていることも確認します。
+
+```powershell
+go env CGO_ENABLED
+```
+
+`1`と表示されればGUI版をビルドできます。`0`の場合は、MSYS2 UCRT64の`bin`（通常は`C:\msys64\ucrt64\bin`）が現在のPowerShellの`Path`に含まれ、`gcc`と`g++`が見つかることを確認してから、PowerShellを開き直してください。必要であれば`$env:CGO_ENABLED = "1"`を設定できますが、C/C++コンパイラが見つからない状態ではビルドできません。
 
 ---
 
@@ -175,7 +186,7 @@ just cmd
 
 ## 6. GUI版（`gonako-gui`）のビルド
 
-GUI版はWebView2を使うためMSYS2のGCCがPATHに通っている必要があります。
+GUI版はWebView2を使うためMSYS2のGCCがPATHに通り、cgoが有効になっている必要があります。
 
 ```powershell
 just gui
@@ -197,6 +208,8 @@ just build
 ```
 
 `just build` は `just cmd` と `just gui` の両方を実行します。
+
+`webview_go: build constraints exclude all Go files`と表示された場合、cgoが無効です。`go env CGO_ENABLED`が`0`なら、前述のGCC/G++のPATH設定を見直してください。GoはPATH上にCコンパイラが見つからない場合、cgoを無効にすることがあります。
 
 ---
 
@@ -318,5 +331,7 @@ go version; gcc --version; git --version; just --version
 ## 参考リンク
 
 - [Go公式ダウンロード](https://go.dev/dl/)
+- [MSYS2公式サイト](https://www.msys2.org/)
+- [Go cgoコマンドの説明](https://go.dev/cmd/cgo/)
 - [WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/)
 - [just チートシート](https://github.com/casey/just)
