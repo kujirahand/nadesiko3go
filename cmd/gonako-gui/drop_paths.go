@@ -6,19 +6,25 @@ import (
 	webview "github.com/webview/webview_go"
 )
 
-// ネイティブ側が記録したドロップ元のフルパスを、JavaScriptの
-// ドロップイベントの内容に合流させる。WebViewの標準 File にはパスが
-// 入らないため、各OSのネイティブ層でドロップ時にパスを取得しておく。
+// 標準のFileにはフルパスがないため、各OSのネイティブ層で取得する。
+// WindowsはWebMessageの返信で直接渡し、macOS・Linuxは記録したパスを
+// Goが受け取るドロップイベントへ合流させる。
 
 // bindFileDrop はJavaScriptからドロップのフルパス取得を有効にする関数を公開する。
 // ウィンドウ(ハンドル0)にドロップ受付が登録されたときに画面側が呼ぶ。
 func bindFileDrop(w webview.WebView) {
-	_ = w.Bind("enableFileDropPaths", func() {
-		// RPCの実行中にWebView2のIDropTargetを差し替えると、WebViewの
-		// ドロップ処理へ再入してクラッシュするため、RPCが戻ってからUIスレッドで行う。
-		w.Dispatch(func() {
-			platformInstallFileDrop(w.Window())
-		})
+	installed := false
+	_ = w.Bind("enableFileDropPaths", func() error {
+		if installed {
+			return nil
+		}
+		// BindのコールバックはUIスレッド上で動く。登録が終わってから
+		// Promiseを解決し、同じウィンドウには一度だけ登録する。
+		if err := platformInstallFileDrop(w); err != nil {
+			return err
+		}
+		installed = true
+		return nil
 	})
 }
 

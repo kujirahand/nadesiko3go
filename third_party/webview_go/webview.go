@@ -25,12 +25,12 @@ void CgoWebViewUnbind(webview_t w, const char *name);
 */
 import "C"
 import (
+	"encoding/json"
+	"errors"
 	_ "github.com/webview/webview_go/libs/mswebview2"
 	_ "github.com/webview/webview_go/libs/mswebview2/include"
 	_ "github.com/webview/webview_go/libs/webview"
 	_ "github.com/webview/webview_go/libs/webview/include"
-	"encoding/json"
-	"errors"
 	"reflect"
 	"runtime"
 	"sync"
@@ -44,6 +44,15 @@ func init() {
 
 // Hints are used to configure window sizing and resizing
 type Hint int
+
+// NativeHandleKind は取得するネイティブオブジェクトの種類を表す。
+type NativeHandleKind int
+
+const (
+	NativeHandleUIWindow          NativeHandleKind = C.WEBVIEW_NATIVE_HANDLE_KIND_UI_WINDOW
+	NativeHandleUIWidget          NativeHandleKind = C.WEBVIEW_NATIVE_HANDLE_KIND_UI_WIDGET
+	NativeHandleBrowserController NativeHandleKind = C.WEBVIEW_NATIVE_HANDLE_KIND_BROWSER_CONTROLLER
+)
 
 const (
 	// Width and height are default size
@@ -81,6 +90,12 @@ type WebView interface {
 	// pointer is GtkWindow pointer, when using Cocoa backend the pointer is
 	// NSWindow pointer, when using Win32 backend the pointer is HWND pointer.
 	Window() unsafe.Pointer
+
+	// NativeHandle は種類に応じたネイティブハンドルを返す。UIスレッドから呼ぶ。
+	// 返すポインタは借用で、Destroyまで有効。呼び出し側では解放しない。
+	// BrowserControllerはWindowsではICoreWebView2Controller、macOSでは
+	// WKWebView、LinuxではWebKitWebViewを指す。無効な種類にはnilを返す。
+	NativeHandle(kind NativeHandleKind) unsafe.Pointer
 
 	// SetTitle updates the title of the native window. Must be called from the UI
 	// thread.
@@ -172,6 +187,10 @@ func (w *webview) Terminate() {
 
 func (w *webview) Window() unsafe.Pointer {
 	return C.webview_get_window(w.w)
+}
+
+func (w *webview) NativeHandle(kind NativeHandleKind) unsafe.Pointer {
+	return C.webview_get_native_handle(w.w, C.webview_native_handle_kind_t(kind))
 }
 
 func (w *webview) Navigate(url string) {

@@ -11,10 +11,15 @@ char *gonakoTakeDroppedFiles(int *length);
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
 
-func platformInstallFileDrop(_ unsafe.Pointer) {
+	webview "github.com/webview/webview_go"
+)
+
+func platformInstallFileDrop(_ webview.WebView) error {
 	C.gonakoInstallFileDropHook()
+	return nil
 }
 
 func platformTakeDroppedFiles() []string {

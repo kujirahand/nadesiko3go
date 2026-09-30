@@ -1,4 +1,5 @@
-// WebView2のファイルドロップで使う公開COMインターフェース。
+// WebView2 SDK 1.0.4022.49で確認したファイルドロップ用の公開COM定義。
+// 同梱SDKは古いため、必要なインターフェースだけをgonako側に定義する。
 #pragma once
 
 #include <WebView2.h>
@@ -13,7 +14,7 @@ static const IID IID_GonakoWebView2File = {
 struct IGonakoWebView2ObjectCollectionView : IUnknown {
   virtual HRESULT STDMETHODCALLTYPE get_Count(UINT32 *value) = 0;
   virtual HRESULT STDMETHODCALLTYPE GetValueAtIndex(UINT32 index,
-                                                      IUnknown **value) = 0;
+                                                   IUnknown **value) = 0;
 };
 
 struct IGonakoWebView2File : IUnknown {

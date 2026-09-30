@@ -2074,7 +2074,6 @@ using browser_engine = detail::cocoa_wkwebview_engine;
 #include <windows.h>
 
 #include "WebView2.h"
-#include "gonako_file_drop_interfaces.h"
 
 #ifdef _MSC_VER
 #pragma comment(lib, "advapi32.lib")
@@ -2897,66 +2896,10 @@ public:
   }
   HRESULT STDMETHODCALLTYPE Invoke(
       ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args) {
-    LPWSTR message = nullptr;
-    if (FAILED(args->TryGetWebMessageAsString(&message)) || !message) {
-      return S_OK;
-    }
-
-    const std::wstring prefix = L"gonako-file-drop-paths:";
-    const std::wstring request(message);
-    if (request.compare(0, prefix.size(), prefix) == 0) {
-      std::string response =
-          "{\"type\":\"gonako-file-drop-paths\",\"requestId\":" +
-          json_escape(narrow_string(request.substr(prefix.size()))) +
-          ",\"paths\":[";
-      IGonakoWebMessageReceivedEventArgs2 *args2 = nullptr;
-      IGonakoWebView2ObjectCollectionView *objects = nullptr;
-      if (SUCCEEDED(args->QueryInterface(
-              IID_GonakoWebMessageReceivedEventArgs2,
-              reinterpret_cast<void **>(&args2))) &&
-          args2 &&
-          SUCCEEDED(args2->get_AdditionalObjects(&objects)) && objects) {
-        UINT32 count = 0;
-        if (SUCCEEDED(objects->get_Count(&count))) {
-          bool first = true;
-          for (UINT32 i = 0; i < count; ++i) {
-            IUnknown *object = nullptr;
-            IGonakoWebView2File *file = nullptr;
-            LPWSTR path = nullptr;
-            if (FAILED(objects->GetValueAtIndex(i, &object)) || !object) {
-              continue;
-            }
-            HRESULT result = object->QueryInterface(
-                IID_GonakoWebView2File, reinterpret_cast<void **>(&file));
-            object->Release();
-            if (FAILED(result) || !file) {
-              continue;
-            }
-            result = file->get_Path(&path);
-            file->Release();
-            if (FAILED(result) || !path) {
-              continue;
-            }
-            if (!first) {
-              response += ",";
-            }
-            response += json_escape(narrow_string(path));
-            first = false;
-            CoTaskMemFree(path);
-          }
-        }
-        objects->Release();
-      }
-      if (args2) {
-        args2->Release();
-      }
-      response += "]}";
-      const std::wstring wideResponse = widen_string(response);
-      sender->PostWebMessageAsJson(wideResponse.c_str());
-    } else {
-      m_msgCb(narrow_string(request));
-      sender->PostWebMessageAsString(message);
-    }
+    LPWSTR message;
+    args->TryGetWebMessageAsString(&message);
+    m_msgCb(narrow_string(message));
+    sender->PostWebMessageAsString(message);
 
     CoTaskMemFree(message);
     return S_OK;
