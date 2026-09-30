@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -149,18 +150,26 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 		return value.String(v)
 	}
 
-	patToDelim := `^(.*?)([` + regexp.QuoteMeta(delimiter) + `\n])`
-	reToDelim := regexp.MustCompile(patToDelim)
+	// 非引用セルの終端となる文字の集合（区切り文字のいずれかの文字か改行）
+	stopChars := delimiter + "\n"
 
 	var res []value.Value
 	var cells []value.Value
 
-	delimRunes := []rune(delimiter)
-	var delimRune rune
-	if len(delimRunes) > 0 {
-		delimRune = delimRunes[0]
+	delimRune, _ := utf8.DecodeRuneInString(delimiter)
+	if delimiter == "" {
+		delimRune = 0
+	}
+	// runeAt は txt[i:] 先頭のruneとそのバイト長を返す（末尾なら 0, 0）
+	runeAt := func(txt string, i int) (rune, int) {
+		if i >= len(txt) {
+			return 0, 0
+		}
+		return utf8.DecodeRuneInString(txt[i:])
 	}
 
+	// txt は残りの入力を指すスライスで、先頭から読み進めるだけにする。
+	// []rune への変換や string の再生成をしないので、入力長に対して線形で処理できる
 	for len(txt) > 0 {
 		// first check delimiter (because /^\s+/ skip delimiter '\t') (#3)
 		if strings.HasPrefix(txt, delimiter) {
@@ -169,7 +178,7 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 			continue
 		}
 		// second check LF (#7)
-		if strings.HasPrefix(txt, "\n") {
+		if txt[0] == '\n' {
 			cells = append(cells, value.String(""))
 			res = append(res, value.ArrayValue(value.NewArray(cells...)))
 			cells = nil
@@ -201,16 +210,17 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 		}
 
 		// number or simple string
-		if !strings.HasPrefix(txt, `"`) {
-			m := reToDelim.FindStringSubmatchIndex(txt)
-			if m == nil {
+		if txt[0] != '"' {
+			idx := strings.IndexAny(txt, stopChars)
+			if idx < 0 {
 				cells = append(cells, convType(txt))
 				res = append(res, value.ArrayValue(value.NewArray(cells...)))
 				cells = nil
 				break
 			}
-			valStr := txt[m[2]:m[3]]
-			sep := txt[m[4]:m[5]]
+			valStr := txt[:idx]
+			_, size := utf8.DecodeRuneInString(txt[idx:])
+			sep := txt[idx : idx+size]
 			if sep == "\n" {
 				cells = append(cells, convType(valStr))
 				res = append(res, value.ArrayValue(value.NewArray(cells...)))
@@ -218,78 +228,71 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 			} else if sep == delimiter {
 				cells = append(cells, convType(valStr))
 			}
-			txt = txt[m[1]:]
+			txt = txt[idx+size:]
 			continue
 		}
 
 		// "" ... 空引用符フィールドか、Excel方言の空セルかを判定する (#2476)
 		// """" のように隣接する引用符エスケープは、通常の引用フィールド解析に任せる
-		runes := []rune(txt)
-		if len(runes) >= 3 && runes[1] == '"' && runes[2] != '"' {
+		if len(txt) >= 3 && txt[1] == '"' && txt[2] != '"' {
+			rest := txt[2:]
 			// 区切り文字・改行に達するまで空白文字をスキップして判定する
-			idx := 2
-			for idx < len(runes) {
-				ch := runes[idx]
-				if ch == delimRune || ch == '\n' {
+			idx := 0
+			for idx < len(rest) {
+				ch, size := utf8.DecodeRuneInString(rest[idx:])
+				if ch == delimRune || ch == '\n' || !unicode.IsSpace(ch) {
 					break
 				}
-				if !unicode.IsSpace(ch) {
-					break
-				}
-				idx++
+				idx += size
 			}
-			if idx < len(runes) && (runes[idx] == delimRune || runes[idx] == '\n') {
+			if ch, _ := runeAt(rest, idx); idx < len(rest) && (ch == delimRune || ch == '\n') {
 				// 空引用符フィールドとして扱い、""と後続の空白を捨てて区切り/改行の処理に委ねる
-				txt = string(runes[idx:])
+				txt = rest[idx:]
 				continue
 			}
 			// Excel方言の空セルとして扱い、続きを通常のセルとして解析する
 			cells = append(cells, value.String(""))
-			txt = string(runes[2:])
+			txt = rest
 			continue
 		}
 
 		// "..."
 		i := 1
 		var sb strings.Builder
-		for i < len(runes) {
-			c1 := runes[i]
-			var c2 rune
-			if i+1 < len(runes) {
-				c2 = runes[i+1]
+		for i < len(txt) {
+			// 次の引用符までは通常の文字なので、まとめて書き込む
+			q := strings.IndexByte(txt[i:], '"')
+			if q < 0 {
+				sb.WriteString(txt[i:])
+				i = len(txt)
+				break
 			}
+			sb.WriteString(txt[i : i+q])
+			i += q + 1 // 引用符の次へ
+			c2, size2 := runeAt(txt, i)
 			// 2quote => 1quote char
-			if c1 == '"' && c2 == '"' {
-				i += 2
-				sb.WriteRune('"')
+			if c2 == '"' {
+				i += size2
+				sb.WriteByte('"')
 				continue
 			}
-			if c1 == '"' {
-				i++
-				if c2 == delimRune {
-					i++
-					cells = append(cells, convType(sb.String()))
-					sb.Reset()
-					break
-				}
-				if c2 == '\n' {
-					i++
-					cells = append(cells, convType(sb.String()))
-					res = append(res, value.ArrayValue(value.NewArray(cells...)))
-					cells = nil
-					break
-				}
-				i++
-				continue
+			if c2 == delimRune {
+				i += size2
+				cells = append(cells, convType(sb.String()))
+				sb.Reset()
+				break
 			}
-			sb.WriteRune(c1)
-			i++
+			if c2 == '\n' {
+				i += size2
+				cells = append(cells, convType(sb.String()))
+				res = append(res, value.ArrayValue(value.NewArray(cells...)))
+				cells = nil
+				break
+			}
+			// 閉じていない単独の引用符は、直後の1文字ごと読み捨てる（本家 nako_csv.mts と同じ）
+			i += size2
 		}
-		if i < len(runes) {
-			txt = string(runes[i:])
-		} else {
-			txt = ""
-		}
+		txt = txt[i:]
 	}
 	if len(cells) > 0 {
 		res = append(res, value.ArrayValue(value.NewArray(cells...)))
@@ -341,4 +344,3 @@ func (p *Plugin) stringify(v value.Value, delimiter, eol string) string {
 	res = strings.ReplaceAll(res, "\n", eol)
 	return res
 }
-
