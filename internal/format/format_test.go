@@ -92,11 +92,11 @@ func TestSourceLeavesMultilineStringAlone(t *testing.T) {
 // 開始行はリテラルの前だけ整形し、終了行はリテラルの後ろの末尾空白だけ落とす。
 func TestSourceReindentsCodeAroundMultilineString(t *testing.T) {
 	code := "もし、1=1ならば\n" +
-		"A=『あ\nい』と表示。   \n" +
+		"A=『あ\nい』+『う』。   \n" +
 		"ここまで\n"
 	got := formatSource(t, code)
 	want := "もし、1=1ならば\n" +
-		"    A=『あ\nい』と表示。\n" +
+		"    A=『あ\nい』+『う』。\n" +
 		"ここまで\n"
 	if got != want {
 		t.Fatalf("got:\n%q\nwant:\n%q", got, want)

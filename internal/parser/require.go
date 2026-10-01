@@ -36,6 +36,9 @@ import (
 // と同じ挙動にする（循環取込の無限再帰も同時に防げる）。modNames には、
 // こうして読み込んだモジュール名を集めておき、呼び出し元が残りのトークン
 // 置換パスを実行する前に Lexer.ModList にまとめて設定できるようにする。
+// requireHTTPClient はURL形式の取込に使うHTTPクライアントです。テストでは transport を差し替えます。
+var requireHTTPClient = &http.Client{Timeout: 15 * time.Second}
+
 func resolveRequires(tok []lexer.Token, filename string, guard map[string]bool, modNames *[]string, funcs lexer.FuncList) ([]lexer.Token, error) {
 	out := make([]lexer.Token, 0, len(tok))
 	for i := 0; i < len(tok); i++ {
@@ -263,8 +266,7 @@ func loadRequireFile(filePath string, tok lexer.Token) ([]lexer.Token, error) {
 	var data []byte
 	var err error
 	if isRequireURL(filePath) {
-		client := &http.Client{Timeout: 15 * time.Second}
-		resp, requestErr := client.Get(filePath)
+		resp, requestErr := requireHTTPClient.Get(filePath)
 		if requestErr != nil {
 			return nil, requireErr(tok, fmt.Sprintf("URLのファイルを取得できません。%s", requestErr))
 		}
