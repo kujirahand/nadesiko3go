@@ -27,10 +27,24 @@ func (p *Parser) yLet() *ast.Node {
 						"への代入文で計算式に以下の書き間違いがあります。\n"+se.err.Error(), m)
 				}
 			}()
+			valueStart := p.index
+			stackStart := append([]*ast.Node(nil), p.stack...)
+			recentStart := append([]*lexer.FuncItem(nil), p.recentlyCalledFunc...)
 			value = p.yCalc()
+			// 代入の右辺は計算式でなければ文としても解析する。本家と同様、
+			// 計算式の規則が値を返さなかった場合に限ってカーソルを戻す。
+			if value == nil {
+				p.index = valueStart
+				p.stack = stackStart
+				p.recentlyCalledFunc = recentStart
+				value = p.ySentence()
+			}
 		}()
 		if value == nil || value.Type == ast.EOL {
 			p.failAt(nodeToStr(wordTok, 1, "")+"への代入文で計算式に書き間違いがあります。", m)
+		}
+		if value.Type == ast.Func && value.Meta != nil && value.Meta.ReturnNone {
+			p.failNode("関数『"+value.Name+"』は戻り値がないので結果を代入できません。", value)
 		}
 		if p.check(lexer.TypeComma) {
 			p.get()

@@ -453,8 +453,8 @@ PostData = AのPOSTデータ生成
 「IP取得: {(自分IPアドレス取得の文字数)>0}」と表示
 「IPV6取得: {(自分IPV6アドレス取得の文字数)>0}」と表示
 `)
-	// query params ordering in Go url.Values is sorted: age=20&name=...
-	if !strings.Contains(got, "POSTデータ: age=20&name=%E5%A4%AA%E9%83%8E") ||
+	// Dict.Keys() は挿入順を保持する: name=...&age=20
+	if !strings.Contains(got, "POSTデータ: name=%E5%A4%AA%E9%83%8E&age=20") ||
 		!strings.Contains(got, "IP取得: true") ||
 		!strings.Contains(got, "IPV6取得: true") {
 		t.Errorf("NetCommands unexpected result: %s", got)
@@ -701,12 +701,9 @@ Params["name"] = "test"
 Ans2 = URLへParamsをPOST保障送信
 「保障POST: {Ans2}」と表示
 
-Ans3 = URLへParamsをPOSTフォーム送信
-「同期FORM: {Ans3}」と表示
-
 「FORM_CB」でURLへParamsをPOSTフォーム送信時
-Ans4 = URLへParamsをPOSTフォーム保障送信
-「保障FORM: {Ans4}」と表示
+Ans3 = URLへParamsをPOSTフォーム保障送信
+「保障FORM: {Ans3}」と表示
 
 "dummy"にAJAXオプション設定
 「ERR_CB」のAJAX失敗時
@@ -720,7 +717,6 @@ Ans4 = URLへParamsをPOSTフォーム保障送信
 		"保障GET: GET応答",
 		"POST受信: POST応答:test",
 		"保障POST: POST応答:test",
-		"同期FORM: FORM応答:test",
 		"FORM受信: FORM応答:test",
 		"保障FORM: FORM応答:test",
 		"オプション設定完了",

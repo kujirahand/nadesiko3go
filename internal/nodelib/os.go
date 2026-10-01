@@ -9,9 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -46,11 +44,7 @@ func osCommands(m map[string]command) {
 		if err != nil {
 			return value.Undefined(), errors.New("『尋』命令で標準入力が読めません。")
 		}
-		// 数値に見えるものは数値として返す。TS版と同じ。
-		if n := value.ToNumber(value.String(strings.TrimSpace(line))); strings.TrimSpace(line) != "" && !isNaN(n) {
-			return value.Number(n), nil
-		}
-		return value.String(line), nil
+		return promptValue(line), nil
 	}}
 
 	m["文字尋"] = command{josi: [][]string{{"と", "を"}}, fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
@@ -232,32 +226,12 @@ func osCommands(m map[string]command) {
 }
 
 func promptValue(input string) value.Value {
-	if input == "" {
-		return value.String(input)
-	}
-	var b strings.Builder
-	for _, r := range input {
-		switch {
-		case r >= '０' && r <= '９':
-			b.WriteRune(r - '０' + '0')
-		case r == '＋':
-			b.WriteByte('+')
-		case r == '－':
-			b.WriteByte('-')
-		case r == '．':
-			b.WriteByte('.')
-		default:
-			b.WriteRune(r)
-		}
-	}
-	normalized := b.String()
-	if n, err := strconv.ParseFloat(normalized, 64); err == nil && decimalPromptRE.MatchString(normalized) {
+	trimmed := strings.TrimSpace(input)
+	if n := value.ToNumber(value.String(trimmed)); trimmed != "" && !isNaN(n) {
 		return value.Number(n)
 	}
 	return value.String(input)
 }
-
-var decimalPromptRE = regexp.MustCompile(`^[-+]?\d+(\.\d+)?$`)
 
 // runCommand runs a shell command and returns what it printed.
 func runCommand(_ stdlib.Context, a []value.Value) (value.Value, error) {

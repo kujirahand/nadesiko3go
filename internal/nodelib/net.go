@@ -20,6 +20,19 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
+// encodeDictAsFormData は辞書のキーを挿入順でURLエンコードして
+// application/x-www-form-urlencoded 形式の文字列にする。
+// url.Values.Encode() はキーをソートしてしまうため、挿入順を保つために手で組み立てる。
+func encodeDictAsFormData(d *value.Dict) string {
+	var pairs []string
+	for _, k := range d.Keys() {
+		if item, ok := d.Get(k); ok {
+			pairs = append(pairs, url.QueryEscape(k)+"="+url.QueryEscape(value.ToString(item)))
+		}
+	}
+	return strings.Join(pairs, "&")
+}
+
 func netCommands(m map[string]command) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -58,13 +71,7 @@ func netCommands(m map[string]command) {
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			v := argAt(a, 0)
 			if d, ok := v.Dict(); ok {
-				vals := url.Values{}
-				for _, k := range d.Keys() {
-					if item, ok := d.Get(k); ok {
-						vals.Set(k, value.ToString(item))
-					}
-				}
-				return value.String(vals.Encode()), nil
+				return value.String(encodeDictAsFormData(d)), nil
 			}
 			return value.String(value.ToString(v)), nil
 		},
@@ -134,13 +141,7 @@ func netCommands(m map[string]command) {
 			var bodyStr string
 			v := argAt(a, 1)
 			if d, ok := v.Dict(); ok {
-				vals := url.Values{}
-				for _, k := range d.Keys() {
-					if item, ok := d.Get(k); ok {
-						vals.Set(k, value.ToString(item))
-					}
-				}
-				bodyStr = vals.Encode()
+				bodyStr = encodeDictAsFormData(d)
 			} else {
 				bodyStr = value.ToString(v)
 			}
@@ -241,13 +242,7 @@ func netCommands(m map[string]command) {
 			var bodyStr string
 			v := argAt(a, 2)
 			if d, ok := v.Dict(); ok {
-				vals := url.Values{}
-				for _, k := range d.Keys() {
-					if item, ok := d.Get(k); ok {
-						vals.Set(k, value.ToString(item))
-					}
-				}
-				bodyStr = vals.Encode()
+				bodyStr = encodeDictAsFormData(d)
 			} else {
 				bodyStr = value.ToString(v)
 			}
