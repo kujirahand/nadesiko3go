@@ -14,12 +14,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"regexp"
 
 	"github.com/kujirahand/nadesiko3go/internal/version"
+	"github.com/kujirahand/nadesiko3go/scripts/versionupdate"
 )
 
 var semverRe = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
@@ -115,19 +115,24 @@ func switchInstallers(newVersion string) error {
 }
 
 func main() {
-	checkFlag := flag.Bool("check", false, "書き換えず、バージョン番号のズレを検査するだけ")
-	nadesikoFlag := flag.String("nadesiko", "", "ナデシコ言語バージョンも合わせて変更する場合に指定")
-	stableFlag := flag.String("stable", "", "インストーラーのフォールバック（公開済み安定版）だけをこの版へ切り替える")
-	flag.Parse()
+	parsed, err := versionupdate.ParseArgs(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "エラー: %v\n", err)
+		os.Exit(1)
+	}
+	checkFlag := parsed.Check
+	nadesikoFlag := parsed.Nadesiko
+	stableFlag := parsed.Stable
+	positionalArgs := parsed.Positional
 
 	// --stable はRelease公開後に publish-release.sh から呼ぶ。定義元や
 	// release/ 配下（Homebrew Tap更新に使う成果物）には触れない。
-	if *stableFlag != "" {
-		if !semverRe.MatchString(*stableFlag) {
-			fmt.Fprintf(os.Stderr, "エラー: --stable の形式が不正です: %q (例: 3.8.2)\n", *stableFlag)
+	if stableFlag != "" {
+		if !semverRe.MatchString(stableFlag) {
+			fmt.Fprintf(os.Stderr, "エラー: --stable の形式が不正です: %q (例: 3.8.2)\n", stableFlag)
 			os.Exit(1)
 		}
-		if err := switchInstallers(*stableFlag); err != nil {
+		if err := switchInstallers(stableFlag); err != nil {
 			fmt.Fprintln(os.Stderr, "エラー:", err)
 			os.Exit(1)
 		}
@@ -135,8 +140,8 @@ func main() {
 	}
 
 	newVersion := version.Version
-	if flag.NArg() > 0 {
-		newVersion = flag.Arg(0)
+	if len(positionalArgs) > 0 {
+		newVersion = positionalArgs[0]
 		if !semverRe.MatchString(newVersion) {
 			fmt.Fprintf(os.Stderr, "エラー: バージョン番号の形式が不正です: %q (例: 3.8.2)\n", newVersion)
 			os.Exit(1)
@@ -145,19 +150,19 @@ func main() {
 
 	// バージョンを更新するときは、古いバージョンのビルド成果物が release/ に
 	// 混ざったまま残らないよう、実行のたびに中身を空にする（--check時は不変）。
-	if !*checkFlag {
+	if !checkFlag {
 		if err := clearReleaseDir(); err != nil {
 			fmt.Fprintln(os.Stderr, "エラー:", err)
 			os.Exit(1)
 		}
 	}
 	newNadesiko := version.Nadesiko
-	if *nadesikoFlag != "" {
-		if !semverRe.MatchString(*nadesikoFlag) {
-			fmt.Fprintf(os.Stderr, "エラー: --nadesiko の形式が不正です: %q (例: 3.8.2)\n", *nadesikoFlag)
+	if nadesikoFlag != "" {
+		if !semverRe.MatchString(nadesikoFlag) {
+			fmt.Fprintf(os.Stderr, "エラー: --nadesiko の形式が不正です: %q (例: 3.8.2)\n", nadesikoFlag)
 			os.Exit(1)
 		}
-		newNadesiko = *nadesikoFlag
+		newNadesiko = nadesikoFlag
 	}
 
 	mismatched := false
@@ -165,7 +170,7 @@ func main() {
 
 	// 1. internal/version/version.go 自体（唯一の定義元）
 	if newVersion != version.Version || newNadesiko != version.Nadesiko {
-		if *checkFlag {
+		if checkFlag {
 			fmt.Println("[ズレ] internal/version/version.go")
 			mismatched = true
 		} else {
@@ -194,7 +199,7 @@ func main() {
 		"docs/release-scripts.md",
 	}
 	for _, doc := range docFiles {
-		ok, wasChanged, err := syncAllOccurrences(doc, newVersion, *checkFlag)
+		ok, wasChanged, err := syncAllOccurrences(doc, newVersion, checkFlag)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "エラー:", err)
 			os.Exit(1)
@@ -207,7 +212,7 @@ func main() {
 		}
 	}
 
-	if *checkFlag {
+	if checkFlag {
 		if mismatched {
 			fmt.Fprintln(os.Stderr, "バージョン番号にズレがあります。`just version-update` を実行してください。")
 			os.Exit(1)
