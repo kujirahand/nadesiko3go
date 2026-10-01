@@ -11,8 +11,9 @@ import (
 )
 
 type generator struct {
-	prog  *ir.Program
-	types *typeInfo
+	prog         *ir.Program
+	types        *typeInfo
+	pollExternal bool
 }
 
 // srcIsNumber reports whether a fused operand (→ ir.Src) is known to hold a
@@ -460,6 +461,9 @@ func (g *generator) emitBody(out *bytes.Buffer, fi int, fn *ir.Func, ret retKind
 		}
 		if targets[pc] {
 			fmt.Fprintf(out, "%s:\n", label(pc, e.codeLen))
+			if g.pollExternal {
+				out.WriteString("\tm.PollExternalEvents()\n")
+			}
 		}
 		e.emitInst(inst, pc)
 	}

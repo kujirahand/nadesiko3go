@@ -251,6 +251,7 @@ type nakoPanic struct{ err *errs.NakoError }
 
 // Run executes the program's entry function.
 func (m *VM) Run() (err error) {
+	defer m.loop.CloseExternal()
 	defer func() {
 		if r := recover(); r != nil {
 			np, ok := r.(nakoPanic)
@@ -265,6 +266,7 @@ func (m *VM) Run() (err error) {
 		}
 	}()
 	m.call(m.prog.Main, nil)
+	m.PollExternalEvents()
 	// main が終わった後に残っている単発のコールバックを流す
 	if !m.options.DrainPendingCallbacks {
 		return nil

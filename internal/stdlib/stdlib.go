@@ -69,6 +69,11 @@ type DialogContext interface {
 	ShowDialog(kind, message string) (answer string, accepted, supported bool, err error)
 }
 
+// ExternalEventContextは外部イベントをVMの実行スレッドで処理するための任意の機能。
+type ExternalEventContext interface {
+	PostExternalEvent(ready func() bool, run func() error, close func())
+}
+
 // Impl is a command implementation. Returning an error raises a nadesiko
 // runtime error at the call site.
 type Impl func(ctx Context, args []value.Value) (value.Value, error)

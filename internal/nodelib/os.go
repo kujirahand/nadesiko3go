@@ -130,15 +130,27 @@ func osCommands(m map[string]command) {
 			if !ok {
 				return value.Undefined(), nil
 			}
+			events, ok := ctx.(stdlib.ExternalEventContext)
+			if !ok {
+				return value.Undefined(), errors.New("『強制終了時』には外部イベントに対応した実行環境が必要です。")
+			}
 			c := make(chan os.Signal, 1)
 			signal.Notify(c, os.Interrupt)
-			go func() {
-				<-c
+			// シグナル受信だけをチャネルに任せ、VMの操作は実行スレッドで行う。
+			events.PostExternalEvent(func() bool {
+				select {
+				case <-c:
+					return true
+				default:
+					return false
+				}
+			}, func() error {
 				res, _ := ctx.CallFunc(fn, nil)
 				if value.ToBool(res) || res.Kind() == value.KindUndefined {
 					ctx.Exit(0)
 				}
-			}()
+				return nil
+			}, func() { signal.Stop(c) })
 			return value.Undefined(), nil
 		}}
 
