@@ -67,6 +67,8 @@ func (l *Loop) PollExternal() error {
 		e := &l.external[i]
 		if e.ready != nil && e.ready() {
 			run := e.run
+			// 受信済みの単発イベントは確認を打ち切り、以後のポーリングで
+			// readyやハンドラを再実行しない。ハンドラがエラーを返す場合も同様。
 			e.ready = nil
 			if err := run(); err != nil {
 				return err
@@ -77,6 +79,7 @@ func (l *Loop) PollExternal() error {
 }
 
 // CloseExternalは実行終了時に外部イベントの登録を解除する。
+// 解除後は登録一覧を空にするため、繰り返し呼んでも解除処理を重複実行しない。
 func (l *Loop) CloseExternal() {
 	for _, e := range l.external {
 		if e.close != nil {

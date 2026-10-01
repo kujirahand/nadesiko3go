@@ -98,6 +98,7 @@ func (m *VM) Now() time.Time { return m.loop.Now() }
 // PostExternalEventはVMと同じスレッドで処理する外部イベントを登録する。
 func (m *VM) PostExternalEvent(ready func() bool, run func() error, close func()) {
 	m.loop.PostExternal(ready, run, close)
+	m.hasExternal = true
 }
 
 // PollExternalEventsはVMとGoコード生成版の安全な実行境界で受信を確認する。
