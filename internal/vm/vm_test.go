@@ -407,3 +407,32 @@ func TestUnaryMinus(t *testing.T) {
 		t.Errorf("-5n: got %v, want bigint 未対応エラー", err)
 	}
 }
+
+// Issue #199: プロパティ代入『A$キー=値』が構文エラーまたは未実装エラーになっていた。
+func TestPropertyAssignment(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		// 基本形: A$キー=値
+		{"basic", `A={"犬":1,"猫":2}
+A$犬=111
+A$犬を表示`, "111"},
+		// 連鎖形: A@0$キー=値
+		{"chained", `A=[{"犬":1}]
+A@0$犬=222
+A@0$犬を表示`, "222"},
+		// 多重連鎖: B$犬$柴犬=30
+		{"multi-level", `B={"犬":{"柴犬":0}}
+B$犬$柴犬=30
+B$犬$柴犬を表示`, "30"},
+		// 既存の値を上書き
+		{"overwrite", `A={"x":10}
+A$x=20
+A$xを表示`, "20"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%q = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
