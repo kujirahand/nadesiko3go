@@ -55,4 +55,36 @@ await check("nodelibは無し", "「.」のファイル名一覧取得して表�
   }
 }
 
+// 非配列の args を渡したときはエラーになり、ランタイムは生き残る (#202)。
+{
+  // 空オブジェクト
+  const r1 = await gonako.run("1を表示。", { args: {} });
+  if (!r1.ok && r1.error?.message?.includes("配列")) {
+    console.log("OK args:空オブジェクトはエラー");
+  } else {
+    failed++;
+    console.log("NG args:空オブジェクトはエラー:", JSON.stringify(r1));
+  }
+
+  // length ゲッターが例外を投げるオブジェクト
+  const badArgs = {};
+  Object.defineProperty(badArgs, "length", { get() { throw new Error("bad length"); } });
+  const r2 = await gonako.run("1を表示。", { args: badArgs });
+  if (!r2.ok && r2.error?.message?.includes("配列")) {
+    console.log("OK args:例外lengthはエラー");
+  } else {
+    failed++;
+    console.log("NG args:例外lengthはエラー:", JSON.stringify(r2));
+  }
+
+  // エラー後も run が動くことを確認
+  const r3 = await gonako.run("1を表示。");
+  if (r3.ok && r3.output === "1\n") {
+    console.log("OK args:エラー後もrunは動作");
+  } else {
+    failed++;
+    console.log("NG args:エラー後もrunは動作:", JSON.stringify(r3));
+  }
+}
+
 process.exit(failed ? 1 : 0);
