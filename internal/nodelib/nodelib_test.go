@@ -453,8 +453,8 @@ PostData = AのPOSTデータ生成
 「IP取得: {(自分IPアドレス取得の文字数)>0}」と表示
 「IPV6取得: {(自分IPV6アドレス取得の文字数)>0}」と表示
 `)
-	// query params ordering in Go url.Values is sorted: age=20&name=...
-	if !strings.Contains(got, "POSTデータ: age=20&name=%E5%A4%AA%E9%83%8E") ||
+	// Dict.Keys() は挿入順を保持する: name=...&age=20
+	if !strings.Contains(got, "POSTデータ: name=%E5%A4%AA%E9%83%8E&age=20") ||
 		!strings.Contains(got, "IP取得: true") ||
 		!strings.Contains(got, "IPV6取得: true") {
 		t.Errorf("NetCommands unexpected result: %s", got)
