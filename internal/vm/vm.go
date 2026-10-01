@@ -57,6 +57,8 @@ type VM struct {
 
 	// loop orders the timer callbacks and owns the virtual clock.
 	loop *event.Loop
+	// 外部イベント未使用時は基本ブロックごとのポーリングを省略する。
+	hasExternal bool
 	// callbacks maps a scheduled callback to the function and arguments it runs.
 	callbacks    map[host.CallbackID]queuedCallback
 	nextCallback host.CallbackID
@@ -252,6 +254,10 @@ type nakoPanic struct{ err *errs.NakoError }
 // Run executes the program's entry function.
 func (m *VM) Run() (err error) {
 	defer func() {
+		m.loop.CloseExternal()
+		m.hasExternal = false
+	}()
+	defer func() {
 		if r := recover(); r != nil {
 			np, ok := r.(nakoPanic)
 			if !ok {
@@ -265,6 +271,7 @@ func (m *VM) Run() (err error) {
 		}
 	}()
 	m.call(m.prog.Main, nil)
+	m.PollExternalEvents()
 	// main が終わった後に残っている単発のコールバックを流す
 	if !m.options.DrainPendingCallbacks {
 		return nil

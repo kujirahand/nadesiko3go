@@ -94,3 +94,16 @@ func (m *VM) dispatch(id host.CallbackID) error {
 // Now reports the virtual time, so that a command reading the clock sees the
 // same time the callbacks are ordered by.
 func (m *VM) Now() time.Time { return m.loop.Now() }
+
+// PostExternalEventはVMと同じスレッドで処理する外部イベントを登録する。
+func (m *VM) PostExternalEvent(ready func() bool, run func() error, close func()) {
+	m.loop.PostExternal(ready, run, close)
+	m.hasExternal = true
+}
+
+// PollExternalEventsはVMとGoコード生成版の安全な実行境界で受信を確認する。
+func (m *VM) PollExternalEvents() {
+	if err := m.loop.PollExternal(); err != nil {
+		m.failAt(err.Error(), m.currentPos)
+	}
+}

@@ -40,6 +40,53 @@ type Loop struct {
 	// repeating timer nobody stops cannot hang the process.
 	MaxCallbacks int
 	dispatched   int
+	external     []externalEvent
+	polling      bool
+}
+
+// externalEventは受信の確認も実行もVMと同じスレッドで行う。
+type externalEvent struct {
+	ready func() bool
+	run   func() error
+	close func()
+}
+
+// PostExternalは外部イベントを登録する。readyは受信チャネルを非ブロッキングで確認する。
+func (l *Loop) PostExternal(ready func() bool, run func() error, close func()) {
+	l.external = append(l.external, externalEvent{ready: ready, run: run, close: close})
+}
+
+// PollExternalは受信済みのイベントを単発で実行する。ハンドラ内では再入しない。
+func (l *Loop) PollExternal() error {
+	if l.polling || len(l.external) == 0 {
+		return nil
+	}
+	l.polling = true
+	defer func() { l.polling = false }()
+	for i := 0; i < len(l.external); i++ {
+		e := &l.external[i]
+		if e.ready != nil && e.ready() {
+			run := e.run
+			// 受信済みの単発イベントは確認を打ち切り、以後のポーリングで
+			// readyやハンドラを再実行しない。ハンドラがエラーを返す場合も同様。
+			e.ready = nil
+			if err := run(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// CloseExternalは実行終了時に外部イベントの登録を解除する。
+// 解除後は登録一覧を空にするため、繰り返し呼んでも解除処理を重複実行しない。
+func (l *Loop) CloseExternal() {
+	for _, e := range l.external {
+		if e.close != nil {
+			e.close()
+		}
+	}
+	l.external = nil
 }
 
 // DefaultMaxCallbacks is generous enough for a program that means it, and

@@ -117,7 +117,8 @@ func Generate(prog *ir.Program, opts Options) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	g := &generator{prog: prog, types: analyze(prog, env)}
+	// 動的な命令呼び出しでも外部イベントを登録できるため、同じ解析結果で確認を有効にする。
+	g := &generator{prog: prog, types: analyze(prog, env), pollExternal: env.dynamicGlobals}
 	var funcs bytes.Buffer
 	for i := range prog.Funcs {
 		g.genFunc(&funcs, i, &prog.Funcs[i])
@@ -213,7 +214,8 @@ func checkSupported(prog *ir.Program) error {
 // Context.CallCommand when its configurable pipeline contains
 // JSオブジェクト取得. One of these in the program means no global may leave
 // its cell — the command would read the stale one.
-var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行"}
+// 強制終了時のハンドラはループの途中で大域変数を読み書きできる。
+var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行", "強制終了時"}
 
 // extraSystemNames are global names Go code reads or writes through
 // Context.SysVar / SetSysVar without the registry necessarily declaring them
