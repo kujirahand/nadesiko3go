@@ -33,6 +33,35 @@ func encodeDictAsFormData(d *value.Dict) string {
 	return strings.Join(pairs, "&")
 }
 
+// buildMultipartForm は辞書を multipart/form-data のボディに組み立てる。
+// 戻り値は (ボディ, Content-Type)。辞書以外はエラーにする。
+// POSTデータ生成の戻り値（URLエンコード済み文字列）を渡すミスが起きやすいため、案内を添える。
+func buildMultipartForm(cmdName string, v value.Value) (*bytes.Buffer, string, error) {
+	d, ok := v.Dict()
+	if !ok {
+		hint := ""
+		if v.Kind() == value.KindString {
+			hint = "。『POSTデータ生成』で作った文字列は渡せません。辞書型のデータをそのまま渡してください（文字列のボディを送るには『POST送信』を使います）"
+		}
+		return nil, "", fmt.Errorf("『%s』のパラメータには辞書型のデータを指定してください%s", cmdName, hint)
+	}
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	for _, k := range d.Keys() {
+		item, ok := d.Get(k)
+		if !ok {
+			continue
+		}
+		if err := mw.WriteField(k, value.ToString(item)); err != nil {
+			return nil, "", err
+		}
+	}
+	if err := mw.Close(); err != nil {
+		return nil, "", err
+	}
+	return &body, mw.FormDataContentType(), nil
+}
+
 func netCommands(m map[string]command) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -162,14 +191,12 @@ func netCommands(m map[string]command) {
 		josi: [][]string{{"まで", "へ", "に"}, {"を", "の"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			var bodyStr string
 			v := argAt(a, 1)
-			if d, ok := v.Dict(); ok {
-				bodyStr = encodeDictAsFormData(d)
-			} else {
-				bodyStr = value.ToString(v)
+			body, contentType, err := buildMultipartForm("POSTフォーム送信", v)
+			if err != nil {
+				return value.Undefined(), err
 			}
-			resp, err := client.Post(reqURL, "application/x-www-form-urlencoded", strings.NewReader(bodyStr))
+			resp, err := client.Post(reqURL, contentType, body)
 			if err != nil {
 				return value.Undefined(), err
 			}
@@ -273,17 +300,11 @@ func netCommands(m map[string]command) {
 			callbackVal := argAt(a, 0)
 			reqURL := str(a, 1)
 			v := argAt(a, 2)
-			var body bytes.Buffer
-			mw := multipart.NewWriter(&body)
-			if d, ok := v.Dict(); ok {
-				for _, k := range d.Keys() {
-					if item, ok := d.Get(k); ok {
-						_ = mw.WriteField(k, value.ToString(item))
-					}
-				}
+			body, contentType, err := buildMultipartForm("POSTフォーム送信時", v)
+			if err != nil {
+				return value.Undefined(), err
 			}
-			mw.Close()
-			resp, err := client.Post(reqURL, mw.FormDataContentType(), &body)
+			resp, err := client.Post(reqURL, contentType, body)
 			if err != nil {
 				if onErr := ctx.SysVar("AJAX:ONERROR"); onErr.Kind() != value.KindUndefined {
 					if fn, ok := toFunc(ctx, onErr); ok {
@@ -341,17 +362,11 @@ func netCommands(m map[string]command) {
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
 			v := argAt(a, 1)
-			var body bytes.Buffer
-			mw := multipart.NewWriter(&body)
-			if d, ok := v.Dict(); ok {
-				for _, k := range d.Keys() {
-					if item, ok := d.Get(k); ok {
-						_ = mw.WriteField(k, value.ToString(item))
-					}
-				}
+			body, contentType, err := buildMultipartForm("POSTフォーム保障送信", v)
+			if err != nil {
+				return value.Undefined(), err
 			}
-			mw.Close()
-			resp, err := client.Post(reqURL, mw.FormDataContentType(), &body)
+			resp, err := client.Post(reqURL, contentType, body)
 			if err != nil {
 				return value.Undefined(), err
 			}
@@ -406,7 +421,9 @@ func netCommands(m map[string]command) {
 
 			var body bytes.Buffer
 			mw := multipart.NewWriter(&body)
-			_ = mw.WriteField("content", msg)
+			if err := mw.WriteField("content", msg); err != nil {
+				return value.Undefined(), err
+			}
 			part, err := mw.CreateFormFile("file", filepath.Base(filePath))
 			if err != nil {
 				return value.Undefined(), err
@@ -414,7 +431,9 @@ func netCommands(m map[string]command) {
 			if _, err := part.Write(fileData); err != nil {
 				return value.Undefined(), err
 			}
-			mw.Close()
+			if err := mw.Close(); err != nil {
+				return value.Undefined(), err
+			}
 
 			resp, err := client.Post(webhookURL, mw.FormDataContentType(), &body)
 			if err != nil {
