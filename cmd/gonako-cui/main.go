@@ -444,6 +444,11 @@ func runBundled() (ran bool, err error) {
 	}
 	defer packed.Close()
 
+	// HTML種バンドルはGUI専用なのでCUIでは実行できない
+	if packed.Kind == bundle.KindHTML {
+		return true, fmt.Errorf("この実行ファイルはGUI用です（HTML種バンドル）。gonako-guiで実行してください")
+	}
+
 	host := vm.NewCUIHost(os.Stdout, os.Stdin, os.Args[1:])
 	host.Bundle = packed
 	return true, finish(vm.RunCompiled(packed.Program, host), host)

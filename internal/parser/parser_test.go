@@ -105,6 +105,58 @@ func TestParseArrayReferenceAndAssignment(t *testing.T) {
 	}
 }
 
+// Issue #199: プロパティ代入『A$キー=値』が構文エラーになっていた。
+func TestParsePropertyAssignment(t *testing.T) {
+	// 基本形: A$キー=値
+	tree, err := parse(t, `A={"犬":1}
+A$犬=111
+A$犬を表示`)
+	if err != nil {
+		t.Fatal("basic property assignment should parse:", err)
+	}
+	set := tree.Blocks[2]
+	if set.Type != ast.LetProp || set.Name != "main__A" {
+		t.Fatalf("expected LetProp, got %#v", set)
+	}
+	if len(set.Index) != 1 || set.Index[0].Value != "犬" {
+		t.Fatalf("expected one prop '犬', got %#v", set.Index)
+	}
+
+	// 連鎖形: A@0$キー=値
+	tree, err = parse(t, `A=[{"犬":1}]
+A@0$犬=111`)
+	if err != nil {
+		t.Fatal("chained property assignment should parse:", err)
+	}
+	set = tree.Blocks[2]
+	if set.Type != ast.LetProp || set.Name != "main__A" {
+		t.Fatalf("expected LetProp, got %#v", set)
+	}
+	if len(set.Blocks) != 2 {
+		t.Fatalf("expected 1 index + value, got %d blocks", len(set.Blocks))
+	}
+	if len(set.Index) != 1 || set.Index[0].Value != "犬" {
+		t.Fatalf("expected one prop '犬', got %#v", set.Index)
+	}
+
+	// 多重連鎖: B$犬$柴犬=30
+	tree, err = parse(t, `B={"犬":{"柴犬":0}}
+B$犬$柴犬=30`)
+	if err != nil {
+		t.Fatal("multi-level property assignment should parse:", err)
+	}
+	set = tree.Blocks[2]
+	if set.Type != ast.LetProp || set.Name != "main__B" {
+		t.Fatalf("expected LetProp, got %#v", set)
+	}
+	if len(set.Index) != 2 {
+		t.Fatalf("expected 2 props, got %d", len(set.Index))
+	}
+	if set.Index[0].Value != "犬" || set.Index[1].Value != "柴犬" {
+		t.Fatalf("expected props ['犬','柴犬'], got %#v", set.Index)
+	}
+}
+
 func TestParseReportsMissingCloseParen(t *testing.T) {
 	_, err := parse(t, "A=(1+2\nAを表示")
 	if err == nil {

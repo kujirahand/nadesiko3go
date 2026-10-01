@@ -79,6 +79,10 @@ func (c *Compiler) compileStatement(n *ast.Node) {
 		c.compileLetArray(n)
 		return
 
+	case ast.LetProp:
+		c.compileLetProp(n)
+		return
+
 	case ast.Inc:
 		c.compileInc(n)
 		return
@@ -179,6 +183,30 @@ func (c *Compiler) compileLetArray(n *ast.Node) {
 	}
 	c.compileExpr(n.Block(0))
 	c.emit(ir.OpIndexSet, 0, len(indexes), n)
+	// 代入で作り直された可能性があるので、変数に書き戻す
+	c.storeVar(n.Name, n)
+}
+
+// compileLetProp compiles 『A$キー=値』や『A@0$キー=値』のようなプロパティ代入。
+// blocks[0] は値、blocks[1:] は添字（@ や [ で指定）、Index はプロパティ名（$ で指定）。
+// 既存の OpIndexSet を使い、プロパティ名を文字列キーとして扱う。
+func (c *Compiler) compileLetProp(n *ast.Node) {
+	c.checkWritable(n.Name, "は既に定義済みなので、値を代入することはできません。", n)
+	indexes := n.Blocks[1:]
+	c.loadVar(n.Name, n)
+	// 添字（@ や [ で指定されたもの）をプッシュ
+	for _, idx := range indexes {
+		c.compileExpr(idx)
+	}
+	// プロパティ名（$ で指定されたもの）を文字列定数としてプッシュ
+	for _, prop := range n.Index {
+		c.compileExpr(prop)
+	}
+	// 値をプッシュ
+	c.compileExpr(n.Block(0))
+	// 添字とプロパティの合計数を渡して OpIndexSet
+	totalIndexes := len(indexes) + len(n.Index)
+	c.emit(ir.OpIndexSet, 0, totalIndexes, n)
 	// 代入で作り直された可能性があるので、変数に書き戻す
 	c.storeVar(n.Name, n)
 }

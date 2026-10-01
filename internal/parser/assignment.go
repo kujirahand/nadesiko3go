@@ -61,7 +61,9 @@ func (p *Parser) yLet() *ast.Node {
 		return n
 	}
 
-	if p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"@"}}) || p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"["}}) {
+	if p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"@"}}) ||
+		p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"["}}) ||
+		p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"$"}}) {
 		if n := p.yLetArrayChain(m); n != nil {
 			if p.check(lexer.TypeComma) {
 				p.get()
@@ -266,9 +268,8 @@ func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {
 		}
 		break
 	}
-	if len(indexes) == 0 {
-		return rollback()
-	}
+	// プロパティ代入『A$キー=値』や連鎖『A@0$キー=値』を受理する。
+	// indexes が空でも props があれば LetProp として受理する。
 	var props []*ast.Node
 	for p.check2([][]lexer.TokenType{{"$"}, {lexer.TypeWord, lexer.TypeString}}) {
 		p.get()
@@ -276,6 +277,9 @@ func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {
 		prop := p.wordNode(t)
 		prop.Type = ast.String
 		props = append(props, prop)
+	}
+	if len(indexes) == 0 && len(props) == 0 {
+		return rollback()
 	}
 	if !p.check("eq") {
 		return rollback()
