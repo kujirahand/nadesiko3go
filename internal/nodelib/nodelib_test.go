@@ -701,9 +701,12 @@ Params["name"] = "test"
 Ans2 = URLへParamsをPOST保障送信
 「保障POST: {Ans2}」と表示
 
+Ans3 = URLへParamsをPOSTフォーム送信
+「同期FORM: {Ans3}」と表示
+
 「FORM_CB」でURLへParamsをPOSTフォーム送信時
-Ans3 = URLへParamsをPOSTフォーム保障送信
-「保障FORM: {Ans3}」と表示
+Ans4 = URLへParamsをPOSTフォーム保障送信
+「保障FORM: {Ans4}」と表示
 
 "dummy"にAJAXオプション設定
 「ERR_CB」のAJAX失敗時
@@ -717,6 +720,7 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 		"保障GET: GET応答",
 		"POST受信: POST応答:test",
 		"保障POST: POST応答:test",
+		"同期FORM: FORM応答:test",
 		"FORM受信: FORM応答:test",
 		"保障FORM: FORM応答:test",
 		"オプション設定完了",

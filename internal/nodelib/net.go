@@ -161,20 +161,18 @@ func netCommands(m map[string]command) {
 		josi: [][]string{{"まで", "へ", "に"}, {"を", "の"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			var bodyStr string
 			v := argAt(a, 1)
+			var body bytes.Buffer
+			mw := multipart.NewWriter(&body)
 			if d, ok := v.Dict(); ok {
-				vals := url.Values{}
 				for _, k := range d.Keys() {
 					if item, ok := d.Get(k); ok {
-						vals.Set(k, value.ToString(item))
+						_ = mw.WriteField(k, value.ToString(item))
 					}
 				}
-				bodyStr = vals.Encode()
-			} else {
-				bodyStr = value.ToString(v)
 			}
-			resp, err := client.Post(reqURL, "application/x-www-form-urlencoded", strings.NewReader(bodyStr))
+			mw.Close()
+			resp, err := client.Post(reqURL, mw.FormDataContentType(), &body)
 			if err != nil {
 				return value.Undefined(), err
 			}
