@@ -795,3 +795,22 @@ URLへPをPOSTフォーム保障送信
 		t.Errorf("POSTフォーム保障送信: Content-Type = %q, want multipart/form-data", capturedContentType)
 	}
 }
+
+// TestPostFormRejectsNonDict は辞書以外（POSTデータ生成の戻り値など）を渡したとき、
+// 案内付きのエラーになることを検証する。
+func TestPostFormRejectsNonDict(t *testing.T) {
+	for _, cmd := range []string{"POSTフォーム送信", "POSTフォーム保障送信"} {
+		var out strings.Builder
+		host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+		code := "S = {\"a\":\"1\"}のPOSTデータ生成\n「http://nodelib.test/」へSを" + cmd + "\n"
+		err := vm.RunProgram(code, "main.nako3", host)
+		if err == nil {
+			t.Fatalf("%s: 文字列を渡したのにエラーにならない", cmd)
+		}
+		for _, want := range []string{cmd, "辞書型", "POSTデータ生成"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("%s: エラー文面に %q が含まれない: %s", cmd, want, err)
+			}
+		}
+	}
+}
