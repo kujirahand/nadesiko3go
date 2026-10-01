@@ -136,12 +136,29 @@ func run(_ js.Value, args []js.Value) any {
 // worker が1本ずつ呼ぶので、複数の実行が同時に動くことはない。
 func execute(code string, options js.Value) (result map[string]any) {
 	h := &wasmrt.Host{Dialog: browserDialog}
+
+	// Go側のpanicでwasm全体が止まらないように、エラーとして返す。
+	// args の Length() 呼び出しなどでpanicする可能性もあるため、
+	// オプション解析より前に登録する（#202）。
+	defer func() {
+		if r := recover(); r != nil {
+			result = makeResult(h, fmt.Errorf("内部エラー: %v", r))
+		}
+	}()
+
 	filename := wasmrt.DefaultFilename
 	if options.Type() == js.TypeObject {
 		if v := options.Get("filename"); v.Type() == js.TypeString {
 			filename = v.String()
 		}
 		if v := options.Get("args"); v.Type() == js.TypeObject {
+			// 配列かどうかを確認してから Length() を呼ぶ。
+			// 非配列（特に length ゲッターが例外を投げるオブジェクト）に対して
+			// 無条件に Length() を呼ぶと wasm ランタイムが死亡する（#202）。
+			isArray := js.Global().Get("Array").Get("isArray").Invoke(v).Bool()
+			if !isArray {
+				return makeResult(h, fmt.Errorf("オプション args は配列でなければなりません"))
+			}
 			for i := 0; i < v.Length(); i++ {
 				h.CmdArgs = append(h.CmdArgs, v.Index(i).String())
 			}
@@ -159,12 +176,6 @@ func execute(code string, options js.Value) (result map[string]any) {
 		}
 	}
 
-	// Go側のpanicでwasm全体が止まらないように、エラーとして返す
-	defer func() {
-		if r := recover(); r != nil {
-			result = makeResult(h, fmt.Errorf("内部エラー: %v", r))
-		}
-	}()
 	return makeResult(h, wasmrt.Run(code, filename, h))
 }
 
