@@ -277,7 +277,7 @@ func TestBinaryFileOpensReadOnlyWithoutConfirmation(t *testing.T) {
 		"isBinaryFile = !!data.isBinary",
 		"editor.readOnly = isBinaryFile",
 		"data.encoding === 'Shift_JIS' || data.encoding === 'EUC-JP' ? data.encoding : 'UTF-8'",
-		"window.saveFile(targetPath, editor.value, currentFileEncoding)",
+		"window.saveFile(targetPath, contentToSave, currentFileEncoding)",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js is missing binary/encoding handling %q", required)
@@ -569,6 +569,36 @@ func TestThemeScript(t *testing.T) {
 		if !strings.HasSuffix(script, want+";") || !strings.Contains(script, "data-gonako-theme") {
 			t.Fatalf("themeScript(%s) is wrong: %s", theme, script)
 		}
+	}
+}
+
+// Issue #200: 保存要求時にエディタ内容をキャプチャし、応答待ち中の再編集と区別する。
+// savedContentには実際に保存した内容だけを入れる（応答後にeditor.valueを再読み込みしない）。
+func TestSaveCapturesContentBeforeAwait(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	// doSaveToPath関数内で、保存前にエディタ内容をキャプチャしていること
+	for _, required := range []string{
+		"const contentToSave = editor.value",
+		"window.saveFile(targetPath, contentToSave, currentFileEncoding)",
+		"savedContent = contentToSave",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js is missing save content capture %q", required)
+		}
+	}
+	// 保存成功時にeditor.valueを直接読んでいないこと（応答待ち中の再編集と混同しないため）
+	saveFuncStart := strings.Index(app, "async function doSaveToPath(targetPath)")
+	if saveFuncStart < 0 {
+		t.Fatal("app.js is missing doSaveToPath function")
+	}
+	saveFuncEnd := strings.Index(app[saveFuncStart:], "\n  }")
+	if saveFuncEnd < 0 {
+		t.Fatal("could not find the end of doSaveToPath function")
+	}
+	saveFunc := app[saveFuncStart : saveFuncStart+saveFuncEnd]
+	// savedContentへの代入がcontentToSaveからであることを確認
+	if strings.Contains(saveFunc, "savedContent = editor.value") {
+		t.Fatal("doSaveToPath must not read editor.value after await for savedContent (use captured contentToSave)")
 	}
 }
 
