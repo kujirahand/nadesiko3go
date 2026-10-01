@@ -198,12 +198,20 @@ func buildBundle(args []string, stdout, stderr io.Writer) error {
 		*out = defaultOutputName(source, *runtimePath)
 	}
 
+	// 出力ファイルがリソースフォルダ内にあっても同梱しないようにする (Issue #209)
+	outAbs, err := filepath.Abs(*out)
+	if err != nil {
+		return fmt.Errorf("出力パスを解決できません: %w", err)
+	}
+	skip := map[string]bool{outAbs: true}
+
 	if err := bundle.BuildSpec(*out, *runtimePath, bundle.Spec{
 		Kind:           bundle.KindProgram,
 		Program:        prog,
 		Name:           source,
 		ResourceDir:    *resource,
 		IncludeSymlink: *includeSymlink,
+		Skip:           skip,
 		Warn: func(format string, args ...any) {
 			fmt.Fprintf(stderr, "警告: "+format+"\n", args...)
 		},

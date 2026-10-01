@@ -465,6 +465,53 @@ func TestBundledExitCode(t *testing.T) {
 	}
 }
 
+// TestBuildOutputNotIncludedInResources pins Issue #209: when the output file
+// lives inside the resource folder, it must not be packed into itself.
+func TestBuildOutputNotIncludedInResources(t *testing.T) {
+	dir := t.TempDir()
+	resDir := filepath.Join(dir, "res")
+	if err := os.MkdirAll(resDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resDir, "data.txt"), []byte("data"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "app.nako3"), []byte("1を表示"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "runtime"), []byte("ランタイム"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	previous, _ := os.Getwd()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(previous)
+
+	// 出力先をリソースフォルダ内にする (Issue #209 の再現条件)
+	outPath := filepath.Join("res", "myapp")
+	var out, errOut bytes.Buffer
+	if err := run([]string{"build", "app.nako3", "--resource", "./res", "--runtime", "runtime", "--out", outPath}, &out, &errOut); err != nil {
+		t.Fatalf("build: %v; stderr=%s", err, errOut.String())
+	}
+
+	// 同梱一覧を確認
+	var listOut, listErr bytes.Buffer
+	if err := run([]string{"build", "--list", outPath}, &listOut, &listErr); err != nil {
+		t.Fatalf("build --list: %v", err)
+	}
+	listStr := listOut.String()
+	// data.txt は含まれているべき
+	if !strings.Contains(listStr, "res/data.txt") {
+		t.Errorf("list output should contain res/data.txt, got %q", listStr)
+	}
+	// myapp (出力自身) は含まれてはいけない
+	if strings.Contains(listStr, "myapp") {
+		t.Errorf("list output should not contain the output itself (myapp), got %q", listStr)
+	}
+}
+
 func TestLintOK(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "ok.nako3")
