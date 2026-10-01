@@ -701,9 +701,12 @@ Params["name"] = "test"
 Ans2 = URLへParamsをPOST保障送信
 「保障POST: {Ans2}」と表示
 
+Ans3 = URLへParamsをPOSTフォーム送信
+「同期FORM: {Ans3}」と表示
+
 「FORM_CB」でURLへParamsをPOSTフォーム送信時
-Ans3 = URLへParamsをPOSTフォーム保障送信
-「保障FORM: {Ans3}」と表示
+Ans4 = URLへParamsをPOSTフォーム保障送信
+「保障FORM: {Ans4}」と表示
 
 "dummy"にAJAXオプション設定
 「ERR_CB」のAJAX失敗時
@@ -717,6 +720,7 @@ Ans3 = URLへParamsをPOSTフォーム保障送信
 		"保障GET: GET応答",
 		"POST受信: POST応答:test",
 		"保障POST: POST応答:test",
+		"同期FORM: FORM応答:test",
 		"FORM受信: FORM応答:test",
 		"保障FORM: FORM応答:test",
 		"オプション設定完了",
@@ -731,4 +735,63 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
+}
+
+// TestPostFormMultipartContentType はPOSTフォーム送信系命令が
+// Content-Type: multipart/form-data で送信することを検証する。
+func TestPostFormMultipartContentType(t *testing.T) {
+	dir := t.TempDir()
+
+	// 要求を受け取って Content-Type を記録するハンドラ
+	var capturedContentType string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedContentType = r.Header.Get("Content-Type")
+		fmt.Fprint(w, "ok")
+	})
+	originalTransport := http.DefaultTransport
+	http.DefaultTransport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, req)
+		return recorder.Result(), nil
+	})
+	t.Cleanup(func() { http.DefaultTransport = originalTransport })
+
+	// 同期版: POSTフォーム送信
+	capturedContentType = ""
+	codeSync := fmt.Sprintf(`
+URL = "%s"
+P = {}
+P["name"] = "value"
+URLへPをPOSTフォーム送信
+`, "http://nodelib.test/sync")
+	runIn(t, dir, codeSync)
+	if !strings.HasPrefix(capturedContentType, "multipart/form-data") {
+		t.Errorf("POSTフォーム送信: Content-Type = %q, want multipart/form-data", capturedContentType)
+	}
+
+	// 非同期版: POSTフォーム送信時
+	capturedContentType = ""
+	codeAsync := fmt.Sprintf(`
+URL = "%s"
+P = {}
+P["name"] = "value"
+「dummy」でURLへPをPOSTフォーム送信時
+`, "http://nodelib.test/async")
+	runIn(t, dir, codeAsync)
+	if !strings.HasPrefix(capturedContentType, "multipart/form-data") {
+		t.Errorf("POSTフォーム送信時: Content-Type = %q, want multipart/form-data", capturedContentType)
+	}
+
+	// 保障版: POSTフォーム保障送信
+	capturedContentType = ""
+	codeGuard := fmt.Sprintf(`
+URL = "%s"
+P = {}
+P["name"] = "value"
+URLへPをPOSTフォーム保障送信
+`, "http://nodelib.test/guard")
+	runIn(t, dir, codeGuard)
+	if !strings.HasPrefix(capturedContentType, "multipart/form-data") {
+		t.Errorf("POSTフォーム保障送信: Content-Type = %q, want multipart/form-data", capturedContentType)
+	}
 }
