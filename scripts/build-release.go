@@ -114,11 +114,14 @@ func main() {
 
 // writeUploadScripts は release/*.zip を gh コマンドで既存のGitHubリリースへ
 // アップロードするスクリプト release/upload-{version}.sh および release/upload-{version}.bat を生成する。
+// 旧バージョンのZIPが残っていても混入しないよう、ファイル名に cfg.version を含むものだけを対象とする。
 func writeUploadScripts(cfg config) error {
-	zips, err := filepath.Glob(filepath.Join(cfg.outDir, "*.zip"))
+	allZips, err := filepath.Glob(filepath.Join(cfg.outDir, "*.zip"))
 	if err != nil {
 		return err
 	}
+	// 今回のバージョンの成果物だけを抽出する（旧版ZIPの混入を防ぐ）。
+	zips := filterZipsByVersion(allZips, cfg.version)
 
 	// 1. シェルスクリプト (.sh) の生成
 	shName := fmt.Sprintf("upload-%s.sh", cfg.version)
@@ -161,6 +164,19 @@ func writeUploadScripts(cfg config) error {
 	bat.WriteString("  --clobber\r\n")
 
 	return os.WriteFile(batPath, []byte(bat.String()), 0o755)
+}
+
+// filterZipsByVersion は ZIP ファイル一覧から、ファイル名に指定バージョンを含むものだけを返す。
+// なでしこのリリースZIPは gonako-{ver}-... / gonako-gui-{ver}-... の形式のため、
+// バージョン文字列を含むかどうかで今回の版の成果物だけを抽出できる。
+func filterZipsByVersion(paths []string, version string) []string {
+	var filtered []string
+	for _, p := range paths {
+		if strings.Contains(filepath.Base(p), version) {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
 }
 
 // buildCLI builds the pure Go gonako CLI executable and packages it as a zip.

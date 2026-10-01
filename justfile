@@ -149,6 +149,7 @@ benchmark: cmd
 test:
     {{go}} test ./...
     {{go}} test ./scripts/gen-manual.go ./scripts/gen-manual_test.go
+    {{go}} test ./scripts/build-release.go ./scripts/build-release_test.go
 
 # Go言語コードの行数・文字数・ファイル数を集計・分析する
 analyze-gocode *args:
