@@ -191,9 +191,8 @@ func (c *Compiler) compileRefBase(n *ast.Node) {
 	c.fail("配列アクセスの対象が分かりません。", n)
 }
 
-// compileCall compiles a command or user function call. A command that returns
-// a value also assigns it to 『それ』, which is how the next statement can use
-// it without naming it.
+// compileCall はコマンドまたは利用者定義関数の呼び出しをコンパイルする。
+// 戻り値を持つコマンドは『それ』にも結果を格納し、次の文で名前なしで使えるようにする。
 func (c *Compiler) compileCall(n *ast.Node) {
 	// 呼び出しの種類を先に判定し、引数を1度だけemitする。
 	// これにより、副作用のある引数式が二重評価されるのを防ぐ。

@@ -408,8 +408,8 @@ func TestUnaryMinus(t *testing.T) {
 	}
 }
 
-// TestVariableCallNoDoubleEval pins issue #197: calling a function stored in a
-// variable must evaluate its arguments exactly once, not twice.
+// TestVariableCallNoDoubleEval は Issue #197 の回帰テスト。
+// 変数に格納した関数の呼び出しで、引数が1回だけ評価されることを確認する。
 func TestVariableCallNoDoubleEval(t *testing.T) {
 	// 副作用のある関数を引数に渡して、呼ばれる回数が1回であることを確認する。
 	code := `F=関数(A)
