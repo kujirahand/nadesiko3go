@@ -66,27 +66,26 @@ func (p *Plugin) Impls() map[string]stdlib.Impl {
 }
 
 func (p *Plugin) csvGet(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	p.options.Delimiter = ","
 	txt := ""
 	if len(args) > 0 {
 		txt = value.ToString(args[0])
 	}
+	// 区切り文字は CSVオプション設定 の値（未設定なら既定のカンマ）を使う
 	res := p.parse(txt, p.options.Delimiter)
 	return value.ArrayValue(res), nil
 }
 
 func (p *Plugin) tsvGet(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	p.options.Delimiter = "\t"
 	txt := ""
 	if len(args) > 0 {
 		txt = value.ToString(args[0])
 	}
-	res := p.parse(txt, p.options.Delimiter)
+	// TSVはタブ固定。設定値は書き換えない
+	res := p.parse(txt, "\t")
 	return value.ArrayValue(res), nil
 }
 
 func (p *Plugin) csvStringify(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	p.options.Delimiter = ","
 	var v value.Value = value.Undefined()
 	if len(args) > 0 {
 		v = args[0]
@@ -96,12 +95,11 @@ func (p *Plugin) csvStringify(_ stdlib.Context, args []value.Value) (value.Value
 }
 
 func (p *Plugin) tsvStringify(_ stdlib.Context, args []value.Value) (value.Value, error) {
-	p.options.Delimiter = "\t"
 	var v value.Value = value.Undefined()
 	if len(args) > 0 {
 		v = args[0]
 	}
-	s := p.stringify(v, p.options.Delimiter, p.options.EOL)
+	s := p.stringify(v, "\t", p.options.EOL)
 	return value.String(s), nil
 }
 
