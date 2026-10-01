@@ -408,6 +408,23 @@ func TestUnaryMinus(t *testing.T) {
 	}
 }
 
+// TestVariableCallNoDoubleEval は Issue #197 の回帰テスト。
+// 変数に格納した関数の呼び出しで、引数が1回だけ評価されることを確認する。
+func TestVariableCallNoDoubleEval(t *testing.T) {
+	// 副作用のある関数を引数に渡して、呼ばれる回数が1回であることを確認する。
+	code := `F=関数(A)
+  (A*2)で戻る。
+ここまで。
+●痕跡とは
+  「呼ばれた」と表示。
+  それは5。
+ここまで。
+F(痕跡())を表示。`
+	if got := run(t, code); got != "呼ばれた\n10" {
+		t.Errorf("variable call double eval: got %q, want %q", got, "呼ばれた\n10")
+	}
+}
+
 // Issue #199: プロパティ代入『A$キー=値』が構文エラーまたは未実装エラーになっていた。
 func TestPropertyAssignment(t *testing.T) {
 	tests := []struct{ name, code, want string }{
