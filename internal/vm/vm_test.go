@@ -407,3 +407,20 @@ func TestUnaryMinus(t *testing.T) {
 		t.Errorf("-5n: got %v, want bigint 未対応エラー", err)
 	}
 }
+
+// TestVariableCallNoDoubleEval pins issue #197: calling a function stored in a
+// variable must evaluate its arguments exactly once, not twice.
+func TestVariableCallNoDoubleEval(t *testing.T) {
+	// 副作用のある関数を引数に渡して、呼ばれる回数が1回であることを確認する。
+	code := `F=関数(A)
+  (A*2)で戻る。
+ここまで。
+●痕跡とは
+  「呼ばれた」と表示。
+  それは5。
+ここまで。
+F(痕跡())を表示。`
+	if got := run(t, code); got != "呼ばれた\n10" {
+		t.Errorf("variable call double eval: got %q, want %q", got, "呼ばれた\n10")
+	}
+}

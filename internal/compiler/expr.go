@@ -195,44 +195,40 @@ func (c *Compiler) compileRefBase(n *ast.Node) {
 // a value also assigns it to 『それ』, which is how the next statement can use
 // it without naming it.
 func (c *Compiler) compileCall(n *ast.Node) {
-	for _, a := range n.Blocks {
-		c.compileExpr(a)
-	}
-	argc := len(n.Blocks)
+	// 呼び出しの種類を先に判定し、引数を1度だけemitする。
+	// これにより、副作用のある引数式が二重評価されるのを防ぐ。
 
 	if index, ok := c.userFuncs[n.Name]; ok {
-		c.emit(ir.OpCallUser, index, argc, n)
+		// 利用者定義関数: 引数を積んでから呼ぶ
+		for _, a := range n.Blocks {
+			c.compileExpr(a)
+		}
+		c.emit(ir.OpCallUser, index, len(n.Blocks), n)
 		c.emit(ir.OpDup, 0, 0, n)
 		c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 		return
 	}
 
-	entry, ok := c.registry.Lookup(n.Name)
-	if !ok {
-		// 命令にも利用者定義関数にもない名前。変数に入った関数とみなして呼ぶ。
-		// 『F=関数(...)…ここまで』のあとの『F()』がこの形になる。
-		c.compileCallVariable(n)
+	if entry, ok := c.registry.Lookup(n.Name); ok {
+		// 標準命令: 引数を積んでから呼ぶ
+		for _, a := range n.Blocks {
+			c.compileExpr(a)
+		}
+		c.emit(ir.OpCallStd, entry.ID, len(n.Blocks), n)
+		if entry.Item.ReturnNone {
+			// 戻り値のない命令。呼び出しの結果は捨て、『それ』も変えない。
+			c.emit(ir.OpPop, 0, 0, n)
+			c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, n)
+			return
+		}
+		c.emit(ir.OpDup, 0, 0, n)
+		c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
 		return
 	}
-	c.emit(ir.OpCallStd, entry.ID, argc, n)
-	if entry.Item.ReturnNone {
-		// 戻り値のない命令。呼び出しの結果は捨て、『それ』も変えない。
-		c.emit(ir.OpPop, 0, 0, n)
-		c.emit(ir.OpLoadConst, c.constant(ir.Const{Kind: ir.ConstUndefined}), 0, n)
-		return
-	}
-	c.emit(ir.OpDup, 0, 0, n)
-	c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
-}
 
-// compileCallVariable calls a function held in a variable. The arguments are
-// already on the stack, so the callee has to go underneath them; it is easier
-// to re-emit both in the right order.
-func (c *Compiler) compileCallVariable(n *ast.Node) {
-	// さきほど積んだ引数を捨ててから、呼び出す値と引数を積み直す
-	for range n.Blocks {
-		c.emit(ir.OpPop, 0, 0, n)
-	}
+	// 命令にも利用者定義関数にもない名前。変数に入った関数とみなして呼ぶ。
+	// 『F=関数(...)…ここまで』のあとの『F()』がこの形になる。
+	// 変数を先に積み、引数を続けて積む（引数の再評価を避けるため）。
 	c.loadVar(n.Name, n)
 	for _, a := range n.Blocks {
 		c.compileExpr(a)
