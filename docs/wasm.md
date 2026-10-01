@@ -88,7 +88,7 @@ WebAssembly.instantiateStreaming(fetch("gonako.wasm"), go.importObject)
 - `gonako.run(code, options)` … `Promise<{ok, output, error}>` を返す。失敗してもrejectせず、
   `error` に `{kind, file, line, message}` を入れる（`line` は1始まり）
   - `filename` エラー表示に使うファイル名（既定: `main.nako3`）
-  - `args` プログラムに渡す引数（文字列の配列）
+  - `args` プログラムに渡す引数（文字列の配列。配列以外を渡すとエラー）
   - `onPrint(line)` `表示` のたびに1行を受け取る
   - `onWrite(s)` 改行しない出力を受け取る
   - `onDialog(kind, message)` `alert`/`confirm`/`prompt` の代わりに呼ばれる
