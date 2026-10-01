@@ -1986,10 +1986,13 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const fileName = pathBaseName(targetPath);
       setStatus(`保存中: ${fileName}...`);
-      const res = await window.saveFile(targetPath, editor.value, currentFileEncoding);
+      // 保存要求時のエディタ内容をキャプチャ（応答待ち中の再編集と区別するため）
+      const contentToSave = editor.value;
+      const res = await window.saveFile(targetPath, contentToSave, currentFileEncoding);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        savedContent = editor.value;
+        // 実際に保存した内容を保存済みとして記録（応答待ち中の再編集は未保存扱い）
+        savedContent = contentToSave;
         currentFilePath = targetPath;
         currentFileDisplayName = fileName;
         currentTemplateBaseName = '';
