@@ -58,7 +58,9 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 	maxInstructions := m.options.MaxInstructions
 dispatch:
 	for pc < len(code) {
-		m.PollExternalEvents()
+		if m.hasExternal {
+			m.PollExternalEvents()
+		}
 		// Jump targets and the instruction after a control transfer are basic
 		// block starts. Charge a straight-line block once here instead of doing
 		// an increment and comparison for every dispatch in the hot loop.

@@ -145,6 +145,8 @@ func osCommands(m map[string]command) {
 					return false
 				}
 			}, func() error {
+				// 単発ハンドラの完了後は、次のCtrl+Cを標準の終了動作に戻す。
+				defer signal.Stop(c)
 				res, _ := ctx.CallFunc(fn, nil)
 				if value.ToBool(res) || res.Kind() == value.KindUndefined {
 					ctx.Exit(0)

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -23,8 +25,8 @@ func TestRunClosesExternalEvents(t *testing.T) {
 			closed := 0
 			m.PostExternalEvent(func() bool { return false }, nil, func() { closed++ })
 			_ = m.Run()
-			if closed != 1 {
-				t.Fatalf("登録解除の回数: %d", closed)
+			if closed != 1 || m.hasExternal {
+				t.Fatalf("登録解除の回数: %d, hasExternal=%v", closed, m.hasExternal)
 			}
 		})
 	}
@@ -33,7 +35,7 @@ func TestRunClosesExternalEvents(t *testing.T) {
 // 実際のSIGINTを別プロセスへ送り、実行中のVMとハンドラの競合を検証する。
 // -raceで実行すると子プロセスも同じ検出器を使う。
 func TestInterruptDuringExecution(t *testing.T) {
-	if os.Getenv("GONAKO_SIGNAL_TEST_CHILD") == "1" {
+	if mode := os.Getenv("GONAKO_SIGNAL_TEST_CHILD"); mode != "" {
 		code := `完了=0
 回数=0
 ●中断処理
@@ -47,6 +49,13 @@ func TestInterruptDuringExecution(t *testing.T) {
   回数=回数+1
 ここまで
 「done」を表示`
+		if mode == "second" {
+			// ハンドラが戻り登録解除が完了した後に、親へ2回目の送信を依頼する。
+			code = strings.Replace(code, "「done」を表示", `「continued」を表示
+(完了=1)の間
+  回数=回数+1
+ここまで`, 1)
+		}
 		prog, err := CompileProgram(code, "signal.nako3")
 		if err != nil {
 			t.Fatal(err)
@@ -62,10 +71,17 @@ func TestInterruptDuringExecution(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("WindowsではProcess.SignalによるSIGINT送信に対応していない")
 	}
+	for _, mode := range []string{"continue", "second"} {
+		t.Run(mode, func(t *testing.T) { testInterruptProcess(t, mode) })
+	}
+}
+
+func testInterruptProcess(t *testing.T, mode string) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestInterruptDuringExecution$")
-	cmd.Env = append(os.Environ(), "GONAKO_SIGNAL_TEST_CHILD=1")
+	cmd.Env = append(os.Environ(), "GONAKO_SIGNAL_TEST_CHILD="+mode)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
@@ -81,13 +97,28 @@ func TestInterruptDuringExecution(t *testing.T) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		lines = append(lines, line)
-		if line == "ready" {
+		if line == "ready" || (mode == "second" && line == "continued") {
 			if err := cmd.Process.Signal(os.Interrupt); err != nil {
 				t.Fatal(err)
 			}
 		}
 	}
-	if err := cmd.Wait(); err != nil {
+	err = cmd.Wait()
+	if mode == "second" {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf("2回目のSIGINTで終了しない: %v\n%v\n%s", err, lines, &stderr)
+		}
+		status, ok := exitErr.Sys().(syscall.WaitStatus)
+		if !ok || !status.Signaled() || status.Signal() != syscall.SIGINT {
+			t.Fatalf("SIGINT以外で終了: %v\n%v\n%s", err, lines, &stderr)
+		}
+		if got := strings.Join(lines, "\n"); got != "ready\nhandler\ncontinued" {
+			t.Fatalf("実行順が不正: %q", got)
+		}
+		return
+	}
+	if err != nil {
 		t.Fatalf("SIGINT実行: %v\n%v\n%s", err, lines, &stderr)
 	}
 	if got := strings.Join(lines, "\n"); !strings.HasPrefix(got, "ready\nhandler\ndone\nPASS") {
