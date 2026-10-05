@@ -331,44 +331,57 @@ func TestDOMLifecycleOperationsReachGUISession(t *testing.T) {
 }
 
 func TestGUIAsyncDialogs(t *testing.T) {
-	session := &guiSession{}
-	runID := session.start(`
+	// #220で標準入力と統一した変換を、GUIの非同期ダイアログでも確認する。
+	for _, tt := range []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{name: "半角数値", input: "12.5", output: "12.5:number:false\n"},
+		{name: "全角数字", input: "１２.５", output: "１２.５:string:false\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			session := &guiSession{}
+			runID := session.start(`
 「こんにちは」と言う
 A=「数値を入力」と尋ねる
 B=「続ける？」で二択
-「{A}:{B}」を表示
+型=Aの変数型確認
+「{A}:{型}:{B}」を表示
 `, "dialog.nako3", true, nil, nil)
 
-	want := []struct {
-		kind     string
-		text     string
-		accepted bool
-	}{
-		{kind: "alert", accepted: true},
-		{kind: "prompt", text: "１２.５", accepted: true},
-		{kind: "confirm", accepted: false},
-	}
-	collector := newAsyncCollector(session, runID)
-	for _, expected := range want {
-		status := waitForDialog(t, collector)
-		if status.Dialog.Kind != expected.kind {
-			t.Fatalf("dialog kind = %q, want %q", status.Dialog.Kind, expected.kind)
-		}
-		if !session.resolveDialog(runID, status.Dialog.ID, expected.text, expected.accepted) {
-			t.Fatalf("resolveDialog(%d) failed", status.Dialog.ID)
-		}
-	}
+			want := []struct {
+				kind     string
+				text     string
+				accepted bool
+			}{
+				{kind: "alert", accepted: true},
+				{kind: "prompt", text: tt.input, accepted: true},
+				{kind: "confirm", accepted: false},
+			}
+			collector := newAsyncCollector(session, runID)
+			for _, expected := range want {
+				status := waitForDialog(t, collector)
+				if status.Dialog.Kind != expected.kind {
+					t.Fatalf("dialog kind = %q, want %q", status.Dialog.Kind, expected.kind)
+				}
+				if !session.resolveDialog(runID, status.Dialog.ID, expected.text, expected.accepted) {
+					t.Fatalf("resolveDialog(%d) failed", status.Dialog.ID)
+				}
+			}
 
-	status := waitForAsyncDone(t, collector)
-	if status.Result == nil || !status.Result.OK {
-		t.Fatalf("result = %#v", status.Result)
-	}
-	// 出力はストリーム側にだけ届く。Result には残らない。
-	if got := collector.output.String(); got != "12.5:false\n" {
-		t.Fatalf("streamed output = %q, want %q", got, "12.5:false\n")
-	}
-	if status.Result.Output != "" || len(status.Result.Operations) != 0 {
-		t.Fatalf("非同期実行のResultには出力・画面操作を残さない: %#v", status.Result)
+			status := waitForAsyncDone(t, collector)
+			if status.Result == nil || !status.Result.OK {
+				t.Fatalf("result = %#v", status.Result)
+			}
+			// 出力はストリーム側にだけ届く。Result には残らない。
+			if got := collector.output.String(); got != tt.output {
+				t.Fatalf("streamed output = %q, want %q", got, tt.output)
+			}
+			if status.Result.Output != "" || len(status.Result.Operations) != 0 {
+				t.Fatalf("非同期実行のResultには出力・画面操作を残さない: %#v", status.Result)
+			}
+		})
 	}
 }
 
