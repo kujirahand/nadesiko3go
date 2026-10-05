@@ -227,3 +227,34 @@ func TestImageLibErrors(t *testing.T) {
 		t.Fatalf("expected out-of-bounds error, got %v", err)
 	}
 }
+
+// TestImageSaveUnsupportedFormatPreservesExistingFile は Issue #190 の回帰テスト。
+// 未対応の拡張子で画像保存しようとしたとき、既存ファイルの内容が保持されることを確認する。
+func TestImageSaveUnsupportedFormatPreservesExistingFile(t *testing.T) {
+	p := imagelib.New()
+	impls := p.Impls()
+
+	size := value.ArrayValue(value.NewArray(value.Number(100), value.Number(100)))
+	if _, err := impls["画像新規作成"](nil, []value.Value{size}); err != nil {
+		t.Fatalf("画像新規作成に失敗しました: %v", err)
+	}
+
+	unsupportedPath := filepath.Join(t.TempDir(), "out.txt")
+	want := []byte("IMPORTANT-EXISTING-CONTENT")
+	if err := os.WriteFile(unsupportedPath, want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := impls["画像保存"](nil, []value.Value{value.String(unsupportedPath)})
+	if err == nil || !strings.Contains(err.Error(), "画像保存はPNG、JPEG、GIF形式に対応しています。") {
+		t.Fatalf("未対応形式のエラーがありません: %v", err)
+	}
+
+	got, err := os.ReadFile(unsupportedPath)
+	if err != nil {
+		t.Fatalf("既存ファイルを読めません: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Fatalf("既存ファイルの内容が変わりました: got %q, want %q", got, want)
+	}
+}
