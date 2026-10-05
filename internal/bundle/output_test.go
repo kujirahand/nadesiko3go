@@ -229,3 +229,68 @@ func TestBuildSkipsChainedLinksToMissingOutput(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildReplacesOutputSymlink(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "old-app")
+	old := "リンク先の旧成果物"
+	if err := os.WriteFile(target, []byte(old), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "app")
+	if err := os.Symlink("old-app", out); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{Kind: bundle.KindHTML, Entry: "index.html"}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.Mode().IsRegular() {
+		t.Fatalf("リンクが通常ファイルに置き換わっていません: %v", info.Mode())
+	}
+	data, err := os.ReadFile(target)
+	if err != nil || string(data) != old {
+		t.Fatalf("リンク先が変更されました: %q, %v", data, err)
+	}
+	app, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	assertNoBuildTemps(t, dir)
+}
+
+func TestBuildSkipsLeftoverTempResources(t *testing.T) {
+	dir := t.TempDir()
+	res := filepath.Join(dir, "res")
+	if err := os.Mkdir(res, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string]string{"index.html": "アプリ", ".gonako-build-abandoned": "未完成の梱包"} {
+		if err := os.WriteFile(filepath.Join(res, name), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 出力先とリソースを同じフォルダにして、前回の残骸が混入しないか確認する。
+	out := filepath.Join(res, "app")
+	if err := bundle.BuildSpec(out, fakeRuntime(t, dir), bundle.Spec{
+		Kind: bundle.KindHTML, Entry: "index.html", ResourceDir: res, Flat: true,
+		Skip: map[string]bool{out: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	app, err := bundle.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Close()
+	if files := app.Resources(); len(files) != 1 || files[0] != "index.html" {
+		t.Fatalf("一時ファイルが混入しました: %v", files)
+	}
+	if data, err := os.ReadFile(filepath.Join(res, ".gonako-build-abandoned")); err != nil || string(data) != "未完成の梱包" {
+		t.Fatalf("既存の残骸が変更されました: %q, %v", data, err)
+	}
+}
