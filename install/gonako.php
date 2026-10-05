@@ -55,6 +55,27 @@ if (!function_exists('gonakoFetchUrl')) {
     }
 }
 
+if (!function_exists('gonakoMyUid')) {
+    /**
+     * PHP実行ユーザーの uid を返す (判定できなければ null)
+     * posix 拡張が無い環境では、自分で作った一時ファイルの所有者から求める
+     *
+     * @return int|null
+     */
+    function gonakoMyUid() {
+        if (function_exists('posix_geteuid')) {
+            return posix_geteuid();
+        }
+        $probe = @tempnam(sys_get_temp_dir(), 'gonako_uid_');
+        if ($probe === false) {
+            return null;
+        }
+        $uid = @fileowner($probe);
+        @unlink($probe);
+        return $uid === false ? null : $uid;
+    }
+}
+
 if (!function_exists('gonakoIsTrusted')) {
     /**
      * パスが「PHP実行ユーザー自身の所有」かつ「他者が書き込めない」ものか確認する
@@ -70,7 +91,9 @@ if (!function_exists('gonakoIsTrusted')) {
         if ($st === false) {
             return false;
         }
-        if (function_exists('posix_geteuid') && $st['uid'] !== posix_geteuid()) {
+        $me = gonakoMyUid();
+        if ($me === null || $st['uid'] !== $me) {
+            // 所有者を検証できない場合は信頼しない
             return false;
         }
         // グループ・その他に書き込み権限があれば信頼しない
@@ -85,7 +108,10 @@ if (!function_exists('gonakoCacheDir')) {
      * @return string|null
      */
     function gonakoCacheDir() {
-        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : md5(__DIR__);
+        $uid = gonakoMyUid();
+        if ($uid === null) {
+            return null;
+        }
         $dir = sys_get_temp_dir() . '/gonako_install_cache_' . $uid;
         if (!is_dir($dir) && !is_link($dir)) {
             @mkdir($dir, 0700, true);

@@ -102,7 +102,7 @@ runTest("Tampered shared cache is rejected", function () use ($target) {
     file_put_contents($old . '/install.sh', "echo pwned\n");
 
     // 現行の命名のディレクトリ・ファイルを他者書き込み可で用意しても拒否する
-    $uid = function_exists('posix_geteuid') ? posix_geteuid() : md5($tmpDir);
+    $uid = posix_geteuid();
     $cur = $tmpHome . '/gonako_install_cache_' . $uid;
     mkdir($cur, 0777, true);
     chmod($cur, 0777);
