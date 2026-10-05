@@ -176,25 +176,41 @@ func (p *Plugin) save(_ stdlib.Context, args []value.Value) (value.Value, error)
 		return value.Undefined(), err
 	}
 	filename := value.ToString(arg(args, 0))
+	encode := imageEncoderForExt(strings.ToLower(filepath.Ext(filename)))
+	if encode == nil {
+		return value.Undefined(), errors.New("画像保存はPNG、JPEG、GIF形式に対応しています。")
+	}
 	f, err := os.Create(filename)
 	if err != nil {
 		return value.Undefined(), fmt.Errorf("画像『%s』を保存できません: %w", filename, err)
 	}
-	switch strings.ToLower(filepath.Ext(filename)) {
-	case ".jpg", ".jpeg":
-		err = jpeg.Encode(f, c.img, &jpeg.Options{Quality: 90})
-	case ".gif":
-		err = gif.Encode(f, c.img, nil)
-	case ".png", "":
-		err = png.Encode(f, c.img)
-	default:
-		err = errors.New("画像保存はPNG、JPEG、GIF形式に対応しています。")
-	}
+	err = encode(f, c.img)
 	closeErr := f.Close()
 	if err != nil {
 		return value.Undefined(), err
 	}
 	return value.Undefined(), closeErr
+}
+
+// imageEncoderForExt は拡張子から保存形式のエンコーダーを1か所で選ぶ。
+// 未対応形式は nil を返し、呼び出し側がファイルを作成する前に拒否できる。
+func imageEncoderForExt(ext string) func(*os.File, *image.RGBA) error {
+	switch ext {
+	case ".jpg", ".jpeg":
+		return func(f *os.File, img *image.RGBA) error {
+			return jpeg.Encode(f, img, &jpeg.Options{Quality: 90})
+		}
+	case ".gif":
+		return func(f *os.File, img *image.RGBA) error {
+			return gif.Encode(f, img, nil)
+		}
+	case ".png", "":
+		return func(f *os.File, img *image.RGBA) error {
+			return png.Encode(f, img)
+		}
+	default:
+		return nil
+	}
 }
 
 func (p *Plugin) fill(_ stdlib.Context, args []value.Value) (value.Value, error) {
