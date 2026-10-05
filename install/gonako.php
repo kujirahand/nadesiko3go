@@ -55,6 +55,48 @@ if (!function_exists('gonakoFetchUrl')) {
     }
 }
 
+if (!function_exists('gonakoIsTrusted')) {
+    /**
+     * パスが「PHP実行ユーザー自身の所有」かつ「他者が書き込めない」ものか確認する
+     *
+     * @param string $path
+     * @return bool
+     */
+    function gonakoIsTrusted($path) {
+        if (is_link($path)) {
+            return false;
+        }
+        $st = @stat($path);
+        if ($st === false) {
+            return false;
+        }
+        if (function_exists('posix_geteuid') && $st['uid'] !== posix_geteuid()) {
+            return false;
+        }
+        // グループ・その他に書き込み権限があれば信頼しない
+        return ($st['mode'] & 0022) === 0;
+    }
+}
+
+if (!function_exists('gonakoCacheDir')) {
+    /**
+     * 実行ユーザー専用のキャッシュディレクトリを返す (安全に用意できなければ null)
+     *
+     * @return string|null
+     */
+    function gonakoCacheDir() {
+        $uid = function_exists('posix_geteuid') ? (string)posix_geteuid() : md5(__DIR__);
+        $dir = sys_get_temp_dir() . '/gonako_install_cache_' . $uid;
+        if (!is_dir($dir) && !is_link($dir)) {
+            @mkdir($dir, 0700, true);
+        }
+        if (!is_dir($dir) || !gonakoIsTrusted($dir)) {
+            return null;
+        }
+        return $dir;
+    }
+}
+
 // 1. OS / スクリプト種別の判定
 $isWindows = false;
 
@@ -101,15 +143,18 @@ foreach ($localCandidates as $candidatePath) {
 
 // (B) ローカルファイルがない場合は GitHub の raw リポジトリから取得 (キャッシュ付き)
 if ($content === null) {
-    $cacheDir = sys_get_temp_dir() . '/gonako_install_cache';
-    if (!is_dir($cacheDir)) {
-        @mkdir($cacheDir, 0777, true);
-    }
-    $cacheFile = $cacheDir . '/' . $scriptName;
+    // 実行ユーザー専用 (0700) で、所有者・権限を検証できた場合だけキャッシュを使う
+    $cacheDir = gonakoCacheDir();
+    $cacheFile = $cacheDir !== null ? $cacheDir . '/' . $scriptName : null;
     $cacheTtl = 600; // キャッシュ有効期間 (10分)
+    if ($cacheFile !== null && file_exists($cacheFile) && !gonakoIsTrusted($cacheFile)) {
+        // 他者が置いた・書き換え可能なキャッシュは破棄して使わない
+        @unlink($cacheFile);
+    }
+    $cacheUsable = $cacheFile !== null && file_exists($cacheFile) && gonakoIsTrusted($cacheFile);
 
     // キャッシュが有効ならそれを使用
-    if (file_exists($cacheFile) && (time() - filemtime($cacheFile) < $cacheTtl)) {
+    if ($cacheUsable && (time() - filemtime($cacheFile) < $cacheTtl)) {
         $cached = @file_get_contents($cacheFile);
         if ($cached !== false && strlen($cached) > 0) {
             $content = $cached;
@@ -122,8 +167,17 @@ if ($content === null) {
         $fetched = gonakoFetchUrl($rawUrl);
         if ($fetched !== false && strlen($fetched) > 0) {
             $content = $fetched;
-            @file_put_contents($cacheFile, $content);
-        } elseif (file_exists($cacheFile)) {
+            if ($cacheFile !== null) {
+                // 一時ファイルに書いてから置き換える (0600)
+                $tmp = $cacheFile . '.' . bin2hex(random_bytes(8)) . '.tmp';
+                if (@file_put_contents($tmp, $content) !== false) {
+                    @chmod($tmp, 0600);
+                    if (!@rename($tmp, $cacheFile)) {
+                        @unlink($tmp);
+                    }
+                }
+            }
+        } elseif ($cacheUsable && file_exists($cacheFile)) {
             // ネットワークエラー時は期限切れキャッシュでも利用
             $content = @file_get_contents($cacheFile);
         }

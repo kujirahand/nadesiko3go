@@ -85,4 +85,69 @@ runTest("Standalone file (no local scripts) fetches from GitHub raw", function (
     }
 });
 
+// Test 7: 共有一時領域に置かれた改ざんキャッシュは配信しない (#184)
+runTest("Tampered shared cache is rejected", function () use ($target) {
+    $base = sys_get_temp_dir() . '/gonako_test_' . bin2hex(random_bytes(4));
+    $tmpDir = $base . '/app';
+    $tmpHome = $base . '/tmp';
+    mkdir($tmpDir, 0700, true);
+    mkdir($tmpHome, 0700, true);
+    $tmpFile = $tmpDir . '/gonako.php';
+    copy($target, $tmpFile);
+
+    // 旧実装と同じ固定名・誰でも書き込める権限で、改ざんキャッシュを先に置く
+    $old = $tmpHome . '/gonako_install_cache';
+    mkdir($old, 0777, true);
+    chmod($old, 0777);
+    file_put_contents($old . '/install.sh', "echo pwned\n");
+
+    // 現行の命名のディレクトリ・ファイルを他者書き込み可で用意しても拒否する
+    $uid = function_exists('posix_geteuid') ? posix_geteuid() : md5($tmpDir);
+    $cur = $tmpHome . '/gonako_install_cache_' . $uid;
+    mkdir($cur, 0777, true);
+    chmod($cur, 0777);
+    file_put_contents($cur . '/install.sh', "echo pwned\n");
+
+    $out = shell_exec("TMPDIR=" . escapeshellarg($tmpHome) . " HTTP_USER_AGENT='curl/8.0' php " . escapeshellarg($tmpFile));
+
+    shell_exec("rm -rf " . escapeshellarg($base));
+
+    if (strpos((string)$out, 'echo pwned') !== false) {
+        throw new Exception("Tampered cache was served");
+    }
+    if (strpos((string)$out, "インストーラー (macOS / Linux 用)") === false) {
+        throw new Exception("Genuine script was not served, got:\n" . substr((string)$out, 0, 200));
+    }
+});
+
+// Test 8: 専用キャッシュは 0700 で作られ、次回はキャッシュから配信できる
+runTest("Private cache is created with 0700", function () use ($target) {
+    $base = sys_get_temp_dir() . '/gonako_test_' . bin2hex(random_bytes(4));
+    $tmpDir = $base . '/app';
+    $tmpHome = $base . '/tmp';
+    mkdir($tmpDir, 0700, true);
+    mkdir($tmpHome, 0700, true);
+    $tmpFile = $tmpDir . '/gonako.php';
+    copy($target, $tmpFile);
+
+    $cmd = "TMPDIR=" . escapeshellarg($tmpHome) . " HTTP_USER_AGENT='curl/8.0' php " . escapeshellarg($tmpFile);
+    $out = shell_exec($cmd);
+    $dirs = glob($tmpHome . '/gonako_install_cache_*');
+    $mode = $dirs ? (fileperms($dirs[0]) & 0777) : -1;
+    $files = $dirs ? glob($dirs[0] . '/install.sh') : [];
+    $fmode = $files ? (fileperms($files[0]) & 0777) : -1;
+
+    shell_exec("rm -rf " . escapeshellarg($base));
+
+    if (strpos((string)$out, "インストーラー (macOS / Linux 用)") === false) {
+        throw new Exception("Standalone fetch failed");
+    }
+    if ($mode !== 0700) {
+        throw new Exception("cache dir mode is " . decoct($mode));
+    }
+    if ($fmode !== 0600) {
+        throw new Exception("cache file mode is " . decoct($fmode));
+    }
+});
+
 echo "All tests passed successfully!\n";
