@@ -28,13 +28,19 @@ type systemWindowDriver struct{}
 
 func (systemWindowDriver) List() ([]windowInfo, error) {
 	// タイトルが空でない表示中のウィンドウIDを列挙する
-	out, err := runXdotool("search", "--onlyvisible", "--name", ".")
+	bin, err := exec.LookPath("xdotool")
 	if err != nil {
-		// 該当なしは終了コード1になるため空として扱う
-		if strings.Contains(err.Error(), xdotoolGuide) {
-			return nil, err
+		return nil, errors.New(xdotoolGuide)
+	}
+	raw, err := exec.Command(bin, "search", "--onlyvisible", "--name", ".").CombinedOutput()
+	out := strings.TrimSpace(string(raw))
+	if err != nil {
+		// 「一致なし」は終了コード1で出力が空。それ以外(DISPLAY未設定など)は失敗として返す
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == 1 && out == "" {
+			return nil, nil
 		}
-		return nil, nil
+		return nil, fmt.Errorf("xdotoolに失敗しました: %w: %s", err, out)
 	}
 	var list []windowInfo
 	for _, f := range strings.Fields(out) {

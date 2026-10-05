@@ -4,6 +4,7 @@ package nodelib
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -43,9 +44,13 @@ func checkHWND(h int64) (uintptr, error) {
 	return uintptr(h), nil
 }
 
-func (systemWindowDriver) List() ([]windowInfo, error) {
-	var list []windowInfo
-	cb := windows.NewCallback(func(hwnd uintptr, _ uintptr) uintptr {
+// enumWindowsCallback は EnumWindows に渡す固定のコールバック。
+// windows.NewCallback で登録した枠は解放できず上限(2000)を超えるとプロセスが
+// 終了するため、プロセスで1度だけ登録して使い回す。結果の格納先は enumList。
+var (
+	enumMu       sync.Mutex
+	enumList     []windowInfo
+	enumCallback = windows.NewCallback(func(hwnd uintptr, _ uintptr) uintptr {
 		if v, _, _ := procIsWindowVisible.Call(hwnd); v == 0 {
 			return 1
 		}
@@ -55,12 +60,20 @@ func (systemWindowDriver) List() ([]windowInfo, error) {
 		}
 		buf := make([]uint16, n+1)
 		procGetWindowTextW.Call(hwnd, uintptr(unsafe.Pointer(&buf[0])), n+1)
-		list = append(list, windowInfo{Handle: int64(hwnd), Title: windows.UTF16ToString(buf)})
+		enumList = append(enumList, windowInfo{Handle: int64(hwnd), Title: windows.UTF16ToString(buf)})
 		return 1
 	})
-	if r, _, err := procEnumWindows.Call(cb, 0); r == 0 {
+)
+
+func (systemWindowDriver) List() ([]windowInfo, error) {
+	enumMu.Lock()
+	defer enumMu.Unlock()
+	enumList = nil
+	if r, _, err := procEnumWindows.Call(enumCallback, 0); r == 0 {
 		return nil, fmt.Errorf("EnumWindowsに失敗しました: %w", err)
 	}
+	list := enumList
+	enumList = nil
 	return list, nil
 }
 
