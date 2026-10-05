@@ -11,6 +11,7 @@ package bundle
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -197,20 +198,35 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 		return err
 	}
 
-	out, err := os.OpenFile(outPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
+	// 一時ファイルがリソースに混入しないよう、先にペイロードを完成させる。
+	payload, err := buildPayload(spec)
+	if err != nil {
+		return err
+	}
+
+	// 同じフォルダに書き出し、完成した場合だけ既存出力と置き換える。
+	oldInfo, err := os.Stat(outPath)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("出力ファイル『%s』を確認できません: %w", outPath, err)
+	}
+	mode := os.FileMode(0o755)
+	if oldInfo != nil {
+		mode = oldInfo.Mode().Perm()
+	}
+	out, err := createOutputTemp(filepath.Dir(outPath), mode)
 	if err != nil {
 		return fmt.Errorf("出力ファイル『%s』を作れません: %w", outPath, err)
 	}
-	defer out.Close()
+	tempPath := out.Name()
+	defer func() {
+		_ = out.Close()
+		_ = os.Remove(tempPath)
+	}()
 
 	if _, err := out.Write(runtime); err != nil {
 		return fmt.Errorf("ランタイムを書き出せません: %w", err)
 	}
 
-	payload, err := buildPayload(spec)
-	if err != nil {
-		return err
-	}
 	if _, err := out.Write(payload); err != nil {
 		return fmt.Errorf("ペイロードを書き出せません: %w", err)
 	}
@@ -221,7 +237,35 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 	if _, err := out.Write(footer); err != nil {
 		return fmt.Errorf("フッタを書き出せません: %w", err)
 	}
+	// 既存出力は権限を保持する。新規出力は作成時のumaskを適用した権限を使う。
+	if oldInfo != nil {
+		if err := out.Chmod(oldInfo.Mode().Perm()); err != nil {
+			return fmt.Errorf("出力ファイルの権限を設定できません: %w", err)
+		}
+	}
+	if err := out.Sync(); err != nil {
+		return fmt.Errorf("出力ファイルを同期できません: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("出力ファイルを閉じられません: %w", err)
+	}
+	if err := os.Rename(tempPath, outPath); err != nil {
+		return fmt.Errorf("出力ファイル『%s』を置き換えられません: %w", outPath, err)
+	}
 	return nil
+}
+
+// createOutputTemp は指定された権限とumaskを反映した一時ファイルを排他的に作る。
+func createOutputTemp(dir string, mode os.FileMode) (*os.File, error) {
+	for range 10 {
+		name := filepath.Join(dir, ".gonako-build-"+rand.Text())
+		out, err := os.OpenFile(name, os.O_CREATE|os.O_EXCL|os.O_WRONLY, mode)
+		if os.IsExist(err) {
+			continue
+		}
+		return out, err
+	}
+	return nil, errors.New("一時ファイル名が重複しました")
 }
 
 // readRuntime reads a runtime executable, dropping any payload it already
@@ -339,6 +383,12 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 	skipPaths := make(map[string]bool, len(skip))
 	for k := range skip {
 		skipPaths[k] = true
+		// 未作成の出力先も、親フォルダのリンクを解決したパスで除外する。
+		if parent, err := filepath.EvalSymlinks(filepath.Dir(k)); err == nil {
+			if absolute, err := filepath.Abs(filepath.Join(parent, filepath.Base(k))); err == nil {
+				skipPaths[absolute] = true
+			}
+		}
 		// EvalSymlinksが失敗する（パスが存在しないなど）場合は、
 		// 解決前のパスのみで照合する
 		if resolved, err := filepath.EvalSymlinks(k); err == nil {
@@ -370,6 +420,10 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 		// 警告を出す (Issue #263 のレビュー指定)
 		resolved := ""
 		if fi.Mode()&os.ModeSymlink != 0 {
+			// 出力先は完成まで作らないため、リンク先が未作成でも除外を優先する。
+			if pointsToSkippedPath(p, skipPaths) {
+				return nil
+			}
 			r, err := filepath.EvalSymlinks(p)
 			if err != nil {
 				// 壊れたリンク (先がない)。オプション時は警告出して飛ばす
@@ -421,6 +475,36 @@ func addResources(zw *zip.Writer, dir string, flat bool, skip map[string]bool, i
 		}
 		return writeFileEntry(zw, resourcePrefix+prefix+filepath.ToSlash(rel), p)
 	})
+}
+
+// pointsToSkippedPath は多段リンクを辿り、未作成の除外対象も判定する。
+// 循環や解決エラーは通常のリンク検証に任せる。
+func pointsToSkippedPath(p string, skip map[string]bool) bool {
+	visited := map[string]bool{}
+	for range 255 {
+		parent, err := filepath.EvalSymlinks(filepath.Dir(p))
+		if err != nil {
+			return false
+		}
+		p, err = filepath.Abs(filepath.Join(parent, filepath.Base(p)))
+		if err != nil || visited[p] {
+			return false
+		}
+		if skip[p] {
+			return true
+		}
+		visited[p] = true
+		target, err := os.Readlink(p)
+		if err != nil {
+			return false
+		}
+		if filepath.IsAbs(target) {
+			p = target
+		} else {
+			p = filepath.Join(filepath.Dir(p), target)
+		}
+	}
+	return false
 }
 
 // addLinkTarget はリンク p の先を辿り、リンクの相対パス linkRel の
