@@ -255,6 +255,7 @@ func commands() map[string]command {
 	zipCommands(m)
 	encodingCommands(m)
 	keyCommands(m)
+	windowCommands(m)
 	return m
 }
 
