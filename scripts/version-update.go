@@ -147,15 +147,6 @@ func main() {
 			os.Exit(1)
 		}
 	}
-
-	// バージョンを更新するときは、古いバージョンのビルド成果物が release/ に
-	// 混ざったまま残らないよう、実行のたびに中身を空にする（--check時は不変）。
-	if !checkFlag {
-		if err := clearReleaseDir(); err != nil {
-			fmt.Fprintln(os.Stderr, "エラー:", err)
-			os.Exit(1)
-		}
-	}
 	newNadesiko := version.Nadesiko
 	if nadesikoFlag != "" {
 		if !semverRe.MatchString(nadesikoFlag) {
@@ -163,6 +154,16 @@ func main() {
 			os.Exit(1)
 		}
 		newNadesiko = nadesikoFlag
+	}
+
+	// バージョンを更新するときは、古いバージョンのビルド成果物が release/ に
+	// 混ざったまま残らないよう、実行のたびに中身を空にする（--check時は不変）。
+	// 破壊的な処理はすべての引数を検証した後に行う。
+	if !checkFlag {
+		if err := clearReleaseDir(); err != nil {
+			fmt.Fprintln(os.Stderr, "エラー:", err)
+			os.Exit(1)
+		}
 	}
 
 	mismatched := false

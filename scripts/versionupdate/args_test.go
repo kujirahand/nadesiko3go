@@ -1,7 +1,12 @@
 package versionupdate
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -111,4 +116,60 @@ func TestParseArgs(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestInvalidNadesikoDoesNotDeleteReleaseArtifacts は #191 の回帰テスト。
+// 不正な --nadesiko を指定しても、release/ の成果物が保持されることを確認する。
+func TestInvalidNadesikoDoesNotDeleteReleaseArtifacts(t *testing.T) {
+	_, testFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("テストファイルのパスを取得できません")
+	}
+	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(testFile), "../.."))
+	buildDir := t.TempDir()
+	binaryPath := filepath.Join(buildDir, "version-update")
+	build := exec.Command("go", "build", "-o", binaryPath, "./scripts/version-update.go")
+	build.Dir = repoRoot
+	build.Env = envWithGOCACHE(os.Environ(), filepath.Join(buildDir, "gocache"))
+	if output, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("version-update のビルドに失敗しました: %v\n%s", err, output)
+	}
+
+	workDir := t.TempDir()
+	releaseDir := filepath.Join(workDir, "release")
+	if err := os.MkdirAll(releaseDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	artifactPath := filepath.Join(releaseDir, "old-artifact.zip")
+	want := []byte("keep this release artifact")
+	if err := os.WriteFile(artifactPath, want, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command(binaryPath, "--nadesiko", "invalid", "3.8.7")
+	cmd.Dir = workDir
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("不正な --nadesiko が成功しました: %s", output)
+	}
+	if strings.Contains(string(output), "[削除]") {
+		t.Errorf("エラー終了前に成果物の削除が実行されました: %s", output)
+	}
+	got, err := os.ReadFile(artifactPath)
+	if err != nil {
+		t.Fatalf("成果物が残っていません: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("成果物の内容が変更されました: got %q, want %q", got, want)
+	}
+}
+
+func envWithGOCACHE(env []string, cacheDir string) []string {
+	result := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, "GOCACHE=") {
+			result = append(result, entry)
+		}
+	}
+	return append(result, "GOCACHE="+cacheDir)
 }
