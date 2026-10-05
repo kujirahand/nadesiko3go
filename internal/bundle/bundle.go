@@ -220,6 +220,7 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 	tempPath := out.Name()
 	defer func() {
 		_ = out.Close()
+		// 成功後はRename済みで一時パスは存在しない。失敗時の残骸だけ削除する。
 		_ = os.Remove(tempPath)
 	}()
 
