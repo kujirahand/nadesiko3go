@@ -151,17 +151,42 @@ func writeUploadScripts(cfg config) error {
 
 	var bat strings.Builder
 	bat.WriteString("@echo off\r\n")
+	bat.WriteString("chcp 65001 >nul\r\n")
+	bat.WriteString("setlocal DisableDelayedExpansion\r\n")
 	bat.WriteString(fmt.Sprintf("rem なでしこ3 (gonako) v%s のZIPをGitHubリリースへアップロードする\r\n", cfg.version))
 	bat.WriteString("rem 事前に `gh release create " + cfg.version + " --draft` 等でドラフトリリースを作成しておくこと\r\n")
 	bat.WriteString("rem タグ名はダウンロードURL (install.sh/install.ps1) と合わせて v なしのバージョン番号そのもの\r\n")
-	bat.WriteString("setlocal\r\n")
-	bat.WriteString(fmt.Sprintf("set TAG=%s\r\n\r\n", cfg.version))
-	bat.WriteString("gh release upload \"%TAG%\" ^\r\n")
+	bat.WriteString(fmt.Sprintf("set \"TAG=%s\"\r\n", cfg.version))
+	// PATHにない場合は、作業フォルダに用意したCLIと標準インストール先を探す。
+	// GH_EXEを指定すれば、別の場所にあるCLIも利用できる。
+	bat.WriteString("if not defined GH_EXE (\r\n")
+	bat.WriteString("  where gh.exe >nul 2>&1\r\n")
+	bat.WriteString("  if errorlevel 1 (\r\n")
+	bat.WriteString("    if exist \"%~dp0..\\bin\\github-cli\\bin\\gh.exe\" (\r\n")
+	bat.WriteString("      set \"GH_EXE=%~dp0..\\bin\\github-cli\\bin\\gh.exe\"\r\n")
+	bat.WriteString("    ) else if exist \"%ProgramFiles%\\GitHub CLI\\gh.exe\" (\r\n")
+	bat.WriteString("      set \"GH_EXE=%ProgramFiles%\\GitHub CLI\\gh.exe\"\r\n")
+	bat.WriteString("    ) else (\r\n")
+	bat.WriteString("      echo エラー: GitHub CLIが見つかりません。ghをインストールするか、GH_EXEに実行ファイルのパスを指定してください。 1>&2\r\n")
+	bat.WriteString("      exit /b 1\r\n")
+	bat.WriteString("    )\r\n")
+	bat.WriteString("  ) else (\r\n")
+	bat.WriteString("    set \"GH_EXE=gh.exe\"\r\n")
+	bat.WriteString("  )\r\n")
+	bat.WriteString(")\r\n\r\n")
+	bat.WriteString("call \"%GH_EXE%\" auth status >nul 2>&1\r\n")
+	bat.WriteString("if errorlevel 1 (\r\n")
+	bat.WriteString("  echo エラー: GitHub認証を確認できません。指定したCLIでauth loginを実行してください。 1>&2\r\n")
+	bat.WriteString("  exit /b 1\r\n")
+	bat.WriteString(")\r\n\r\n")
+	// 実行時のカレントディレクトリに依存せず、このリポジトリへ送る。
+	bat.WriteString("call \"%GH_EXE%\" release upload \"%TAG%\" ^\r\n")
 	for _, z := range zips {
 		name := filepath.Base(z)
 		bat.WriteString(fmt.Sprintf("  \"%%~dp0%s\" ^\r\n", name))
 	}
-	bat.WriteString("  --clobber\r\n")
+	bat.WriteString("  --repo kujirahand/nadesiko3go --clobber\r\n")
+	bat.WriteString("exit /b %ERRORLEVEL%\r\n")
 
 	return os.WriteFile(batPath, []byte(bat.String()), 0o755)
 }
@@ -348,7 +373,6 @@ func createMacAppBundle(appPath, binPath, version string) error {
 
 	return nil
 }
-
 
 func buildGUIWindows(cfg config, goarch string) error {
 	binName := fmt.Sprintf("gonako-gui-%s-windows-%s.exe", cfg.version, goarch)
