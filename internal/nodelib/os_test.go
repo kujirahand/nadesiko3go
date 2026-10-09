@@ -42,6 +42,10 @@ func TestPromptValueMatchesConsoleNumberConversion(t *testing.T) {
 	}{
 		{input: "", kind: value.KindNumber, number: 0},
 		{input: "   ", kind: value.KindNumber, number: 0},
+		{input: "\ufeff", kind: value.KindNumber, number: 0},
+		{input: "\ufeff7\ufeff", kind: value.KindNumber, number: 7},
+		{input: "\u0085", kind: value.KindString, text: "\u0085"},
+		{input: "\u00857\u0085", kind: value.KindString, text: "\u00857\u0085"},
 		{input: "1e3", kind: value.KindNumber, number: 1000},
 		{input: "0x10", kind: value.KindNumber, number: 16},
 		{input: "１２", kind: value.KindString, text: "１２"},

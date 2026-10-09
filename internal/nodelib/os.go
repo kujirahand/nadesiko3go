@@ -228,9 +228,8 @@ func osCommands(m map[string]command) {
 }
 
 func promptValue(input string) value.Value {
-	trimmed := strings.TrimSpace(input)
 	// 公式Node.js版と同じく、空入力・空白だけの入力も数値0に変換する。
-	if n := value.ToNumber(value.String(trimmed)); !isNaN(n) {
+	if n := value.ToNumber(value.String(input)); !isNaN(n) {
 		return value.Number(n)
 	}
 	return value.String(input)

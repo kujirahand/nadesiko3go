@@ -209,6 +209,36 @@ B=「」と文字尋ねる
 	}
 }
 
+// EOFは空行の確定と区別し、末尾に改行がない入力は一度だけ読み取る。
+func TestPromptInputEOF(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{name: "即EOF"},
+		{name: "空行の後にEOF", input: "\n", output: "0:number\n"},
+		{name: "改行なしの数値", input: "42", output: "42:number\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var out strings.Builder
+			host := vm.NewCUIHost(&out, strings.NewReader(tt.input), nil)
+			code := `A=「」と尋ねる
+型=AのTYPEOF
+「{A}:{型}」を表示
+「」と尋ねる
+「到達しない」を表示`
+			err := vm.RunProgram(code, "prompt-eof.nako3", host)
+			if err == nil || !strings.Contains(err.Error(), "『尋』命令で標準入力が読めません。") {
+				t.Fatalf("error = %v", err)
+			}
+			if got := out.String(); got != tt.output {
+				t.Fatalf("output = %q, want %q", got, tt.output)
+			}
+		})
+	}
+}
+
 func TestArgsAndInput(t *testing.T) {
 	var out strings.Builder
 	host := vm.NewCUIHost(&out, strings.NewReader("太郎\n42\n"), []string{"一", "二"})
