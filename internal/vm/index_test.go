@@ -3,6 +3,7 @@ package vm_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
@@ -94,6 +95,28 @@ func TestStringIndexLongLoop(t *testing.T) {
 		if got := run(t, code); got != units[0]+units[1] {
 			t.Errorf("got %q, want %q", got, units[0]+units[1])
 		}
+	}
+}
+
+// 長い文字列の短い範囲を繰り返し取得しても、毎回全文を走査しないこと。
+// ASCIIだけの文字列や、末尾に初めて非ASCII文字がある文字列も対象にする。
+func TestStringRangeLongLoop(t *testing.T) {
+	for _, tt := range []struct{ name, build, want string }{
+		{"ASCII", "S=「a」を1000000でリフレイン", "a"},
+		{"日本語", "S=「あ」を1000000でリフレイン", "あ"},
+		{"末尾だけ非ASCII", "S=(「a」を1000000でリフレイン)&「あ」", "a"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			code := tt.build + "\nIで0から19999まで繰り返す:\n    C=S[0…1]&S[-1…-1]\nCを表示"
+			start := time.Now()
+			if got := run(t, code); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+			// 修正前は数秒かかる。CIの速度差を許容する上限で大幅な退行だけを検出する
+			if d := time.Since(start); d > 2*time.Second {
+				t.Errorf("範囲アクセスのループが遅い: %v", d)
+			}
+		})
 	}
 }
 

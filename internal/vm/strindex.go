@@ -22,7 +22,8 @@ const runeCacheMin = 64
 
 type runeCacheEntry struct {
 	s     string // 元の文字列。保持することで同じアドレスが別の文字列に再利用されない
-	runes []rune
+	runes []rune // ASCIIだけの文字列では作らない（nil）
+	ascii bool
 }
 
 // asRange は添字が範囲オブジェクト（先頭・末尾が数値の辞書）なら、その2つを返す。
@@ -84,11 +85,11 @@ func sliceArray(arr *value.Array, start, end float64) value.Value {
 // 範囲なら部分文字列を返す。範囲外の1文字は undefined、空の範囲は空文字列になる。
 func (m *VM) stringIndex(s string, index value.Value) value.Value {
 	if start, end, ok := asRange(index); ok {
-		if isASCII(s) {
+		runes, ascii := m.stringChars(s)
+		if ascii {
 			a, b := sliceBounds(start, end, len(s))
 			return value.String(s[a:b])
 		}
-		runes := m.stringRunes(s)
 		a, b := sliceBounds(start, end, len(runes))
 		return value.String(string(runes[a:b]))
 	}
@@ -110,12 +111,19 @@ func (m *VM) stringIndex(s string, index value.Value) value.Value {
 		}
 		return value.Undefined()
 	}
-	runes := m.stringRunes(s)
-	if i < 0 {
-		i += len(runes)
+	runes, ascii := m.stringChars(s)
+	n := len(runes)
+	if ascii {
+		n = len(s)
 	}
-	if i < 0 || i >= len(runes) {
+	if i < 0 {
+		i += n
+	}
+	if i < 0 || i >= n {
 		return value.Undefined()
+	}
+	if ascii {
+		return value.String(s[i : i+1])
 	}
 	return value.String(string(runes[i]))
 }
@@ -163,26 +171,33 @@ func isASCII(s string) bool {
 	return true
 }
 
-// stringRunes は文字列をrune配列にする。長い文字列は最近使った数件を保持し、
-// 『S[I]』を繰り返すループで毎回全文を走査しないようにする。
+// stringChars は文字列をrune配列にする。ASCIIだけの文字列は配列を作らず ascii=true を返し、
+// 呼び出し側はバイト位置をそのまま使う。長い文字列は文字種の判定結果とrune配列を
+// 最近使った数件だけ保持し、『S[I]』や『S[I…J]』を繰り返すループで毎回全文を走査しないようにする。
 // 同じ文字列かどうかは中身ではなくデータのアドレスと長さで判定する（O(1)）。
-func (m *VM) stringRunes(s string) []rune {
+func (m *VM) stringChars(s string) ([]rune, bool) {
 	if len(s) < runeCacheMin {
-		return []rune(s)
+		if isASCII(s) {
+			return nil, true
+		}
+		return []rune(s), false
 	}
 	p := unsafe.StringData(s)
 	cache := &m.runeCache
 	for i := range cache {
 		e := cache[i]
-		if e.runes != nil && len(e.s) == len(s) && unsafe.StringData(e.s) == p {
+		if e.s != "" && len(e.s) == len(s) && unsafe.StringData(e.s) == p {
 			// ヒットしたものを先頭へ移し、長く使われていないものから破棄する
 			copy(cache[1:i+1], cache[:i])
 			cache[0] = e
-			return e.runes
+			return e.runes, e.ascii
 		}
 	}
-	runes := []rune(s)
+	e := runeCacheEntry{s: s, ascii: isASCII(s)}
+	if !e.ascii {
+		e.runes = []rune(s)
+	}
 	copy(cache[1:], cache[:runeCacheSize-1])
-	cache[0] = runeCacheEntry{s: s, runes: runes}
-	return runes
+	cache[0] = e
+	return e.runes, e.ascii
 }
