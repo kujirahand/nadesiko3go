@@ -40,6 +40,8 @@ func TestPromptValueMatchesConsoleNumberConversion(t *testing.T) {
 		number float64
 		text   string
 	}{
+		{input: "", kind: value.KindNumber, number: 0},
+		{input: "   ", kind: value.KindNumber, number: 0},
 		{input: "1e3", kind: value.KindNumber, number: 1000},
 		{input: "0x10", kind: value.KindNumber, number: 16},
 		{input: "１２", kind: value.KindString, text: "１２"},

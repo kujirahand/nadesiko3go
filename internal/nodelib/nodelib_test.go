@@ -187,6 +187,27 @@ func TestOSCommands(t *testing.T) {
 	}
 }
 
+// 空入力を確定すると尋は数値0、文字尋は空文字列を返す。
+func TestEmptyPromptInput(t *testing.T) {
+	for _, input := range []string{"\n\n", "   \n\n"} {
+		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
+			var out strings.Builder
+			host := vm.NewCUIHost(&out, strings.NewReader(input), nil)
+			code := `A=「」と尋ねる
+B=「」と文字尋ねる
+型=AのTYPEOF
+文字型=BのTYPEOF
+「{A}:{型}:{B}:{文字型}」を表示`
+			if err := vm.RunProgram(code, "empty-prompt.nako3", host); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := out.String(), "0:number::string\n"; got != want {
+				t.Fatalf("output = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestArgsAndInput(t *testing.T) {
 	var out strings.Builder
 	host := vm.NewCUIHost(&out, strings.NewReader("太郎\n42\n"), []string{"一", "二"})
