@@ -1111,6 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- 変更検知と保存確認 ---
   function updateFileTitleDisplay() {
+    document.querySelectorAll('#file-list .list-item').forEach(item => {
+      item.classList.toggle('selected', !!currentFilePath && item.dataset.path === currentFilePath);
+    });
     if (isBinaryFile) {
       activeFileName.textContent = `(編集不可) ${currentFileDisplayName}`;
       activeFileName.classList.remove('dirty');
@@ -1678,7 +1681,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       setStatus(`パスをコピーしました: ${value}`);
     } catch (err) { await showAlertDialog('コピーできません', err.message || String(err)); }
-    closeContextMenu();
   }
   menuCopyPath.addEventListener('click', () => copyFilePath(false));
   menuCopyRelativePath.addEventListener('click', () => copyFilePath(true));
@@ -1686,7 +1688,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!selectedContextFile) return;
     const oldFile = selectedContextFile;
     const name = await showPromptDialog('名前を変更', '新しい名前を入力してください:', oldFile.name, '変更');
-    if (!name || name === oldFile.name) { closeContextMenu(); return; }
+    if (!name || name.trim() === oldFile.name) { closeContextMenu(); return; }
     try {
       const raw = await window.renameFile(oldFile.path, name);
       const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -1700,13 +1702,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       closeContextMenu();
       await loadDirectory(currentDirPath);
-      setStatus(`名前を変更しました: ${name}`);
+      setStatus(`名前を変更しました: ${pathBaseName(res.path)}`);
     } catch (err) { closeContextMenu(); await showAlertDialog('変更エラー', err.message || String(err)); }
   });
   menuDeleteFile.addEventListener('click', async () => {
     if (!selectedContextFile) return;
     const target = selectedContextFile;
-    if (!(await showConfirmDialog('削除の確認', `「${target.name}」を削除しますか？\nこの操作は元に戻せません。`, '削除'))) { closeContextMenu(); return; }
+    const contentsWarning = target.isDir ? '\nフォルダ内のすべてのファイルも削除されます。' : '';
+    if (!(await showConfirmDialog('削除の確認', `「${target.name}」を削除しますか？${contentsWarning}\nこの操作は元に戻せません。`, '削除'))) { closeContextMenu(); return; }
     try {
       const raw = await window.deleteFile(target.path);
       const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -1714,6 +1717,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const isInside = target.isDir && (currentFilePath.startsWith(target.path + '/') || currentFilePath.startsWith(target.path + '\\'));
       if (currentFilePath === target.path || isInside) {
         currentFilePath = '';
+        currentFileDisplayName = '新規プログラム.nako3';
         activeFileName.title = '';
         savedContent = '';
         updateFileTitleDisplay();
@@ -1869,8 +1873,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!res.ok) throw new Error(res.error);
       await loadDirectory(currentDirPath || pathDirName(res.path));
-      await openFile(res.path, name);
-      setStatus(`新規ファイルを作成しました: ${name}`);
+      await openFile(res.path, pathBaseName(res.path));
+      setStatus(`新規ファイルを作成しました: ${pathBaseName(res.path)}`);
     } catch (err) { await showAlertDialog('作成エラー', err.message || String(err)); }
   });
 
@@ -2034,9 +2038,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
-        document.querySelectorAll('#file-list .list-item').forEach(item => {
-          item.classList.toggle('selected', item.dataset.path === filePath);
-        });
         if (isBinaryFile) {
           setStatus(`バイナリファイルのため編集できません: ${fileName}`);
         } else {

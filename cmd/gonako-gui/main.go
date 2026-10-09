@@ -369,7 +369,7 @@ func createNewFolder(dirPath, name string) (string, error) {
 		return "", err
 	}
 	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
 		return "", fmt.Errorf("使用できないフォルダ名です: %q", name)
 	}
 	fullPath := filepath.Join(absDir, name)
@@ -381,7 +381,7 @@ func createNewFolder(dirPath, name string) (string, error) {
 
 func validFileName(name string) error {
 	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
 		return fmt.Errorf("使用できない名前です: %q", name)
 	}
 	return nil
@@ -414,8 +414,15 @@ func renameFile(path, name string) (string, error) {
 		return "", err
 	}
 	newPath := filepath.Join(filepath.Dir(path), strings.TrimSpace(name))
-	if _, err := os.Lstat(newPath); err == nil {
-		return "", fmt.Errorf("同名のファイルまたはフォルダが既にあります")
+	if newInfo, err := os.Lstat(newPath); err == nil {
+		oldInfo, oldErr := os.Lstat(path)
+		if oldErr != nil {
+			return "", oldErr
+		}
+		// 大文字・小文字を区別しない環境では、変更先が自分自身になる。
+		if !os.SameFile(oldInfo, newInfo) || !strings.EqualFold(filepath.Base(path), filepath.Base(newPath)) {
+			return "", fmt.Errorf("同名のファイルまたはフォルダが既にあります")
+		}
 	} else if !os.IsNotExist(err) {
 		return "", err
 	}

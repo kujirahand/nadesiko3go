@@ -652,6 +652,7 @@ func TestPrivilegedBridgeBoundOnlyForInternalUI(t *testing.T) {
 		`w.Bind("runNakoCode"`, `w.Bind("runNakoFile"`, `w.Bind("readFile"`,
 		`w.Bind("saveFile"`, `w.Bind("listFiles"`, `w.Bind("createNewFile"`,
 		`w.Bind("renameFile"`, `w.Bind("deleteFile"`, `w.Bind("showSaveFileDialog"`,
+		`w.Bind("relativeFilePath"`,
 		`w.Bind("openExternalURL"`,
 	} {
 		if !strings.Contains(bridge, name) {

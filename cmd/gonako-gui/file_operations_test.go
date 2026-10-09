@@ -64,3 +64,39 @@ func TestFileOperationsRejectInvalidNames(t *testing.T) {
 		}
 	}
 }
+
+func TestRenameFileCaseOnly(t *testing.T) {
+	for _, directory := range []bool{false, true} {
+		dir := t.TempDir()
+		oldPath := filepath.Join(dir, "a.nako3")
+		if directory {
+			if err := os.Mkdir(oldPath, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(oldPath, "内容.txt"), []byte("保持"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		} else if err := os.WriteFile(oldPath, []byte("保持"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		newPath, err := renameFile(oldPath, " A.nako3 ")
+		if err != nil {
+			t.Fatalf("大文字・小文字だけの変更に失敗しました: %v", err)
+		}
+		if newPath != filepath.Join(dir, "A.nako3") {
+			t.Fatalf("名前の空白が除去されていません: %q", newPath)
+		}
+		entries, err := os.ReadDir(dir)
+		if err != nil || len(entries) != 1 || entries[0].Name() != "A.nako3" {
+			t.Fatalf("変更後の名前が一致しません: %v, %v", entries, err)
+		}
+		contentPath := newPath
+		if directory {
+			contentPath = filepath.Join(newPath, "内容.txt")
+		}
+		content, err := os.ReadFile(contentPath)
+		if err != nil || string(content) != "保持" {
+			t.Fatalf("名前変更で内容が変わりました: %q, %v", content, err)
+		}
+	}
+}
