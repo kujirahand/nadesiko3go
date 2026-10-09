@@ -10,6 +10,34 @@ import (
 // indexed assignment because those are the language foundation.
 func (p *Parser) yLet() *ast.Node {
 	m := p.peekSourceMap(nil)
+	// 括弧付きの配列要素への代入。式の中の比較は従来どおり yCalc で読む。(本家 #2583)
+	if p.check("(") && p.hasParenthesizedAssignment() {
+		v := p.yValue()
+		var target *ast.Node
+		if v != nil {
+			target = normalizeArrayAssignmentTarget(v)
+		}
+		if target != nil && target.Type == ast.RefArray && p.check("eq") {
+			p.get() // = / は
+			value := p.yCalc()
+			if value == nil {
+				p.failAt("配列への代入文で値がありません。", m)
+			}
+			target = p.getAssignmentVarName(target)
+			if p.check(lexer.TypeComma) {
+				p.get()
+			}
+			end := p.peekSourceMap(nil)
+			return &ast.Node{
+				Type: ast.LetArray, Name: target.Name,
+				Blocks:    append([]*ast.Node{value}, target.Index...),
+				Index:     target.Index,
+				CheckInit: p.flagCheckArrayInit,
+				SourceMap: m, End: &end,
+			}
+		}
+		p.failAt("括弧付きの代入先は、変数を起点とする配列要素で指定してください。", m)
+	}
 	if p.check2([][]lexer.TokenType{{lexer.TypeWord}, {"eq"}}) {
 		wordTok := p.get()
 		p.get() // eq
@@ -316,4 +344,77 @@ func (p *Parser) yTryExcept() *ast.Node {
 	p.get()
 	end := p.peekSourceMap(nil)
 	return &ast.Node{Type: ast.TryExcept, Blocks: []*ast.Node{block, errBlock}, SourceMap: m, End: &end}
+}
+
+// hasParenthesizedAssignment は括弧付き代入の候補かどうかをトークンだけで確認する。(本家 #2583)
+// yValue での先読みは変数名や関数の使用記録も更新するため、解析後の巻き戻しはしない。
+// 括弧内の比較は無視し、外側の助詞・演算子・文末で探索を終える。
+func (p *Parser) hasParenthesizedAssignment() bool {
+	var closings []lexer.TokenType
+	for i := p.index; i < len(p.tokens); i++ {
+		t := p.tokens[i]
+		if len(closings) == 0 {
+			if t.Type == "eq" {
+				return true
+			}
+			// @直後の単項演算子は添字の一部。値の後ろの二項演算子とは区別する。
+			unaryIndex := (t.Type == "-" || t.Type == lexer.TypeNot) && i > 0 &&
+				(p.tokens[i-1].Type == "@" || p.tokens[i-1].Type == lexer.TypeNot)
+			if !unaryIndex && !containsType([]lexer.TokenType{"(", "[", "{", "@", lexer.TypeWord, lexer.TypeFunc,
+				"func_pointer", lexer.TypeNumber, lexer.TypeBigInt, lexer.TypeString}, t.Type) {
+				return false
+			}
+		}
+		switch t.Type {
+		case "(":
+			closings = append(closings, ")")
+		case "[":
+			closings = append(closings, "]")
+		case "{":
+			closings = append(closings, "}")
+		case ")", "]", "}":
+			if len(closings) == 0 || closings[len(closings)-1] != t.Type {
+				return false
+			}
+			closings = closings[:len(closings)-1]
+		}
+		if len(closings) == 0 && t.Josi != "" {
+			return false
+		}
+	}
+	return false
+}
+
+// normalizeArrayAssignmentTarget は括弧付きの配列参照を、変数を起点とする
+// 代入先（RefArray）へ変換する。(本家 #2583)
+// 添字は内側から順に連結し、参照用のASTは書き換えない。
+// 関数の戻り値やリテラルなど、変数を起点としない参照は nil を返す。
+func normalizeArrayAssignmentTarget(n *ast.Node) *ast.Node {
+	switch {
+	case n == nil:
+		return nil
+	case n.Type == ast.Word:
+		return n
+	case n.Type == ast.RefArray:
+		c := *n
+		c.Index = append([]*ast.Node(nil), n.Index...)
+		return &c
+	case n.Type != ast.RefArrayValue || n.Name != "@" || len(n.Index) == 0:
+		return nil
+	}
+	target := normalizeArrayAssignmentTarget(n.Index[0])
+	if target == nil {
+		return nil
+	}
+	r := &ast.Node{Type: ast.RefArray, Josi: n.Josi, RawJosi: n.RawJosi, SourceMap: n.SourceMap, End: n.End}
+	if target.Type == ast.Word {
+		r.Name = target.StringValue()
+		r.NameToken = target.NameToken
+	} else {
+		r.Name = target.Name
+		r.NameToken = target.NameToken
+		r.Index = append(r.Index, target.Index...)
+	}
+	r.Index = append(r.Index, n.Index[1:]...)
+	return r
 }

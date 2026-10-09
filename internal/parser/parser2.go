@@ -422,6 +422,10 @@ func (p *Parser) yDainyu() *ast.Node {
 		value = &ast.Node{Type: ast.Word, Value: "それ", Josi: "を", SourceMap: m}
 	}
 	word := p.popStack([]string{"へ", "に"})
+	// 『(A@0)@1に値を代入』のような括弧付きの配列要素も代入先にする (本家 #2583)
+	if t := normalizeArrayAssignmentTarget(word); t != nil {
+		word = t
+	}
 	if word == nil || (word.Type != ast.Word && word.Type != ast.Func && word.Type != ast.RefArray) {
 		p.failToken("代入文で代入先の変数が見当たりません。『(変数名)に(値)を代入』のように使います。", dainyu)
 	}

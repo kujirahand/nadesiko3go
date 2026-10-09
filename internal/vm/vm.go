@@ -89,6 +89,9 @@ type VM struct {
 	// wiring, argument binding — stays exactly as it is for every other
 	// function, so the two backends cannot drift apart on that part.
 	natives map[int]NativeFunc
+
+	// runeCache は文字列の添字アクセスで使った長い文字列のrune配列 (#2590)
+	runeCache [runeCacheSize]runeCacheEntry
 }
 
 // NativeFunc is a function body the gogen backend compiled to Go, standing in
