@@ -28,10 +28,10 @@ type canvasImageRequest struct {
 	Coordinates []float64 `json:"coordinates,omitempty"`
 }
 
-func (p *Plugin) requestCanvas(ctx stdlib.Context, name string, target value.Value, request canvasImageRequest) (string, error) {
+func (p *Plugin) prepareCanvasRequest(name string, target value.Value, request canvasImageRequest) (canvasImageRequest, error) {
 	h, err := handleValue(target)
 	if err != nil {
-		return "", err
+		return request, err
 	}
 	p.screen.mu.Lock()
 	node, err := p.screen.node(h, name)
@@ -43,13 +43,21 @@ func (p *Plugin) requestCanvas(ctx stdlib.Context, name string, target value.Val
 	}
 	p.screen.mu.Unlock()
 	if err != nil {
+		return request, err
+	}
+	request.Handle = h
+	return request, nil
+}
+
+func (p *Plugin) requestCanvas(ctx stdlib.Context, name string, target value.Value, request canvasImageRequest) (string, error) {
+	request, err := p.prepareCanvasRequest(name, target, request)
+	if err != nil {
 		return "", err
 	}
 	gui, ok := ctx.(stdlib.GUIRequestContext)
 	if !ok {
 		return "", fmt.Errorf("『%s』はgonako-guiのウィンドウモードで実行してください。", name)
 	}
-	request.Handle = h
 	payload, err := json.Marshal(request)
 	if err != nil {
 		return "", err
@@ -62,7 +70,10 @@ func (p *Plugin) requestCanvas(ctx stdlib.Context, name string, target value.Val
 }
 
 func (p *Plugin) cmdCanvasImageDraw(ctx stdlib.Context, args []value.Value) (value.Value, error) {
-	request := canvasImageRequest{Action: "image"}
+	request, err := p.prepareCanvasRequest("キャンバス画像描画", arg(args, 0), canvasImageRequest{Action: "image"})
+	if err != nil {
+		return value.Undefined(), err
+	}
 	coords, ok := arg(args, 2).Array()
 	if !ok || coords == nil || (coords.Len() != 2 && coords.Len() != 4) {
 		return value.Undefined(), fmt.Errorf("『キャンバス画像描画』には座標[X,Y]または[X,Y,幅,高さ]を指定してください。")
@@ -93,9 +104,6 @@ func (p *Plugin) cmdCanvasImageDraw(ctx stdlib.Context, args []value.Value) (val
 		return value.Undefined(), fmt.Errorf("画像『%s』を読めません: %w", name, err)
 	}
 	mime := "image/" + format
-	if format == "jpg" {
-		mime = "image/jpeg"
-	}
 	request.Source = "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data)
 	_, err = p.requestCanvas(ctx, "キャンバス画像描画", arg(args, 0), request)
 	return value.Undefined(), err

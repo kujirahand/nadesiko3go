@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"image"
+	"image/jpeg"
 	"image/png"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -15,10 +17,12 @@ import (
 type canvasImageContext struct {
 	stdlib.Context
 	resource []byte
+	reads    int
 	requests []canvasImageRequest
 }
 
 func (c *canvasImageContext) ReadResource(name string) ([]byte, bool) {
+	c.reads++
 	return c.resource, name == "梱包.png"
 }
 func (c *canvasImageContext) RequestGUI(kind, message string) (string, error) {
@@ -80,5 +84,37 @@ func TestCanvasImageResourceAndArgumentChecks(t *testing.T) {
 	}
 	if len(ctx.requests) != 1 {
 		t.Fatal("対応外の形式で画面に要求しました")
+	}
+}
+
+func TestCanvasImageValidatesTargetBeforeReading(t *testing.T) {
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	label := screen.create("span", "", "", "", 0)
+	for _, handle := range []int{0, 999, label} {
+		ctx := &canvasImageContext{}
+		args := []value.Value{value.Number(float64(handle)), value.String("存在しない.png"), value.ArrayValue(value.NewArray(value.Number(0), value.Number(0)))}
+		_, err := p.cmdCanvasImageDraw(ctx, args)
+		if err == nil || strings.Contains(err.Error(), "開けません") || ctx.reads != 0 {
+			t.Fatalf("ハンドル=%d: %v, 読込回数=%d", handle, err, ctx.reads)
+		}
+	}
+}
+
+func TestCanvasImageJPEGSource(t *testing.T) {
+	var data bytes.Buffer
+	if err := jpeg.Encode(&data, image.NewRGBA(image.Rect(0, 0, 1, 1)), nil); err != nil {
+		t.Fatal(err)
+	}
+	ctx := &canvasImageContext{resource: data.Bytes()}
+	screen := NewScreen()
+	p := NewWithScreen(screen)
+	h := screen.create("canvas", "", "", "", 0)
+	_, err := p.cmdCanvasImageDraw(ctx, []value.Value{value.Number(float64(h)), value.String("梱包.png"), value.ArrayValue(value.NewArray(value.Number(0), value.Number(0)))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ctx.requests) != 1 || !strings.HasPrefix(ctx.requests[0].Source, "data:image/jpeg;base64,") {
+		t.Fatalf("JPEG要求=%#v", ctx.requests)
 	}
 }

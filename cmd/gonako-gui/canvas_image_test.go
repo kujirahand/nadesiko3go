@@ -198,3 +198,42 @@ func TestCanvasImageSaveInEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// PNGだけが透明を保持し、現行JPEG・GIF保存では透明部分が黒になる仕様を固定する。
+func TestCanvasImageSaveTransparency(t *testing.T) {
+	var source bytes.Buffer
+	if err := png.Encode(&source, image.NewRGBA(image.Rect(0, 0, 8, 8))); err != nil {
+		t.Fatal(err)
+	}
+	answer := "data:image/png;base64," + base64.StdEncoding.EncodeToString(source.Bytes())
+	for _, ext := range []string{".png", ".jpg", ".gif"} {
+		t.Run(ext, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "透明"+ext)
+			session := &guiSession{}
+			id := session.start(`絵=[8,8]のキャンバス作成;絵を「`+path+`」にキャンバス画像保存`, "transparent.nako3", true, nil, nil)
+			c := newAsyncCollector(session, id)
+			request := waitForDialog(t, c)
+			session.resolveDialog(id, request.Dialog.ID, answer, true)
+			done := waitForAsyncDone(t, c)
+			if !done.Result.OK {
+				t.Fatal(done.Result.Error)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			img, _, err := image.Decode(bytes.NewReader(data))
+			if err != nil {
+				t.Fatal(err)
+			}
+			r, g, b, a := img.At(4, 4).RGBA()
+			if ext == ".png" {
+				if a != 0 {
+					t.Fatalf("PNGの透明度=%d", a)
+				}
+			} else if r != 0 || g != 0 || b != 0 || a != 65535 {
+				t.Fatalf("保存色=%d,%d,%d,%d", r, g, b, a)
+			}
+		})
+	}
+}
