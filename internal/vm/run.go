@@ -657,6 +657,10 @@ func (m *VM) indexGet1(container value.Value, index value.Value, pos int) value.
 		if idx, ok := value.AsArrayIndex(index); ok {
 			return arr.Get(idx)
 		}
+		// 範囲オブジェクトの添字は末尾を含まないスライス (#2599)
+		if start, end, ok := asRange(index); ok {
+			return sliceArray(arr, start, end)
+		}
 		return arr.GetProp(value.ToString(index))
 	case value.KindDict:
 		d, _ := container.Dict()
@@ -664,7 +668,7 @@ func (m *VM) indexGet1(container value.Value, index value.Value, pos int) value.
 		return v
 	case value.KindString:
 		s, _ := container.String()
-		return value.String(runeAt(s, indexToInt(index)))
+		return m.stringIndex(s, index)
 	}
 	return value.Undefined()
 }
@@ -765,21 +769,6 @@ func indexToInt(v value.Value) int {
 		return -1
 	}
 	return int(n)
-}
-
-// runeAt reads one character of a string by rune index, never by byte.
-func runeAt(s string, i int) string {
-	if i < 0 {
-		return ""
-	}
-	for pos, r := range s {
-		_ = pos
-		if i == 0 {
-			return string(r)
-		}
-		i--
-	}
-	return ""
 }
 
 // --- エラー ---
