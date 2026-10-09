@@ -2749,6 +2749,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // isWNakoRunMode は実行モードがブラウザ(wnako3)かを返す。命令一覧の
+  // gonako/wnako切り替え（cmdSource）は利用者が手で変えられる表示上の選択なので、
+  // 文法チェックや整形の命令セットは実行モードで決める（#301）。
+  function isWNakoRunMode() {
+    return selectAppType.value === 'wnako3';
+  }
+
   // 文法チェック（#118）。実行はせず構文解析だけを行うので、
   // 副作用のあるプログラムでも安全に呼べる。
   async function checkSyntax() {
@@ -2763,7 +2770,10 @@ document.addEventListener('DOMContentLoaded', () => {
     btnSyntaxCheck.disabled = true;
     setStatus('文法チェック中...');
     try {
-      const raw = await window.checkNakoSyntax(code, filePath || '');
+      // 実行モードの命令セットで調べる。ブラウザ(wnako3)モードではwnako専用の
+      // 命令が使えるので、gonakoの命令一覧で調べると誤ってエラーになる（#301）。
+      const checker = isWNakoRunMode() ? window.checkWNakoSyntax : window.checkNakoSyntax;
+      const raw = await checker(code, filePath || '');
       if (isStaleRequest(code, filePath)) {
         reportStaleIfIdle('文法チェック中...', '文法チェック: 待機中に編集されたため中止しました');
         return;
@@ -2809,7 +2819,10 @@ document.addEventListener('DOMContentLoaded', () => {
     menuItemFormatColon.disabled = true;
     setStatus('自動整形中...');
     try {
-      const formatter = colon ? window.formatNakoCodeColon : window.formatNakoCode;
+      // 整形も構文解析するので、文法チェックと同じく実行モードの命令セットを使う（#301）。
+      const formatter = isWNakoRunMode()
+        ? (colon ? window.formatWNakoCodeColon : window.formatWNakoCode)
+        : (colon ? window.formatNakoCodeColon : window.formatNakoCode);
       const raw = await formatter(code, filePath || '');
       if (isStaleRequest(code, filePath)) {
         reportStaleIfIdle('自動整形中...', '自動整形: 待機中に編集されたため中止しました');

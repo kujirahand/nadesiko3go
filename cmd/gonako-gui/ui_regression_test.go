@@ -383,6 +383,20 @@ func TestCommandListSourceSwitch(t *testing.T) {
 	}
 }
 
+// 文法チェックと自動整形が実行モードの命令セットで行われること（#301）。
+func TestSyntaxCheckFollowsRunMode(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"return selectAppType.value === 'wnako3';",
+		"const checker = isWNakoRunMode() ? window.checkWNakoSyntax : window.checkNakoSyntax;",
+		"(colon ? window.formatWNakoCodeColon : window.formatWNakoCode)",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js に実行モード別の文法チェック処理 %q がありません", required)
+		}
+	}
+}
+
 // 実行モードに合わせて命令一覧が切り替わり、表示順ボタンと配色が揃うこと（#124）。
 func TestRunModeSynchronizesCommandListSource(t *testing.T) {
 	app := readUIAsset(t, "app.js")
