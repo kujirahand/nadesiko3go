@@ -128,11 +128,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileList = document.getElementById('file-list');
   const btnOpenFolder = document.getElementById('btn-open-folder');
   const btnNewFolder = document.getElementById('btn-new-folder');
+  const btnNewFile = document.getElementById('btn-new-file');
 
   // ファイル項目の右クリック用コンテキストメニュー
   const fileContextMenu = document.getElementById('file-context-menu');
   const menuOpenEditor = document.getElementById('menu-open-editor');
   const menuRevealFinder = document.getElementById('menu-reveal-finder');
+  const menuCopyPath = document.getElementById('menu-copy-path');
+  const menuCopyRelativePath = document.getElementById('menu-copy-relative-path');
+  const menuRenameFile = document.getElementById('menu-rename-file');
+  const menuDeleteFile = document.getElementById('menu-delete-file');
   const labelRevealFinder = document.getElementById('label-reveal-finder');
   let selectedContextFile = null;
 
@@ -1106,6 +1111,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- 変更検知と保存確認 ---
   function updateFileTitleDisplay() {
+    document.querySelectorAll('#file-list .list-item').forEach(item => {
+      item.classList.toggle('selected', !!currentFilePath && item.dataset.path === currentFilePath);
+    });
     if (isBinaryFile) {
       activeFileName.textContent = `(編集不可) ${currentFileDisplayName}`;
       activeFileName.classList.remove('dirty');
@@ -1626,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
     selectedContextFile = file;
     menuOpenEditor.textContent = file.isDir ? '📁 フォルダを開く' : '📝 エディタで開く';
     fileContextMenu.style.left = `${Math.min(x, window.innerWidth - 180)}px`;
-    fileContextMenu.style.top = `${Math.min(y, window.innerHeight - 100)}px`;
+    fileContextMenu.style.top = `${Math.min(y, window.innerHeight - 210)}px`;
     fileContextMenu.style.display = 'block';
   }
 
@@ -1655,6 +1663,69 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Finder表示エラー:', err);
     }
     closeContextMenu();
+  });
+
+  async function copyFilePath(relative) {
+    if (!selectedContextFile) return;
+    let value = selectedContextFile.path;
+    closeContextMenu();
+    try {
+      if (relative) {
+        const base = currentFilePath ? pathDirName(currentFilePath) : currentDirPath;
+        value = await window.relativeFilePath(base, value);
+      }
+      if (typeof window.writeClipboardText === 'function') {
+        await window.writeClipboardText(value);
+      } else {
+        await navigator.clipboard.writeText(value);
+      }
+      setStatus(`パスをコピーしました: ${value}`);
+    } catch (err) { await showAlertDialog('コピーできません', err.message || String(err)); }
+  }
+  menuCopyPath.addEventListener('click', () => copyFilePath(false));
+  menuCopyRelativePath.addEventListener('click', () => copyFilePath(true));
+  menuRenameFile.addEventListener('click', async () => {
+    if (!selectedContextFile) return;
+    const oldFile = selectedContextFile;
+    const name = await showPromptDialog('名前を変更', '新しい名前を入力してください:', oldFile.name, '変更');
+    if (!name || name.trim() === oldFile.name) { closeContextMenu(); return; }
+    try {
+      const raw = await window.renameFile(oldFile.path, name);
+      const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!res.ok) throw new Error(res.error);
+      const isInside = oldFile.isDir && (currentFilePath.startsWith(oldFile.path + '/') || currentFilePath.startsWith(oldFile.path + '\\'));
+      if (currentFilePath === oldFile.path || isInside) {
+        currentFilePath = res.path + currentFilePath.slice(oldFile.path.length);
+        currentFileDisplayName = pathBaseName(currentFilePath);
+        activeFileName.title = currentFilePath;
+        updateFileTitleDisplay();
+      }
+      closeContextMenu();
+      await loadDirectory(currentDirPath);
+      setStatus(`名前を変更しました: ${pathBaseName(res.path)}`);
+    } catch (err) { closeContextMenu(); await showAlertDialog('変更エラー', err.message || String(err)); }
+  });
+  menuDeleteFile.addEventListener('click', async () => {
+    if (!selectedContextFile) return;
+    const target = selectedContextFile;
+    const contentsWarning = target.isDir ? '\nフォルダ内のすべてのファイルも削除されます。' : '';
+    if (!(await showConfirmDialog('削除の確認', `「${target.name}」を削除しますか？${contentsWarning}\nこの操作は元に戻せません。`, '削除'))) { closeContextMenu(); return; }
+    try {
+      const raw = await window.deleteFile(target.path);
+      const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!res.ok) throw new Error(res.error);
+      const isInside = target.isDir && (currentFilePath.startsWith(target.path + '/') || currentFilePath.startsWith(target.path + '\\'));
+      if (currentFilePath === target.path || isInside) {
+        currentFilePath = '';
+        currentFileDisplayName = '新規プログラム.nako3';
+        activeFileName.title = '';
+        savedContent = '';
+        updateFileTitleDisplay();
+      }
+      closeContextMenu();
+      await loadDirectory(currentDirPath);
+      setStatus(`削除しました: ${target.name}`);
+    } catch (err) { closeContextMenu(); await showAlertDialog('削除エラー', err.message || String(err)); }
   });
 
   async function loadDirectory(dirPath) {
@@ -1688,6 +1759,8 @@ document.addEventListener('DOMContentLoaded', () => {
       data.items.forEach(file => {
         const item = document.createElement('div');
         item.className = 'list-item';
+        item.dataset.path = file.path;
+        if (currentFilePath && file.path === currentFilePath) item.classList.add('selected');
         const icon = file.isDir ? '📁' : (file.name.endsWith('.nako3') ? '🌸' : '📄');
 
         item.innerHTML = `
@@ -1789,6 +1862,20 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('新規フォルダ作成エラー:', err);
     }
+  });
+
+  btnNewFile.addEventListener('click', async () => {
+    if (!(await confirmSaveIfDirty())) return;
+    const name = await showPromptDialog('新規ファイル', '作成するファイル名を入力してください:', '新規ファイル.nako3', '作成');
+    if (!name) return;
+    try {
+      const raw = await window.createNewFile(currentDirPath || desktopDirPath || homeDirPath, name);
+      const res = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!res.ok) throw new Error(res.error);
+      await loadDirectory(currentDirPath || pathDirName(res.path));
+      await openFile(res.path, pathBaseName(res.path));
+      setStatus(`新規ファイルを作成しました: ${pathBaseName(res.path)}`);
+    } catch (err) { await showAlertDialog('作成エラー', err.message || String(err)); }
   });
 
   async function newFile() {

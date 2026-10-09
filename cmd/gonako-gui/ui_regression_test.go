@@ -134,12 +134,13 @@ func TestFileTabNavigationControls(t *testing.T) {
 		`id="btn-file-up"`,
 		`id="btn-open-folder"`,
 		`id="btn-new-folder"`,
+		`id="btn-new-file"`,
 	} {
 		if !strings.Contains(html, required) {
 			t.Fatalf("index.html is missing file navigation control %q", required)
 		}
 	}
-	for _, removed := range []string{`id="btn-file-home"`, `id="btn-new-file"`} {
+	for _, removed := range []string{`id="btn-file-home"`} {
 		if strings.Contains(html, removed) {
 			t.Fatalf("index.html still contains removed file control %q", removed)
 		}
@@ -649,7 +650,9 @@ func TestPrivilegedBridgeBoundOnlyForInternalUI(t *testing.T) {
 	bridge := mainSrc[mainEnd:]
 	for _, name := range []string{
 		`w.Bind("runNakoCode"`, `w.Bind("runNakoFile"`, `w.Bind("readFile"`,
-		`w.Bind("saveFile"`, `w.Bind("listFiles"`, `w.Bind("showSaveFileDialog"`,
+		`w.Bind("saveFile"`, `w.Bind("listFiles"`, `w.Bind("createNewFile"`,
+		`w.Bind("renameFile"`, `w.Bind("deleteFile"`, `w.Bind("showSaveFileDialog"`,
+		`w.Bind("relativeFilePath"`,
 		`w.Bind("openExternalURL"`,
 	} {
 		if !strings.Contains(bridge, name) {

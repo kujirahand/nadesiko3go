@@ -369,7 +369,7 @@ func createNewFolder(dirPath, name string) (string, error) {
 		return "", err
 	}
 	name = strings.TrimSpace(name)
-	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\\`) {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
 		return "", fmt.Errorf("使用できないフォルダ名です: %q", name)
 	}
 	fullPath := filepath.Join(absDir, name)
@@ -377,6 +377,73 @@ func createNewFolder(dirPath, name string) (string, error) {
 		return "", err
 	}
 	return fullPath, nil
+}
+
+func validFileName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, "/\\") {
+		return fmt.Errorf("使用できない名前です: %q", name)
+	}
+	return nil
+}
+
+func createNewFile(dirPath, name string) (string, error) {
+	if err := validFileName(name); err != nil {
+		return "", err
+	}
+	if dirPath == "" || dirPath == "$DESKTOP" {
+		dirPath = getDesktopDir()
+	}
+	absDir, err := filepath.Abs(dirPath)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(absDir, strings.TrimSpace(name))
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if err != nil {
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		return "", err
+	}
+	return path, nil
+}
+
+func renameFile(path, name string) (string, error) {
+	if err := validFileName(name); err != nil {
+		return "", err
+	}
+	newPath := filepath.Join(filepath.Dir(path), strings.TrimSpace(name))
+	if newInfo, err := os.Lstat(newPath); err == nil {
+		oldInfo, oldErr := os.Lstat(path)
+		if oldErr != nil {
+			return "", oldErr
+		}
+		// 大文字・小文字を区別しない環境では、変更先が自分自身になる。
+		if !os.SameFile(oldInfo, newInfo) || !strings.EqualFold(filepath.Base(path), filepath.Base(newPath)) {
+			return "", fmt.Errorf("同名のファイルまたはフォルダが既にあります")
+		}
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+	if err := os.Rename(path, newPath); err != nil {
+		return "", err
+	}
+	return newPath, nil
+}
+
+func deleteFile(path string) error {
+	if path == "" || !filepath.IsAbs(path) || filepath.Dir(filepath.Clean(path)) == filepath.Clean(path) {
+		return fmt.Errorf("削除できないパスです: %q", path)
+	}
+	return os.RemoveAll(path)
+}
+
+func errorString(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
 }
 
 func revealInFinder(targetPath string) error {
@@ -823,6 +890,24 @@ func bindPrivilegedBridge(w webview.WebView, guiRuntime *guiSession, directWindo
 		listing := listFiles(dirPath)
 		b, _ := json.Marshal(listing)
 		return string(b)
+	})
+	_ = w.Bind("createNewFile", func(dirPath, name string) string {
+		path, err := createNewFile(dirPath, name)
+		b, _ := json.Marshal(map[string]any{"ok": err == nil, "path": path, "error": errorString(err)})
+		return string(b)
+	})
+	_ = w.Bind("renameFile", func(path, name string) string {
+		newPath, err := renameFile(path, name)
+		b, _ := json.Marshal(map[string]any{"ok": err == nil, "path": newPath, "error": errorString(err)})
+		return string(b)
+	})
+	_ = w.Bind("deleteFile", func(path string) string {
+		err := deleteFile(path)
+		b, _ := json.Marshal(map[string]any{"ok": err == nil, "error": errorString(err)})
+		return string(b)
+	})
+	_ = w.Bind("relativeFilePath", func(base, path string) (string, error) {
+		return filepath.Rel(base, path)
 	})
 
 	// Go ↔ JavaScript バインディング: ファイル判定と読み込み。

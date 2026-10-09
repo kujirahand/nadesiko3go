@@ -168,7 +168,8 @@
           </div>
           <div class="file-footer-bar">
             <button id="btn-open-folder" class="btn-file-footer" title="現在のフォルダをFinderまたはExplorerで開く">📂 フォルダ開く</button>
-            <button id="btn-new-folder" class="btn-file-footer">新規フォルダ</button>
+            <button id="btn-new-file" class="btn-file-footer">📄 新規ファイル</button>
+            <button id="btn-new-folder" class="btn-file-footer">📁 新規フォルダ</button>
           </div>
         </div>
       </aside>
@@ -350,6 +351,10 @@
   <!-- ファイル項目の右クリック用コンテキストメニュー -->
   <div id="file-context-menu" class="context-menu" style="display: none;">
     <div class="context-menu-item" id="menu-open-editor">📝 エディタで開く</div>
+    <div class="context-menu-item" id="menu-copy-path">📋 絶対パスをコピー</div>
+    <div class="context-menu-item" id="menu-copy-relative-path">📋 相対パスをコピー</div>
+    <div class="context-menu-item" id="menu-rename-file">✏️ 名前を変更</div>
+    <div class="context-menu-item" id="menu-delete-file">🗑️ 削除</div>
     <div class="context-menu-item" id="menu-reveal-finder">📂 <span id="label-reveal-finder">Finderで表示</span></div>
   </div>
 

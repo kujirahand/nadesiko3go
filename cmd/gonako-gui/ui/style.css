@@ -1341,6 +1341,7 @@ kbd {
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
