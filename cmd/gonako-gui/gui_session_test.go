@@ -388,6 +388,54 @@ B=「続ける？」で二択
 	}
 }
 
+func TestGUIAsyncPromptCancelValue(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		code string
+		want string
+	}{
+		{
+			name: "設定値は尋と文字尋に反映",
+			code: `ダイアログキャンセル値は「きゃんせる」
+A=「入力」と尋ねる
+B=「入力」と文字尋ねる
+AT= Aの変数型確認
+BT= Bの変数型確認
+「{A}:{AT}:{B}:{BT}」を表示`,
+			want: "きゃんせる:string:きゃんせる:string\n",
+		},
+		{
+			name: "未設定時は空文字列",
+			code: `A=「入力」と尋ねる
+B=「入力」と文字尋ねる
+「[{A}]:[{B}]」を表示`,
+			want: "[]:[]\n",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			session := &guiSession{}
+			runID := session.start(tt.code, "prompt-cancel.nako3", true, nil, nil)
+			collector := newAsyncCollector(session, runID)
+			for range 2 {
+				status := waitForDialog(t, collector)
+				if status.Dialog.Kind != "prompt" {
+					t.Fatalf("dialog kind = %q, want prompt", status.Dialog.Kind)
+				}
+				if !session.resolveDialog(runID, status.Dialog.ID, "", false) {
+					t.Fatalf("resolveDialog(%d) failed", status.Dialog.ID)
+				}
+			}
+			status := waitForAsyncDone(t, collector)
+			if status.Result == nil || !status.Result.OK {
+				t.Fatalf("result = %#v", status.Result)
+			}
+			if got := collector.output.String(); got != tt.want {
+				t.Fatalf("streamed output = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 // イベントハンドラの中の『言う』で固まらないこと（#59）。同期実行していた
 // 頃は、ダイアログの応答を待つイベントと、イベントの終了を待つ画面とが
 // 互いに待ち合ってウィンドウごと固まっていた。

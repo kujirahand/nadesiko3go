@@ -31,6 +31,9 @@ type command struct {
 // FuncList gives the signatures the lexer and parser need.
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
+	list["ダイアログキャンセル値"] = &lexer.FuncItem{
+		Name: "ダイアログキャンセル値", Type: "var", Value: "",
+	}
 	for name, c := range commands() {
 		list[name] = &lexer.FuncItem{
 			Name: name, Type: "func", Josi: c.josi,

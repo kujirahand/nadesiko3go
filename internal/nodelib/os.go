@@ -55,7 +55,7 @@ func osCommands(m map[string]command) {
 			}
 			if supported {
 				if !accepted {
-					return promptCancelValue(ctx), nil
+					return value.String(value.ToString(promptCancelValue(ctx))), nil
 				}
 				return value.String(answer), nil
 			}
@@ -228,7 +228,7 @@ func osCommands(m map[string]command) {
 }
 
 // promptCancelValue はダイアログをキャンセルしたときの設定値を返す。
-// 未設定時の空文字列も、設定された空文字列も同じ動作になる。
+// 未設定（undefined）のときは空文字列を返す。
 func promptCancelValue(ctx stdlib.Context) value.Value {
 	v := ctx.SysVar("ダイアログキャンセル値")
 	if v.Kind() == value.KindUndefined {
