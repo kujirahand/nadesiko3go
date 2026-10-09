@@ -31,7 +31,7 @@ type command struct {
 // FuncList gives the signatures the lexer and parser need.
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
-	list["ダイアログキャンセル値"] = &lexer.FuncItem{
+	list["ダイアログキャンセル値"] = &lexer.FuncItem{ // @尋ねる系ダイアログをキャンセルしたときに返す値 // @だいあろぐきゃんせるち
 		Name: "ダイアログキャンセル値", Type: "var", Value: "",
 	}
 	for name, c := range commands() {
