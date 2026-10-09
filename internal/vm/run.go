@@ -836,6 +836,17 @@ func (m *VM) ShowDialog(kind, message string) (string, bool, bool, error) {
 	return h.ShowDialog(kind, message)
 }
 
+// RequestGUI は画面処理を任意のGUIホストへ委譲する。
+func (m *VM) RequestGUI(kind, message string) (string, error) {
+	h, ok := m.host.(interface {
+		RequestGUI(string, string) (string, error)
+	})
+	if !ok {
+		return "", errors.New("この命令はgonako-guiのウィンドウモードで実行してください。")
+	}
+	return h.RequestGUI(kind, message)
+}
+
 func (m *VM) Args() []string { return m.host.Args() }
 
 func (m *VM) ReadResource(name string) ([]byte, bool) { return m.host.ReadResource(name) }

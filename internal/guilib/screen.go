@@ -18,6 +18,7 @@ import (
 // Nadesiko programs only see numeric handles; DOM objects never cross the VM
 // boundary.
 type Operation struct {
+	Canvas     *CanvasDrawing    `json:"canvas,omitempty"`
 	Type       string            `json:"type"`
 	Handle     int               `json:"handle,omitempty"`
 	Parent     int               `json:"parent,omitempty"`
@@ -32,14 +33,17 @@ type Operation struct {
 }
 
 type screenNode struct {
-	handle     int
-	tag        string
-	text       string
-	html       string
-	name       string
-	parent     int
-	styles     map[string]string
-	attributes map[string]string
+	strokeWidth float64
+	strokeColor string
+	fillColor   string
+	handle      int
+	tag         string
+	text        string
+	html        string
+	name        string
+	parent      int
+	styles      map[string]string
+	attributes  map[string]string
 }
 
 type eventBinding struct {

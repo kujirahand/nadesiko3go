@@ -186,6 +186,51 @@ func (p *Plugin) commands() map[string]command {
 			josi: [][]string{{"の"}},
 			fn:   p.cmdCreateCanvas,
 		},
+		"キャンバス線太設定": { // @canvasごとの描画の線の太さを0より大きい数値で設定する // @きゃんばすせんふとせってい
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.canvasSetStyle("キャンバス線太設定", "width"),
+		},
+		"キャンバス線色設定": { // @canvasごとの描画の既定線色をCSS色で設定する // @きゃんばすせんいろせってい
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.canvasSetStyle("キャンバス線色設定", "stroke"),
+		},
+		"キャンバス塗色設定": { // @canvasごとの矩形・円の塗りつぶし色をCSS色で設定する // @きゃんばすぬりいろせってい
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.canvasSetStyle("キャンバス塗色設定", "fill"),
+		},
+		"キャンバス線描画": { // @canvasへ座標[X1,Y1,X2,Y2]の直線を設定した線色・線太で描画する // @きゃんばすせんびょうが
+			josi:       [][]string{{"の"}, {"へ", "に"}},
+			returnNone: true,
+			fn:         p.canvasDraw("キャンバス線描画", "line", 4),
+		},
+		"キャンバス矩形描画": { // @canvasへ矩形[X,Y,幅,高さ]を設定した塗色・線色・線太で描画する // @きゃんばすくけいびょうが
+			josi:       [][]string{{"の"}, {"へ", "に"}},
+			returnNone: true,
+			fn:         p.canvasDraw("キャンバス矩形描画", "rect", 4),
+		},
+		"キャンバス円描画": { // @canvasへ円[中心X,中心Y,半径]を設定した塗色・線色・線太で描画する // @きゃんばすえんびょうが
+			josi:       [][]string{{"の"}, {"へ", "に"}},
+			returnNone: true,
+			fn:         p.canvasDraw("キャンバス円描画", "circle", 3),
+		},
+		"キャンバス画像描画": { // @canvasへ画像ファイルを座標[X,Y]または[X,Y,幅,高さ]で描画する // @きゃんばすがぞうびょうが
+			josi:       [][]string{{"に", "へ"}, {"を"}, {"で"}},
+			returnNone: true,
+			fn:         p.cmdCanvasImageDraw,
+		},
+		"キャンバス画像保存": { // @canvasの描画内容をPNG・JPEG・GIFファイルへ保存する // @きゃんばすがぞうほぞん
+			josi:       [][]string{{"を", "の"}, {"に", "へ"}},
+			returnNone: true,
+			fn:         p.cmdCanvasImageSave,
+		},
+		"キャンバス消去": { // @canvasの描画内容を全て消して透明にする // @きゃんばすしょうきょ
+			josi:       [][]string{{"を", "の"}},
+			returnNone: true,
+			fn:         p.canvasDraw("キャンバス消去", "clear", 0),
+		},
 		"画像作成": { // @URLを指定したimg要素を追加してハンドルを返す // @がぞうさくせい
 			josi: [][]string{{"の", "から"}},
 			fn:   p.cmdCreateImage,

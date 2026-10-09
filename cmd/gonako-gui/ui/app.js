@@ -441,7 +441,42 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  async function showCanvasRequest(message) {
+    try {
+      const request = JSON.parse(message);
+      const canvas = guiElements.get(Number(request.handle)) || windowPreview.querySelector(`[data-gonako-handle="${request.handle}"]`);
+      if (!canvas || canvas.tagName !== 'CANVAS') throw new Error('描画先のキャンバスが見つかりません。');
+      if (request.action === 'save') {
+        return { text: canvas.toDataURL('image/png'), accepted: true };
+      }
+      if (request.action !== 'image') throw new Error('キャンバスの要求が不正です。');
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('画像を読み込めませんでした。'));
+        image.src = request.source;
+      });
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('キャンバスに描画できません。');
+      ctx.save();
+      try {
+        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = request.strokeColor || '#000000';
+        ctx.lineWidth = request.lineWidth || 1;
+        ctx.drawImage(image, ...request.coordinates);
+        const [x, y, width = image.naturalWidth, height = image.naturalHeight] = request.coordinates;
+        ctx.strokeRect(x, y, width, height);
+      } finally {
+        ctx.restore();
+      }
+      return { text: '', accepted: true };
+    } catch (err) {
+      return { text: String(err.message || err), accepted: false };
+    }
+  }
+
   function showNakoDialog(request) {
+    if (request.kind === 'canvas') return showCanvasRequest(request.message);
     if (request.kind === 'buttons' || request.kind === 'list') {
       return showNakoChoiceDialog(request);
     }
@@ -2401,6 +2436,34 @@ document.addEventListener('DOMContentLoaded', () => {
           if (op.event === 'submit') event.preventDefault();
           sendGUIEvent(op.handle, op.event);
         });
+      } else if (op.type === 'canvas') {
+        const drawing = op.canvas;
+        const ctx = el.getContext('2d');
+        if (!ctx || !drawing) return;
+        const c = drawing.coordinates || [];
+        ctx.save();
+        // 各命令の色・線幅を独立させ、不正なCSS色は黒として描く。
+        ctx.strokeStyle = ctx.fillStyle = '#000000';
+        ctx.strokeStyle = drawing.strokeColor || '#000000';
+        ctx.fillStyle = drawing.fillColor || '#000000';
+        ctx.lineWidth = drawing.lineWidth || 1;
+        if (drawing.action === 'clear') {
+          ctx.clearRect(0, 0, el.width, el.height);
+        } else if (drawing.action === 'line') {
+          ctx.beginPath();
+          ctx.moveTo(c[0], c[1]);
+          ctx.lineTo(c[2], c[3]);
+          ctx.stroke();
+        } else if (drawing.action === 'rect') {
+          ctx.fillRect(c[0], c[1], c[2], c[3]);
+          ctx.strokeRect(c[0], c[1], c[2], c[3]);
+        } else if (drawing.action === 'circle') {
+          ctx.beginPath();
+          ctx.arc(c[0], c[1], c[2], 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        ctx.restore();
       } else if (op.type === 'focus') {
         el.focus();
       }
