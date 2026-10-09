@@ -47,7 +47,7 @@
 手元で以下の順序でコマンドを実行します。
 
 ```text
-① バージョン更新 & テスト  (just version-update 3.8.8 && just test)
+① バージョン更新 & テスト  (just version-update 3.8.9 && just test)
            │
 ② 手元ビルド確認            (just release / release-<OS>)
            │
@@ -61,8 +61,8 @@
 バージョン番号を指定して、全関連ファイルを一括更新します。
 
 ```bash
-# 例: 3.8.8 へ更新
-just version-update 3.8.8
+# 例: 3.8.9 へ更新
+just version-update 3.8.9
 
 # ユニットテストとマニュアルテストの実行
 just test
@@ -101,15 +101,15 @@ just release-linux
 
 | ファイル名 | 対象環境 | 形式 |
 |---|---|---|
-| `gonako-3.8.8-darwin-arm64.zip` | macOS (Apple Silicon) | CLIバイナリ |
-| `gonako-3.8.8-darwin-amd64.zip` | macOS (Intel) | CLIバイナリ |
-| `gonako-3.8.8-linux-amd64.zip` | Linux (x86_64) | CLIバイナリ |
-| `gonako-3.8.8-linux-arm64.zip` | Linux (aarch64) | CLIバイナリ |
-| `gonako-3.8.8-windows-amd64.zip` | Windows (x86_64) | CLIバイナリ（`gonako.exe`） |
-| `gonako-gui-3.8.8-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle |
-| `gonako-gui-3.8.8-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle |
-| `gonako-gui-3.8.8-windows-amd64.zip` | Windows (x86_64) | GUI exe（`gonako-gui.exe`） |
-| `gonako-gui-3.8.8-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイル |
+| `gonako-3.8.9-darwin-arm64.zip` | macOS (Apple Silicon) | CLIバイナリ |
+| `gonako-3.8.9-darwin-amd64.zip` | macOS (Intel) | CLIバイナリ |
+| `gonako-3.8.9-linux-amd64.zip` | Linux (x86_64) | CLIバイナリ |
+| `gonako-3.8.9-linux-arm64.zip` | Linux (aarch64) | CLIバイナリ |
+| `gonako-3.8.9-windows-amd64.zip` | Windows (x86_64) | CLIバイナリ（`gonako.exe`） |
+| `gonako-gui-3.8.9-darwin-arm64.app.zip` | macOS (Apple Silicon) | GUI App Bundle |
+| `gonako-gui-3.8.9-darwin-amd64.app.zip` | macOS (Intel) | GUI App Bundle |
+| `gonako-gui-3.8.9-windows-amd64.zip` | Windows (x86_64) | GUI exe（`gonako-gui.exe`） |
+| `gonako-gui-3.8.9-linux-amd64.zip` | Linux (x86_64) | GUI実行ファイル |
 
 > **Note**: 先に手元ビルドを通すことで、クロスコンパイルエラーや環境要因によるビルド失敗時の不要なロールバックを防ぎます。
 
@@ -122,7 +122,7 @@ just release-linux
 
 ```bash
 just release-upload        # バージョンは internal/version/version.go から
-just release-upload 3.8.8  # バージョンを明示
+just release-upload 3.8.9  # バージョンを明示
 ```
 
 OSごとに別マシンでビルドする場合は、各マシンで `just release-<OS>` の後に
@@ -134,13 +134,13 @@ OSごとに別マシンでビルドする場合は、各マシンで `just relea
 バージョン更新の変更をコミットし、`master` ブランチへマージします。
 
 ```bash
-git checkout -b release-v3.8.8
+git checkout -b release-v3.8.9
 git add -A
-git commit -m "chore: release v3.8.8"
-git push -u origin release-v3.8.8
+git commit -m "chore: release v3.8.9"
+git push -u origin release-v3.8.9
 
 # PRを作成してマージ
-gh pr create --title "chore: release v3.8.8" --fill
+gh pr create --title "chore: release v3.8.9" --fill
 # （GitHub Webまたはgh pr mergeでmasterにマージ）
 
 # ローカルのmasterを最新に更新
@@ -156,7 +156,7 @@ git pull origin master
 just publish
 ```
 
-引数を省略した場合は `internal/version/version.go` の現在値が使われます（`just publish 3.8.8` のように明示指定も可能）。
+引数を省略した場合は `internal/version/version.go` の現在値が使われます（`just publish 3.8.9` のように明示指定も可能）。
 
 > **Note**: `just publish` は `release/` にあるローカルZIPをアップロードし、そのZIPから
 > HomebrewのSHA-256を算出します（`-local`）。そのため実行前に全OS分の成果物を `release/` に
@@ -214,14 +214,14 @@ just publish
 すでに GitHub Release が公開済みであれば、Tap の更新だけをやり直すことができます：
 
 ```bash
-just homebrew-update "3.8.8 -push"
+just homebrew-update "3.8.9 -push"
 ```
 
 ### Q. 手動で成果物をアップロード・公開したい
 何らかの理由でスクリプトを使わず手動で作業する場合は、以下の順序で実行してください：
 
 ```bash
-VERSION="3.8.8"
+VERSION="3.8.9"
 
 # 1. ドラフトとして作成（一般ユーザーから見えないようにする）
 gh release create "$VERSION" --draft --title "v$VERSION" --notes "Release $VERSION"
@@ -243,7 +243,7 @@ go run ./scripts/version-update.go --stable "$VERSION"
 アップロード途中で中断した場合など、ドラフトリリースを削除してやり直すには：
 
 ```bash
-gh release delete 3.8.8 --yes
+gh release delete 3.8.9 --yes
 ```
 
 ---
