@@ -60,10 +60,13 @@ func TestCanvasImageResourceAndArgumentChecks(t *testing.T) {
 	if _, err := draw(ctx, args(1.5, 2)); err != nil {
 		t.Fatal(err)
 	}
+	if len(ctx.requests) != 1 {
+		t.Fatalf("要求=%#v", ctx.requests)
+	}
 	if ctx.requests[0].LineWidth != 3 || ctx.requests[0].StrokeColor != "blue" {
 		t.Fatalf("画像の線設定=%#v", ctx.requests[0])
 	}
-	if len(ctx.requests) != 1 || ctx.requests[0].Action != "image" || ctx.requests[0].Coordinates[0] != 1.5 {
+	if ctx.requests[0].Action != "image" || ctx.requests[0].Coordinates[0] != 1.5 {
 		t.Fatalf("要求=%#v", ctx.requests)
 	}
 	// 座標の数、非有限値、0や負の拡大縮小サイズを画面へ送らない。

@@ -150,7 +150,9 @@ func TestCanvasImageSaveFormatsAndErrors(t *testing.T) {
 	}{{"壊れた画像", true}, {"キャンバスの取得エラー", false}, {"data:image/png;base64,aW52YWxpZA==", true}} {
 		t.Run(answer.text, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "既存.png")
-			os.WriteFile(path, []byte("既存の内容"), 0600)
+			if err := os.WriteFile(path, []byte("既存の内容"), 0600); err != nil {
+				t.Fatal(err)
+			}
 			session := &guiSession{}
 			id := session.start(`絵=[2,2]のキャンバス作成;絵を「`+path+`」にキャンバス画像保存`, "save.nako3", true, nil, nil)
 			c := newAsyncCollector(session, id)
