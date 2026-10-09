@@ -279,6 +279,24 @@ just compat-run
 
 ---
 
+### 8.7 `cc1plus.exe` が存在するのに起動できない
+
+```text
+g++.exe: fatal error: cannot execute '.../cc1plus.exe': CreateProcess: No such file or directory
+```
+
+ファイルが存在していても、WindowsのSmart App Controlやアプリケーション制御ポリシーがC++コンパイラの起動を拒否すると、このエラーになることがあります。`g++ --version`だけでは、内部で使う`cc1plus.exe`の起動を確認できません。
+
+エラーに表示されたパスを使って、PowerShellから直接実行して確認します（GCCのバージョンに応じてパスを変更してください）。
+
+```powershell
+& 'C:\msys64\ucrt64\lib\gcc\x86_64-w64-mingw32\16.2.0\cc1plus.exe' --version
+```
+
+「アプリケーション制御ポリシーによってこのファイルがブロックされました」と表示される場合は、イベントビューアーの「アプリケーションとサービス ログ → Microsoft → Windows → CodeIntegrity → Operational」で、対象ファイルの拒否記録を確認してください。イベントID `3077`は拒否記録、`3118`はSmart App Controlの詳細です。
+
+この場合は、Windows側でコンパイラの実行が許可される必要があります。管理対象PCでは管理者に対象ファイルと拒否記録を伝えてください。Smart App Controlにはアプリ単位の許可例外がありません。詳細は[MicrosoftのFAQ](https://support.microsoft.com/en-us/windows/security/threat-malware-protection/smart-app-control-frequently-asked-questions)を参照してください。コンパイラを実行できる環境に整えた後、`just release-windows`を再実行します。
+
 ## 9. 配布用アーカイブを作る / 開発中のGUIをすぐ試す
 
 Windows実機で配布用（`release/` にzipを作る）には次を使います。
