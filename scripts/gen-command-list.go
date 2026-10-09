@@ -402,18 +402,24 @@ func main() {
 	var allDocs []CommandDoc
 
 	for name, item := range list {
-		if item.Type != "func" {
+		if item.Type != "func" && item.Type != "var" {
 			continue
 		}
 
 		doc, tsOK := tsDocs[name]
 		if !tsOK {
+			desc := fmt.Sprintf("命令『%s』を実行します", name)
+			category := "命令"
+			if item.Type == "var" {
+				desc = fmt.Sprintf("システム変数『%s』です", name)
+				category = "システム変数"
+			}
 			doc = CommandDoc{
 				Name:     name,
 				Type:     item.Type,
 				Josi:     item.Josi,
-				Category: "命令",
-				Desc:     fmt.Sprintf("命令『%s』を実行します", name),
+				Category: category,
+				Desc:     desc,
 				Template: makeTemplate(name, item.Josi),
 			}
 		}
@@ -462,7 +468,7 @@ func main() {
 
 		// 本家(TS)に対応する命令が無いもの（≒Go独自命令）は、「命令」という
 		// 意味のないグループに丸めず、定義ファイルに応じた具体的なグループ名を付ける。
-		if !tsOK && doc.File != "" {
+		if !tsOK && doc.File != "" && item.Type != "var" {
 			doc.Category = groupForFile(doc.File)
 		}
 

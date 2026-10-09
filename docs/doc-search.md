@@ -26,6 +26,7 @@ gonako doc 文字列 --limit 0   # 全件表示する
 `just gen-command-list`（`scripts/gen-command-list.go`）が、Go版のレジストリと
 本家TypeScript版のプラグインのコメントから生成したものです。生成時に、
 GUIエディタが読む `cmd/gonako-gui/ui/command-list.json` と同じ内容を2か所へ書き出しています。
+命令に加えて、レジストリに登録されたシステム変数も一覧に含まれます。
 
 `internal/commanddoc` はこのJSONを `//go:embed` でバイナリに埋め込むので、
 **ネットにつながっていなくても検索できます**。命令を追加・変更したら
