@@ -1,6 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"io/fs"
+	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
@@ -61,7 +65,66 @@ var wnakoSharedPlugins = map[string]bool{
 var (
 	wnakoCommandsOnce sync.Once
 	wnakoCommands     []CommandItem
+	gonakoPluginItems []*lexer.FuncItem
 )
+
+// gonakoPluginEntryRe は gonako-loader.js の pluginGonako の各項目の先頭
+// （「    '命令名': {」）を取り出す。
+var gonakoPluginEntryRe = regexp.MustCompile(`(?m)^    '([^']+)': \{`)
+
+// gonakoPluginTypeRe・gonakoPluginJosiRe は項目内の type と josi を取り出す。
+var (
+	gonakoPluginTypeRe = regexp.MustCompile(`\btype: '(\w+)'`)
+	gonakoPluginJosiRe = regexp.MustCompile(`\bjosi: (\[\[.*\]\]),`)
+)
+
+// gonakoPluginFuncItems は、ブラウザ実行画面がwnako3へ登録する PluginGonako
+// （ui/gonako-loader.js の pluginGonako）の命令を命令表の形で返す（#301）。
+// GONAKO関数実行・ボタン選択などはwnako3本体の一覧に無いが、実行画面では
+// 必ず使えるので、文法チェックでも定義済みとして扱う。定義を二重に持たない
+// よう、埋め込んだ gonako-loader.js から直接読み取る。
+func gonakoPluginFuncItems(src string) []*lexer.FuncItem {
+	start := strings.Index(src, "const pluginGonako = {")
+	if start < 0 {
+		return nil
+	}
+	src = src[start:]
+	if end := strings.Index(src, "\n  };\n"); end >= 0 {
+		src = src[:end]
+	}
+	locs := gonakoPluginEntryRe.FindAllStringSubmatchIndex(src, -1)
+	items := make([]*lexer.FuncItem, 0, len(locs))
+	for i, loc := range locs {
+		name := src[loc[2]:loc[3]]
+		bodyEnd := len(src)
+		if i+1 < len(locs) {
+			bodyEnd = locs[i+1][0]
+		}
+		body := src[loc[1]:bodyEnd]
+		m := gonakoPluginTypeRe.FindStringSubmatch(body)
+		if m == nil || name == "meta" {
+			continue
+		}
+		item := &lexer.FuncItem{Name: name, Type: m[1]}
+		if j := gonakoPluginJosiRe.FindStringSubmatch(body); j != nil {
+			// JavaScriptの配列リテラル（単引用符）をJSONとして読む。
+			_ = json.Unmarshal([]byte(strings.ReplaceAll(j[1], "'", `"`)), &item.Josi)
+		}
+		item.ReturnNone = strings.Contains(body, "return_none: true")
+		items = append(items, item)
+	}
+	return items
+}
+
+// loadWNakoCommands はwnako用の命令表の材料を一度だけ読み込む。
+func loadWNakoCommands() {
+	wnakoCommandsOnce.Do(func() {
+		wnakoCommands = getWNakoCommandList()
+		if data, err := fs.ReadFile(uiFS, "ui/gonako-loader.js"); err == nil {
+			gonakoPluginItems = gonakoPluginFuncItems(string(data))
+		}
+	})
+}
 
 // wnakoFuncList はwnako3の命令一覧（command-list-wnako.json）から構文解析用の
 // 命令表を作る。構文解析は利用者定義の関数を命令表へ書き足すので、
@@ -70,11 +133,12 @@ var (
 // command-list-wnako.json の助詞はマニュアルの書式から抜き出した近似なので、
 // gonakoと共通のプラグイン（wnakoSharedPlugins）の命令は、gonakoのレジストリの
 // 定義（plugin_system は互換保証の対象で、助詞や可変長引数の指定が正確）を使う。
+// 最後に、実行画面が登録する PluginGonako の命令を加える。wnako3では
+// 後から登録したプラグインが同名の命令（言・尋など）を上書きするので、
+// こちらの定義を優先する。
 // wnakoの一覧に無いgonako専用命令（ファイル操作やGUIなど）は含めない。
 func wnakoFuncList() lexer.FuncList {
-	wnakoCommandsOnce.Do(func() {
-		wnakoCommands = getWNakoCommandList()
-	})
+	loadWNakoCommands()
 	runtime := vm.RuntimeFuncList()
 	list := make(lexer.FuncList, len(wnakoCommands))
 	for _, cmd := range wnakoCommands {
@@ -92,6 +156,14 @@ func wnakoFuncList() lexer.FuncList {
 			Josi:       josi,
 			ReturnNone: cmd.ReturnNone,
 		}
+	}
+	for _, item := range gonakoPluginItems {
+		copied := *item
+		copied.Josi = make([][]string, len(item.Josi))
+		for i, group := range item.Josi {
+			copied.Josi[i] = append([]string(nil), group...)
+		}
+		list[item.Name] = &copied
 	}
 	return list
 }

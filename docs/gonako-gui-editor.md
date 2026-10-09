@@ -270,7 +270,10 @@ GitHubの最新masterを自動でダウンロードして展開します**
 wnako用の命令表は `cmd/gonako-gui/editor_lint.go` の `wnakoFuncList` が作ります。
 gonakoと共通のプラグイン（plugin_system・plugin_math など）の命令は、助詞が正確な
 gonakoのレジストリの定義を使い、ブラウザ用プラグインなどwnako3だけの命令は
-`command-list-wnako.json` の助詞から組み立てます。wnakoの一覧に無いgonako専用の
+`command-list-wnako.json` の助詞から組み立てます。さらに、実行画面が
+`gonako-loader.js` で登録する PluginGonako の命令（`GONAKO関数実行`・`GONAKO実行`・
+`ボタン選択`・`リスト選択`、上書きする `言`・`尋` など）も、埋め込んだ
+`gonako-loader.js` の `pluginGonako` から読み取って加えます。wnakoの一覧に無いgonako専用の
 命令（`起動` など）はwnakoモードでは文法エラーになります。
 命令一覧の `[gonako] [wnako]` 切り替え（2.5節）は表示上の選択なので、
 文法チェックの命令セットには影響しません。
