@@ -345,6 +345,7 @@ func TestGUIAsyncDialogs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			session := &guiSession{}
 			runID := session.start(`
+ダイアログキャンセル値は「きゃんせる」
 「こんにちは」と言う
 A=「数値を入力」と尋ねる
 B=「続ける？」で二択

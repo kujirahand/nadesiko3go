@@ -193,7 +193,8 @@ func TestEmptyPromptInput(t *testing.T) {
 		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
 			var out strings.Builder
 			host := vm.NewCUIHost(&out, strings.NewReader(input), nil)
-			code := `A=「」と尋ねる
+			code := `ダイアログキャンセル値は「きゃんせる」
+A=「」と尋ねる
 B=「」と文字尋ねる
 型=AのTYPEOF
 文字型=BのTYPEOF
