@@ -34,7 +34,7 @@ func TestRequirePackageSearchOrder(t *testing.T) {
 	oldExe, oldFS := runtimeExecutable, packageFiles
 	t.Cleanup(func() { runtimeExecutable, packageFiles = oldExe, oldFS })
 	runtimeExecutable = func() (string, error) { return filepath.Join(runtimeDir, "gonako"), nil }
-	packageFiles = fstest.MapFS{"gonako-package/" + name: &fstest.MapFile{Data: []byte("「埋込」と表示")}}
+	packageFiles = fstest.MapFS{name: &fstest.MapFile{Data: []byte("「埋込」と表示")}}
 	t.Setenv("GONAKO_PACKAGE_PATH", envDir)
 	check := func(want string) {
 		t.Helper()
@@ -61,8 +61,8 @@ func TestRequirePackageSearchOrder(t *testing.T) {
 	check("embed:gonako-package/" + name)
 	// 埋め込みの実読込と、兄弟ファイルの相対取込・重複ガードも確認する。
 	packageFiles = fstest.MapFS{
-		"gonako-package/demo.nako3":       &fstest.MapFile{Data: []byte("!「./demo/child.nako3」を取り込む。\n!「./demo/child.nako3」を取り込む。")},
-		"gonako-package/demo/child.nako3": &fstest.MapFile{Data: []byte("「埋込」と表示")},
+		"demo.nako3":       &fstest.MapFile{Data: []byte("!「./demo/child.nako3」を取り込む。\n!「./demo/child.nako3」を取り込む。")},
+		"demo/child.nako3": &fstest.MapFile{Data: []byte("「埋込」と表示")},
 	}
 	if _, err := ParseSource("!「demo.nako3」を取り込む。", "main.nako3", requireTestFuncs()); err != nil {
 		t.Fatal(err)
@@ -167,8 +167,8 @@ func TestRequirePackagePathsStayWithinRoot(t *testing.T) {
 	t.Cleanup(func() { runtimeExecutable, packageFiles = oldExe, oldFS })
 	runtimeExecutable = func() (string, error) { return filepath.Join(runtimeDir, "gonako"), nil }
 	packageFiles = fstest.MapFS{
-		"secret.nako3":              &fstest.MapFile{},
-		"gonako-package/safe.nako3": &fstest.MapFile{},
+		"secret.nako3": &fstest.MapFile{},
+		"safe.nako3":   &fstest.MapFile{},
 	}
 	t.Setenv("GONAKO_PACKAGE_PATH", envDir)
 	if _, err := resolveRequirePath("sub/../../secret.nako3", "main.nako3", lexer.Token{}); err == nil {

@@ -71,7 +71,8 @@ nadesiko3go/
 │   ├── compat/            差分fixtureの実行と結果出力
 │   └── doctest/           本家マニュアルのdoctestブロックを実行して結果を照合
 ├── pkg/
-│   └── runtime/           gogenが生成したGoソースの唯一の依存先（→ 10節・`docs/gogen.md`）
+│   ├── runtime/           gogenが生成したGoソースの唯一の依存先（→ 10節・`docs/gogen.md`）
+│   └── nako3package/      ランタイムへ埋め込むなでしこパッケージ（go:embed）。→ `docs/gonako-package.md`
 ├── testdata/
 │   └── compat/            本家からコピーした cases/ と expected/、コピー元のSOURCE
 ├── scripts/

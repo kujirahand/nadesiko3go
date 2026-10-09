@@ -12,12 +12,11 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/kujirahand/nadesiko3go" // 直下のパッケージを埋め込み登録する。
 	"github.com/kujirahand/nadesiko3go/internal/errs"
 	"github.com/kujirahand/nadesiko3go/internal/indent"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
-	"github.com/kujirahand/nadesiko3go/internal/nakopackage"
 	"github.com/kujirahand/nadesiko3go/internal/prepare"
+	"github.com/kujirahand/nadesiko3go/pkg/nako3package"
 )
 
 // resolveRequires は tok に含まれる `!「file」を取込` 文を展開する。
@@ -195,7 +194,14 @@ const embeddedPrefix = "embed:"
 
 // テストでも実行ファイルの配置と埋め込み内容を検証できるようにする。
 var runtimeExecutable = os.Executable
-var packageFiles fs.FS = nakopackage.Files
+
+// packageFiles のパスは `gonako-package/` を除いた相対パス（embeddedFile で変換する）。
+var packageFiles fs.FS = nako3package.Files
+
+// embeddedFile は取込パス `gonako-package/...` を埋め込みFS内のパスへ変換する。
+func embeddedFile(candidate string) string {
+	return strings.TrimPrefix(candidate, "gonako-package/")
+}
 
 func localRequirePath(name string) (string, bool) {
 	full, err := filepath.Abs(name)
@@ -237,7 +243,7 @@ func embeddedRequirePath(candidate string) (string, bool) {
 	if !fs.ValidPath(candidate) || !strings.HasPrefix(candidate, "gonako-package/") {
 		return "", false
 	}
-	info, err := fs.Stat(packageFiles, candidate)
+	info, err := fs.Stat(packageFiles, embeddedFile(candidate))
 	return embeddedPrefix + candidate, err == nil && !info.IsDir()
 }
 
@@ -279,7 +285,7 @@ func loadRequireFile(filePath string, tok lexer.Token) ([]lexer.Token, error) {
 			return nil, requireErr(tok, "URLのファイルが大きすぎます（上限8MiB）。")
 		}
 	} else if strings.HasPrefix(filePath, embeddedPrefix) {
-		data, err = fs.ReadFile(packageFiles, strings.TrimPrefix(filePath, embeddedPrefix))
+		data, err = fs.ReadFile(packageFiles, embeddedFile(strings.TrimPrefix(filePath, embeddedPrefix)))
 	} else {
 		data, err = os.ReadFile(filePath)
 	}
