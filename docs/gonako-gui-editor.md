@@ -256,6 +256,31 @@ GitHubの最新masterを自動でダウンロードして展開します**
 プログラムのフォルダから解決されます。wnako3との連携の仕組みは
 [`wnako3-bridge.md`](wnako3-bridge.md) を参照してください。
 
+### 文法チェック・自動整形の命令セット
+
+文法チェックと自動整形はどちらも実行せずに構文解析だけを行いますが、
+命令の助詞が分からないと文を解析できないため、どの命令一覧で調べるかが
+結果を左右します。エディタは**実行モード**に合わせて命令セットを選びます（#301）。
+
+| 実行モード | 呼ぶAPI | 命令セット |
+| --- | --- | --- |
+| インライン・ウィンドウ(GUI)・コマンドライン(CLI) | `checkNakoSyntax` / `formatNakoCode` / `formatNakoCodeColon` | gonakoのランタイム命令 |
+| ブラウザ(wnako3) | `checkWNakoSyntax` / `formatWNakoCode` / `formatWNakoCodeColon` | `ui/command-list-wnako.json` の命令 |
+
+wnako用の命令表は `cmd/gonako-gui/editor_lint.go` の `wnakoFuncList` が作ります。
+gonakoと共通のプラグイン（plugin_system・plugin_math など）の命令は、助詞が正確な
+gonakoのレジストリの定義を使い、ブラウザ用プラグインなどwnako3だけの命令は
+`command-list-wnako.json` の助詞から組み立てます。さらに、実行画面が
+`gonako-loader.js` で登録する PluginGonako の命令（`GONAKO関数実行`・`GONAKO実行`・
+`ボタン選択`・`リスト選択`、上書きする `言`・`尋` など）も、埋め込んだ
+`gonako-loader.js` の `pluginGonako` から読み取って加えます。wnakoの一覧に無いgonako専用の
+命令（`起動` など）はwnakoモードでは文法エラーになります。
+命令一覧の `[gonako] [wnako]` 切り替え（2.5節）は表示上の選択なので、
+文法チェックの命令セットには影響しません。
+
+`!「plugin_xxx.js」を取り込む` で読み込む外部JSプラグインの命令は一覧に無いため、
+wnakoモードでも未定義の単語として報告されます。
+
 ## 命令ヘルプと構文の挿入
 
 下部パネルの「実行結果」「命令ヘルプ」タブで表示を切り替えます。

@@ -712,19 +712,36 @@ func bindPrivilegedBridge(w webview.WebView, guiRuntime *guiSession, directWindo
 	// Go ↔ JavaScript バインディング: 文法チェック・自動整形（#118）。
 	// どちらも実行はせず構文解析だけを行う。
 	_ = w.Bind("checkNakoSyntax", func(code, filePath string) string {
-		res := checkNakoSyntax(code, filePath)
+		res := checkNakoSyntax(code, filePath, lintModeGonako)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
 	// 独自HTMLからも呼ばれるので、formatNakoCodeは2引数のまま残し、
 	// コロン記法への変換は別名のAPIにする（#120）。
 	_ = w.Bind("formatNakoCode", func(code, filePath string) string {
-		res := formatNakoCode(code, filePath, false)
+		res := formatNakoCode(code, filePath, false, lintModeGonako)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})
 	_ = w.Bind("formatNakoCodeColon", func(code, filePath string) string {
-		res := formatNakoCode(code, filePath, true)
+		res := formatNakoCode(code, filePath, true, lintModeGonako)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	// 実行モードがブラウザ(wnako3)のときは、wnako3の命令一覧で構文解析する（#301）。
+	// 既存APIの引数を変えないよう、こちらも別名のAPIにする。
+	_ = w.Bind("checkWNakoSyntax", func(code, filePath string) string {
+		res := checkNakoSyntax(code, filePath, lintModeWNako)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	_ = w.Bind("formatWNakoCode", func(code, filePath string) string {
+		res := formatNakoCode(code, filePath, false, lintModeWNako)
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	_ = w.Bind("formatWNakoCodeColon", func(code, filePath string) string {
+		res := formatNakoCode(code, filePath, true, lintModeWNako)
 		b, _ := json.Marshal(res)
 		return string(b)
 	})

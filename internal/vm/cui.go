@@ -17,6 +17,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
+	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
@@ -136,6 +137,14 @@ func CompileProgram(code, filename string) (*ir.Program, error) {
 func ParseProgram(code, filename string) (*ast.Node, error) {
 	registry := runtimeRegistry()
 	return parser.ParseSource(code, filename, registry.FuncList())
+}
+
+// RuntimeFuncList は `gonako run`/`build` と同じ命令レジストリの命令一覧を返す。
+// 呼び出すたびに新しいレジストリから作るので、構文解析で利用者定義の関数が
+// 書き足されても他の呼び出しへ影響しない。GUIエディタがwnakoモード用の
+// 命令一覧を組み立てるとき、共通命令の助詞を正確に引くために使う（#301）。
+func RuntimeFuncList() lexer.FuncList {
+	return runtimeRegistry().FuncList()
 }
 
 // RunCompiled runs IR that was compiled earlier, which is how a bundled
