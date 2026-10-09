@@ -148,10 +148,73 @@ function apply(ops) {
         if (o.event === 'submit') x.preventDefault();
         send(o.handle, o.event);
       });
+    } else if (o.type === 'canvas') {
+      const drawing = o.canvas;
+      const ctx = e.getContext('2d');
+      if (!ctx || !drawing) return;
+      const c = drawing.coordinates || [];
+      ctx.save();
+      // 各命令の色・線幅を独立させ、不正なCSS色は黒として描く。
+      ctx.strokeStyle = ctx.fillStyle = '#000000';
+      ctx.strokeStyle = drawing.strokeColor || '#000000';
+      ctx.fillStyle = drawing.fillColor || '#000000';
+      ctx.lineWidth = drawing.lineWidth || 1;
+      if (drawing.action === 'clear') {
+        ctx.clearRect(0, 0, e.width, e.height);
+      } else if (drawing.action === 'line') {
+        ctx.beginPath();
+        ctx.moveTo(c[0], c[1]);
+        ctx.lineTo(c[2], c[3]);
+        ctx.stroke();
+      } else if (drawing.action === 'rect') {
+        ctx.fillRect(c[0], c[1], c[2], c[3]);
+        ctx.strokeRect(c[0], c[1], c[2], c[3]);
+      } else if (drawing.action === 'circle') {
+        ctx.beginPath();
+        ctx.arc(c[0], c[1], c[2], 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.restore();
     } else if (o.type === 'focus') {
       e.focus();
     }
   });
+}
+
+// 画像処理は画面側で完了を待ち、既存の要求・応答経路でGo側へ結果を返す。
+async function handleCanvasRequest(message) {
+  try {
+    const request = JSON.parse(message);
+    const canvas = elements.get(Number(request.handle)) || root.querySelector(`[data-gonako-handle="${request.handle}"]`);
+    if (!canvas || canvas.tagName !== 'CANVAS') throw new Error('描画先のキャンバスが見つかりません。');
+    if (request.action === 'save') {
+      return { text: canvas.toDataURL('image/png'), accepted: true };
+    }
+    if (request.action !== 'image') throw new Error('キャンバスの要求が不正です。');
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('画像を読み込めませんでした。'));
+      image.src = request.source;
+    });
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('キャンバスに描画できません。');
+    ctx.save();
+    try {
+      ctx.strokeStyle = '#000000';
+      ctx.strokeStyle = request.strokeColor || '#000000';
+      ctx.lineWidth = request.lineWidth || 1;
+      ctx.drawImage(image, ...request.coordinates);
+      const [x, y, width = image.naturalWidth, height = image.naturalHeight] = request.coordinates;
+      ctx.strokeRect(x, y, width, height);
+    } finally {
+      ctx.restore();
+    }
+    return { text: '', accepted: true };
+  } catch (err) {
+    return { text: String(err.message || err), accepted: false };
+  }
 }
 
 // 『言う』『尋ねる』『二択』『ボタン選択』『リスト選択』のダイアログ。
@@ -159,6 +222,7 @@ function apply(ops) {
 // 止まるので使わない。『ボタン選択』『リスト選択』のd.messageには
 // {label, items} をJSON化したものが入っている（internal/guilib参照）。
 function ask(d) {
+  if (d.kind === 'canvas') return handleCanvasRequest(d.message);
   if (d.kind === 'buttons' || d.kind === 'list') return askChoice(d);
   if (d.kind === 'custom') return askCustom(d);
   return askPlain(d);

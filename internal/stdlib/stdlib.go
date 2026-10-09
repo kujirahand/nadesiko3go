@@ -69,6 +69,12 @@ type DialogContext interface {
 	ShowDialog(kind, message string) (answer string, accepted, supported bool, err error)
 }
 
+// GUIRequestContext は画面側で実行する処理の完了と結果を待つ任意の機能。
+// DOMオブジェクトは渡さず、要求と応答はJSON文字列などで表す。
+type GUIRequestContext interface {
+	RequestGUI(kind, message string) (string, error)
+}
+
 // ExternalEventContextは外部イベントをVMの実行スレッドで処理するための任意の機能。
 type ExternalEventContext interface {
 	PostExternalEvent(ready func() bool, run func() error, close func())

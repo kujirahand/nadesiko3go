@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"os"
 	"strings"
 	"sync"
@@ -68,6 +69,21 @@ func (h *guiHost) ShowDialog(kind, message string) (string, bool, bool, error) {
 	}
 	answer, accepted, err := h.dialog(kind, message)
 	return answer, accepted, true, err
+}
+
+// RequestGUI は既存の要求・応答経路で画面処理の完了を待つ。ユーザー用ダイアログは開かない。
+func (h *guiHost) RequestGUI(kind, message string) (string, error) {
+	if !h.render || h.dialog == nil {
+		return "", errors.New("この命令はgonako-guiのウィンドウモードで実行してください。")
+	}
+	answer, accepted, err := h.dialog(kind, message)
+	if err != nil {
+		return "", err
+	}
+	if !accepted {
+		return "", errors.New(answer)
+	}
+	return answer, nil
 }
 
 func (h *guiHost) Exit(code int)  { h.exitCode, h.exited = code, true }
@@ -169,6 +185,22 @@ func (r *guiAsyncRun) appendPending(output string, ops []guilib.Operation) {
 	r.pendingOutput += output
 	r.pendingOps = append(r.pendingOps, ops...)
 	r.mu.Unlock()
+}
+
+// collectPending は画面操作の取り出しと追加を同じロックで行い、操作順を保つ。
+func (r *guiAsyncRun) collectPending(host *guiHost, screen *guilib.Screen) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.pendingOutput += host.drainOutput()
+	r.pendingOps = append(r.pendingOps, screen.DrainOperations()...)
+}
+
+func (r *guiAsyncRun) dialogHandler(host *guiHost) func(string, string) (string, bool, error) {
+	return func(kind, message string) (string, bool, error) {
+		// キャンバス作成・描画を先に届けてから、読み込みや保存を要求する。
+		r.collectPending(host, host.screen)
+		return r.showDialog(kind, message)
+	}
 }
 
 func (r *guiAsyncRun) showDialog(kind, message string) (string, bool, error) {
@@ -323,7 +355,7 @@ func (s *guiSession) startWithWindow(code, filename string, windowMode bool, arg
 		plugin := guilib.NewWithScreenAndWindow(screen, windows)
 		registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 		host := newGUIHost(screen, windowMode, args, packed)
-		host.dialog = state.showDialog
+		host.dialog = state.dialogHandler(host)
 		result := RunResult{OK: false, RunID: id}
 		prog, err := vm.CompileWithRegistry(code, filename, registry)
 		if err != nil {
@@ -345,7 +377,7 @@ func (s *guiSession) startCompiled(prog *ir.Program, args []string, packed *bund
 		plugin := s.pluginForScreen(screen)
 		registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
 		host := newGUIHost(screen, true, args, packed)
-		host.dialog = state.showDialog
+		host.dialog = state.dialogHandler(host)
 		result := RunResult{OK: false, RunID: id}
 		state.finish(s.runCompiledStreaming(state, prog, registry, host, screen, result))
 	}()
@@ -368,9 +400,9 @@ func streamPendingOutput(state *guiAsyncRun, host *guiHost, screen *guilib.Scree
 	for {
 		select {
 		case <-ticker.C:
-			state.appendPending(host.drainOutput(), screen.DrainOperations())
+			state.collectPending(host, screen)
 		case <-done:
-			state.appendPending(host.drainOutput(), screen.DrainOperations())
+			state.collectPending(host, screen)
 			return
 		}
 	}
@@ -503,7 +535,7 @@ func (s *guiSession) startEvent(runID uint64, handle int, event string, values m
 		}()
 		// ダイアログの宛先を今回のイベントに向ける。プログラム本体の実行は
 		// すでに終わっており、そのままではもう誰も応答しない状態を待ってしまう。
-		exec.host.dialog = state.showDialog
+		exec.host.dialog = state.dialogHandler(exec.host)
 
 		done := make(chan struct{})
 		var wg sync.WaitGroup
