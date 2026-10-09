@@ -337,12 +337,15 @@ func TestGUIAsyncDialogs(t *testing.T) {
 		input  string
 		output string
 	}{
+		{name: "空入力", input: "", output: "0:number:false\n"},
+		{name: "空白のみ", input: "   ", output: "0:number:false\n"},
 		{name: "半角数値", input: "12.5", output: "12.5:number:false\n"},
 		{name: "全角数字", input: "１２.５", output: "１２.５:string:false\n"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			session := &guiSession{}
 			runID := session.start(`
+ダイアログキャンセル値は「きゃんせる」
 「こんにちは」と言う
 A=「数値を入力」と尋ねる
 B=「続ける？」で二択

@@ -187,6 +187,58 @@ func TestOSCommands(t *testing.T) {
 	}
 }
 
+// 空入力を確定すると尋は数値0、文字尋は空文字列を返す。
+func TestEmptyPromptInput(t *testing.T) {
+	for _, input := range []string{"\n\n", "   \n\n"} {
+		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
+			var out strings.Builder
+			host := vm.NewCUIHost(&out, strings.NewReader(input), nil)
+			code := `ダイアログキャンセル値は「きゃんせる」
+A=「」と尋ねる
+B=「」と文字尋ねる
+型=AのTYPEOF
+文字型=BのTYPEOF
+「{A}:{型}:{B}:{文字型}」を表示`
+			if err := vm.RunProgram(code, "empty-prompt.nako3", host); err != nil {
+				t.Fatal(err)
+			}
+			if got, want := out.String(), "0:number::string\n"; got != want {
+				t.Fatalf("output = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// EOFは空行の確定と区別し、末尾に改行がない入力は一度だけ読み取る。
+func TestPromptInputEOF(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		input  string
+		output string
+	}{
+		{name: "即EOF"},
+		{name: "空行の後にEOF", input: "\n", output: "0:number\n"},
+		{name: "改行なしの数値", input: "42", output: "42:number\n"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var out strings.Builder
+			host := vm.NewCUIHost(&out, strings.NewReader(tt.input), nil)
+			code := `A=「」と尋ねる
+型=AのTYPEOF
+「{A}:{型}」を表示
+「」と尋ねる
+「到達しない」を表示`
+			err := vm.RunProgram(code, "prompt-eof.nako3", host)
+			if err == nil || !strings.Contains(err.Error(), "『尋』命令で標準入力が読めません。") {
+				t.Fatalf("error = %v", err)
+			}
+			if got := out.String(); got != tt.output {
+				t.Fatalf("output = %q, want %q", got, tt.output)
+			}
+		})
+	}
+}
+
 func TestArgsAndInput(t *testing.T) {
 	var out strings.Builder
 	host := vm.NewCUIHost(&out, strings.NewReader("太郎\n42\n"), []string{"一", "二"})
