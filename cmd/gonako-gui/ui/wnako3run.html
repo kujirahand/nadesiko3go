@@ -13,10 +13,13 @@
     color: #222;
   }
   #nako3_canvas {
-    display: block;
     max-width: 100%;
     margin-bottom: 12px;
     border: 1px solid #ddd;
+  }
+  /* hidden属性がある初期キャンバスは非表示のままにする（#303）。 */
+  #nako3_canvas:not([hidden]) {
+    display: block;
   }
   #output {
     margin: 0;
