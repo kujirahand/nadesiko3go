@@ -16,7 +16,7 @@ import (
 //
 // The returned error is always *errs.NakoError with Kind errs.Lexer.
 func Tokenize(src string, line int, filename string) ([]Token, error) {
-	srcLen := runeLen(src)
+	srcOffset := 0
 	var result []Token
 	column := 1
 	isDefTest := false
@@ -25,6 +25,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 	indent, skip := CountIndent(src)
 	src = dropRunes(src, skip)
 	column += skip
+	srcOffset += skip
 
 	lexErr := func(msg string, at int) error {
 		return &errs.NakoError{Kind: errs.Lexer, File: filename, Line: at, Msg: msg}
@@ -45,6 +46,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			// ルールのループを continue する。
 			if r.name == TypeSpace {
 				column += runeLen(matched)
+				srcOffset += runeLen(matched)
 				src = src[m[1]:]
 				continue
 			}
@@ -54,14 +56,16 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 				if err != nil {
 					return nil, lexErr(err.Error(), line)
 				}
-				consumed := runeLen(src) - runeLen(rp.src)
+				// 残り全体ではなく、今回消費した接頭辞だけを数える。
+				consumed := runeLen(src[:len(src)-len(rp.src)])
+				offsetBase := srcOffset
+				srcOffset += consumed
 
 				if r.name == TypeStringEx {
 					list, listOK := splitStringEx(rp.res)
 					if !listOK {
 						return nil, lexErr("展開あり文字列で値の埋め込み{...}が対応していません。", line)
 					}
-					offsetBase := srcLen - runeLen(src)
 					if len(list) == 1 {
 						// 展開なし(埋め込み式なし)の場合
 						result = append(result, Token{
@@ -108,7 +112,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 					if rp.numEOL > 0 {
 						column = 1
 					}
-					result = append(result, Token{Type: ")", Value: ")", Josi: rp.josi, RawJosi: rp.josi, Indent: indent, File: filename, Line: line, Column: column, Offset: srcLen - runeLen(src)})
+					result = append(result, Token{Type: ")", Value: ")", Josi: rp.josi, RawJosi: rp.josi, Indent: indent, File: filename, Line: line, Column: column, Offset: srcOffset})
 					break
 				}
 
@@ -117,7 +121,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 				result = append(result, Token{
 					Type: r.name, Value: rp.res, Josi: rp.josi, RawJosi: rp.josi,
 					Indent: indent, Line: line, Column: columnCurrent, File: filename,
-					Offset: srcLen - runeLen(src), Length: consumed,
+					Offset: offsetBase, Length: consumed,
 				})
 				src = rp.src
 				line += rp.numEOL
@@ -128,7 +132,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			}
 
 			// ソースを進める前に位置を計算する
-			srcOffset := srcLen - runeLen(src)
+			offsetBase := srcOffset
 
 			var value any = matched
 			if r.cb != nil {
@@ -137,6 +141,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			columnCurrent := column
 			lineCurrent := line
 			column += runeLen(matched)
+			srcOffset += runeLen(matched)
 			src = src[m[1]:]
 			// 改行の時の処理。eolの値はその行の行番号になる。
 			if (r.name == TypeEOL && matched == "\n") || r.name == TypeEOLUnderscore {
@@ -151,12 +156,14 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 					src = src[len(um):]
 					// 消費した単位の長さだけ進める(数値の長さを足すと後続がずれる) #231
 					column += runeLen(um)
+					srcOffset += runeLen(um)
 				}
 				// CSSの単位なら文字列として認識させる #1811
 				if cssUnit := CSSUnitRE.FindString(src); cssUnit != "" {
 					ruleName = TypeString
 					src = src[len(cssUnit):]
 					column += runeLen(cssUnit)
+					srcOffset += runeLen(cssUnit)
 					value = jsNumberToString(value) + cssUnit
 				}
 			}
@@ -164,7 +171,9 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 			particle := ""
 			if r.readJosi {
 				if j, rest, found := readJosi(src); found {
-					column += runeLen(src) - runeLen(rest)
+					consumed := runeLen(src[:len(src)-len(rest)])
+					column += consumed
+					srcOffset += consumed
 					particle = normalizeJosiAfter(j)
 					src = rest
 				}
@@ -187,8 +196,8 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 				Type: ruleName, Value: value, Indent: indent,
 				Line: lineCurrent, Column: columnCurrent, File: filename,
 				// RawJosi には書かれた助詞をそのまま保持する(本家rawJosi相当 #216)
-				Josi:   particle, RawJosi: particle,
-				Offset: srcOffset, Length: (srcLen - runeLen(src)) - srcOffset,
+				Josi: particle, RawJosi: particle,
+				Offset: offsetBase, Length: srcOffset - offsetBase,
 			})
 			// 改行のとき次の行のインデントを調べる。改行の後は必ずcolumnが1になる。
 			// 一行に2つ以上の文を含む場合を考慮する。(core #66)
@@ -196,6 +205,7 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 				var skip int
 				indent, skip = CountIndent(src)
 				column += skip
+				srcOffset += skip
 				src = dropRunes(src, skip)
 			}
 			break
