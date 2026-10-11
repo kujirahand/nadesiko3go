@@ -71,6 +71,7 @@ type Parser struct {
 	// recentlyCalledFunc is used when reporting leftover stack values.
 	recentlyCalledFunc []*lexer.FuncItem
 	isReadingCalc      bool
+	ifExprDepth        int // もし式の入れ子の深さ
 	isExportDefault    bool
 	isExportStack      []bool
 
@@ -103,6 +104,7 @@ func (p *Parser) reset() {
 	p.funcLevel = 0
 	p.usedAsyncFn = false
 	p.isReadingCalc = false
+	p.ifExprDepth = 0
 	p.isExportDefault = true
 	p.isExportStack = nil
 	p.NamespaceStack = nil

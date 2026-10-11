@@ -26,6 +26,7 @@ const (
 	Block              NodeType = "block"
 	End                NodeType = "end"
 	If                 NodeType = "if"
+	IfExpr             NodeType = "if_expr" // 値を返すもし式
 	While              NodeType = "while"
 	Atohantei          NodeType = "atohantei"
 	For                NodeType = "for"

@@ -119,6 +119,9 @@ func (p *Parser) yValue() *ast.Node {
 	if p.check(lexer.TypeComma) { // #877
 		p.get()
 	}
+	if p.check("もし") {
+		return p.yIFExpression()
+	}
 	if p.checkTypes([]lexer.TokenType{lexer.TypeNumber, lexer.TypeBigInt, lexer.TypeString}) {
 		return p.yConst(p.get(), m)
 	}
