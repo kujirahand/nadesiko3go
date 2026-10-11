@@ -170,7 +170,6 @@ func Convert(code string) []Result {
 	inStr2 := false // 絵文字・記号による範囲コメント内かどうか
 	endOfStr := ""  // 終了させる記号
 	left := 0       // 現在処理中の部分文字列の左端
-	str := ""       // 文字列リテラルの中身
 
 	i := 0
 	for i < len(src.runes) {
@@ -180,12 +179,11 @@ func Convert(code string) []Result {
 		if inStr {
 			if string(c) == endOfStr {
 				inStr = false
-				res = append(res, Result{Text: str + endOfStr, Pos: src.sourcePos(left)})
+				res = append(res, Result{Text: string(src.runes[left:i]) + endOfStr, Pos: src.sourcePos(left)})
 				i++
 				left = i
 				continue
 			}
-			str += string(c)
 			i++
 			continue
 		}
@@ -197,12 +195,11 @@ func Convert(code string) []Result {
 				if closing == "＊／" {
 					closing = "*/" // 強制変換
 				}
-				res = append(res, Result{Text: str + closing, Pos: src.sourcePos(left)})
+				res = append(res, Result{Text: string(src.runes[left:i]) + closing, Pos: src.sourcePos(left)})
 				i += len([]rune(endOfStr))
 				left = i
 				continue
 			}
-			str += string(c)
 			i++
 			continue
 		}
@@ -214,7 +211,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr = true
 			endOfStr = closing
-			str = ""
 			continue
 		}
 		// 絵文字による範囲コメント (#726)
@@ -224,7 +220,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr2 = true
 			endOfStr = string(c)
-			str = ""
 			continue
 		}
 
@@ -236,7 +231,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr = true
 			endOfStr = string(c)
-			str = ""
 			continue
 		}
 		// ラインコメントを飛ばす (#725)
@@ -246,7 +240,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr = true // 本当はコメントだが、中身を変換しない点は文字列と同じ
 			endOfStr = "\n"
-			str = ""
 			continue
 		}
 		if src.hasPrefixAt(i, "//") || src.hasPrefixAt(i, "／／") {
@@ -255,7 +248,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr = true
 			endOfStr = "\n"
-			str = ""
 			continue
 		}
 		// 複数行コメントを飛ばす (#731)
@@ -265,7 +257,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr2 = true
 			endOfStr = "＊／"
-			str = ""
 			continue
 		}
 		if src.hasPrefixAt(i, "/*") {
@@ -274,7 +265,6 @@ func Convert(code string) []Result {
 			left = i
 			inStr2 = true
 			endOfStr = "*/"
-			str = ""
 			continue
 		}
 
@@ -291,7 +281,7 @@ func Convert(code string) []Result {
 		switch endOfStr {
 		case "\"", "'", "」", "』":
 		default:
-			res = append(res, Result{Text: str + endOfStr, Pos: src.sourcePos(left)})
+			res = append(res, Result{Text: string(src.runes[left:]) + endOfStr, Pos: src.sourcePos(left)})
 		}
 	}
 	return res
