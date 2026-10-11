@@ -123,7 +123,7 @@ Issue #320 では、残りのソース全体の文字数をトークンごとに
 実行時間や割り当て量が二乗で増えないかを確認します。
 
 ```bash
-go test ./internal/lexer -run '^$' -bench 'Benchmark(TokenizeManyStatements|LongWord|TypesString)$' -benchmem -benchtime=200ms -count=1
+go test ./internal/lexer -run '^$' -bench 'Benchmark(TokenizeManyStatements|TokenizeLongWord|LongWord|TypesString)$' -benchmem -benchtime=200ms -count=1
 ```
 
 macOS / Apple M4での参考値（2026-10-11、各4,000件）は次の通りです。
@@ -134,6 +134,11 @@ macOS / Apple M4での参考値（2026-10-11、各4,000件）は次の通りで�
 | `変数=1を表示` の4,000文 | 1,243 ms | 70 ms | 15 MB | 15 MB |
 | `あア` を4,000回繰り返した識別子 | 14.8 ms | 6.9 ms | 103 MB | 約3 KB |
 | 4,000トークンの種類を連結 | 9.1 ms | 0.035 ms | 84 MB | 85 KB |
+
+長い識別子では、割り当て量の削減が主な効果です。表の値は
+`BenchmarkLongWord` による識別子パーサ単体の計測です。
+`BenchmarkTokenizeLongWord` では、トークン作成や送り仮名の省略を含む
+`Tokenize` 経由の実行時間と割り当て量を確認できます。
 
 `internal/lexer/performance_test.go` に、日本語・絵文字・助詞・単位・
 コメント・埋め込み式・単語の切り戻しを含む位置情報の回帰テストもあります。

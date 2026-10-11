@@ -57,6 +57,8 @@ func Tokenize(src string, line int, filename string) ([]Token, error) {
 					return nil, lexErr(err.Error(), line)
 				}
 				// 残り全体ではなく、今回消費した接頭辞だけを数える。
+				// rp.src は入力の末尾部分文字列と同じ内容なので、バイト長の差が
+				// 消費した接頭辞の境界になる（parseResult.src の契約）。
 				consumed := runeLen(src[:len(src)-len(rp.src)])
 				offsetBase := srcOffset
 				srcOffset += consumed

@@ -90,6 +90,7 @@ func BenchmarkTokenizeManyStatements(b *testing.B) {
 	}
 }
 
+// 識別子パーサ単体の割り当て量を測る。
 func BenchmarkLongWord(b *testing.B) {
 	for _, n := range []int{1000, 2000, 4000} {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
@@ -98,6 +99,22 @@ func BenchmarkLongWord(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if _, err := cbWordParser(code, false); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// トークン作成や送り仮名の省略を含む字句解析全体を測る。
+func BenchmarkTokenizeLongWord(b *testing.B) {
+	for _, n := range []int{1000, 2000, 4000} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			code := strings.Repeat("あア", n)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if _, err := Tokenize(code, 0, "bench.nako3"); err != nil {
 					b.Fatal(err)
 				}
 			}

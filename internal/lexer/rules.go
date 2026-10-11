@@ -37,7 +37,7 @@ var (
 
 // parseResult mirrors NakoLexParseResult: what a callback-driven rule consumed.
 type parseResult struct {
-	src    string // 残りのソース
+	src    string // 残りのソース。入力の末尾部分文字列と同じ内容を返すこと。
 	res    string // トークンの値
 	josi   string // 直後の助詞
 	numEOL int    // 消費した改行の数
