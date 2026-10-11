@@ -172,11 +172,14 @@ func (l *Lexer) ReplaceTokens(tokens []Token, isFirst bool, filename string) ([]
 // ReplaceTokens creates TypeCode placeholders first, matching the two-pass
 // pipeline in the TypeScript tokenizer.
 func (l *Lexer) ExpandCodeTokens(tokens []Token, filename string) ([]Token, error) {
-	for i := 0; i < len(tokens); i++ {
-		if tokens[i].Type != TypeCode {
+	// 展開のたびにスライスを繋ぎ直すとトークン数の2乗になるので、
+	// 出力を1つのスライスへ順に追加する (#315)
+	out := make([]Token, 0, len(tokens))
+	for _, parent := range tokens {
+		if parent.Type != TypeCode {
+			out = append(out, parent)
 			continue
 		}
-		parent := tokens[i]
 		raw, err := Tokenize(parent.StringValue(), parent.Line, filename)
 		if err != nil {
 			return nil, err
@@ -188,10 +191,14 @@ func (l *Lexer) ExpandCodeTokens(tokens []Token, filename string) ([]Token, erro
 		for j := range children {
 			children[j].Offset += parent.Offset
 		}
-		tokens = append(tokens[:i], append(children, tokens[i+1:]...)...)
-		i--
+		// 展開結果にさらに埋め込み式が含まれる場合に備えて再帰する
+		children, err = l.ExpandCodeTokens(children, filename)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, children...)
 	}
-	return tokens, nil
+	return out, nil
 }
 
 // preDefineFunc reads function definitions ahead of parsing and performs the

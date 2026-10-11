@@ -2,7 +2,9 @@ package prepare_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/prepare"
 )
@@ -220,5 +222,20 @@ func TestNewlineOriginalOffsets(t *testing.T) {
 	}
 	if got := origRunes[offsets[0]]; got != 'A' {
 		t.Errorf("origRunes[offsets[0]] = %q, want 'A'", got)
+	}
+}
+
+// 長い文字列リテラルの前処理が文字数の2乗で遅くならないこと (#315)
+func TestConvertLongStringLiteral(t *testing.T) {
+	body := strings.Repeat("あ", 200000)
+	for _, code := range []string{"S=「" + body + "」", "S=『" + body + "』", "/*" + body + "*/", "# " + body + "\n"} {
+		start := time.Now()
+		got := prepare.Text(prepare.Convert(code))
+		if got != code {
+			t.Fatalf("変換結果が一致しません")
+		}
+		if d := time.Since(start); d > 2*time.Second {
+			t.Fatalf("遅すぎます: %v", d)
+		}
 	}
 }
