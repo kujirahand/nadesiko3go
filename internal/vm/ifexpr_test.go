@@ -44,11 +44,25 @@ func TestIfExpressionSyntaxErrors(t *testing.T) {
 		{"A=もし1なら5\nAを表示", "違えば"},
 		{"A=もし1なら「x」を表示、違えば2", "末尾には値を返す式"},
 		{"A=もし1なら\n  5\n違えば2\nAを表示", "ここまで"},
+		// 入れ子の内側のエラーには、もし式で書く案内を付ける
+		{"A=もし1なら5、違えば(もし0なら1)\nAを表示", "入れ子の条件分岐は、両分岐で値を返す「もし」式で書いてください。「違えば」が必要です。"},
+		{"A=もし1なら5、違えば(もし0なら1、違えば「x」を表示)\nAを表示", "入れ子の条件分岐は、両分岐で値を返す「もし」式で書いてください。"},
 	}
 	for _, tt := range tests {
 		_, err := vm.RunSource(tt.code, "main.nako3", nil)
 		if err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("%q: error = %v, want %q", tt.code, err, tt.want)
 		}
+	}
+}
+
+// 利用者定義関数は戻り値の有無を静的に判定しないため、末尾に置いてもエラーにならず、
+// 戻り値のない関数は未定義(空)になる。標準命令の戻り値なし(ReturnNone)だけが構文エラー。
+func TestIfExpressionUserFunctionTail(t *testing.T) {
+	if got := run(t, "●G\n  1を戻す\nここまで\nA=もし1なら G、違えば2\nAを表示"); got != "1" {
+		t.Errorf("戻り値あり: got %q", got)
+	}
+	if got := run(t, "●H\n  「h」を表示\nここまで\nA=もし1なら H、違えば2\nAを表示"); got != "h" {
+		t.Errorf("戻り値なし: got %q", got)
 	}
 }
