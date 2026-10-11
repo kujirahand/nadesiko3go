@@ -116,6 +116,10 @@ func (c *Compiler) compileExpr(n *ast.Node) {
 		c.compileExpr(n.Block(1))
 		return
 
+	case ast.IfExpr:
+		c.compileIfExpr(n)
+		return
+
 	case ast.Block:
 		// 括弧の中に文が書かれた場合。最後の『それ』が値になる。
 		c.compileBlockValue(n)
@@ -268,4 +272,28 @@ func (c *Compiler) compileFuncPointer(n *ast.Node) {
 		c.fail(fmt.Sprintf("関数『%s』への参照を取得できません。", n.Name), n)
 	}
 	c.emit(ir.OpMakeFunc, index, 0, n)
+}
+
+// compileIfExpr compiles 『もし条件なら値、違えば値』. 選んだ分岐の末尾の式だけが
+// 値になり、それまでの文は結果を捨てて実行する。
+func (c *Compiler) compileIfExpr(n *ast.Node) {
+	defer c.enterBranch()()
+	c.compileExpr(n.Block(0))
+	toElse := c.emit(ir.OpJumpIfFalse, 0, 0, n)
+	c.compileIfExprBranch(n.Block(1), n)
+	toEnd := c.emit(ir.OpJump, 0, 0, n)
+	c.patch(toElse, c.here())
+	c.compileIfExprBranch(n.Block(2), n)
+	c.patch(toEnd, c.here())
+}
+
+func (c *Compiler) compileIfExprBranch(b *ast.Node, owner *ast.Node) {
+	if b == nil || len(b.Blocks) == 0 {
+		c.fail("「もし」式の分岐の末尾には値を返す式が必要です。", owner)
+	}
+	last := len(b.Blocks) - 1
+	for _, s := range b.Blocks[:last] {
+		c.compileStatement(s)
+	}
+	c.compileExpr(b.Blocks[last])
 }

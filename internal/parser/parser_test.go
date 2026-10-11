@@ -53,13 +53,13 @@ func TestParseAssignmentRejectsReturnNoneFunction(t *testing.T) {
 	}
 }
 
-func TestParseAssignmentFallsBackToSentence(t *testing.T) {
-	tree, err := parse(t, "A=もし1=1ならば\n「x」を表示\nここまで")
+func TestParseAssignmentIfExpression(t *testing.T) {
+	tree, err := parse(t, "A=もし1=1なら5、違えば2")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := tree.Blocks[0].Block(0).Type; got != ast.If {
-		t.Fatalf("assignment value type = %q, want %q", got, ast.If)
+	if got := tree.Blocks[0].Block(0).Type; got != ast.IfExpr {
+		t.Fatalf("assignment value type = %q, want %q", got, ast.IfExpr)
 	}
 }
 
