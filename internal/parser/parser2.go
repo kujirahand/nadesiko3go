@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
@@ -799,12 +800,5 @@ func toTokenTypes(names []string) []lexer.TokenType {
 }
 
 func joinStrings(parts []string, sep string) string {
-	out := ""
-	for i, s := range parts {
-		if i > 0 {
-			out += sep
-		}
-		out += s
-	}
-	return out
+	return strings.Join(parts, sep)
 }

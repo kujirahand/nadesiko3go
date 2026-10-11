@@ -37,7 +37,7 @@ var (
 
 // parseResult mirrors NakoLexParseResult: what a callback-driven rule consumed.
 type parseResult struct {
-	src    string // 残りのソース
+	src    string // 残りのソース。入力の末尾部分文字列と同じ内容を返すこと。
 	res    string // トークンの値
 	josi   string // 直後の助詞
 	numEOL int    // 消費した改行の数
@@ -242,11 +242,12 @@ func normalizeJosiAfter(particle string) string {
 }
 
 func cbWordParser(src string, trimOkurigana bool) (parseResult, error) {
-	res := ""
+	original := src
+	consumed := 0
 	particle := ""
 	for src != "" {
 		// 1文字以上のとき
-		if res != "" {
+		if consumed > 0 {
 			// 「かつ」「または」なら分割する (#1379 core#84)
 			if wordSpecialRE.MatchString(src) {
 				break
@@ -259,19 +260,22 @@ func cbWordParser(src string, trimOkurigana bool) (parseResult, error) {
 		}
 		// カタカナ漢字英数字か？
 		if m := kanakanjiRE.FindString(src); m != "" {
-			res += m
+			consumed += len(m)
 			src = src[len(m):]
 			continue
 		}
 		// ひらがな？
 		if hiraRE.MatchString(src) {
 			_, size := utf8.DecodeRuneInString(src)
-			res += src[:size]
+			consumed += size
 			src = src[size:]
 			continue
 		}
 		break // other chars
 	}
+
+	// 単語は元ソースの連続した範囲なので、逐次連結せず切り出す。
+	res := original[:consumed]
 
 	// --- 単語分割における特殊ルール ---
 	// 「間」の特殊ルール (#831)

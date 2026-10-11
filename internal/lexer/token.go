@@ -1,5 +1,7 @@
 package lexer
 
+import "strings"
+
 // TokenType names a token kind. The names are the ones used by nako_token.mts,
 // because the parser's error messages quote them.
 type TokenType string
@@ -61,12 +63,12 @@ func (t Token) NumberValue() float64 {
 // TypesString joins token types with sep. It matches NakoLexer.tokensToTypeStr
 // and is used in parser error messages.
 func TypesString(tokens []Token, sep string) string {
-	out := ""
+	var out strings.Builder
 	for i, t := range tokens {
 		if i > 0 {
-			out += sep
+			out.WriteString(sep)
 		}
-		out += string(t.Type)
+		out.WriteString(string(t.Type))
 	}
-	return out
+	return out.String()
 }
