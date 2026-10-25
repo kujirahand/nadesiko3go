@@ -129,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOpenFolder = document.getElementById('btn-open-folder');
   const btnNewFolder = document.getElementById('btn-new-folder');
   const btnNewFile = document.getElementById('btn-new-file');
+  const btnOpenTerminal = document.getElementById('btn-open-terminal');
 
   // ファイル項目の右クリック用コンテキストメニュー
   const fileContextMenu = document.getElementById('file-context-menu');
@@ -1824,6 +1825,26 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (err) {
       console.error('フォルダを開く際のエラー:', err);
+    }
+  });
+
+  btnOpenTerminal.addEventListener('click', async () => {
+    if (typeof window.openTerminal !== 'function') {
+      await showAlertDialog('エラー', 'ターミナルを開く機能が利用できません');
+      return;
+    }
+    const folderPath = currentDirPath || desktopDirPath || homeDirPath;
+    if (!folderPath) return;
+    try {
+      const res = await window.openTerminal(folderPath);
+      const data = typeof res === 'string' ? JSON.parse(res) : res;
+      if (data.ok) {
+        setStatus(`ターミナルを開きました: ${folderPath}`);
+      } else if (data.error) {
+        await showAlertDialog('ターミナルを開けません', data.error);
+      }
+    } catch (err) {
+      console.error('ターミナルを開く際のエラー:', err);
     }
   });
 

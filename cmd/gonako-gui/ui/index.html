@@ -163,13 +163,15 @@
             <button id="btn-file-up" class="btn-icon" title="上のフォルダへ">↑</button>
             <span id="current-dir-display" class="current-dir-text" title="現在のフォルダ">~/</span>
           </div>
+          <!-- ファイル操作はタブ直下の1行アイコンバーに集約する (#325) -->
+          <div class="file-action-bar">
+            <button id="btn-open-folder" class="btn-file-action" title="現在のフォルダをFinderまたはExplorerで開く" aria-label="フォルダを開く"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 8V5h6l2 3h10l-3 12H3z"/><path d="M3 12h18"/></svg></button>
+            <button id="btn-new-file" class="btn-file-action" title="新規ファイル" aria-label="新規ファイル"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4M12 12v6M9 15h6"/></svg></button>
+            <button id="btn-new-folder" class="btn-file-action" title="新規フォルダ" aria-label="新規フォルダ"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5h6l2 3h10v12H3z"/><path d="M12 11v6M9 14h6"/></svg></button>
+            <button id="btn-open-terminal" class="btn-file-action btn-open-terminal" title="現在のフォルダでターミナルを開く" aria-label="ターミナルを開く"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M12 15h5"/></svg></button>
+          </div>
           <div id="file-list" class="list-container file-list">
             <!-- JavaScriptで動的生成 -->
-          </div>
-          <div class="file-footer-bar">
-            <button id="btn-open-folder" class="btn-file-footer" title="現在のフォルダをFinderまたはExplorerで開く">📂 フォルダ開く</button>
-            <button id="btn-new-file" class="btn-file-footer">📄 新規ファイル</button>
-            <button id="btn-new-folder" class="btn-file-footer">📁 新規フォルダ</button>
           </div>
         </div>
       </aside>

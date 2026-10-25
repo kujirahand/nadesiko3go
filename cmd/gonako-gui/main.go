@@ -1060,6 +1060,23 @@ func bindPrivilegedBridge(w webview.WebView, guiRuntime *guiSession, directWindo
 		return string(b)
 	})
 
+	// Go ↔ JavaScript バインディング: 現在のフォルダでターミナルを開く (#325)
+	_ = w.Bind("openTerminal", func(targetPath string) string {
+		err := openTerminal(targetPath)
+		res := struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error,omitempty"`
+		}{}
+		if err != nil {
+			res.OK = false
+			res.Error = err.Error()
+		} else {
+			res.OK = true
+		}
+		b, _ := json.Marshal(res)
+		return string(b)
+	})
+
 	// Go ↔ JavaScript バインディング: 外部ブラウザでURLを開く（Webマニュアルの詳細リンクなど）
 	_ = w.Bind("openExternalURL", func(targetURL string) string {
 		err := openExternalURL(targetURL)

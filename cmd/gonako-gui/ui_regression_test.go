@@ -135,6 +135,7 @@ func TestFileTabNavigationControls(t *testing.T) {
 		`id="btn-open-folder"`,
 		`id="btn-new-folder"`,
 		`id="btn-new-file"`,
+		`id="btn-open-terminal"`,
 	} {
 		if !strings.Contains(html, required) {
 			t.Fatalf("index.html is missing file navigation control %q", required)
@@ -149,6 +150,7 @@ func TestFileTabNavigationControls(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{
 		"window.revealInFinder(folderPath)",
+		"window.openTerminal(folderPath)",
 		"window.createNewFolder(",
 		"await loadDirectory(pathDirName(data.path))",
 	} {
@@ -158,6 +160,65 @@ func TestFileTabNavigationControls(t *testing.T) {
 	}
 	if strings.Contains(app, "window.showFolderDialog(") {
 		t.Fatal("folder open button must reveal the current folder instead of showing a selection dialog")
+	}
+}
+
+// ファイル操作は画面下部の大きなボタンではなく、タブ直下の小さな
+// アイコンのみの1行バーに置き、その右端にターミナル起動を置くこと (#325)。
+func TestFileTabActionsAreCompactIconBarBelowTabs(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+
+	// 旧来の下部フッターは残さない
+	for _, removed := range []string{"file-footer-bar", "btn-file-footer", "📂 フォルダ開く", "📄 新規ファイル", "📁 新規フォルダ"} {
+		if strings.Contains(html, removed) {
+			t.Fatalf("index.html still contains the old file footer %q", removed)
+		}
+	}
+
+	// 操作バーがファイルタブ内、ファイル一覧より前（タブ直下側）にあること
+	barIdx := strings.Index(html, `class="file-action-bar"`)
+	listIdx := strings.Index(html, `id="file-list"`)
+	if barIdx < 0 || listIdx < 0 || barIdx > listIdx {
+		t.Fatal("file action bar must be inside the file tab above the file list")
+	}
+
+	// アイコンだけのボタンが1行に並び、ターミナルが新規フォルダの右側にあること
+	bar := html[barIdx:listIdx]
+	prev := -1
+	for _, id := range []string{`id="btn-open-folder"`, `id="btn-new-file"`, `id="btn-new-folder"`, `id="btn-open-terminal"`} {
+		idx := strings.Index(bar, id)
+		if idx < 0 {
+			t.Fatalf("file action bar is missing %q", id)
+		}
+		if idx < prev {
+			t.Fatalf("file action bar buttons are out of order at %q", id)
+		}
+		prev = idx
+	}
+	for _, required := range []string{`class="btn-file-action"`, `aria-label="ターミナルを開く"`, `title="現在のフォルダでターミナルを開く"`} {
+		if !strings.Contains(bar, required) {
+			t.Fatalf("file action bar is missing %q", required)
+		}
+	}
+
+	style := readUIAsset(t, "style.css")
+	for _, required := range []string{".file-action-bar {", "flex-wrap: nowrap;", ".btn-file-action {", "width: 28px;", ".btn-open-terminal {", "margin-left: auto;"} {
+		if !strings.Contains(style, required) {
+			t.Fatalf("style.css is missing compact file action style %q", required)
+		}
+	}
+	for _, removed := range []string{".file-footer-bar", ".btn-file-footer"} {
+		if strings.Contains(style, removed) {
+			t.Fatalf("style.css still contains the old file footer style %q", removed)
+		}
+	}
+
+	mainSrc, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainSrc), `w.Bind("openTerminal"`) {
+		t.Fatal("main.go に openTerminal のBindがありません")
 	}
 }
 
@@ -654,6 +715,7 @@ func TestPrivilegedBridgeBoundOnlyForInternalUI(t *testing.T) {
 		`w.Bind("renameFile"`, `w.Bind("deleteFile"`, `w.Bind("showSaveFileDialog"`,
 		`w.Bind("relativeFilePath"`,
 		`w.Bind("openExternalURL"`,
+		`w.Bind("openTerminal"`,
 	} {
 		if !strings.Contains(bridge, name) {
 			t.Fatalf("bindPrivilegedBridge に %s がありません", name)
