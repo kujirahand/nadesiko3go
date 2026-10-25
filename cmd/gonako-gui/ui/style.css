@@ -1335,36 +1335,40 @@ kbd {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* ファイルタブ フッター */
-.file-footer-bar {
-  padding: 8px 10px;
+/* ファイルタブの操作バー (#325): タブ直下に小さなアイコンだけを1行で並べる */
+.file-action-bar {
+  padding: 4px 10px;
   background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
 }
 
-.btn-file-footer {
-  flex: 1;
-  padding: 7px 12px;
-  background: rgba(137, 180, 250, 0.12);
-  border: 1px solid rgba(137, 180, 250, 0.35);
+.btn-file-action {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
   color: var(--accent-blue);
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
   transition: all 0.15s;
 }
 
-.btn-file-footer:hover {
+.btn-file-action:hover {
   background: var(--accent-blue);
   color: var(--text-on-accent);
+}
+
+/* ターミナル起動はファイル操作アイコンの右側（行の右端）に置く (#325) */
+.btn-open-terminal {
+  margin-left: auto;
 }
 
 /* リストアイテム右側の補足情報 */
@@ -1543,6 +1547,7 @@ kbd {
 .splitter-h::after { left: 0; right: 0; top: 2px; height: 1px; }
 
 .btn:focus-visible, .btn-sm:focus-visible, .tab-btn:focus-visible,
+.btn-file-action:focus-visible,
 .source-btn:focus-visible, .sort-btn:focus-visible, .btn-hamburger:focus-visible {
   outline: 2px solid var(--accent-pink);
   outline-offset: 2px;
