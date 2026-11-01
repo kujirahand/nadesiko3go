@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -66,7 +65,7 @@ func newWNako3RunHandler(site fs.FS, program wnako3RunProgram) http.Handler {
 }
 
 // bindAsyncRunAPI は window.gonako.run（GONAKO実行）が使う非同期実行APIをBindする。
-func bindAsyncRunAPI(w webview.WebView, session *guiSession, args []string, packed *bundle.Bundle) {
+func bindAsyncRunAPI(w *webview.Protected, session *guiSession, args []string, packed *bundle.Bundle) {
 	_ = w.Bind("startNakoCode", func(code string) uint64 {
 		return session.start(code, "gui.nako3", false, args, packed)
 	})
@@ -101,27 +100,28 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 		return
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	program := wnako3RunProgram{Name: filepath.Base(sourceName), Code: string(data)}
+	server, err := startOwnedServer(newWNako3RunHandler(os.DirFS(workDir), program))
 	if err != nil {
 		showMessageWindow(title, fmt.Sprintf("ローカルサーバーを起動できません: %v", err))
 		return
 	}
-	defer listener.Close()
-	program := wnako3RunProgram{Name: filepath.Base(sourceName), Code: string(data)}
-	server := &http.Server{Handler: loopbackOnly(newWNako3RunHandler(os.DirFS(workDir), program))}
-	go func() { _ = server.Serve(listener) }()
-
-	w := newAppWindow(defaultWindowSettings(title, 960, 640))
-	if w == nil {
+	defer server.Close()
+	tw, err := newTrustedWindowWithServer(os.Getenv("GONAKO_DEBUG") == "1", server, defaultWindowSettings(title, 960, 640))
+	if err != nil {
+		server.Close()
+		showMessageWindow(title, fmt.Sprintf("ウィンドウを作成できません: %v", err))
 		return
 	}
-	defer w.Destroy()
+	defer tw.Close()
 
-	session := &guiSession{window: newNativeWindowController(w)}
-	bindAsyncRunAPI(w, session, nil, nil)
-	installWNako3(w, newWNako3PageConfig(false), session.window, nil)
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	w.Navigate(fmt.Sprintf("http://127.0.0.1:%d%s", port, wnako3RunPagePath))
-	w.Run()
+	session := &guiSession{window: newNativeWindowController(tw.Window)}
+	bindAsyncRunAPI(tw.Window, session, nil, nil)
+	installWNako3(tw.Window, newWNako3PageConfig(false), session.window, nil)
+	if err := tw.BindErr(); err != nil {
+		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
+		return
+	}
+	tw.Window.Navigate(server.URL(wnako3RunPagePath))
+	tw.Window.Run()
 }

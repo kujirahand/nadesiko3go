@@ -6,6 +6,7 @@ import (
 	"unsafe"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
+	webview "github.com/webview/webview_go"
 )
 
 // windowThemes はネイティブウィンドウごとに指定中のテーマを覚える。
@@ -84,6 +85,9 @@ type themeWebView interface {
 	Eval(js string)
 	Bind(name string, f interface{}) error
 }
+
+// 保護windowだけがtheme同期のBindを持てる。plain windowはこの経路を使わない。
+var _ themeWebView = (*webview.Protected)(nil)
 
 // themeSyncBound はBind済みのウィンドウを覚える。同じ名前は二度Bindできない。
 var themeSyncBound sync.Map

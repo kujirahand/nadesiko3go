@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/webview/webview_go"
@@ -14,20 +15,20 @@ const windowDispatchTimeout = 5 * time.Second
 // nativeWindowController は、なでしこの論理ハンドルと現在のWebViewを結び付ける。
 // 現時点で操作できるのは論理ハンドル0の「母艦」だけである。
 type nativeWindowController struct {
-	webview webview.WebView
+	webview *webview.Protected
 }
 
 // directNativeWindowController はWebViewのBindコールバック専用である。
 // BindはUIスレッド上で呼ばれるため、そこから再度Dispatchすると相互待ちになる。
 type directNativeWindowController struct {
-	webview webview.WebView
+	webview *webview.Protected
 }
 
-func newNativeWindowController(w webview.WebView) *nativeWindowController {
+func newNativeWindowController(w *webview.Protected) *nativeWindowController {
 	return &nativeWindowController{webview: w}
 }
 
-func newDirectNativeWindowController(w webview.WebView) *directNativeWindowController {
+func newDirectNativeWindowController(w *webview.Protected) *directNativeWindowController {
 	return &directNativeWindowController{webview: w}
 }
 
@@ -164,14 +165,20 @@ func (c *directNativeWindowController) Info(handle int) (guilib.WindowInfo, erro
 	return nativeWindowInfo(c.webview.Window())
 }
 
-// applyWindowSettings はWebViewのUIスレッドから呼び出す。
-// 起動前の初期設定にも同じ処理を使うことで、表示後のちらつきを避ける。
-func applyWindowSettings(w webview.WebView, settings guilib.WindowSettings, preservePosition bool) error {
+// windowSettingsView はtitle/sizeの適用に必要な最小限である。
+type windowSettingsView interface {
+	Window() unsafe.Pointer
+	SetTitle(title string)
+	SetSize(width int, height int, hint webview.Hint)
+}
+
+// applyWindowSizing はtitle/size/positionを適用し、更新後の設定を返す。
+func applyWindowSizing(w windowSettingsView, settings guilib.WindowSettings, preservePosition bool) (guilib.WindowSettings, error) {
 	var before guilib.WindowInfo
 	if settings.HasSize && (preservePosition || !settings.HasResizable) {
 		info, err := platformWindowInfo(w.Window())
 		if err != nil {
-			return err
+			return settings, err
 		}
 		before = info
 	}
@@ -191,10 +198,30 @@ func applyWindowSettings(w webview.WebView, settings guilib.WindowSettings, pres
 			settings.Y = before.Y
 		}
 	}
+	return settings, nil
+}
+
+// applyWindowSettings は保護windowのUIスレッドから呼び出す。
+// policy設定後のwindowにだけtheme同期Bindを許す。
+func applyWindowSettings(w *webview.Protected, settings guilib.WindowSettings, preservePosition bool) error {
+	settings, err := applyWindowSizing(w, settings, preservePosition)
+	if err != nil {
+		return err
+	}
 	if settings.HasTheme {
 		if err := applyWindowTheme(w, settings.Theme); err != nil {
 			return err
 		}
+	}
+	return platformApplyWindowSettings(w.Window(), settings)
+}
+
+// applyPlainWindowSettings はBindを持たないwindowへtitle/sizeだけを適用する。
+// theme のJS同期Bindは登録しない。
+func applyPlainWindowSettings(w *webview.Plain, settings guilib.WindowSettings, preservePosition bool) error {
+	settings, err := applyWindowSizing(w, settings, preservePosition)
+	if err != nil {
+		return err
 	}
 	return platformApplyWindowSettings(w.Window(), settings)
 }
