@@ -305,3 +305,28 @@ func TestV06StickyConcurrentReuse(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// TestV06StickyTextScanBoundary は、一致文字列だけで連続を確かめる経路の境界を
+// 固定する。文脈を見るアサーションを含むパターンはこの経路を使わず、従来の
+// 位置列に戻る。
+func TestV06StickyTextScanBoundary(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		// 文字列の前置きだけを見ると誤る反例（$ があるので位置列の経路）
+		{"/abc$/gy", "abcabc", nil},
+		{"/^a/gy", "aa", []string{"a"}},
+		{`/\ba/gy`, "a a", []string{"a"}},
+		// アサーションを含まないパターンは一致文字列の連続で判定できる
+		{`/\w+/gy`, "ab cd", []string{"ab"}},
+		{"/[0-9]+/gy", "20240102", []string{"20240102"}},
+		{"/[0-9]/gy", "20240102", []string{"2", "0", "2", "4", "0", "1", "0", "2"}},
+		{"/[a-z]+/gy", "abc123def", []string{"abc"}},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}

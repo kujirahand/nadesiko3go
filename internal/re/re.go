@@ -74,6 +74,9 @@ type Regexp struct {
 	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
 	// リテラルになるため、その判定に使う
 	hasNames bool
+	// textScan は一致文字列だけで連続を確かめられるパターンか。文脈を見る
+	// ゼロ幅アサーションを含まず、空一致もし得ない場合だけtrueになる。
+	textScan bool
 }
 
 // Group は一致の捕獲1つ分。Okがfalseならその組は一致に参加していない。
@@ -153,12 +156,14 @@ func Compile(pattern string) (*Regexp, error) {
 	if sticky && needsPositionalSearch(compiled) {
 		tail = &stickyTail{}
 	}
+	textScan := sticky && tail == nil && !hasContextAssertion(compiled.String())
 	return &Regexp{
 		re:       compiled,
 		Global:   global,
 		Sticky:   sticky,
 		tail:     tail,
 		hasNames: hasNames,
+		textScan: textScan,
 	}, nil
 }
 
@@ -169,6 +174,38 @@ func Compile(pattern string) (*Regexp, error) {
 // アサーションなので、それを綴るパターンはGoのFindAllの一致列を信用できない。
 func needsPositionalSearch(re *regexp.Regexp) bool {
 	return re.MatchString("") || strings.Contains(re.String(), `\b`)
+}
+
+// hasContextAssertion は、一致の前後の文字や絶対位置を見るゼロ幅アサーションを
+// 綴っているかを保守的に判定する。文字列として探すだけなので、文字クラスや
+// エスケープされたリテラルを拾うことがあるが、その場合は遅い経路へ倒れるだけで
+// 安全側になる。
+func hasContextAssertion(pattern string) bool {
+	for _, token := range []string{"^", "$", `\b`, `\B`, `\A`, `\z`} {
+		if strings.Contains(pattern, token) {
+			return true
+		}
+	}
+	return false
+}
+
+// stickyFromTexts は一致文字列の並びから、先頭に連続する分だけを残す。文脈を
+// 見るアサーションを含まないパターンでは、一致の可否は消費する文字だけで決まる
+// ので、次の一致が現在位置の前置きであることを確かめれば連続と言える。
+func stickyFromTexts(s string, matches []string) []string {
+	kept := matches[:0]
+	cursor := 0
+	for _, m := range matches {
+		if !strings.HasPrefix(s[cursor:], m) {
+			break
+		}
+		kept = append(kept, m)
+		cursor += len(m)
+	}
+	if len(kept) == 0 {
+		return nil
+	}
+	return kept
 }
 
 // validateFlags はJavaScriptがフラグ列で拒むものを拒む。重複したフラグも、
@@ -231,6 +268,9 @@ var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 func (r *Regexp) FindAll(s string) []string {
 	if !r.Sticky {
 		return r.re.FindAllString(s, -1)
+	}
+	if r.textScan {
+		return stickyFromTexts(s, r.re.FindAllString(s, -1))
 	}
 	indexes := r.stickyIndexes(s, false)
 	if len(indexes) == 0 {
