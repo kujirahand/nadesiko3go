@@ -372,7 +372,7 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 	if err := makeWindowsGUI(target); err != nil {
 		return BuildResult{Error: fmt.Sprintf("Windowsアプリの設定を書き換えられません: %v", err)}
 	}
-	result := BuildResult{OK: true, Path: out, Size: pathSize(out), Kind: spec.Kind}
+	result := BuildResult{OK: true, Path: out, Kind: spec.Kind}
 	if staging != nil {
 		installed, err := installMacApp(staging.app, out)
 		if err != nil {
@@ -391,6 +391,9 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 		}
 		result.Warning = strings.Join(warnings, "\n")
 	}
+	// サイズは公開後の最終成果物から測る。置換前のoutは存在しないか旧.app
+	// なので、ここより前で測ると初回0・再ビルド旧サイズになる。
+	result.Size = pathSize(out)
 	return result
 }
 

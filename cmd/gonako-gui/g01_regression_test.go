@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -339,8 +340,12 @@ func TestG01NativeRebuildKeepsRunnableApp(t *testing.T) {
 
 	out := filepath.Join(dir, "実機.app")
 	exe := filepath.Join(out, "Contents", "MacOS", "実機")
-	if res := buildAppFromFolder(folder, entry, out, "実機"); !res.OK {
-		t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+	first := buildAppFromFolder(folder, entry, out, "実機")
+	if !first.OK {
+		t.Fatalf("1回目の変換に失敗した: %s", first.Error)
+	}
+	if want := independentAppSize(t, out); first.Size != want || first.Size == 0 {
+		t.Fatalf("初回のSizeが実native appと違う: got=%d want=%d", first.Size, want)
 	}
 	if got := runBuiltApp(t, exe, result); got != "旧版" {
 		t.Fatalf("1回目の.appの実行結果が違う: %q", got)
@@ -366,8 +371,12 @@ func TestG01NativeRebuildKeepsRunnableApp(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeFile(t, entry, "「新版」を「"+result+"」へ保存\n")
-	if res := buildAppFromFolder(folder, entry, out, "実機"); !res.OK {
-		t.Fatalf("3回目の変換に失敗した: %s", res.Error)
+	rebuilt := buildAppFromFolder(folder, entry, out, "実機")
+	if !rebuilt.OK {
+		t.Fatalf("3回目の変換に失敗した: %s", rebuilt.Error)
+	}
+	if want := independentAppSize(t, out); rebuilt.Size != want || rebuilt.Size == 0 {
+		t.Fatalf("再ビルドのSizeが新しい実native appと違う: got=%d want=%d", rebuilt.Size, want)
 	}
 	if got := runBuiltApp(t, exe, result); got != "新版" {
 		t.Fatalf("成功後の.appの実行結果が違う: %q", got)
@@ -592,6 +601,9 @@ func TestG01NativeCleanupFailureWarns(t *testing.T) {
 	if len(res.Leftover) != 1 {
 		t.Fatalf("残ったbackup pathを返していない: %v", res.Leftover)
 	}
+	if want := independentAppSize(t, out); res.Size != want {
+		t.Fatalf("cleanup warning時のSizeが公開済みの新.appと違う: got=%d want=%d", res.Size, want)
+	}
 	if got := runBuiltApp(t, exe, result); got != "新版" {
 		t.Fatalf("公開後の新.appが起動しない、または内容が違う: %q", got)
 	}
@@ -646,4 +658,109 @@ func TestG01NativeRollbackFailureRescue(t *testing.T) {
 		t.Fatalf("救出backupの実nativeが起動しない、または内容が違う: %q", got)
 	}
 	_ = os.RemoveAll(backups[0])
+}
+
+// independentAppSize re-walks the published artifact in the test, so the Size
+// the production path reports is compared with the real file system.
+func independentAppSize(t *testing.T, path string) int64 {
+	t.Helper()
+	var total int64
+	err := filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !fi.IsDir() {
+			total += fi.Size()
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("公開物のサイズを測れない: %v", err)
+	}
+	return total
+}
+
+// Sizeは公開後の最終成果物から測る。初回0や旧.appのサイズを返さない。
+func TestG01BuildSizeMatchesPublishedApp(t *testing.T) {
+	t.Run("初回", func(t *testing.T) {
+		dir := t.TempDir()
+		useRuntime(t, dir)
+		folder := filepath.Join(dir, "src")
+		writeFile(t, filepath.Join(folder, "index.html"), "<h1>初回</h1>")
+		out := filepath.Join(dir, "App.app")
+
+		res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App")
+		if !res.OK {
+			t.Fatalf("変換に失敗した: %s", res.Error)
+		}
+		want := independentAppSize(t, out)
+		if res.Size != want {
+			t.Fatalf("初回のSizeが公開物と違う: got=%d want=%d", res.Size, want)
+		}
+		if res.Size == 0 {
+			t.Fatal("初回のSizeが0")
+		}
+	})
+
+	t.Run("既存appの通常置換", func(t *testing.T) {
+		dir := t.TempDir()
+		useRuntime(t, dir)
+		folder := filepath.Join(dir, "src")
+		writeFile(t, filepath.Join(folder, "index.html"), "<h1>旧版</h1>")
+		out := filepath.Join(dir, "App.app")
+		if res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App"); !res.OK {
+			t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+		}
+		oldSize := independentAppSize(t, out)
+
+		// 新しいpayloadを確実に変えるため、圧縮されにくい乱数を足す
+		blob := make([]byte, 64*1024)
+		if _, err := cryptorand.Read(blob); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(folder, "data.bin"), blob, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App")
+		if !res.OK {
+			t.Fatalf("2回目の変換に失敗した: %s", res.Error)
+		}
+		want := independentAppSize(t, out)
+		if res.Size != want {
+			t.Fatalf("置換後のSizeが公開物と違う: got=%d want=%d", res.Size, want)
+		}
+		if res.Size == oldSize {
+			t.Fatalf("置換後も旧.appのサイズを返している: %d", res.Size)
+		}
+	})
+
+	t.Run("cleanup warning", func(t *testing.T) {
+		dir := t.TempDir()
+		useRuntime(t, dir)
+		folder := filepath.Join(dir, "src")
+		writeFile(t, filepath.Join(folder, "index.html"), "<h1>旧版</h1>")
+		out := filepath.Join(dir, "App.app")
+		if res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App"); !res.OK {
+			t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+		}
+		locked := filepath.Join(out, "Contents", "Resources", "locked")
+		writeFile(t, filepath.Join(locked, "kept.txt"), "消せない")
+		if err := os.Chmod(locked, 0o500); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { restoreTreePermissions(t, dir) })
+
+		writeFile(t, filepath.Join(folder, "index.html"), "<h1>新版</h1>")
+		res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App")
+		if !res.OK {
+			t.Fatalf("公開後の片付け失敗を変換失敗にしている: %s", res.Error)
+		}
+		if res.Warning == "" || len(res.Leftover) != 1 {
+			t.Fatalf("warning契約が変わっている: %q %v", res.Warning, res.Leftover)
+		}
+		want := independentAppSize(t, out)
+		if res.Size != want {
+			t.Fatalf("warning時のSizeが公開済みの新.appと違う: got=%d want=%d", res.Size, want)
+		}
+	})
 }
