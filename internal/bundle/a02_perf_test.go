@@ -193,11 +193,19 @@ func TestA02PerfChild(t *testing.T) {
 	fmt.Printf("A02_SAMPLE %s\n", encoded)
 }
 
+// maxRSSBytes は getrusage の Maxrss をバイトへ直す。32bit Linux では
+// Maxrss が int32 なので、比較の前に int64 へ広げる。単位は OS ごとに違い、
+// darwin/ios はバイト、illumos/solaris はページ、それ以外は KiB
+// (runtime/pprof/pprof_rusage.go と同じ扱い)。
 func maxRSSBytes(ru *syscall.Rusage) int64 {
-	if runtime.GOOS == "darwin" {
-		return ru.Maxrss
+	switch runtime.GOOS {
+	case "darwin", "ios":
+		return int64(ru.Maxrss)
+	case "illumos", "solaris":
+		return int64(ru.Maxrss) * int64(syscall.Getpagesize())
+	default:
+		return int64(ru.Maxrss) * 1024
 	}
-	return ru.Maxrss * 1024
 }
 
 func writeZeros(t *testing.T, path string, size int64) {
