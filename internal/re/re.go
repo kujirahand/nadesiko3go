@@ -202,10 +202,18 @@ func stickyFromTexts(s string, matches []string) []string {
 		kept = append(kept, m)
 		cursor += len(m)
 	}
-	if len(kept) == 0 {
+	switch {
+	case len(kept) == 0:
 		return nil
+	case len(kept) == len(matches):
+		// 全件が連続していたら走査結果をそのまま使う
+		return kept
 	}
-	return kept
+	// 途中で途切れたときは、残りの一致列が確保したbackingを返り値に引きずら
+	// ないよう、先頭の連続分だけを詰め直す。
+	out := make([]string, len(kept))
+	copy(out, kept)
+	return out
 }
 
 // validateFlags はJavaScriptがフラグ列で拒むものを拒む。重複したフラグも、

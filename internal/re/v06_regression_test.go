@@ -3,6 +3,7 @@ package re_test
 import (
 	"errors"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 
@@ -328,5 +329,37 @@ func TestV06StickyTextScanBoundary(t *testing.T) {
 		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
+	}
+}
+
+// TestV06StickyTextScanRetention は、一致文字列の連続判定で途中に途切れがある
+// とき、走査結果の大きなbackingを返り値が保持しないことを固定する。結果の
+// literalと保持容量は別に確かめる。
+func TestV06StickyTextScanRetention(t *testing.T) {
+	middle := "aX" + strings.Repeat("a", 65536)
+	first := "X" + strings.Repeat("a", 65536)
+	r := mustCompile(t, "/a/gy")
+
+	// 途中で途切れる: 結果は先頭の1件、容量はその1件分まで
+	if got := r.FindAll(middle); !reflect.DeepEqual(got, []string{"a"}) {
+		t.Errorf("途中で途切れるFindAll = %q, want [a]", got)
+	}
+	if got := r.FindAll(middle); cap(got) > 1 {
+		t.Errorf("途中で途切れるFindAllの容量 = %d, want 1以下", cap(got))
+	}
+
+	// 先頭で途切れる: nil
+	if got := r.FindAll(first); got != nil {
+		t.Errorf("先頭で途切れるFindAll = %v, want nil", got)
+	}
+
+	// 最後まで連続する: 走査結果をそのまま使う（詰め直さない）
+	full := strings.Repeat("a", 100)
+	got := r.FindAll(full)
+	if len(got) != 100 {
+		t.Fatalf("全部連続するFindAllの件数 = %d, want 100", len(got))
+	}
+	if cap(got) <= len(got) {
+		t.Errorf("全部連続するFindAllの容量 = %d, len = %d。詰め直さず走査結果を使うはず", cap(got), len(got))
 	}
 }
