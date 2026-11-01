@@ -46,8 +46,8 @@ func (e *FlagError) Error() string {
 }
 
 // validFlags はJavaScriptが 『/pattern/flags』 として受け付ける文字。『d』
-// (一致位置) と 『u』/『v』 (Unicodeモード) はGoでパターンの意味を変えないが、
-// JavaScriptでは正しい入力なので受理する。
+// (一致位置) と 『u』 はGoでパターンの意味を変えない。『v』は文字として受理
+// するだけで、UnicodeSetsの集合演算は未実装で、Goの構文解釈になりJSのvと等価でない。
 const validFlags = "dgimsuvy"
 
 // stickyMode は sticky の照合がどの経路を使うかを表す。位置指定の照合が
