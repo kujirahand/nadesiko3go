@@ -5,6 +5,7 @@ package main
 
 import (
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -126,6 +127,7 @@ func TestS01CocoaAndWindowsGuards(t *testing.T) {
 		"WKNavigationResponsePolicyCancel",
 		"targetFrame == nil",
 		"gonakoInstallNavigationGuard",
+		"gonakoNativeTrustAllowsURL",
 	} {
 		if !strings.Contains(darwin, required) {
 			t.Fatalf("trust_darwin.m に %q がありません", required)
@@ -146,7 +148,10 @@ func TestS01CocoaAndWindowsGuards(t *testing.T) {
 			t.Fatalf("drop_windows.cc に %q がありません", required)
 		}
 	}
-	if strings.Contains(windows, "std::string sender") {
+	// token-boundaryで検査する。senderText は正しい名前であり、
+	// 部分文字列 "std::string sender" だけで誤検知しない。
+	senderDecl := regexp.MustCompile(`\bstd::string\s+sender\b`)
+	if senderDecl.MatchString(windows) {
 		t.Fatal("drop_windows.cc に sender shadow が残っています")
 	}
 	if !strings.Contains(readS01(t, "drop_windows.go"), "#include <stdlib.h>") {

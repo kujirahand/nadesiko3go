@@ -6,7 +6,10 @@
 #import <WebKit/WebKit.h>
 #import <objc/runtime.h>
 
+extern int gonakoNativeTrustAllowsURL(void *engine, const char *url);
+
 @interface GonakoNavigationGuard : NSObject <WKNavigationDelegate>
+@property(nonatomic, assign) void *engine;
 @property(nonatomic, copy) NSString *scheme;
 @property(nonatomic, copy) NSString *host;
 @property(nonatomic, assign) NSInteger port;
@@ -23,6 +26,13 @@
 
 - (BOOL)allowsURL:(NSURL *)url {
     if (url == nil) return NO;
+    // native trustがrevoke済みなら、copied originが一致していてもdenyする。
+    // Aもmessage guardと同じ失効点へ追随する。
+    const char *text = url.absoluteString.UTF8String;
+    if (self.engine == NULL || text == NULL ||
+        !gonakoNativeTrustAllowsURL(self.engine, text)) {
+        return NO;
+    }
     NSURLComponents *components =
         [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
     if (components == nil || components.scheme == nil ||
@@ -60,11 +70,13 @@
 
 @end
 
-void gonakoInstallNavigationGuard(void *wkwebview, const char *scheme,
-                                  const char *host, int port) {
+void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
+                                  const char *scheme, const char *host,
+                                  int port) {
     WKWebView *view = (__bridge WKWebView *)wkwebview;
     if (view == nil) return;
     GonakoNavigationGuard *guard = [GonakoNavigationGuard new];
+    guard.engine = engine;
     guard.scheme = [NSString stringWithUTF8String:scheme];
     guard.host = [NSString stringWithUTF8String:host];
     guard.port = port;

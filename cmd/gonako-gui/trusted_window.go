@@ -80,19 +80,19 @@ func (s *ownedServer) SetRevoker(fn func()) {
 		return
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.closed {
-		s.mu.Unlock()
 		return
 	}
 	if s.revoked || s.failed {
-		s.mu.Unlock()
+		// 既知の native revoker は atomic-only で、Go mutex へ再入しない。
+		// lifetime の同期点を曖昧にしないため s.mu 下で完了させる。
 		if fn != nil {
 			fn()
 		}
 		return
 	}
 	s.revoke = fn
-	s.mu.Unlock()
 }
 
 // LeaseValid は server がまだこのwindowのoriginを所有しているかを返す。
@@ -111,14 +111,15 @@ func (s *ownedServer) revokeOnce() {
 		return
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.revoked {
-		s.mu.Unlock()
 		return
 	}
 	s.revoked = true
 	fn := s.revoke
 	s.revoke = nil
-	s.mu.Unlock()
+	// fn は native atomic store のみ。s.mu 下で完了させ、RevokeAndDetach と
+	// native lifetime を同じ同期点に置く。
 	if fn != nil {
 		fn()
 	}
@@ -131,14 +132,15 @@ func (s *ownedServer) RevokeAndDetach() {
 		return
 	}
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	fn := s.revoke
 	s.revoke = nil
 	if !s.revoked {
 		s.revoked = true
-	}
-	s.mu.Unlock()
-	if fn != nil {
-		fn()
+		if fn != nil {
+			// native object が生存している間に atomic revoke を完了する。
+			fn()
+		}
 	}
 }
 

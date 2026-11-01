@@ -1886,9 +1886,12 @@ namespace detail {
 
 // S01: cmd/gonako-gui/drop_darwin.m が実装する。delegateは実SDKの
 // WKNavigationDelegate型を使い、exact origin以外をCancelする。
-extern "C" void gonakoInstallNavigationGuard(void *wkwebview,
+extern "C" void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
                                               const char *scheme,
                                               const char *host, int port);
+
+// S01: Cocoaのnavigation Aもnative trustの失効へ追随するための照会関数。
+extern "C" int gonakoNativeTrustAllowsURL(void *engine, const char *url);
 
 namespace objc {
 
@@ -2132,7 +2135,7 @@ public:
       return false;
     }
     gonakoInstallNavigationGuard(
-        (void *)m_webview, trust_origin_.scheme.c_str(),
+        (void *)m_webview, (void *)this, trust_origin_.scheme.c_str(),
         trust_origin_.host.c_str(),
         static_cast<int>(std::strtol(trust_origin_.port.c_str(), nullptr, 10)));
     return true;
@@ -4052,6 +4055,18 @@ using browser_engine = detail::win32_edge_engine;
 namespace webview {
 using webview = browser_engine;
 } // namespace webview
+
+// S01: Cocoa navigation guardからの照会。revoke後はtrust_installed_がfalseなので
+// allow_urlは0を返し、Aも同じ失効に追随する。
+extern "C" int gonakoNativeTrustAllowsURL(void *engine, const char *url) {
+  if (!engine || !url) {
+    return 0;
+  }
+  return static_cast<webview::webview *>(engine)->allow_url(
+             url, WEBVIEW_TRUST_NAVIGATION)
+             ? 1
+             : 0;
+}
 
 WEBVIEW_API webview_t webview_create(int debug, void *wnd) {
   auto w = new webview::webview(debug, wnd);
