@@ -261,6 +261,15 @@ func (p *Protected) Bind(name string, f interface{}) error {
 	return err
 }
 
+// RevokeTrust は native trust を直ちに失効させる。atomic flag のみを更新するため
+// 任意の goroutine から呼べる。native window の寿命内でのみ呼ぶこと。
+func (p *Protected) RevokeTrust() {
+	if p == nil || p.raw == nil || p.raw.w == nil {
+		return
+	}
+	C.webview_revoke_trust(p.raw.w)
+}
+
 // TrustOrigin は保護windowの exact origin を返す。
 func (p *Protected) TrustOrigin() string { return p.spec.Origin }
 

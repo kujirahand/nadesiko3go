@@ -209,6 +209,12 @@ WEBVIEW_API webview_t webview_create(int debug, void *window);
 WEBVIEW_API int webview_set_trust_origin(webview_t w, const char *origin);
 
 /**
+ * Revokes a webview's trust immediately. This is an atomic flag update and is
+ * safe to call from any thread; it does not touch UI objects.
+ */
+WEBVIEW_API void webview_revoke_trust(webview_t w);
+
+/**
  * The purpose of an origin check inside the native guard.
  *
  * WEBVIEW_TRUST_TOP_DOCUMENT is used by the message guard; the navigation
@@ -932,6 +938,14 @@ struct trust_origin_t {
   bool valid{};
 };
 
+// S01: 実際のsender frameのsecurityOrigin。opaque/sandboxはopaque=trueのままdenyする。
+struct sender_origin_t {
+  std::string scheme;
+  std::string host;
+  std::string port;
+  bool opaque{true};
+};
+
 inline std::string ascii_lower(std::string value) {
   for (auto &ch : value) {
     ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
@@ -1022,14 +1036,19 @@ public:
       trust_origin_ = trust_origin_t{};
       return false;
     }
-    trust_installed_ = true;
+    trust_configured_.store(true);
+    trust_installed_.store(true);
     return true;
   }
 
-  bool trust_installed() const { return trust_installed_; }
+  void revoke_trust() { trust_installed_.store(false); }
+
+  bool trust_installed() const { return trust_installed_.load(); }
+
+  bool trust_configured() const { return trust_configured_.load(); }
 
   bool allow_url(const std::string &url, webview_trust_kind_t kind) const {
-    if (!trust_installed_ || !trust_origin_.valid) {
+    if (!trust_installed_.load() || !trust_origin_.valid) {
       return false;
     }
     switch (kind) {
@@ -1049,6 +1068,35 @@ public:
     }
     return scheme == trust_origin_.scheme && host == trust_origin_.host &&
            port == trust_origin_.port;
+  }
+
+  // S01: 実sender originのtuple照合。opaque/sandboxはURLが同じでもdenyする。
+  // same-origin childはorigin-wide authorityとしてtuple一致で許可し、
+  // main-frame情報は判定入力として保持する。
+  //
+  // 全platformのtop-frame RPC policy:
+  // - Cocoa: WKFrameInfo.securityOriginのprotocol/host/portを照合する。
+  //   空protocol/空host/port 0はopaqueとしてdenyする。
+  // - GTK: private-worldのTOP_FRAME relayだけがnativeを呼ぶ。same-origin childは
+  //   parent DOM経由でrelayに届くが、opaque childはparent DOMへ触れない。
+  // - Windows: 既存top-level WebMessageReceivedだけを使い、Frame2 receiverは
+  //   追加しない。get_SourceはURLでありsecurityOriginではないため、iframe到達性は
+  //   native検証項目として残す。
+  bool allow_sender_origin(const sender_origin_t &origin,
+                           bool is_main_frame) const {
+    if (!trust_installed_.load() || origin.opaque) {
+      return false;
+    }
+    if (origin.scheme.empty() || origin.host.empty() || origin.port.empty()) {
+      return false;
+    }
+    if (!is_main_frame) {
+      // same-origin childはparent DOM relayと同じorigin authorityで扱う。
+      // opaque childは上のopaque判定で既にdenyされる。
+    }
+    return origin.scheme == trust_origin_.scheme &&
+           origin.host == trust_origin_.host &&
+           origin.port == trust_origin_.port;
   }
 
   using binding_t = std::function<void(std::string, std::string, void *)>;
@@ -1195,14 +1243,13 @@ protected:
   // S01: senderを報告できるplatform向けのmessage guard。保護windowは、
   // 報告されたdocument URLがexact originと一致するmessageだけを受け付ける。
   // trust originを持たない一般webviewは従来の挙動を保つ。
-  void on_message_from(const std::string &msg, const std::string &sender,
+  void on_message_from(const std::string &msg, const sender_origin_t &origin,
                        bool is_main_frame) {
-    if (trust_installed_) {
-      // Same-origin subframes are inside the trusted origin (the census calls
-      // this origin-wide authority); a foreign sender URL is denied. The
-      // about:/srcdoc URL forms are not accepted by allow_url.
-      (void)is_main_frame;
-      if (!allow_url(sender, WEBVIEW_TRUST_TOP_DOCUMENT)) {
+    // trust_configured_ は revoke 後も true のまま。revoke 後は installed=false
+    // なので、一般windowのlegacy許可へ落とさずに必ずdenyする。
+    if (trust_configured_.load()) {
+      if (!trust_installed_.load() ||
+          !allow_sender_origin(origin, is_main_frame)) {
         return;
       }
     }
@@ -1212,7 +1259,7 @@ protected:
   // S01: GTK private-world relay向けのmessage guard。relayはtop frameだけに
   // 注入されるため、allow_top_document()がdocumentの確認になる。
   void on_message_guarded(const std::string &msg) {
-    if (!trust_installed_ || !allow_top_document()) {
+    if (!trust_installed_.load() || !allow_top_document()) {
       return;
     }
     on_message(msg);
@@ -1231,7 +1278,8 @@ protected:
   // S01: 設定済みのexact origin。platformのsubclassがnative guardの設定時に
   // 各componentを読む。
   trust_origin_t trust_origin_{};
-  bool trust_installed_{};
+  std::atomic<bool> trust_configured_{};
+  std::atomic<bool> trust_installed_{};
 
 private:
   static std::atomic_uint &window_ref_count() {
@@ -1450,8 +1498,9 @@ public:
                                     WebKitJavascriptResult *r, gpointer arg) {
                        auto *w = static_cast<gtk_webkit_engine *>(arg);
                        char *s = get_string_from_js_result(r);
-                       // 保護windowでは旧default-world handlerを不活性にする。
-                       if (!w->trust_installed()) {
+                       // 保護window（revoke後を含む）では旧default-world handlerを
+                       // 不活性にする。trust設定済みかで判定する。
+                       if (!w->trust_configured()) {
                          w->on_message(s);
                        }
                        g_free(s);
@@ -1723,33 +1772,18 @@ private:
           request ? webkit_uri_request_get_uri(request) : nullptr;
       const gchar *responseURI =
           response ? webkit_uri_response_get_uri(response) : nullptr;
+      // S01: RESPONSEはmain/subframe/subresourceを問わず、request URIと
+      // final response URIの両方がexact originのときだけuseする。foreignや
+      // parse失敗、取得失敗はignoreする。mainResource分岐は置かない。
       bool trusted = requestURI && responseURI &&
                      allow_url(requestURI, WEBVIEW_TRUST_RESPONSE) &&
                      allow_url(responseURI, WEBVIEW_TRUST_RESPONSE);
-#if defined(WEBKIT_CHECK_VERSION)
-#if WEBKIT_CHECK_VERSION(2, 40, 0)
-      bool mainResource =
-          webkit_response_policy_decision_is_main_frame_main_resource(
-              responseDecision);
-#else
-      bool mainResource = true;
-#endif
-#else
-      bool mainResource = true;
-#endif
-      if (mainResource) {
-        if (trusted) {
-          response_allowed_ = true;
-          webkit_policy_decision_use(decision);
-        } else {
-          response_allowed_ = false;
-          webkit_policy_decision_ignore(decision);
-        }
-      } else {
-        // Subresources and subframe documents are allowed to load so normal
-        // rendering is not broken; the private-world relay still denies their
-        // RPC. This is not an origin grant.
+      if (trusted) {
+        response_allowed_ = true;
         webkit_policy_decision_use(decision);
+      } else {
+        response_allowed_ = false;
+        webkit_policy_decision_ignore(decision);
       }
       return TRUE;
     }
@@ -2159,19 +2193,36 @@ private:
             id frame = objc::msg_send<id>(msg, "frameInfo"_sel);
             BOOL mainFrame =
                 frame ? objc::msg_send<BOOL>(frame, "isMainFrame"_sel) : NO;
-            id request =
-                frame ? objc::msg_send<id>(frame, "request"_sel) : nullptr;
-            id url = request ? objc::msg_send<id>(request, "URL"_sel)
-                             : nullptr;
-            const char *sender =
-                url ? objc::msg_send<const char *>(
-                          objc::msg_send<id>(url, "absoluteString"_sel),
-                          "UTF8String"_sel)
-                    : nullptr;
-            // S01: shimを信頼せず、実際の送信frameを確認する。保護windowは
-            // exact origin以外のsenderを破棄する。
-            w->on_message_from(bodyText ? bodyText : "",
-                               sender ? sender : "", mainFrame != NO);
+            // S01: senderのURLではなく、WKFrameInfo.securityOriginの実tupleを
+            // 使う。opaque/sandbox originはtupleを作らずdenyする。
+            sender_origin_t senderOrigin;
+            id securityOrigin =
+                frame ? objc::msg_send<id>(frame, "securityOrigin"_sel)
+                      : nullptr;
+            if (securityOrigin) {
+              id protocol =
+                  objc::msg_send<id>(securityOrigin, "protocol"_sel);
+              id host = objc::msg_send<id>(securityOrigin, "host"_sel);
+              NSInteger port =
+                  objc::msg_send<NSInteger>(securityOrigin, "port"_sel);
+              const char *protocolText =
+                  protocol ? objc::msg_send<const char *>(protocol,
+                                                          "UTF8String"_sel)
+                           : nullptr;
+              const char *hostText =
+                  host ? objc::msg_send<const char *>(host, "UTF8String"_sel)
+                       : nullptr;
+              if (protocolText && protocolText[0] != '\0' && hostText &&
+                  hostText[0] != '\0' && port > 0) {
+                senderOrigin.scheme = ascii_lower(protocolText);
+                senderOrigin.host = ascii_lower(hostText);
+                senderOrigin.port =
+                    std::to_string(static_cast<long long>(port));
+                senderOrigin.opaque = false;
+              }
+            }
+            w->on_message_from(bodyText ? bodyText : "", senderOrigin,
+                               mainFrame != NO);
           }),
           "v@:@@");
       objc_registerClassPair(cls);
@@ -3255,6 +3306,8 @@ public:
     m_trust = std::move(trust);
   }
 
+  bool guard_failed() const { return m_guardFailed; }
+
   virtual ~webview2_com_handler() = default;
   webview2_com_handler(const webview2_com_handler &other) = delete;
   webview2_com_handler &operator=(const webview2_com_handler &other) = delete;
@@ -3799,10 +3852,11 @@ public:
     m_trust = [this](const std::string &url, int kind) {
       return allow_url(url, static_cast<webview_trust_kind_t>(kind));
     };
-    if (m_com_handler) {
-      m_com_handler->set_trust(m_trust);
+    if (!m_com_handler) {
+      return false;
     }
-    return true;
+    m_com_handler->set_trust(m_trust);
+    return !m_com_handler->guard_failed();
   }
 
   void set_html_impl(const std::string &html) override {
@@ -4016,6 +4070,13 @@ WEBVIEW_API int webview_set_trust_origin(webview_t w, const char *origin) {
              origin ? origin : "")
              ? 0
              : -1;
+}
+
+WEBVIEW_API void webview_revoke_trust(webview_t w) {
+  if (!w) {
+    return;
+  }
+  static_cast<webview::webview *>(w)->revoke_trust();
 }
 
 WEBVIEW_API void webview_destroy(webview_t w) {

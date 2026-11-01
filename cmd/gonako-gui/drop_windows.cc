@@ -157,9 +157,9 @@ public:
         CoTaskMemFree(source);
         return S_OK;
       }
-      std::string sender = gonakoNarrow(source);
+      std::string senderText = gonakoNarrow(source);
       CoTaskMemFree(source);
-      if (!gonakoOriginAllows(origin, sender)) return S_OK;
+      if (!gonakoOriginAllows(origin, senderText)) return S_OK;
       LPWSTR rawMessage = nullptr;
       HRESULT result = args->TryGetWebMessageAsString(&rawMessage);
       GonakoComString message(rawMessage);

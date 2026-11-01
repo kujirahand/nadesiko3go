@@ -105,7 +105,10 @@ func runBundledHTML(packed *bundle.Bundle) {
 		return
 	}
 
-	tw.Window.Navigate(server.URL("/" + packed.Entry))
+	if err := tw.Navigate("/" + packed.Entry); err != nil {
+		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
 	tw.Window.Run()
 }
 
@@ -156,7 +159,10 @@ func runBundledProgram(packed *bundle.Bundle) {
 		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
-	tw.Window.Navigate(server.URL("/"))
+	if err := tw.Navigate("/"); err != nil {
+		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
 	tw.Window.Run()
 }
 

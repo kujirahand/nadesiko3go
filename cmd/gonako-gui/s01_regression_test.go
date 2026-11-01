@@ -117,7 +117,8 @@ func TestS01NativeGtkRelayIsPrivateWorld(t *testing.T) {
 }
 
 func TestS01CocoaAndWindowsGuards(t *testing.T) {
-	darwin := readS01(t, "drop_darwin.m")
+	// SR03: guardはvendor所有で、appのdrop_darwin.mには無い。
+	darwin := readS01(t, "../../third_party/webview_go/trust_darwin.m")
 	for _, required := range []string{
 		"decidePolicyForNavigationAction",
 		"decidePolicyForNavigationResponse",
@@ -127,18 +128,83 @@ func TestS01CocoaAndWindowsGuards(t *testing.T) {
 		"gonakoInstallNavigationGuard",
 	} {
 		if !strings.Contains(darwin, required) {
-			t.Fatalf("drop_darwin.m に %q がありません", required)
+			t.Fatalf("trust_darwin.m に %q がありません", required)
 		}
+	}
+	appDarwin := readS01(t, "drop_darwin.m")
+	if strings.Contains(appDarwin, "gonakoInstallNavigationGuard") {
+		t.Fatal("appのdrop_darwin.mにguard定義が残っています")
 	}
 	windows := readS01(t, "drop_windows.cc")
 	for _, required := range []string{
 		"get_Source",
 		"gonakoOriginAllows",
 		"gonakoInstallFileDropListener",
+		"senderText",
 	} {
 		if !strings.Contains(windows, required) {
 			t.Fatalf("drop_windows.cc に %q がありません", required)
 		}
+	}
+	if strings.Contains(windows, "std::string sender") {
+		t.Fatal("drop_windows.cc に sender shadow が残っています")
+	}
+	if !strings.Contains(readS01(t, "drop_windows.go"), "#include <stdlib.h>") {
+		t.Fatal("drop_windows.go の cgo preamble に stdlib.h がありません")
+	}
+	if !strings.Contains(readS01(t, "drop_windows.go"), "C.free") {
+		t.Fatal("drop_windows.go に C.free がありません")
+	}
+}
+
+func TestS01OwnedServerFailureRevocation(t *testing.T) {
+	trusted := readS01(t, "trusted_window.go")
+	for _, required := range []string{
+		"trustRevokingListener",
+		"SetRevoker",
+		"RevokeAndDetach",
+		"LeaseValid",
+		"revokeOnce",
+	} {
+		if !strings.Contains(trusted, required) {
+			t.Fatalf("trusted_window.go に %q がありません", required)
+		}
+	}
+	if strings.Contains(trusted, "_ = server.Serve(listener)") {
+		t.Fatal("Serve error を捨てる旧起動が残っています")
+	}
+	if !strings.Contains(readS01(t, "../../third_party/webview_go/webview.go"), "RevokeTrust") {
+		t.Fatal("Protected.RevokeTrust がありません")
+	}
+	if !strings.Contains(readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h"), "webview_revoke_trust") {
+		t.Fatal("native webview_revoke_trust がありません")
+	}
+}
+
+func TestS01CocoaUsesSecurityOrigin(t *testing.T) {
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	for _, required := range []string{
+		"securityOrigin",
+		"allow_sender_origin",
+		"sender_origin_t",
+		"trust_configured",
+	} {
+		if !strings.Contains(header, required) {
+			t.Fatalf("webview.h に %q がありません", required)
+		}
+	}
+	if strings.Contains(header, "frameInfo.request.URL") {
+		t.Fatal("Cocoa senderがrequest.URLのままです")
+	}
+}
+
+func TestS01GtkResponseStrict(t *testing.T) {
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	if strings.Contains(header, "is_main_frame_main_resource") {
+		t.Fatal("GTK responseがmainResource分岐に依存しています")
+	}
+	if strings.Contains(header, "if (mainResource)") {
+		t.Fatal("GTK responseにmainResource分岐が残っています")
 	}
 }
 

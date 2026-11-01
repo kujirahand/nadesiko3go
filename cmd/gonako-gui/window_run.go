@@ -139,6 +139,9 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
-	tw.Window.Navigate(server.URL("/"))
+	if err := tw.Navigate("/"); err != nil {
+		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
 	tw.Window.Run()
 }

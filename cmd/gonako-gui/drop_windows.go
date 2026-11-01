@@ -5,6 +5,7 @@ package main
 /*
 #cgo CXXFLAGS: -std=c++14 -I${SRCDIR}/../../third_party/webview_go/libs/mswebview2/include
 #cgo LDFLAGS: -luuid
+#include <stdlib.h>
 long gonakoInstallFileDropListener(void *controller, const char *origin);
 */
 import "C"

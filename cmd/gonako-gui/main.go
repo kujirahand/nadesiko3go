@@ -677,10 +677,15 @@ func main() {
 	}
 	if err := tw.BindErr(); err != nil {
 		fmt.Fprintf(os.Stderr, "特権Bindを登録できません: %v\n", err)
+		tw.Close()
 		os.Exit(1)
 	}
 
-	tw.Window.Navigate(server.URL("/" + startPage))
+	if err := tw.Navigate("/" + startPage); err != nil {
+		fmt.Fprintf(os.Stderr, "ウィンドウを開けません: %v\n", err)
+		tw.Close()
+		os.Exit(1)
+	}
 	tw.Window.Run()
 }
 

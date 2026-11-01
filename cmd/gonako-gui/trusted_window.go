@@ -16,27 +16,130 @@ import (
 	webview "github.com/webview/webview_go"
 )
 
+// trustRevokingListener は listener の close より前に native trust を失効させる。
+// http.Server.Serve は return 時に listener を close するため、この wrapper が
+// port 返却前の revocation を保証する。
+type trustRevokingListener struct {
+	net.Listener
+	once  sync.Once
+	owner *ownedServer
+}
+
+func (l *trustRevokingListener) Close() error {
+	l.once.Do(func() {
+		if l.owner != nil {
+			l.owner.revokeOnce()
+		}
+	})
+	return l.Listener.Close()
+}
+
 type ownedServer struct {
 	listener net.Listener
 	server   *http.Server
 	origin   string
+
+	mu      sync.Mutex
+	revoke  func()
+	revoked bool
+	failed  bool
+	closed  bool
+
 	closeOne sync.Once
 }
 
 // startOwnedServer は127.0.0.1の動的portでhandlerを配信する。
+// Serve の異常終了は failed に記録し、revocation は wrapper の Close が行う。
 func startOwnedServer(handler http.Handler) (*ownedServer, error) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("ローカルサーバーを起動できません: %w", err)
 	}
-	server := &http.Server{Handler: loopbackOnly(handler)}
-	go func() { _ = server.Serve(listener) }()
 	port := listener.Addr().(*net.TCPAddr).Port
-	return &ownedServer{
-		listener: listener,
-		server:   server,
-		origin:   fmt.Sprintf("http://127.0.0.1:%d", port),
-	}, nil
+	s := &ownedServer{
+		server: &http.Server{Handler: loopbackOnly(handler)},
+		origin: fmt.Sprintf("http://127.0.0.1:%d", port),
+	}
+	wrapped := &trustRevokingListener{Listener: listener, owner: s}
+	s.listener = wrapped
+	go func() {
+		err := s.server.Serve(wrapped)
+		if err != nil && err != http.ErrServerClosed {
+			s.mu.Lock()
+			s.failed = true
+			s.mu.Unlock()
+		}
+	}()
+	return s, nil
+}
+
+// SetRevoker は native trust の失効関数を設定する。Serve が既に失敗/終了して
+// いる場合は、windowが生存している間だけ直ちに失効させる。
+func (s *ownedServer) SetRevoker(fn func()) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return
+	}
+	if s.revoked || s.failed {
+		s.mu.Unlock()
+		if fn != nil {
+			fn()
+		}
+		return
+	}
+	s.revoke = fn
+	s.mu.Unlock()
+}
+
+// LeaseValid は server がまだこのwindowのoriginを所有しているかを返す。
+func (s *ownedServer) LeaseValid() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return !s.failed && !s.closed && !s.revoked
+}
+
+// revokeOnce は trust を一度だけ失効させる。listener close の前に呼ぶ。
+func (s *ownedServer) revokeOnce() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	if s.revoked {
+		s.mu.Unlock()
+		return
+	}
+	s.revoked = true
+	fn := s.revoke
+	s.revoke = nil
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
+}
+
+// RevokeAndDetach は native window が生存している間に trust を失効させ、
+// revoker を外す。late Serve callback が解放済み native pointer を触らない。
+func (s *ownedServer) RevokeAndDetach() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	fn := s.revoke
+	s.revoke = nil
+	if !s.revoked {
+		s.revoked = true
+	}
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 func (s *ownedServer) Close() {
@@ -44,6 +147,11 @@ func (s *ownedServer) Close() {
 		return
 	}
 	s.closeOne.Do(func() {
+		s.mu.Lock()
+		s.closed = true
+		s.mu.Unlock()
+		// port を返す前に privilege を失効させる。
+		s.revokeOnce()
 		_ = s.server.Close()
 		_ = s.listener.Close()
 	})
@@ -74,28 +182,58 @@ func newTrustedWindow(debug bool, handler http.Handler, settings guilib.WindowSe
 }
 
 // newTrustedWindowWithServer は既存serverのoriginで保護windowを作る。
+// server が既に失敗/revoke 済みなら window を公開せず破棄する。
 func newTrustedWindowWithServer(debug bool, server *ownedServer, settings guilib.WindowSettings) (*trustedWindow, error) {
 	w, err := webview.NewProtected(debug, webview.TrustSpec{Origin: server.origin})
 	if err != nil {
 		return nil, err
 	}
+	server.SetRevoker(w.RevokeTrust)
+	if !server.LeaseValid() {
+		server.RevokeAndDetach()
+		w.Destroy()
+		return nil, fmt.Errorf("ローカルサーバーが起動していません")
+	}
 	if err := applyWindowSettings(w, settings, false); err != nil {
+		server.RevokeAndDetach()
 		w.Destroy()
 		return nil, err
 	}
 	// ドロップ経路も保護windowだけに登録する。失敗はwindow破棄へ倒す。
 	bindFileDrop(w)
 	if err := w.BindErr(); err != nil {
+		server.RevokeAndDetach()
 		w.Destroy()
 		return nil, err
+	}
+	if !server.LeaseValid() {
+		server.RevokeAndDetach()
+		w.Destroy()
+		return nil, fmt.Errorf("ローカルサーバーが停止しました")
 	}
 	return &trustedWindow{Window: w, server: server}, nil
 }
 
-// Close はnative windowを先に破棄し、callbackが止まってからportを返す。
+// Navigate は server の lease が有効なときだけ初回/以後の有効な遷移を行う。
+func (t *trustedWindow) Navigate(path string) error {
+	if t == nil || t.Window == nil {
+		return fmt.Errorf("保護windowがありません")
+	}
+	if t.server == nil || !t.server.LeaseValid() {
+		return fmt.Errorf("ローカルサーバーのleaseが失効しています")
+	}
+	t.Window.Navigate(t.server.URL(path))
+	return nil
+}
+
+// Close は native window の生存中に trust を失効させ、その後で window と
+// server/port を破棄する。late Serve callback は revoker が外れている。
 func (t *trustedWindow) Close() {
 	if t == nil {
 		return
+	}
+	if t.server != nil {
+		t.server.RevokeAndDetach()
 	}
 	if t.Window != nil {
 		t.Window.Destroy()

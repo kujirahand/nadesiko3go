@@ -122,6 +122,9 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
-	tw.Window.Navigate(server.URL(wnako3RunPagePath))
+	if err := tw.Navigate(wnako3RunPagePath); err != nil {
+		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
 	tw.Window.Run()
 }
