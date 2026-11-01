@@ -67,6 +67,11 @@ type Regexp struct {
 	stickyPattern string
 	stickyOnce    sync.Once
 	stickyTail    *regexp.Regexp
+	// stickyPositional は位置指定の照合が要るか。空一致をし得るパターンと、
+	// 正の単語境界 『\b』 を含むパターンが該当する。\b は空の対象では成立
+	// しないが、前後に文字がある位置では成立する唯一のゼロ幅アサーション
+	// なので、GoのFindAllの一致列を信用できない。
+	stickyPositional bool
 	// hasNames はパターンが名前付きキャプチャを持つか。JavaScriptでは
 	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
 	// リテラルになるため、その判定に使う
@@ -147,15 +152,21 @@ func Compile(pattern string) (*Regexp, error) {
 		}
 	}
 	stickyPattern := ""
+	positional := false
 	if sticky {
 		stickyPattern = prefix.String() + body
+		// 空の対象で一致しないことと、正の単語境界を綴っていないことが、
+		// 空一致しないことの保守的な証明になる（\b だけが空では偽で、
+		// 文脈では真になり得るゼロ幅アサーション）。
+		positional = compiled.MatchString("") || strings.Contains(stickyPattern, `\b`)
 	}
 	return &Regexp{
-		re:            compiled,
-		Global:        global,
-		Sticky:        sticky,
-		stickyPattern: stickyPattern,
-		hasNames:      hasNames,
+		re:               compiled,
+		Global:           global,
+		Sticky:           sticky,
+		stickyPattern:    stickyPattern,
+		stickyPositional: positional,
+		hasNames:         hasNames,
 	}, nil
 }
 
@@ -220,9 +231,13 @@ func (r *Regexp) FindAll(s string) []string {
 	if !r.Sticky {
 		return r.re.FindAllString(s, -1)
 	}
-	var found []string
-	for _, m := range r.stickyWholeMatches(s) {
-		found = append(found, s[m[0]:m[1]])
+	indexes := r.stickyIndexes(s, false)
+	if len(indexes) == 0 {
+		return nil
+	}
+	found := make([]string, len(indexes))
+	for i, m := range indexes {
+		found[i] = s[m[0]:m[1]]
 	}
 	return found
 }
@@ -231,7 +246,7 @@ func (r *Regexp) FindAll(s string) []string {
 func (r *Regexp) FindAllMatches(s string) []Match {
 	var indexes [][]int
 	if r.Sticky {
-		indexes = r.stickySubmatches(s)
+		indexes = r.stickyIndexes(s, true)
 	} else {
 		indexes = r.re.FindAllStringSubmatchIndex(s, -1)
 	}
@@ -365,6 +380,39 @@ func (r *Regexp) stickyWholeMatches(s string) [][]int {
 	return out
 }
 
+// stickyIndexes returns the index rows a global sticky search visits. A pattern
+// that cannot match an empty string keeps Go's FindAll scan and only checks that
+// each match starts where the previous one ended; no empty match can be dropped
+// there, so the scan is complete. Everything else uses the positional search.
+func (r *Regexp) stickyIndexes(s string, submatch bool) [][]int {
+	if r.stickyPositional {
+		if submatch {
+			return r.stickySubmatches(s)
+		}
+		return r.stickyWholeMatches(s)
+	}
+	if submatch {
+		return stickyFromScan(r.re.FindAllStringSubmatchIndex(s, -1))
+	}
+	return stickyFromScan(r.re.FindAllStringIndex(s, -1))
+}
+
+// stickyFromScan keeps the leading run of matches that starts at the beginning
+// and continues without a gap. It is only used for patterns that cannot match an
+// empty string, so Go's scan has every match the sticky search could reach.
+func stickyFromScan(matches [][]int) [][]int {
+	kept := matches[:0]
+	next := 0
+	for _, m := range matches {
+		if m[0] != next {
+			break
+		}
+		kept = append(kept, m)
+		next = m[1]
+	}
+	return kept
+}
+
 // stickySubmatches is stickyWholeMatches keeping the capture groups.
 func (r *Regexp) stickySubmatches(s string) [][]int {
 	var out [][]int
@@ -387,20 +435,18 @@ func (r *Regexp) stickySubmatches(s string) [][]int {
 // a capture group and 『$<name>』 a named one.
 func (r *Regexp) Replace(s, template string) string {
 	var matches [][]int
-	if r.Sticky {
-		// stickyの置換は先頭から連続する一致だけを対象にする
-		matches = r.stickySubmatches(s)
-		if !r.Global && len(matches) > 1 {
-			matches = matches[:1]
+	switch {
+	case !r.Sticky && !r.Global:
+		matches = r.re.FindAllStringSubmatchIndex(s, 1)
+	case !r.Sticky:
+		matches = r.re.FindAllStringSubmatchIndex(s, -1)
+	case !r.Global:
+		// stickyの非globalは先頭で始まる一致だけが対象になる
+		if m := r.re.FindStringSubmatchIndex(s); m != nil && m[0] == 0 {
+			matches = [][]int{m}
 		}
-	} else {
-		limit := -1
-		if !r.Global {
-			limit = 1
-		}
-		// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
-		// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
-		matches = r.re.FindAllStringSubmatchIndex(s, limit)
+	default:
+		matches = r.stickyIndexes(s, true)
 	}
 	if len(matches) == 0 {
 		return s

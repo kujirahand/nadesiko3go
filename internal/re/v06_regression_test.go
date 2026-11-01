@@ -219,3 +219,67 @@ func TestV06FlagErrors(t *testing.T) {
 		}
 	}
 }
+
+// TestV06StickyNonEmptyFastPath pins the fast path for a sticky pattern that
+// cannot match an empty string: Go's FindAll scan is complete there, so the
+// matches only need the contiguous-start check.
+func TestV06StickyNonEmptyFastPath(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{"/a+/gy", "aaab", []string{"aaa"}},
+		{`/\w+/gy`, "ab cd", []string{"ab"}},
+		{`/([a-z])(\d)/gy`, "a1b2c3", []string{"a1", "b2", "c3"}},
+		{"/a+\\b/gy", "aa bb", []string{"aa"}}, // \bを含むので位置指定側
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
+// TestV06StickyEmptySubject pins the boundary at the empty subject. 『\b』 is
+// the only zero-width assertion that fails there, which is why it keeps the
+// positional search.
+func TestV06StickyEmptySubject(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{"/(?:)/gy", "", []string{""}},
+		{"/a*/gy", "", []string{""}},
+		{"/a/gy", "", nil},
+		{"/^/gy", "", []string{""}},
+		{"/$/gy", "", []string{""}},
+		{`/\B/gy`, "", []string{""}},
+		{`/\b/gy`, "", nil},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
+// TestV06StickyWordBoundaryIsPositional pins the counterexamples behind the
+// proof: 『a+|\b』 does not match an empty subject yet matches empty in a
+// context, and 『\B』 matches the empty subject. Both must use the positional
+// search, so the values here are Node's.
+func TestV06StickyWordBoundaryIsPositional(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{`/a+|\b/gy`, "a b", []string{"a", "", "", ""}},
+		{`/a|\B/gy`, "aab", []string{"a", "a", ""}},
+		{`/\b/gy`, "a b", []string{"", "", "", ""}},
+		{`/a+\b/gy`, "aa bb", []string{"aa"}},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
