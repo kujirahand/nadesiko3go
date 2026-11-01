@@ -3,7 +3,6 @@ package re_test
 import (
 	"errors"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -335,9 +334,8 @@ func TestV06StickyTextScanBoundary(t *testing.T) {
 
 // TestV06StickyTextScanRetention は、一致文字列の連続判定で途中に途切れがある
 // とき、走査結果の大きなbackingを返り値が保持しないことを固定する。結果の
-// literalと保持容量は別に確かめる。全件連続のときは走査結果をそのまま使うので、
-// 素の走査と同じ確保回数で済むことも確かめる（sliceの容量成長の実装には依存
-// しない比較にする）。
+// literalと保持容量は別に確かめる。全件連続で詰め直さないことは、同じpackageの
+// TestV06StickyFromTextsNoCopy が置き場所の同一性で確かめる。
 func TestV06StickyTextScanRetention(t *testing.T) {
 	middle := "aX" + strings.Repeat("a", 65536)
 	first := "X" + strings.Repeat("a", 65536)
@@ -356,20 +354,8 @@ func TestV06StickyTextScanRetention(t *testing.T) {
 		t.Errorf("先頭で途切れるFindAll = %v, want nil", got)
 	}
 
-	// 最後まで連続する: 全件返し、走査結果の詰め直しをしない。詰め直せば
-	// 確保が1回増えるので、パターン文字列が同じ素の走査と同じ確保回数になる
-	// ことで確かめる。
-	full := strings.Repeat("a", 100)
-	raw := regexp.MustCompile("a")
-	var all []string
-	ours := testing.AllocsPerRun(5, func() { all = r.FindAll(full) })
-	scan := testing.AllocsPerRun(5, func() { _ = raw.FindAllString(full, -1) })
-	if len(all) != 100 {
-		t.Fatalf("全部連続するFindAllの件数 = %d, want 100", len(all))
-	}
-	// race計測では確保回数の絶対値が変わるので、素の走査より多く確保しない
-	// ことを上限で確かめる（通常計測では一致する）。
-	if ours > scan {
-		t.Errorf("全部連続するFindAllの確保回数 = %v, 素の走査 = %v。詰め直しで余分に確保している", ours, scan)
+	// 最後まで連続する: 全件返す
+	if got := r.FindAll(strings.Repeat("a", 100)); len(got) != 100 {
+		t.Errorf("全部連続するFindAllの件数 = %d, want 100", len(got))
 	}
 }
