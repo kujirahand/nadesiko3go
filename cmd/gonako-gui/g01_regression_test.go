@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -112,7 +113,7 @@ func TestG01FailedRebuildKeepsExistingApp(t *testing.T) {
 	outside := filepath.Join(dir, "outside.txt")
 	writeFile(t, outside, "フォルダの外")
 	if err := os.Symlink(outside, filepath.Join(folder, "外へのリンク")); err != nil {
-		t.Fatal(err)
+		t.Skipf("シンボリックリンクを作れません: %v", err)
 	}
 
 	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "アプリ")
@@ -356,7 +357,7 @@ func TestG01NativeRebuildKeepsRunnableApp(t *testing.T) {
 	outside := filepath.Join(dir, "outside.txt")
 	writeFile(t, outside, "フォルダの外")
 	if err := os.Symlink(outside, filepath.Join(folder, "外へのリンク")); err != nil {
-		t.Fatal(err)
+		t.Skipf("シンボリックリンクを作れません: %v", err)
 	}
 	if res := buildAppFromFolder(folder, entry, out, "実機"); res.OK {
 		t.Fatal("フォルダ外リンクがあるのに梱包が成功した")
@@ -449,6 +450,7 @@ func entriesWithPrefix(t *testing.T, dir, prefix string) []string {
 // 新.appの公開後に旧backupの削除だけが失敗したら、変換は成功のままwarningと
 // 残ったbackup pathを返す。新.appは公開済みなのでrollbackしない。
 func TestG01CleanupFailureWarnsAndKeepsNewApp(t *testing.T) {
+	skipIfCannotLockDir(t)
 	dir := t.TempDir()
 	useRuntime(t, dir)
 	folder := filepath.Join(dir, "src")
@@ -570,6 +572,7 @@ func TestG01NativeCleanupFailureWarns(t *testing.T) {
 	if os.Getenv("GONAKO_TEST_RUNTIME") == "" {
 		t.Skip("GONAKO_TEST_RUNTIME 未設定。実.appの起動確認はnative枠で行う")
 	}
+	skipIfCannotLockDir(t)
 	dir := t.TempDir()
 	useRuntime(t, dir)
 
@@ -735,6 +738,7 @@ func TestG01BuildSizeMatchesPublishedApp(t *testing.T) {
 	})
 
 	t.Run("cleanup warning", func(t *testing.T) {
+		skipIfCannotLockDir(t)
 		dir := t.TempDir()
 		useRuntime(t, dir)
 		folder := filepath.Join(dir, "src")
@@ -763,4 +767,33 @@ func TestG01BuildSizeMatchesPublishedApp(t *testing.T) {
 			t.Fatalf("warning時のSizeが公開済みの新.appと違う: got=%d want=%d", res.Size, want)
 		}
 	})
+}
+
+// skipIfCannotLockDir skips tests that need a 0500 directory to block
+// os.RemoveAll. Root and Windows ignore those permission bits.
+func skipIfCannotLockDir(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("ディレクトリ権限で削除を止められない環境")
+	}
+}
+
+// 出力先の親フォルダが無くても、以前のテンプレート書き出しと同じように作る。
+func TestG01CreatesMissingOutputParent(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	folder := filepath.Join(dir, "src")
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>やあ</h1>")
+	out := filepath.Join(dir, "新しい", "階層", "App.app")
+
+	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App")
+	if !res.OK {
+		t.Fatalf("親フォルダが無い出力先で変換に失敗した: %s", res.Error)
+	}
+	if want := independentAppSize(t, out); res.Size != want || res.Size == 0 {
+		t.Fatalf("作った.appのサイズが違う: got=%d want=%d", res.Size, want)
+	}
+	if _, err := os.Stat(filepath.Join(out, "Contents", "Info.plist")); err != nil {
+		t.Fatalf("出力先の親フォルダが作られていない: %v", err)
+	}
 }

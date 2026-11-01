@@ -594,7 +594,13 @@ type macAppStaging struct {
 // newMacAppStaging creates the private folder next to the final app. Keeping it
 // a sibling means the later swap stays on one filesystem.
 func newMacAppStaging(appPath string) (*macAppStaging, error) {
-	root, err := os.MkdirTemp(filepath.Dir(appPath), "."+filepath.Base(appPath)+".staging-")
+	dir := filepath.Dir(appPath)
+	// 出力先の親フォルダが無くても、以前のテンプレート書き出しと同じように
+	// 作ってから staging を置く。
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("出力先のフォルダを作れません: %w", err)
+	}
+	root, err := os.MkdirTemp(dir, "."+filepath.Base(appPath)+".staging-")
 	if err != nil {
 		return nil, fmt.Errorf("一時フォルダを作れません: %w", err)
 	}
