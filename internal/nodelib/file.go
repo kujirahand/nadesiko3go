@@ -352,9 +352,17 @@ type moveEntryInfo struct {
 // シンボリックリンクを辿らずにLstat相当で種別を返すため、リンク先が
 // 存在しない壊れたsymlinkもエントリーとして扱え、空ディレクトリも
 // 落とさない。列挙の失敗は握りつぶさず呼び出し元へ返す。
+// root自身がディレクトリへのsymlinkのとき、WalkDir はrootのリンクも
+// 辿らないため、実体へ解決してから列挙する。移動元の削除は呼び出し元が
+// 元のパスで行う。
 func listEntries(root string) ([]moveEntryInfo, error) {
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, err
+	}
+	root = resolved
 	var entries []moveEntryInfo
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

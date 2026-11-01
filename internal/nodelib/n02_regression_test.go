@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -41,6 +42,16 @@ func moveSrcToDst(t *testing.T, dir, src, dst string) error {
 	t.Helper()
 	code := fmt.Sprintf(`「%s」を「%s」にファイル移動`, filepath.ToSlash(src), filepath.ToSlash(dst))
 	return runExpectError(t, dir, code)
+}
+
+// skipIfNoPermissionEnforcement は chmod で権限エラーを作れない環境を飛ばす。
+// Windows は os.Geteuid() が -1 を返し、0o000 や 0o555 でも列挙・作成・削除を
+// 制限しないため、root と同様にスキップする。
+func skipIfNoPermissionEnforcement(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+		t.Skip("パーミッションで失敗を再現できない環境です")
+	}
 }
 
 // TestN02MoveKeepsEmptyDirectoryTree は N02 の回帰テスト。
@@ -103,9 +114,7 @@ func TestN02MoveKeepsSymlinks(t *testing.T) {
 // TestN02MoveEnumerationErrorKeepsSource は、列挙できないディレクトリがあると
 // 成功を返さず、移動元を削除しないことを確認する。
 func TestN02MoveEnumerationErrorKeepsSource(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root ではパーミッションで列挙を失敗させられません")
-	}
+	skipIfNoPermissionEnforcement(t)
 	dir := t.TempDir()
 	src := setupMoveEntries(t, dir)
 	secret := filepath.Join(src, "secret")
@@ -130,9 +139,7 @@ func TestN02MoveEnumerationErrorKeepsSource(t *testing.T) {
 // TestN02MoveCopyErrorKeepsSource は、コピーに失敗した場合に移動元を
 // 削除しないことを確認する。移動先の親を書き込み不可にする。
 func TestN02MoveCopyErrorKeepsSource(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root ではパーミッションでコピーを失敗させられません")
-	}
+	skipIfNoPermissionEnforcement(t)
 	dir := t.TempDir()
 	src := setupMoveEntries(t, dir)
 	readonly := filepath.Join(dir, "ro")
@@ -159,9 +166,7 @@ func TestN02MoveCopyErrorKeepsSource(t *testing.T) {
 // TestN02MoveRemoveErrorIsReported は、移動元の削除に失敗した場合に
 // 成功を返さないことを確認する。移動元の親を書き込み不可にする。
 func TestN02MoveRemoveErrorIsReported(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root ではパーミッションで削除を失敗させられません")
-	}
+	skipIfNoPermissionEnforcement(t)
 	dir := t.TempDir()
 	readonly := filepath.Join(dir, "ro")
 	if err := os.MkdirAll(readonly, 0o755); err != nil {
@@ -229,6 +234,42 @@ func TestN02MoveCancelKeepsSource(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(src, filepath.FromSlash(rel))); err != nil {
 			t.Errorf("停止したのに移動元の %s が失われました: %v", rel, err)
 		}
+	}
+}
+
+// TestN02MoveSymlinkedSourceKeepsContent は、移動元がディレクトリへの
+// symlink でも実体の中身を列挙して移動先へ移すことを確認する。
+// filepath.WalkDir は root の symlink も辿らないため、実体へ解決してから
+// 列挙する必要がある。
+func TestN02MoveSymlinkedSourceKeepsContent(t *testing.T) {
+	dir := t.TempDir()
+	real := filepath.Join(dir, "real")
+	if err := os.MkdirAll(filepath.Join(real, "inner"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(real, "file.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+	dst := filepath.Join(dir, "dst")
+
+	if err := moveSrcToDst(t, dir, link, dst); err != nil {
+		t.Fatalf("移動がエラーになりました: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(dst, "file.txt")); err != nil || string(got) != "hello" {
+		t.Errorf("移動先の file.txt が壊れています: content=%q err=%v", got, err)
+	}
+	if info, err := os.Stat(filepath.Join(dst, "inner")); err != nil || !info.IsDir() {
+		t.Errorf("移動先の inner が失われました: info=%v err=%v", info, err)
+	}
+	if _, err := os.Lstat(link); err == nil {
+		t.Errorf("移動元の symlink が残っています: %s", link)
+	}
+	if _, err := os.Stat(real); err != nil {
+		t.Errorf("symlink の実体が失われました: %v", err)
 	}
 }
 
