@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -60,6 +61,12 @@ type Regexp struct {
 	// previous one ended, so a fresh match starts at the beginning of the
 	// subject instead of being searched for anywhere in it.
 	Sticky bool
+	// stickyPattern はフラグの接頭辞を含むGoのパターンで、stickyの位置指定
+	// 照合に使う。先頭位置の照合は元のコンパイル結果で足りるので、この変種は
+	// 2件目以降を探すときにはじめてコンパイルする。
+	stickyPattern string
+	stickyOnce    sync.Once
+	stickyTail    *regexp.Regexp
 	// hasNames はパターンが名前付きキャプチャを持つか。JavaScriptでは
 	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
 	// リテラルになるため、その判定に使う
@@ -139,7 +146,17 @@ func Compile(pattern string) (*Regexp, error) {
 			break
 		}
 	}
-	return &Regexp{re: compiled, Global: global, Sticky: sticky, hasNames: hasNames}, nil
+	stickyPattern := ""
+	if sticky {
+		stickyPattern = prefix.String() + body
+	}
+	return &Regexp{
+		re:            compiled,
+		Global:        global,
+		Sticky:        sticky,
+		stickyPattern: stickyPattern,
+		hasNames:      hasNames,
+	}, nil
 }
 
 // validateFlags rejects what JavaScript rejects in a flag list. A repeated flag
@@ -197,13 +214,14 @@ func unsupportedByRE2(pattern string) bool {
 var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 
 // FindAll returns every whole match. It reports nil when there is none, which
-// the commands turn into 『空』.
+// the commands turn into 『空』. A sticky pattern walks the positions JavaScript
+// visits, so a match only counts when it starts where the previous one ended.
 func (r *Regexp) FindAll(s string) []string {
 	if !r.Sticky {
 		return r.re.FindAllString(s, -1)
 	}
 	var found []string
-	for _, m := range r.stickyMatches(s, r.re.FindAllStringIndex(s, -1)) {
+	for _, m := range r.stickyWholeMatches(s) {
 		found = append(found, s[m[0]:m[1]])
 	}
 	return found
@@ -211,7 +229,12 @@ func (r *Regexp) FindAll(s string) []string {
 
 // FindAllMatches returns every match with its capture groups.
 func (r *Regexp) FindAllMatches(s string) []Match {
-	indexes := r.stickyMatches(s, r.re.FindAllStringSubmatchIndex(s, -1))
+	var indexes [][]int
+	if r.Sticky {
+		indexes = r.stickySubmatches(s)
+	} else {
+		indexes = r.re.FindAllStringSubmatchIndex(s, -1)
+	}
 	matches := make([]Match, len(indexes))
 	for i, m := range indexes {
 		matches[i] = matchFromIndexes(s, m)
@@ -248,37 +271,112 @@ func matchFromIndexes(s string, indexes []int) Match {
 	return m
 }
 
-// stickyMatches drops the matches a 『y』 pattern does not allow. Each one has
-// to start where the previous one ended; JavaScript steps one rune past an
-// empty match in a global search, and so does this.
-func (r *Regexp) stickyMatches(s string, matches [][]int) [][]int {
-	if !r.Sticky {
-		return matches
+// prevRuneStart は pos の直前のruneの開始バイト位置を返す。
+func prevRuneStart(s string, pos int) int {
+	_, size := utf8.DecodeLastRuneInString(s[:pos])
+	return pos - size
+}
+
+// stickyTailRE は位置 pos>0 から始まる一致を求めるための変種を返す。
+//
+// 部分文字列を切り出して再マッチすると ^ や \b のような文脈が失われるので、
+// 直前の1runeを残した部分文字列に 『\A(?s:.)』 を前置する。前の1runeを消費
+// させたうえで先頭に固定するので、照合位置から見た前後の文脈は元の文字列の
+// ままになる。この変種は必要になった時点で作る。
+func (r *Regexp) stickyTailRE() *regexp.Regexp {
+	r.stickyOnce.Do(func() {
+		r.stickyTail = regexp.MustCompile(`\A(?s:.)(?:` + r.stickyPattern + `)`)
+	})
+	return r.stickyTail
+}
+
+// matchAt returns the whole match and capture groups that start exactly at
+// pos, with indexes in the coordinates of s. It reports nil when no match
+// starts there.
+func (r *Regexp) matchAt(s string, pos int) []int {
+	if pos == 0 {
+		m := r.re.FindStringSubmatchIndex(s)
+		if m == nil || m[0] != 0 {
+			return nil
+		}
+		return m
 	}
-	kept := make([][]int, 0, len(matches))
-	for _, m := range matches {
-		if len(kept) == 0 {
-			if m[0] != 0 {
-				break
-			}
-			kept = append(kept, m)
+	base := prevRuneStart(s, pos)
+	m := r.stickyTailRE().FindStringSubmatchIndex(s[base:])
+	if m == nil {
+		return nil
+	}
+	// 変種は直前の1runeを消費するので、全体の開始は pos、終端と部分一致は
+	// 残した1runeの分だけ元の座標へ戻す。
+	row := make([]int, len(m))
+	row[0], row[1] = pos, base+m[1]
+	for i := 2; i < len(m); i += 2 {
+		if m[i] < 0 {
+			row[i], row[i+1] = -1, -1
 			continue
 		}
-		prev := kept[len(kept)-1]
-		next := prev[1]
-		if prev[0] == prev[1] {
-			if next >= len(s) {
-				break
-			}
-			_, size := utf8.DecodeRuneInString(s[next:])
-			next += size
+		row[i], row[i+1] = base+m[i], base+m[i+1]
+	}
+	return row
+}
+
+// matchWholeAt is matchAt for callers that only need the whole match.
+func (r *Regexp) matchWholeAt(s string, pos int) []int {
+	if pos == 0 {
+		m := r.re.FindStringIndex(s)
+		if m == nil || m[0] != 0 {
+			return nil
 		}
-		if m[0] != next {
+		return m
+	}
+	base := prevRuneStart(s, pos)
+	m := r.stickyTailRE().FindStringIndex(s[base:])
+	if m == nil {
+		return nil
+	}
+	return []int{pos, base + m[1]}
+}
+
+// advanceMatch reports where the next sticky match may start. An empty match
+// moves one rune on, which is how JavaScript's global search advances.
+func advanceMatch(s string, m []int) int {
+	if m[1] != m[0] {
+		return m[1]
+	}
+	if m[1] >= len(s) {
+		return len(s) + 1
+	}
+	_, size := utf8.DecodeRuneInString(s[m[1]:])
+	return m[1] + size
+}
+
+// stickyWholeMatches returns the whole match positions a global sticky search
+// visits, in JavaScript's order.
+func (r *Regexp) stickyWholeMatches(s string) [][]int {
+	var out [][]int
+	for pos := 0; pos <= len(s); {
+		m := r.matchWholeAt(s, pos)
+		if m == nil {
 			break
 		}
-		kept = append(kept, m)
+		out = append(out, m)
+		pos = advanceMatch(s, m)
 	}
-	return kept
+	return out
+}
+
+// stickySubmatches is stickyWholeMatches keeping the capture groups.
+func (r *Regexp) stickySubmatches(s string) [][]int {
+	var out [][]int
+	for pos := 0; pos <= len(s); {
+		m := r.matchAt(s, pos)
+		if m == nil {
+			break
+		}
+		out = append(out, m)
+		pos = advanceMatch(s, m)
+	}
+	return out
 }
 
 // Replace substitutes matches with the template, honouring the 『g』 flag: only
@@ -288,13 +386,22 @@ func (r *Regexp) stickyMatches(s string, matches [][]int) [][]int {
 // 『$&』 the match, 『$`』 and 『$'』 the parts before and after it, 『$n』
 // a capture group and 『$<name>』 a named one.
 func (r *Regexp) Replace(s, template string) string {
-	limit := -1
-	if !r.Global {
-		limit = 1
+	var matches [][]int
+	if r.Sticky {
+		// stickyの置換は先頭から連続する一致だけを対象にする
+		matches = r.stickySubmatches(s)
+		if !r.Global && len(matches) > 1 {
+			matches = matches[:1]
+		}
+	} else {
+		limit := -1
+		if !r.Global {
+			limit = 1
+		}
+		// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
+		// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
+		matches = r.re.FindAllStringSubmatchIndex(s, limit)
 	}
-	// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
-	// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
-	matches := r.stickyMatches(s, r.re.FindAllStringSubmatchIndex(s, limit))
 	if len(matches) == 0 {
 		return s
 	}

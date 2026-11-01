@@ -101,6 +101,96 @@ func TestV06StickyReplace(t *testing.T) {
 	}
 }
 
+// TestV06StickyNullable pins that an empty match right after a match still
+// counts. Go's FindAll drops that empty match, so a sticky search that starts
+// from its match list stops too early; the values here are Node's.
+func TestV06StickyNullable(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{"/a*|b/gy", "ab", []string{"a", "", ""}},
+		{"/b*/gy", "abc", []string{"", "b", "", ""}},
+		{"/(?:)/gy", "abc", []string{"", "", "", ""}},
+		{"/a*/gy", "aaa", []string{"aaa", ""}},
+		{"/a?/gy", "abc", []string{"a", "", "", ""}},
+		{"/a|/gy", "abc", []string{"a", "", "", ""}},
+		{"/x?/gy", "abc", []string{"", "", "", ""}},
+		{`/\d*/gy`, "a1b", []string{"", "1", "", ""}},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
+// TestV06StickyContext pins that ^, $, \b and \B still see the characters
+// around a match that does not start at the beginning. Cutting the subject at
+// the match position would lose them.
+func TestV06StickyContext(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{"/^a/gy", "a a", []string{"a"}},                 // 2件目の^は行頭ではない
+		{"/a$/gy", "a a", nil},                           // 先頭のaは$に届かない
+		{"/a$/gy", "a", []string{"a"}},                   // 末尾なら一致する
+		{"/a$/mgy", "a\nb", []string{"a"}},               // mの$は改行の手前
+		{`/\b./gy`, "a b", []string{"a", " ", "b"}},      // 位置1,2の\bは前の文字で決まる
+		{`/a\B/gy`, "aab", []string{"a", "a"}},           // 2件目の\Bは後ろの文字で決まる
+		{`/\Ba/gy`, "aab", nil},                          // 先頭の\Bは境界なので一致しない
+		{`/^\w\n/mgy`, "a\nb\n", []string{"a\n", "b\n"}}, // 改行直後の^を保つ
+		{"/a|b$/gy", "ab", []string{"a", "b"}},           // 2件目の$は文字列の終端
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
+// TestV06StickyCaptureAndReplace pins the capture offsets when a sticky match
+// starts after the beginning, and that characters no match consumed stay in
+// place.
+func TestV06StickyCaptureAndReplace(t *testing.T) {
+	tests := []struct {
+		pattern, input, template, want string
+	}{
+		{`/(\d)([a-z])/gy`, "1a2b", "X$1", "X1X2"},
+		{"/(a)(b)/gy", "abab", "$2$1", "baba"},
+		{"/(い)/gy", "いあい", "<$1>", "<い>あい"},
+		{"/a/gy", "aab", "X", "XXb"},
+		{"/ab/gy", "ab ab", "X", "X ab"},
+		{"/a*|b/gy", "ab", "X", "XXbX"},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).Replace(tt.input, tt.template); got != tt.want {
+			t.Errorf("Replace(%q, %q, %q) = %q, want %q", tt.pattern, tt.input, tt.template, got, tt.want)
+		}
+	}
+}
+
+// TestV06StickyRuneBased pins the deliberate rune-based difference from
+// JavaScript: the subject is walked by rune, not by UTF-16 code unit. Node
+// with the 『u』 flag agrees with these values; without it, a character outside
+// the BMP is split in two (AGENTS.md §5).
+func TestV06StickyRuneBased(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{"/./gy", "𩸽あ", []string{"𩸽", "あ"}},
+		{"/(?:)/gy", "𩸽あ", []string{"", "", ""}},
+		{"/a*/gy", "𩸽あ", []string{"", "", ""}},
+	}
+	for _, tt := range tests {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
 // TestV06FlagErrors pins that a repeated, unknown or conflicting flag is
 // reported with the offending letter, which is what the language error names.
 func TestV06FlagErrors(t *testing.T) {

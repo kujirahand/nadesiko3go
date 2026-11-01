@@ -23,6 +23,14 @@ func TestV06RegexpLiveCases(t *testing.T) {
 		{"sticky置換の開始位置", `「aa」の「/a/y」を「X」に正規表現置換して表示`, `Xa`},
 		{"sticky置換は先頭のみ", `「ba」の「/a/y」を「X」に正規表現置換して表示`, `ba`},
 		{"g+y置換の連続範囲", `「aba」の「/a/gy」を「X」に正規表現置換して表示`, `Xba`},
+		// GoのFindAllが落とす「直前の一致に隣接する空一致」も、stickyでは一致として数える
+		{"nullableの空一致", `D=「ab」を「/a*|b/gy」で正規表現マッチ。DをJSONエンコードして表示`, `["a","",""]`},
+		{"nullableの空一致の連続", `E=「abc」を「/b*/gy」で正規表現マッチ。EをJSONエンコードして表示`, `["","b","",""]`},
+		{"nullableの置換", `「ab」の「/a*|b/gy」を「X」に正規表現置換して表示`, `XXbX`},
+		{"stickyの文脈", `F=「a b」を「/\b./gy」で正規表現マッチ。FをJSONエンコードして表示`, `["a"," ","b"]`},
+		{"一致しない残りはそのまま", `「ab ab」の「/ab/gy」を「X」に正規表現置換して表示`, `X ab`},
+		{"2件目以降の部分一致", `「1a2b」の「/(\d)([a-z])/gy」を「X$1」に正規表現置換して表示`, `X1X2`},
+		{"非BMPはrune基準", `G=「𩸽あ」を「/./gy」で正規表現マッチ。GをJSONエンコードして表示`, `["𩸽","あ"]`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

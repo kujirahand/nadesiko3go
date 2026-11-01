@@ -119,6 +119,68 @@ func TestV06StickyReplace(t *testing.T) {
 	}
 }
 
+// TestV06StickyNullableCommands pins the command results for a nullable sticky
+// pattern. Go's FindAll drops the empty match right after a match, so a sticky
+// search that trusts it stops too early; the values here are Node's.
+func TestV06StickyNullableCommands(t *testing.T) {
+	tests := []struct {
+		name, input, pattern string
+		want                 []string
+	}{
+		{"区切りの直後の空一致", "ab", "/a*|b/gy", []string{"a", "", ""}},
+		{"空一致の連続", "abc", "/b*/gy", []string{"", "b", "", ""}},
+		{"空一致だけのパターン", "abc", "/(?:)/gy", []string{"", "", "", ""}},
+		{"末尾の空一致", "aaa", "/a*/gy", []string{"aaa", ""}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := v06Call(t, "正規表現マッチ", value.String(tt.input), value.String(tt.pattern))
+			if err != nil {
+				t.Fatalf("正規表現マッチ(%q, %q): %v", tt.input, tt.pattern, err)
+			}
+			if items := v06Items(t, got); !reflect.DeepEqual(items, tt.want) {
+				t.Errorf("正規表現マッチ(%q, %q) = %v, want %v", tt.input, tt.pattern, items, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06StickyReplaceKeepsRest pins that a sticky replacement touches only
+// the contiguous matches from the beginning and leaves the rest of the subject
+// alone, including the capture groups of a match that starts after the first.
+func TestV06StickyReplaceKeepsRest(t *testing.T) {
+	tests := []struct{ name, input, pattern, template, want string }{
+		{"一致しない残りはそのまま", "ab ab", "/ab/gy", "X", "X ab"},
+		{"連続した一致", "aab", "/a/gy", "X", "XXb"},
+		{"空一致を含む置換", "ab", "/a*|b/gy", "X", "XXbX"},
+		{"2件目以降の部分一致", "1a2b", `/(\d)([a-z])/gy`, "X$1", "X1X2"},
+		{"日本語の部分一致", "いあい", "/(い)/gy", "<$1>", "<い>あい"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := []value.Value{value.String(tt.input), value.String(tt.pattern), value.String(tt.template)}
+			got, err := v06Call(t, "正規表現置換", args...)
+			if err != nil {
+				t.Fatalf("正規表現置換(%q, %q, %q): %v", tt.input, tt.pattern, tt.template, err)
+			}
+			if text := value.ToString(got); text != tt.want {
+				t.Errorf("正規表現置換(%q, %q, %q) = %q, want %q", tt.input, tt.pattern, tt.template, text, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06StickyExtract pins the capture list of 正規表現抽出 for sticky matches.
+func TestV06StickyExtract(t *testing.T) {
+	got, err := v06Call(t, "正規表現抽出", value.String("1a2b"), value.String(`/(\d)([a-z])/gy`))
+	if err != nil {
+		t.Fatalf("正規表現抽出: %v", err)
+	}
+	if items := v06Items(t, got); !reflect.DeepEqual(items, []string{"1", "a", "2", "b"}) {
+		t.Errorf("正規表現抽出 = %v, want [1 a 2 b]", items)
+	}
+}
+
 // TestV06DuplicateFlags pins that a repeated flag is a language error. A fresh
 // RegExp in JavaScript throws a SyntaxError; accepting 『/a/gg』 silently
 // changes the meaning of the pattern.
