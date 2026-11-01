@@ -359,3 +359,25 @@ func TestV06StickyTextScanRetention(t *testing.T) {
 		t.Errorf("全部連続するFindAllの件数 = %d, want 100", len(got))
 	}
 }
+
+// TestV06StickyQuotedPatternDoesNotPanic は、Goの 『\Q』 のように後ろを
+// リテラル扱いにする構文を含むstickyパターンでも、位置指定照合の変種を作る
+// ところでpanicしないことを固定する。Compile時に作るので、照合中に
+// MustCompileへ到達しない。
+func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
+	r, err := re.Compile("/\\Q/gy")
+	if err != nil {
+		t.Fatalf("Compile: %v", err)
+	}
+	// Goの正規表現では 『\Q』 だけで空に一致するパターンになる
+	if got, want := r.FindAll("abc"), []string{"", "", "", ""}; !reflect.DeepEqual(got, want) {
+		t.Errorf("FindAll = %q, want %q", got, want)
+	}
+	if got := r.FindAllMatches("abc"); len(got) != 4 {
+		t.Errorf("FindAllMatchesの件数 = %d, want 4", len(got))
+	}
+	// 末尾の一致も位置指定の照合を通る
+	if got, want := r.FindAll("a"), []string{"", ""}; !reflect.DeepEqual(got, want) {
+		t.Errorf("FindAll(a) = %q, want %q", got, want)
+	}
+}

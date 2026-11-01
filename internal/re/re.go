@@ -14,9 +14,9 @@ package re
 import (
 	"errors"
 	"regexp"
+	"regexp/syntax"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode/utf8"
 )
 
@@ -50,12 +50,11 @@ func (e *FlagError) Error() string {
 // JavaScriptでは正しい入力なので受理する。
 const validFlags = "dgimsuvy"
 
-// stickyTail は位置指定照合に使う派生パターンを、必要になった時点で1度だけ
-// 作って保持する。空一致し得るstickyと、正の単語境界を綴るstickyだけがこれ
-// を持つ。
+// stickyTail は位置指定照合に使う派生パターン。空一致し得るstickyと、正の
+// 単語境界を綴るstickyだけがこれを持つ。派生パターンはCompile時に作るので、
+// 照合中にコンパイル失敗でpanicすることはない。
 type stickyTail struct {
-	once sync.Once
-	re   *regexp.Regexp
+	re *regexp.Regexp
 }
 
 // Regexp はコンパイル済みのパターンと、そのとき書かれたフラグをまとめたもの。
@@ -154,7 +153,11 @@ func Compile(pattern string) (*Regexp, error) {
 	}
 	var tail *stickyTail
 	if sticky && needsPositionalSearch(compiled) {
-		tail = &stickyTail{}
+		tailRE, err := compileStickyTail(compiled)
+		if err != nil {
+			return nil, err
+		}
+		tail = &stickyTail{re: tailRE}
 	}
 	textScan := sticky && tail == nil && !hasContextAssertion(compiled.String())
 	return &Regexp{
@@ -340,20 +343,26 @@ func prevRuneStart(s string, pos int) int {
 	return pos - size
 }
 
-// stickyTailRE は位置 pos>0 から始まる一致を求めるための変種を返す。
+// compileStickyTail は位置 pos>0 から始まる一致を求めるための変種を作る。
 //
 // 部分文字列を切り出して再マッチすると ^ や \b のような文脈が失われるので、
 // 直前の1runeを残した部分文字列に 『\A(?s:.)』 を前置する。前の1runeを消費
 // させたうえで先頭に固定するので、照合位置から見た前後の文脈は元の文字列の
-// ままになる。この変種は必要になった時点で作る。
-func (r *Regexp) stickyTailRE() *regexp.Regexp {
-	r.tail.once.Do(func() {
-		// 元のコンパイル結果からパターンを引き直すので、パターン文字列を
-		// 別に持ち回る必要はない。
-		r.tail.re = regexp.MustCompile(`\A(?s:.)(?:` + r.re.String() + `)`)
-	})
-	return r.tail.re
+// ままになる。
+//
+// パターンをそのまま包むと、Goの 『\Q』 のように後ろをすべてリテラル扱いに
+// する構文が包みの 『)』 まで飲み込み、正規表現として壊れる。構文木に直して
+// から文字列へ戻し、包んでも安全な形にしてからコンパイルする。
+func compileStickyTail(compiled *regexp.Regexp) (*regexp.Regexp, error) {
+	parsed, err := syntax.Parse(compiled.String(), syntax.Perl)
+	if err != nil {
+		return nil, err
+	}
+	return regexp.Compile(`\A(?s:.)(?:` + parsed.String() + `)`)
 }
+
+// stickyTailRE は Compile時に作った位置指定照合用の変種を返す。
+func (r *Regexp) stickyTailRE() *regexp.Regexp { return r.tail.re }
 
 // matchAt は pos からちょうど始まる一致全体と捕獲を、s の座標で返す。そこか
 // ら始まる一致がなければnilを返す。
