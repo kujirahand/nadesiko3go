@@ -132,6 +132,9 @@ func TestG01FailedRebuildKeepsExistingApp(t *testing.T) {
 	if leftovers := leftoverEntries(t, dir); len(leftovers) != 0 {
 		t.Fatalf("失敗後に一時成果物が残った: %v", leftovers)
 	}
+	if res.Warning != "" || len(res.Leftover) != 0 {
+		t.Fatalf("公開前の失敗でwarningを返した: %q %v", res.Warning, res.Leftover)
+	}
 }
 
 // buildExistingApp leaves one working .app behind, so the failure tests all
@@ -267,6 +270,9 @@ func TestG01SuccessfulRebuildSwapsInNewApp(t *testing.T) {
 	if leftovers := leftoverEntries(t, dir); len(leftovers) != 0 {
 		t.Fatalf("成功後に一時成果物が残った: %v", leftovers)
 	}
+	if res.Warning != "" || len(res.Leftover) != 0 {
+		t.Fatalf("正常な置換でwarningを返した: %q %v", res.Warning, res.Leftover)
+	}
 }
 
 // .app の形をしていないフォルダは置き換えない。
@@ -340,7 +346,8 @@ func TestG01NativeRebuildKeepsRunnableApp(t *testing.T) {
 		t.Fatalf("1回目の.appの実行結果が違う: %q", got)
 	}
 
-	// フォルダ外リンクで梱包を失敗させる
+	// フォルダ外リンクで梱包を失敗させる。旧.appの全manifestが残ることも見る。
+	beforeFailure := appTreeSnapshot(t, out)
 	outside := filepath.Join(dir, "outside.txt")
 	writeFile(t, outside, "フォルダの外")
 	if err := os.Symlink(outside, filepath.Join(folder, "外へのリンク")); err != nil {
@@ -349,6 +356,7 @@ func TestG01NativeRebuildKeepsRunnableApp(t *testing.T) {
 	if res := buildAppFromFolder(folder, entry, out, "実機"); res.OK {
 		t.Fatal("フォルダ外リンクがあるのに梱包が成功した")
 	}
+	assertAppUnchanged(t, out, beforeFailure)
 	if got := runBuiltApp(t, exe, result); got != "旧版" {
 		t.Fatalf("失敗後の旧.appが起動しない、または内容が違う: %q", got)
 	}
@@ -398,4 +406,244 @@ func runBuiltApp(t *testing.T, exe, result string) string {
 	}
 	t.Fatalf("作った.appが期限内に結果を書かない: %s", output.String())
 	return ""
+}
+
+// restoreTreePermissions makes every directory below root writable again, so a
+// test that locked a folder on purpose can still be cleaned up.
+func restoreTreePermissions(t *testing.T, root string) {
+	t.Helper()
+	_ = filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
+		if err == nil && fi.IsDir() {
+			_ = os.Chmod(p, 0o700)
+		}
+		return nil
+	})
+}
+
+// entriesWithPrefix lists the hidden staging or backup entries next to an app.
+func entriesWithPrefix(t *testing.T, dir, prefix string) []string {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var found []string
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), prefix) {
+			found = append(found, filepath.Join(dir, entry.Name()))
+		}
+	}
+	sort.Strings(found)
+	return found
+}
+
+// 新.appの公開後に旧backupの削除だけが失敗したら、変換は成功のままwarningと
+// 残ったbackup pathを返す。新.appは公開済みなのでrollbackしない。
+func TestG01CleanupFailureWarnsAndKeepsNewApp(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	folder := filepath.Join(dir, "src")
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>旧版</h1>")
+	out := filepath.Join(dir, "アプリ.app")
+	if res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "アプリ"); !res.OK {
+		t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+	}
+	locked := filepath.Join(out, "Contents", "Resources", "locked")
+	writeFile(t, filepath.Join(locked, "kept.txt"), "消せない")
+	if err := os.Chmod(locked, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { restoreTreePermissions(t, dir) })
+
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>新版</h1>")
+	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "アプリ")
+	if !res.OK {
+		t.Fatalf("公開後の片付け失敗を変換失敗にしている: %s", res.Error)
+	}
+	if res.Path != out {
+		t.Fatalf("新.appのパスを返していない: %s", res.Path)
+	}
+	if !strings.Contains(res.Warning, "片付けられません") || !strings.Contains(res.Warning, "完全でない") {
+		t.Fatalf("warningが部分損壊を明示していない: %q", res.Warning)
+	}
+	if len(res.Leftover) != 1 || res.Leftover[0] == "" {
+		t.Fatalf("残ったbackup pathを返していない: %v", res.Leftover)
+	}
+	if _, err := os.Stat(res.Leftover[0]); err != nil {
+		t.Fatalf("warningのbackup pathが実在しない: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(res.Leftover[0], "Contents", "Resources", "locked", "kept.txt")); err != nil {
+		t.Fatalf("残ったbackupの内容を確認できない: %v", err)
+	}
+
+	exe := filepath.Join(out, "Contents", "MacOS", "アプリ")
+	packed, err := bundle.Open(exe)
+	if err != nil {
+		t.Fatalf("新.appの実行ファイルを開けない: %v", err)
+	}
+	defer packed.Close()
+	if data, ok := packed.ReadResource("index.html"); !ok || !strings.Contains(string(data), "新版") {
+		t.Fatalf("新.appが新しい内容になっていない: %q %v", data, ok)
+	}
+}
+
+// 旧.appを退避した後、新.appのrenameと復旧renameの両方が失敗したら、完全な
+// 旧.appが残るbackup pathをerrorで明示する。この時点では公開していない。
+func TestG01RollbackFailureNamesRescueBackup(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	folder, out := buildExistingApp(t, dir)
+	before := appTreeSnapshot(t, out)
+
+	renameBuiltApp = func(oldpath, newpath string) error {
+		if strings.Contains(oldpath, ".staging-") || strings.Contains(oldpath, ".backup-") {
+			return errors.New("rename失敗")
+		}
+		return os.Rename(oldpath, newpath)
+	}
+	t.Cleanup(func() { renameBuiltApp = os.Rename })
+
+	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "アプリ")
+	if res.OK {
+		t.Fatal("新.appを置けず復旧もできないのに変換が成功した")
+	}
+	if !strings.Contains(res.Error, "古いアプリは『") || !strings.Contains(res.Error, "元の場所へ戻せません") {
+		t.Fatalf("救出backup pathをerrorで明示していない: %s", res.Error)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Fatalf("公開していないのに最終パスが残っている: %v", err)
+	}
+	backups := entriesWithPrefix(t, dir, ".アプリ.app.backup-")
+	if len(backups) != 1 {
+		t.Fatalf("救出backupが1つでない: %v", backups)
+	}
+	if !strings.Contains(res.Error, backups[0]) {
+		t.Fatalf("errorのpathが実際のbackupと違う: %s / %s", res.Error, backups[0])
+	}
+	after := appTreeSnapshot(t, backups[0])
+	if diff := diffSnapshots(before, after); len(diff) != 0 {
+		t.Fatalf("救出backupが旧.appの全manifestを保持していない: %v", diff)
+	}
+	_ = os.RemoveAll(backups[0])
+}
+
+// 変換成功の分岐がwarningと残pathを既存のダイアログで表示する。
+func TestG01BuildWarningIsShownInUI(t *testing.T) {
+	app, err := uiFS.ReadFile("ui/app.js")
+	if err != nil {
+		t.Fatalf("ui/app.js を読めない: %v", err)
+	}
+	source := string(app)
+	start := strings.Index(source, "if (data.ok) {")
+	if start < 0 {
+		t.Fatal("変換結果の成功分岐がない")
+	}
+	end := strings.Index(source[start:], "} else {")
+	if end < 0 {
+		t.Fatal("変換結果の成功分岐の終わりがない")
+	}
+	success := source[start : start+end]
+	for _, want := range []string{
+		"data.warning",
+		"data.leftover",
+		"警告: ",
+		"変換しました（警告あり）",
+	} {
+		if !strings.Contains(success, want) {
+			t.Fatalf("成功分岐がwarningを表示しない: %q が無い", want)
+		}
+	}
+}
+
+// 実ランタイムで、公開後の片付け失敗が成功のままwarningになり、新.appが
+// 起動することを確かめる。旧backupは部分損壊で、完全な救出物ではない。
+func TestG01NativeCleanupFailureWarns(t *testing.T) {
+	if os.Getenv("GONAKO_TEST_RUNTIME") == "" {
+		t.Skip("GONAKO_TEST_RUNTIME 未設定。実.appの起動確認はnative枠で行う")
+	}
+	dir := t.TempDir()
+	useRuntime(t, dir)
+
+	folder := filepath.Join(dir, "src")
+	entry := filepath.Join(folder, "main.nako3")
+	result := filepath.Join(dir, "result.txt")
+	writeFile(t, entry, "「旧版」を「"+result+"」へ保存\n")
+
+	out := filepath.Join(dir, "実機.app")
+	exe := filepath.Join(out, "Contents", "MacOS", "実機")
+	if res := buildAppFromFolder(folder, entry, out, "実機"); !res.OK {
+		t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+	}
+	locked := filepath.Join(out, "Contents", "Resources", "locked")
+	writeFile(t, filepath.Join(locked, "kept.txt"), "消せない")
+	if err := os.Chmod(locked, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { restoreTreePermissions(t, dir) })
+
+	writeFile(t, entry, "「新版」を「"+result+"」へ保存\n")
+	res := buildAppFromFolder(folder, entry, out, "実機")
+	if !res.OK {
+		t.Fatalf("公開後の片付け失敗を変換失敗にしている: %s", res.Error)
+	}
+	if !strings.Contains(res.Warning, "完全でない") {
+		t.Fatalf("warningが部分損壊を明示していない: %q", res.Warning)
+	}
+	if len(res.Leftover) != 1 {
+		t.Fatalf("残ったbackup pathを返していない: %v", res.Leftover)
+	}
+	if got := runBuiltApp(t, exe, result); got != "新版" {
+		t.Fatalf("公開後の新.appが起動しない、または内容が違う: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(res.Leftover[0], "Contents", "Info.plist")); !os.IsNotExist(err) {
+		t.Fatalf("部分削除されたbackupにInfo.plistが残っている: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(res.Leftover[0], "Contents", "Resources", "locked", "kept.txt")); err != nil {
+		t.Fatalf("残ったbackupのlocked内容がない: %v", err)
+	}
+}
+
+// 実ランタイムで、公開前の復旧失敗が完全な旧.appをbackupへ残し、その実行
+// ファイルを起動できることを確かめる。
+func TestG01NativeRollbackFailureRescue(t *testing.T) {
+	if os.Getenv("GONAKO_TEST_RUNTIME") == "" {
+		t.Skip("GONAKO_TEST_RUNTIME 未設定。実.appの起動確認はnative枠で行う")
+	}
+	dir := t.TempDir()
+	useRuntime(t, dir)
+
+	folder := filepath.Join(dir, "src")
+	entry := filepath.Join(folder, "main.nako3")
+	result := filepath.Join(dir, "result.txt")
+	writeFile(t, entry, "「救出」を「"+result+"」へ保存\n")
+
+	out := filepath.Join(dir, "実機.app")
+	if res := buildAppFromFolder(folder, entry, out, "実機"); !res.OK {
+		t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+	}
+
+	renameBuiltApp = func(oldpath, newpath string) error {
+		if strings.Contains(oldpath, ".staging-") || strings.Contains(oldpath, ".backup-") {
+			return errors.New("rename失敗")
+		}
+		return os.Rename(oldpath, newpath)
+	}
+	t.Cleanup(func() { renameBuiltApp = os.Rename })
+
+	res := buildAppFromFolder(folder, entry, out, "実機")
+	if res.OK {
+		t.Fatal("新.appを置けず復旧もできないのに変換が成功した")
+	}
+	backups := entriesWithPrefix(t, dir, ".実機.app.backup-")
+	if len(backups) != 1 {
+		t.Fatalf("救出backupが1つでない: %v", backups)
+	}
+	if !strings.Contains(res.Error, backups[0]) {
+		t.Fatalf("errorのpathが実際のbackupと違う: %s / %s", res.Error, backups[0])
+	}
+	exe := filepath.Join(backups[0], "Contents", "MacOS", "実機")
+	if got := runBuiltApp(t, exe, result); got != "救出" {
+		t.Fatalf("救出backupの実nativeが起動しない、または内容が違う: %q", got)
+	}
+	_ = os.RemoveAll(backups[0])
 }

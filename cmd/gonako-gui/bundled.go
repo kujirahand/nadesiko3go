@@ -38,6 +38,12 @@ type BuildResult struct {
 	Size  int64  `json:"size,omitempty"`
 	Kind  string `json:"kind,omitempty"`
 	Error string `json:"error,omitempty"`
+	// Warning is set when the new app is already at Path but something could
+	// not be cleaned up. That is a completed build, not Error.
+	Warning string `json:"warning,omitempty"`
+	// Leftover lists what the warning left behind, so the caller can show the
+	// real paths instead of claiming the old app is fully recoverable.
+	Leftover []string `json:"leftover,omitempty"`
 }
 
 // runBundledApp runs the application packed into this executable, if there is
@@ -366,16 +372,26 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 	if err := makeWindowsGUI(target); err != nil {
 		return BuildResult{Error: fmt.Sprintf("Windowsアプリの設定を書き換えられません: %v", err)}
 	}
+	result := BuildResult{OK: true, Path: out, Size: pathSize(out), Kind: spec.Kind}
 	if staging != nil {
-		if err := installMacApp(staging.app, out); err != nil {
+		installed, err := installMacApp(staging.app, out)
+		if err != nil {
 			return BuildResult{Error: err.Error()}
 		}
-		if err := staging.discard(); err != nil {
-			return BuildResult{Error: fmt.Sprintf("一時フォルダを片付けられません: %v", err)}
+		var warnings []string
+		if installed.Leftover != "" {
+			warnings = append(warnings, fmt.Sprintf(
+				"新しいアプリは公開しましたが、古いアプリを片付けられませんでした。残ったbackup『%s』は完全でない可能性があります: %v",
+				installed.Leftover, installed.CleanupErr))
+			result.Leftover = append(result.Leftover, installed.Leftover)
 		}
+		if err := staging.discard(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("新しいアプリは公開しましたが、一時フォルダを片付けられませんでした: %v", err))
+			result.Leftover = append(result.Leftover, staging.root)
+		}
+		result.Warning = strings.Join(warnings, "\n")
 	}
-
-	return BuildResult{OK: true, Path: out, Size: pathSize(out), Kind: spec.Kind}
+	return result
 }
 
 // Windowsのサブシステム。実行ファイルのヘッダに入っている。
@@ -588,39 +604,55 @@ func (s *macAppStaging) discard() error {
 	return os.RemoveAll(s.root)
 }
 
+// macAppInstall reports how far the swap got. A non-nil error means the new
+// app never took the final path. Leftover names an old backup that stayed
+// behind after the new app was published, which is a warning, not a failure:
+// the backup may already be partly deleted, so it must not be presented as a
+// complete rescue copy.
+type macAppInstall struct {
+	Leftover   string
+	CleanupErr error
+}
+
 // installMacApp swaps the finished staging bundle onto appPath. The previous
 // app is moved aside first and put back when the swap fails, so a failed
-// rebuild never leaves the user without a working app.
-func installMacApp(stagingApp, appPath string) error {
+// rebuild never leaves the user without a working app. Once the new app took
+// the final path, a cleanup failure is reported separately instead of being
+// rolled back or hidden.
+func installMacApp(stagingApp, appPath string) (macAppInstall, error) {
+	var result macAppInstall
 	backup := ""
 	if _, err := os.Lstat(appPath); err == nil {
 		var err error
 		backup, err = macAppBackupPath(appPath)
 		if err != nil {
-			return err
+			return result, err
 		}
 		if err := renameBuiltApp(appPath, backup); err != nil {
-			return fmt.Errorf("古いアプリを退避できません: %w", err)
+			return result, fmt.Errorf("古いアプリを退避できません: %w", err)
 		}
 	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("出力先『%s』を確認できません: %w", appPath, err)
+		return result, fmt.Errorf("出力先『%s』を確認できません: %w", appPath, err)
 	}
 
 	if err := renameBuiltApp(stagingApp, appPath); err != nil {
 		if backup == "" {
-			return fmt.Errorf("新しいアプリを置けません: %w", err)
+			return result, fmt.Errorf("新しいアプリを置けません: %w", err)
 		}
 		if restoreErr := renameBuiltApp(backup, appPath); restoreErr != nil {
-			return fmt.Errorf("新しいアプリを置けません: %w（古いアプリを戻すこともできません: %v）", err, restoreErr)
+			return result, fmt.Errorf(
+				"新しいアプリを置けません: %w。古いアプリは『%s』に残っていますが、元の場所へ戻せません: %v",
+				err, backup, restoreErr)
 		}
-		return fmt.Errorf("新しいアプリを置けません: %w", err)
+		return result, fmt.Errorf("新しいアプリを置けません: %w", err)
 	}
 	if backup != "" {
 		if err := os.RemoveAll(backup); err != nil {
-			return fmt.Errorf("古いアプリを片付けられません: %w", err)
+			result.Leftover = backup
+			result.CleanupErr = err
 		}
 	}
-	return nil
+	return result, nil
 }
 
 // macAppBackupPath picks an unused hidden name next to the app.

@@ -1016,9 +1016,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await window.buildAppFromFolder(folder, currentFilePath, outPath, title);
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (data.ok) {
-        setStatus(`変換完了: ${data.path}`);
-        await showAlertDialog('変換しました',
-          `${data.path}\nサイズ: ${formatBytes(data.size)}`);
+        setStatus(data.warning ? `変換完了（警告あり）: ${data.path}` : `変換完了: ${data.path}`);
+        let message = `${data.path}\nサイズ: ${formatBytes(data.size)}`;
+        if (data.warning) {
+          message += `\n\n警告: ${data.warning}`;
+          if (Array.isArray(data.leftover) && data.leftover.length > 0) {
+            message += `\n残ったファイル: ${data.leftover.join('\n')}`;
+          }
+        }
+        await showAlertDialog(data.warning ? '変換しました（警告あり）' : '変換しました', message);
         if (typeof window.revealInFinder === 'function') {
           window.revealInFinder(data.path);
         }
