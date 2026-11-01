@@ -101,11 +101,13 @@ func runBundledHTML(packed *bundle.Bundle) {
 	}
 	installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), session.window, packed)
 	if err := tw.BindErr(); err != nil {
+		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
 
 	if err := tw.Navigate("/" + packed.Entry); err != nil {
+		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
 		return
 	}
@@ -156,10 +158,12 @@ func runBundledProgram(packed *bundle.Bundle) {
 		tw.Window.Terminate()
 	})
 	if err := tw.BindErr(); err != nil {
+		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
 	if err := tw.Navigate("/"); err != nil {
+		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
 		return
 	}

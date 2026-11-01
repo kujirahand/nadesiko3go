@@ -119,10 +119,12 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 	bindAsyncRunAPI(tw.Window, session, nil, nil)
 	installWNako3(tw.Window, newWNako3PageConfig(false), session.window, nil)
 	if err := tw.BindErr(); err != nil {
+		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
 	if err := tw.Navigate(wnako3RunPagePath); err != nil {
+		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))
 		return
 	}

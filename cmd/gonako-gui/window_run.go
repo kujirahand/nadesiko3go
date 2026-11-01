@@ -136,10 +136,12 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 		tw.Window.Terminate()
 	})
 	if err := tw.BindErr(); err != nil {
+		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
 	if err := tw.Navigate("/"); err != nil {
+		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))
 		return
 	}
