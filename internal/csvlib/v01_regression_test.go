@@ -142,6 +142,51 @@ func TestV01CellParsingIsPreserved(t *testing.T) {
 	}
 }
 
+func TestV01InvalidUTF8DelimiterIsRejected(t *testing.T) {
+	p := New()
+	if err := v01SetDelimiter(t, p, "\xff"); err == nil {
+		t.Fatal("UTF-8として不正な区切り文字が設定できてしまいました")
+	}
+	if got := v01Fetch(t, p, "CSV取得", "a,b"); got != "a|b" {
+		t.Fatalf("拒否後のCSV取得 = %q, want %q", got, "a|b")
+	}
+}
+
+// 設定境界を通らない呼び出しでも、停止不能にはならず言語エラーになる。
+func TestV01ParseRejectsInvalidDelimiter(t *testing.T) {
+	tests := []struct {
+		name      string
+		delimiter string
+	}{
+		{"空", ""},
+		{"複数文字", "||"},
+		{"UTF-8として不正", "\xff"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := New()
+			arr, err := p.parse("a", tt.delimiter)
+			if err == nil || arr != nil {
+				t.Fatalf("parse(%q) = (%v, %v), want (nil, error)", tt.delimiter, arr, err)
+			}
+		})
+	}
+}
+
+// BenchmarkV01Parse は代表入力（既存の benchCSV と同じ形・2000行）の解析コストを測る。
+// V01 の変更が正常入力の時間・割当を増やしていないことを base と比べる入口。
+func BenchmarkV01Parse(b *testing.B) {
+	txt := benchCSV(2000)
+	p := New()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := p.parse(txt, ","); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
 func TestV01TSVKeepsTabDelimiter(t *testing.T) {
 	p := New()
 	if err := v01SetDelimiter(t, p, ";"); err != nil {
