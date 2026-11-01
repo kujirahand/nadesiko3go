@@ -39,12 +39,25 @@ import (
 // なるので、大きくなったら実行時に任せる。
 const maxFoldedString = 4096
 
+// foldRefusal は、長さの上限で畳み込みを断念した節点を、コンパイル中の
+// 関数文脈と組にして表す。左結合の『&』の連なりでは、同じ部分木を祖先の
+// 数だけ畳み直していた。断念を覚えておけば、部分木をもう一度組み立てずに
+// 済む。『定数』の可視性が増えても、ある節点が作る文字列が短くなることは
+// ないので、記録した断念が対象外になることはない。
+type foldRefusal struct {
+	node *ast.Node
+	fn   *funcCtx
+}
+
 // foldConst evaluates n at compile time when it is made only of literals,
 // operators, and 『定数』 whose value is already known. It reports false for
 // anything that reads a variable, calls a command, or otherwise needs the
 // program to be running.
 func (c *Compiler) foldConst(n *ast.Node) (value.Value, bool) {
 	if n == nil {
+		return value.Undefined(), false
+	}
+	if c.foldRefused(n) {
 		return value.Undefined(), false
 	}
 	switch n.Type {
@@ -105,13 +118,52 @@ func (c *Compiler) foldOp(n *ast.Node) (value.Value, bool) {
 	}
 	a, ok := c.foldConst(n.Block(0))
 	if !ok {
+		c.refuseFoldWithRefusedChild(n, n.Block(0))
 		return value.Undefined(), false
 	}
 	b, ok := c.foldConst(n.Block(1))
 	if !ok {
+		c.refuseFoldWithRefusedChild(n, n.Block(1))
+		return value.Undefined(), false
+	}
+	// 連結してから上限を判定すると、上限を超える文字列を毎回作り捨てることに
+	// なる。連結の前に下限で判定する (P01)。
+	if op == ir.BinConcat && concatLenBound(a)+concatLenBound(b) > maxFoldedString {
+		c.refuseFold(n)
 		return value.Undefined(), false
 	}
 	return ops.Binary(op, a, b), true
+}
+
+// foldRefused は n がすでに長さの上限で断念されたかどうかを返す。
+func (c *Compiler) foldRefused(n *ast.Node) bool {
+	_, ok := c.foldRefusals[foldRefusal{node: n, fn: c.fn}]
+	return ok
+}
+
+// refuseFold は n が長さの上限を超えるので畳めないと記録する。
+func (c *Compiler) refuseFold(n *ast.Node) {
+	c.foldRefusals[foldRefusal{node: n, fn: c.fn}] = struct{}{}
+}
+
+// refuseFoldWithRefusedChild は、失敗した子がすでに上限で断念済みなら、
+// 親も同じ理由で断念したと記録する。祖先が辿り直しても子孫は畳めないので、
+// 途中の節点で打ち切れるようにするため。
+func (c *Compiler) refuseFoldWithRefusedChild(n, child *ast.Node) {
+	if c.foldRefused(child) {
+		c.refuseFold(n)
+	}
+}
+
+// concatLenBound は『&』で連結したときに v が寄与する長さの下限を返す。
+// 長さが効くのは文字列だけなので、それ以外は 0 で足りる。下限だけで上限を
+// 超えたときだけ断念するので、実際には収まる式を実行時へ回すことはない。
+func concatLenBound(v value.Value) int {
+	s, ok := v.String()
+	if !ok {
+		return 0
+	}
+	return len(s)
 }
 
 // constantOf turns a folded value into a constant pool entry. It reports
