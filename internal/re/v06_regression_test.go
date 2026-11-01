@@ -380,4 +380,21 @@ func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 	if got, want := r.FindAll("a"), []string{"", ""}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll(a) = %q, want %q", got, want)
 	}
+	// 引用の閉じ方（閉じた引用、エスケープされた円記号、開いた引用の連続）で
+	// 結果が変わらないこと。期待値は修正前の e526ff8 と一致する。
+	variants := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{`/\Qa\E\Qb/gy`, "ab", []string{"ab"}},
+		{`/\\Q/gy`, "\\Q", []string{"\\Q"}},
+		{`/\Qab/gy`, "xab", nil},
+		{`/\Qabc\E/gy`, "abc", []string{"abc"}},
+		{`/\Q)\Q/gy`, ")x", nil},
+	}
+	for _, tt := range variants {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
 }

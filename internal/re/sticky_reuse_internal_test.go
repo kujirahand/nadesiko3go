@@ -38,3 +38,29 @@ func TestV06StickyFromTextsNilAfterFirstGap(t *testing.T) {
 		t.Errorf("先頭で途切れた結果 = %v, want nil", got)
 	}
 }
+
+// TestV06QuoteOpenAtEnd は、位置指定照合用の包みを組む前に引用の開閉を
+// 正しく判定できることを固定する。エスケープされた円記号の後ろのQは引用を
+// 開かない。
+func TestV06QuoteOpenAtEnd(t *testing.T) {
+	tests := []struct {
+		src  string
+		want bool
+	}{
+		{"", false},
+		{"abc", false},
+		{`\Q`, true},
+		{`\Qab`, true},
+		{`\Qa\E`, false},
+		{`\Qa\E\Qb`, true},
+		{`\\Q`, false},
+		{`\\\Q`, true},
+		{`\Qabc\E`, false},
+		{`(a)\Q`, true},
+	}
+	for _, tt := range tests {
+		if got := quoteOpenAtEnd(tt.src); got != tt.want {
+			t.Errorf("quoteOpenAtEnd(%q) = %v, want %v", tt.src, got, tt.want)
+		}
+	}
+}
