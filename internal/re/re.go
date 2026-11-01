@@ -16,11 +16,32 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // ErrUnsupported reports a pattern the engine cannot handle. RE2 rejects
 // backreferences and lookaround by design.
 var ErrUnsupported = errors.New("この正規表現はまだ対応していません")
+
+// FlagError reports a flag JavaScript rejects in the 『/pattern/flags』 form:
+// a letter it does not know, or one that already appeared. Both are a
+// SyntaxError in JavaScript, so they are a language error here too.
+type FlagError struct {
+	Flag      byte
+	Duplicate bool
+}
+
+func (e *FlagError) Error() string {
+	if e.Duplicate {
+		return "正規表現のフラグ『" + string(e.Flag) + "』が重複しています"
+	}
+	return "正規表現のフラグ『" + string(e.Flag) + "』は使えません"
+}
+
+// validFlags are the letters JavaScript accepts as 『/pattern/flags』. 『d』
+// (match indices) and 『u』/『v』 (Unicode mode) do not change what a pattern
+// matches in Go, but they are still valid input and are accepted.
+const validFlags = "dgimsuvy"
 
 // Regexp is a compiled pattern together with the flags it was written with.
 type Regexp struct {
@@ -28,10 +49,37 @@ type Regexp struct {
 	// Global is the JavaScript 『g』 flag. It decides whether a replacement
 	// touches every match or only the first.
 	Global bool
+	// Sticky is the JavaScript 『y』 flag. Every match has to start where the
+	// previous one ended, so a fresh match starts at the beginning of the
+	// subject instead of being searched for anywhere in it.
+	Sticky bool
 	// hasNames はパターンが名前付きキャプチャを持つか。JavaScriptでは
 	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
 	// リテラルになるため、その判定に使う
 	hasNames bool
+}
+
+// Group is one capture group of a match. Ok is false when the group did not
+// take part in the match: JavaScript has undefined for that, while Go's
+// regexp reports the same empty string as a group that matched 『』.
+type Group struct {
+	Text string
+	Ok   bool
+}
+
+// Match is one whole match together with its capture groups. Text is the text
+// the whole pattern matched; Groups holds groups 1..n in order.
+type Match struct {
+	Text   string
+	Groups []Group
+}
+
+// SplitPart is one item of a split. Undefined marks a capture group that did
+// not take part, which JavaScript puts in the array as undefined; Text is then
+// empty and the language value is undefined rather than 『』.
+type SplitPart struct {
+	Text      string
+	Undefined bool
 }
 
 // jsPatternRE splits the 『/pattern/flags』 form nadesiko writes patterns in.
@@ -46,22 +94,27 @@ func Compile(pattern string) (*Regexp, error) {
 		body, flags = m[1], m[2]
 	}
 	body = normalizeJSUnicodeEscapes(body)
+	if err := validateFlags(flags); err != nil {
+		return nil, err
+	}
 
 	var prefix strings.Builder
-	global := false
+	global, sticky := false, false
 	for _, f := range flags {
 		switch f {
 		case 'g':
 			global = true
+		case 'y':
+			sticky = true
 		case 'i':
 			prefix.WriteString("(?i)")
 		case 'm':
 			prefix.WriteString("(?m)")
 		case 's':
 			prefix.WriteString("(?s)")
-		case 'u', 'y', 'd', 'v':
-			// u はGoでは常にrune単位なので指定不要。y と d は
-			// 検索位置の扱いだけの違いで、パターンの意味を変えない。
+		case 'u', 'd', 'v':
+			// u はGoでは常にrune単位なので指定不要。d は一致位置の
+			// 返し方だけの違いで、パターンの意味を変えない。
 		}
 	}
 
@@ -79,7 +132,25 @@ func Compile(pattern string) (*Regexp, error) {
 			break
 		}
 	}
-	return &Regexp{re: compiled, Global: global, hasNames: hasNames}, nil
+	return &Regexp{re: compiled, Global: global, Sticky: sticky, hasNames: hasNames}, nil
+}
+
+// validateFlags rejects what JavaScript rejects in a flag list. A repeated flag
+// is a SyntaxError there, and so is an unknown letter; ignoring either would
+// run a pattern with a meaning nobody wrote.
+func validateFlags(flags string) error {
+	var seen [256]bool
+	for i := 0; i < len(flags); i++ {
+		f := flags[i]
+		if !strings.ContainsRune(validFlags, rune(f)) {
+			return &FlagError{Flag: f}
+		}
+		if seen[f] {
+			return &FlagError{Flag: f, Duplicate: true}
+		}
+		seen[f] = true
+	}
+	return nil
 }
 
 var (
@@ -111,22 +182,90 @@ func unsupportedByRE2(pattern string) bool {
 // backreferenceRE matches 『\1』 and friends, but not an escaped backslash.
 var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 
-// FindAll returns every match. It reports nil when there is none, which the
-// commands turn into 『空』.
-func (r *Regexp) FindAll(s string) []string { return r.re.FindAllString(s, -1) }
+// FindAll returns every whole match. It reports nil when there is none, which
+// the commands turn into 『空』.
+func (r *Regexp) FindAll(s string) []string {
+	if !r.Sticky {
+		return r.re.FindAllString(s, -1)
+	}
+	var found []string
+	for _, m := range r.stickyMatches(s, r.re.FindAllStringIndex(s, -1)) {
+		found = append(found, s[m[0]:m[1]])
+	}
+	return found
+}
 
-// FindAllSubmatches returns every match with its capture groups. Index 0 in
-// each row is the whole match, matching regexp.FindAllStringSubmatch.
-func (r *Regexp) FindAllSubmatches(s string) [][]string {
-	return r.re.FindAllStringSubmatch(s, -1)
+// FindAllMatches returns every match with its capture groups.
+func (r *Regexp) FindAllMatches(s string) []Match {
+	indexes := r.stickyMatches(s, r.re.FindAllStringSubmatchIndex(s, -1))
+	matches := make([]Match, len(indexes))
+	for i, m := range indexes {
+		matches[i] = matchFromIndexes(s, m)
+	}
+	return matches
 }
 
 // SubexpNames reports the name of each capture group. Index 0 is always empty.
 func (r *Regexp) SubexpNames() []string { return r.re.SubexpNames() }
 
-// Find returns the first match and its capture groups, or nil when there is
-// none. Index 0 is the whole match.
-func (r *Regexp) Find(s string) []string { return r.re.FindStringSubmatch(s) }
+// Find returns the first match and its capture groups. It reports false when
+// there is none, or when a sticky pattern does not match at the beginning.
+func (r *Regexp) Find(s string) (Match, bool) {
+	indexes := r.re.FindStringSubmatchIndex(s)
+	if indexes == nil || r.Sticky && indexes[0] != 0 {
+		return Match{}, false
+	}
+	return matchFromIndexes(s, indexes), true
+}
+
+// matchFromIndexes builds a Match from the index pairs that the regexp methods
+// return. A group that did not take part has -1 indexes, which is a missing
+// value rather than an empty string.
+func matchFromIndexes(s string, indexes []int) Match {
+	m := Match{Text: s[indexes[0]:indexes[1]]}
+	m.Groups = make([]Group, len(indexes)/2-1)
+	for i := range m.Groups {
+		start, end := indexes[2*i+2], indexes[2*i+3]
+		if start < 0 {
+			continue
+		}
+		m.Groups[i] = Group{Text: s[start:end], Ok: true}
+	}
+	return m
+}
+
+// stickyMatches drops the matches a 『y』 pattern does not allow. Each one has
+// to start where the previous one ended; JavaScript steps one rune past an
+// empty match in a global search, and so does this.
+func (r *Regexp) stickyMatches(s string, matches [][]int) [][]int {
+	if !r.Sticky {
+		return matches
+	}
+	kept := make([][]int, 0, len(matches))
+	for _, m := range matches {
+		if len(kept) == 0 {
+			if m[0] != 0 {
+				break
+			}
+			kept = append(kept, m)
+			continue
+		}
+		prev := kept[len(kept)-1]
+		next := prev[1]
+		if prev[0] == prev[1] {
+			if next >= len(s) {
+				break
+			}
+			_, size := utf8.DecodeRuneInString(s[next:])
+			next += size
+		}
+		if m[0] != next {
+			break
+		}
+		kept = append(kept, m)
+	}
+	return kept
+}
 
 // Replace substitutes matches with the template, honouring the 『g』 flag: only
 // the first match changes without it.
@@ -141,7 +280,7 @@ func (r *Regexp) Replace(s, template string) string {
 	}
 	// 一致した範囲だけを切り出して再マッチすると \B や ^ のような
 	// 文脈が失われるので、元文字列上の一致位置でテンプレートを展開する
-	matches := r.re.FindAllStringSubmatchIndex(s, limit)
+	matches := r.stickyMatches(s, r.re.FindAllStringSubmatchIndex(s, limit))
 	if len(matches) == 0 {
 		return s
 	}
@@ -219,5 +358,40 @@ func (r *Regexp) expandTemplate(out *strings.Builder, template, src string, matc
 	}
 }
 
-// Split cuts the string at every match.
-func (r *Regexp) Split(s string) []string { return r.re.Split(s, -1) }
+// Split cuts the string at every match, the way JavaScript's
+// String.prototype.split does: each capture group is inserted between the
+// segments around its match, and a group that did not take part is undefined.
+//
+// The 『g』 and 『y』 flags do not change a split: it always walks the string
+// from the beginning and stops at the end.
+func (r *Regexp) Split(s string) []SplitPart {
+	if s == "" {
+		// JavaScript returns no items when an empty subject is separated by a
+		// pattern that matches the empty string, and one empty item otherwise.
+		if r.re.MatchString("") {
+			return nil
+		}
+		return []SplitPart{{Text: ""}}
+	}
+	matches := r.re.FindAllStringSubmatchIndex(s, -1)
+	parts := make([]SplitPart, 0, len(matches)+1)
+	p := 0
+	for _, m := range matches {
+		// 一致の終端が区切りの開始位置と同じなら、それは空の一致で、
+		// JavaScriptは区切りとして数えず走査位置だけを1つ進める。
+		// 文字列の末尾で始まる一致も、走査が終わったあとにしか現れない。
+		if m[1] == p || m[0] == len(s) {
+			continue
+		}
+		parts = append(parts, SplitPart{Text: s[p:m[0]]})
+		for g := 1; 2*g+1 < len(m); g++ {
+			if m[2*g] < 0 {
+				parts = append(parts, SplitPart{Undefined: true})
+				continue
+			}
+			parts = append(parts, SplitPart{Text: s[m[2*g]:m[2*g+1]]})
+		}
+		p = m[1]
+	}
+	return append(parts, SplitPart{Text: s[p:]})
+}

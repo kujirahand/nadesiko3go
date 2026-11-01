@@ -33,13 +33,18 @@ func regexpImpls(m map[string]Impl) {
 			return stringArray(found), nil
 		}
 
-		groups := pattern.Find(str(a, 0))
-		if groups == nil {
+		matched, ok := pattern.Find(str(a, 0))
+		if !ok {
 			return value.Null(), nil
 		}
-		// 部分マッチは『抽出文字列』に入れ、戻り値は一致した全体にする
-		ctx.SetSysVar(SysMatched, stringArray(groups[1:]))
-		return value.String(groups[0]), nil
+		// 部分マッチは『抽出文字列』に入れ、戻り値は一致した全体にする。
+		// 未参加の組は、従来どおり空文字として入れる。
+		groups := make([]string, len(matched.Groups))
+		for i, group := range matched.Groups {
+			groups[i] = group.Text
+		}
+		ctx.SetSysVar(SysMatched, stringArray(groups))
+		return value.String(matched.Text), nil
 	}
 
 	m["正規表現抽出"] = func(ctx Context, a []value.Value) (value.Value, error) {
@@ -48,7 +53,7 @@ func regexpImpls(m map[string]Impl) {
 			return value.Undefined(), err
 		}
 		clearMatched(ctx)
-		matches := pattern.FindAllSubmatches(str(a, 0))
+		matches := pattern.FindAllMatches(str(a, 0))
 		flat := make([]value.Value, 0)
 		rows := make([]value.Value, 0, len(matches))
 		names := pattern.SubexpNames()
@@ -62,9 +67,9 @@ func regexpImpls(m map[string]Impl) {
 		for _, match := range matches {
 			if hasNames {
 				row := value.NewDict()
-				for i := 1; i < len(match) && i < len(names); i++ {
+				for i := 1; i <= len(match.Groups) && i < len(names); i++ {
 					if names[i] != "" {
-						item := value.String(match[i])
+						item := value.String(match.Groups[i-1].Text)
 						row.Set(names[i], item)
 						flat = append(flat, item)
 					}
@@ -72,13 +77,17 @@ func regexpImpls(m map[string]Impl) {
 				rows = append(rows, value.DictValue(row))
 				continue
 			}
-			groups := match[1:]
+			groups := match.Groups
 			if len(groups) == 0 {
-				groups = match[:1]
+				// 組がないときは一致した全体を1件として返す
+				item := value.String(match.Text)
+				flat = append(flat, item)
+				rows = append(rows, value.ArrayValue(value.NewArray(item)))
+				continue
 			}
 			items := make([]value.Value, len(groups))
 			for i, group := range groups {
-				items[i] = value.String(group)
+				items[i] = value.String(group.Text)
 				flat = append(flat, items[i])
 			}
 			rows = append(rows, value.ArrayValue(value.NewArray(items...)))
@@ -100,7 +109,18 @@ func regexpImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return stringArray(pattern.Split(str(a, 0))), nil
+		parts := pattern.Split(str(a, 0))
+		items := make([]value.Value, len(parts))
+		for i, part := range parts {
+			// 未参加の捕獲はJavaScriptと同じくundefinedにする。空文字に
+			// 潰すと、区切りの結果に『』が混ざったのと区別できない。
+			if part.Undefined {
+				items[i] = value.Undefined()
+				continue
+			}
+			items[i] = value.String(part.Text)
+		}
+		return value.ArrayValue(value.NewArray(items...)), nil
 	}
 }
 
@@ -110,6 +130,13 @@ func compilePattern(pattern string) (*re.Regexp, error) {
 	compiled, err := re.Compile(pattern)
 	if errors.Is(err, re.ErrUnsupported) {
 		return nil, errors.New("正規表現『" + pattern + "』の後方参照や先読みには対応していません。")
+	}
+	var flagErr *re.FlagError
+	if errors.As(err, &flagErr) {
+		if flagErr.Duplicate {
+			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』が重複しています。")
+		}
+		return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
 	}
 	if err != nil {
 		return nil, errors.New("正規表現『" + pattern + "』が正しくありません。")
