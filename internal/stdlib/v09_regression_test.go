@@ -157,3 +157,35 @@ func TestV09IndentCyclicError(t *testing.T) {
 		t.Fatal("循環する辞書はエラーになるべき")
 	}
 }
+
+// 整形の代表入力。入れ子・配列・日本語・HTML文字を含む辞書を毎回同じ形で作る。
+func newV09BenchValue() value.Value {
+	inner := value.NewDict()
+	inner.Set("b", value.String("<&>"))
+	inner.Set("a", value.ArrayValue(value.NewArray(value.Number(1), value.Number(2), value.String("日本語"))))
+	arr := value.NewArray()
+	for i := 0; i < 20; i++ {
+		d := value.NewDict()
+		d.Set("z", value.Number(float64(i)))
+		d.Set("a", value.String("値<&>"))
+		arr.Set(i, value.DictValue(d))
+	}
+	d := value.NewDict()
+	d.Set("z", value.DictValue(inner))
+	d.Set("a", value.ArrayValue(arr))
+	d.Set("名", value.String("太郎"))
+	return value.DictValue(d)
+}
+
+func BenchmarkV09JSONIndentFormat(b *testing.B) {
+	r := stdlib.NewRegistry()
+	e, _ := r.Lookup("JSONエンコード整形")
+	v := newV09BenchValue()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := e.Fn(newContext(), []value.Value{v}); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
