@@ -3,6 +3,7 @@ package re_test
 import (
 	"errors"
 	"reflect"
+	"regexp/syntax"
 	"strings"
 	"sync"
 	"testing"
@@ -281,10 +282,12 @@ func TestV06StickyWordBoundaryIsPositional(t *testing.T) {
 }
 
 // TestV06StickyConcurrentReuse は、1つのコンパイル済みパターンを複数のgoroutine
-// から同時に使えることを固定する。派生パターンは sync.Once の下で1度だけ作る。
+// から同時に使えることを固定する。照合経路で使う派生パターンはCompileで
+// 作り切るので、照合は読み取りだけになる。
 func TestV06StickyConcurrentReuse(t *testing.T) {
 	positional := mustCompile(t, "/a*|b/gy")
 	fast := mustCompile(t, "/a+/gy")
+	context := mustCompile(t, `/\b./gy`)
 	var wg sync.WaitGroup
 	for i := 0; i < 8; i++ {
 		wg.Add(1)
@@ -299,8 +302,13 @@ func TestV06StickyConcurrentReuse(t *testing.T) {
 					t.Errorf("走査経路のFindAll = %q, want %q", got, want)
 					return
 				}
+				if got, want := context.FindAll("a b"), []string{"a", " ", "b"}; !reflect.DeepEqual(got, want) {
+					t.Errorf("文脈付き検索のFindAll = %q, want %q", got, want)
+					return
+				}
 				positional.Replace("ab", "X")
 				fast.FindAllMatches("aaab")
+				context.Replace("a b", "X")
 			}
 		}()
 	}
@@ -361,9 +369,9 @@ func TestV06StickyTextScanRetention(t *testing.T) {
 }
 
 // TestV06StickyQuotedPatternDoesNotPanic は、Goの 『\Q』 のように後ろを
-// リテラル扱いにする構文を含むstickyパターンでも、位置指定照合の変種を作る
-// ところでpanicしないことを固定する。Compile時に作るので、照合中に
-// MustCompileへ到達しない。
+// リテラル扱いにする構文を含むstickyパターンでも、Compileも照合もpanicしない
+// ことを固定する。閉じた引用は文脈を見ないので派生パターンを作らない。開いた
+// 引用でも、文脈を見るならCompileで包みの中で閉じる。
 func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 	r, err := re.Compile("/\\Q/gy")
 	if err != nil {
@@ -393,6 +401,190 @@ func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 		{`/\Q)\Q/gy`, ")x", nil},
 	}
 	for _, tt := range variants {
+		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
+		}
+	}
+}
+
+// TestV06SuffixContextFree は、文脈を見ない位置指定照合が、元のパターンを
+// 対象の途中から当てて先頭一致だけを採ることを固定する。派生パターンを作ら
+// ないので深さの上限に当たらず、全体と各組の位置だけ元の座標へ戻す。期待値は
+// Nodeの実行結果（uフラグ相当のrune基準）に合わせている。
+func TestV06SuffixContextFree(t *testing.T) {
+	r := mustCompile(t, "/(あ)?(?<n>い?)/gy")
+	if got, want := r.FindAll("あいう"), []string{"あい", "", ""}; !reflect.DeepEqual(got, want) {
+		t.Errorf("FindAll = %q, want %q", got, want)
+	}
+	wantMatches := []struct {
+		text   string
+		groups []re.Group
+	}{
+		{"あい", []re.Group{{Text: "あ", Ok: true}, {Text: "い", Ok: true}}},
+		{"", []re.Group{{Ok: false}, {Text: "", Ok: true}}},
+		{"", []re.Group{{Ok: false}, {Text: "", Ok: true}}},
+	}
+	got := r.FindAllMatches("あいう")
+	if len(got) != len(wantMatches) {
+		t.Fatalf("FindAllMatchesの件数 = %d, want %d", len(got), len(wantMatches))
+	}
+	for i, want := range wantMatches {
+		if got[i].Text != want.text || !reflect.DeepEqual(got[i].Groups, want.groups) {
+			t.Errorf("%d件目 = %#v, want text %q groups %#v", i, got[i], want.text, want.groups)
+		}
+	}
+	// 置換は一致全体と組の位置をともに元の座標で見る
+	if got, want := r.Replace("あいう", "<$1:$<n>>"), "<あ:い><:>う<:>"; got != want {
+		t.Errorf("Replace(部分一致) = %q, want %q", got, want)
+	}
+	if got, want := r.Replace("あいう", "[$`|$'|$&]"), "[|う|あい][あい|う|]う[あいう||]"; got != want {
+		t.Errorf("Replace($`と$') = %q, want %q", got, want)
+	}
+	// 区切りはg/yに依存しない
+	parts := mustCompile(t, "/(あ)?(?<n>い?)/").Split("あいう")
+	wantParts := []re.SplitPart{{Text: ""}, {Text: "あ"}, {Text: "い"}, {Text: "う"}}
+	if !reflect.DeepEqual(parts, wantParts) {
+		t.Errorf("Split = %#v, want %#v", parts, wantParts)
+	}
+}
+
+// TestV06SuffixDepthContextFree は、元がvalidな深さのパターンをcontext-freeの
+// 位置指定照合で成功させることを固定する。920は派生パターンを作って照合時に
+// panicし、e526は正規化してから派生パターンを作ってerrorにしていた。深さ
+// 996/997/998はGoの元のコンパイルが成功する入力である。
+func TestV06SuffixDepthContextFree(t *testing.T) {
+	for _, depth := range []int{996, 997, 998} {
+		body := strings.Repeat("(", depth) + "a?" + strings.Repeat(")", depth)
+		r, err := re.Compile("/" + body + "/gy")
+		if err != nil {
+			t.Fatalf("depth=%d のCompile: %v", depth, err)
+		}
+		if got, want := r.FindAll("a"), []string{"a", ""}; !reflect.DeepEqual(got, want) {
+			t.Errorf("depth=%d FindAll = %q, want %q", depth, got, want)
+		}
+		match, ok := r.Find("a")
+		if !ok || match.Text != "a" || len(match.Groups) != depth {
+			t.Fatalf("depth=%d Find = %#v (ok=%v), want \"a\" と %d 組", depth, match, ok, depth)
+		}
+		for i, group := range match.Groups {
+			if !group.Ok || group.Text != "a" {
+				t.Fatalf("depth=%d Findの%d組目 = %#v, want \"a\"", depth, i, group)
+			}
+		}
+		matches := r.FindAllMatches("a")
+		if len(matches) != 2 {
+			t.Fatalf("depth=%d FindAllMatchesの件数 = %d, want 2", depth, len(matches))
+		}
+		last := matches[1]
+		if last.Text != "" || len(last.Groups) != depth {
+			t.Fatalf("depth=%d 末尾の一致 = %#v", depth, last)
+		}
+		for i, group := range last.Groups {
+			if !group.Ok || group.Text != "" || group.Ok == false {
+				t.Fatalf("depth=%d 末尾の%d組目 = %#v, want 参加した空文字", depth, i, group)
+			}
+		}
+		if got, want := r.Replace("a", "<$1>"), "<a><>"; got != want {
+			t.Errorf("depth=%d Replace = %q, want %q", depth, got, want)
+		}
+		parts := r.Split("a")
+		if len(parts) != depth+2 {
+			t.Fatalf("depth=%d Splitの件数 = %d, want %d", depth, len(parts), depth+2)
+		}
+		if parts[0].Text != "" || parts[len(parts)-1].Text != "" {
+			t.Errorf("depth=%d Splitの端 = %q, %q, want 空文字", depth, parts[0].Text, parts[len(parts)-1].Text)
+		}
+		for i := 1; i < len(parts)-1; i++ {
+			if parts[i].Text != "a" {
+				t.Fatalf("depth=%d Splitの%d件目 = %q, want \"a\"", depth, i, parts[i].Text)
+			}
+		}
+		// 同じパターンはgだけでも成功する。GoのFindAllは直前の一致に
+		// 隣接する空一致を落とすので、stickyの一致列とはここで分かれる。
+		global, err := re.Compile("/" + body + "/g")
+		if err != nil {
+			t.Fatalf("depth=%d のgだけのCompile: %v", depth, err)
+		}
+		if got, want := global.FindAll("a"), []string{"a"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("depth=%d gだけのFindAll = %q, want %q", depth, got, want)
+		}
+	}
+}
+
+// TestV06DeepLiteralTokensStayContextFree は、深いパターンの中の 『^』『$』
+// 『\b』が、文脈を見るアサーションではなく、エスケープしたリテラル・文字
+// クラス・『\Q...\E』 の中の文字であるときに成功することを固定する。文字列の
+// 走査だけで判断すると、これらをアサーションと誤認して、元がvalidでも深さの
+// 都合で拒んでしまう。ここに並ぶ形は空一致し得るので位置指定の照合に入り、
+// 派生パターンを作ると深さの上限に当たる。
+func TestV06DeepLiteralTokensStayContextFree(t *testing.T) {
+	const depth = 997
+	tests := []struct {
+		name, inner, input string
+		want               []string
+	}{
+		{"エスケープしたリテラルの^", `(?:\^)?a?`, "^a", []string{"^a", ""}},
+		{"エスケープしたリテラルの$", `(?:\$)?a?`, "$a", []string{"$a", ""}},
+		{"文字クラスの中の$", `(?:[$])?a?`, "$a", []string{"$a", ""}},
+		{"エスケープした円記号の後ろのb", `(?:\\b)?a?`, `\ba`, []string{`\ba`, ""}},
+		{"引用の中の^", `(?:\Q^\E)?a?`, "^a", []string{"^a", ""}},
+	}
+	for _, tt := range tests {
+		pattern := "/" + strings.Repeat("(", depth) + tt.inner + strings.Repeat(")", depth) + "/gy"
+		r, err := re.Compile(pattern)
+		if err != nil {
+			t.Fatalf("%s: Compile: %v", tt.name, err)
+		}
+		if got := r.FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%s: FindAll = %q, want %q", tt.name, got, tt.want)
+		}
+	}
+}
+
+// TestV06DeepContextStillRejected は、本当に前後の文字を見るアサーションを
+// 含む深いパターンを、明示的な言語エラーとして返すことを固定する。派生
+// パターンは元より深くなるので、元のコンパイルが成功しても作れないことが
+// ある。これは未受入の残余制約であり、黙って一致なしに潰さない。
+func TestV06DeepContextStillRejected(t *testing.T) {
+	const depth = 997
+	for _, inner := range []string{"a?$", `a?\b`} {
+		body := strings.Repeat("(", depth) + inner + strings.Repeat(")", depth)
+		_, err := re.Compile("/" + body + "/y")
+		var variantErr *re.StickyVariantError
+		if !errors.As(err, &variantErr) {
+			t.Fatalf("inner=%q のy付きCompile = %v, want StickyVariantError", inner, err)
+		}
+		if !variantErr.Depth {
+			t.Errorf("inner=%q のStickyVariantError.Depth = false, want true", inner)
+		}
+		var syntaxErr *syntax.Error
+		if !errors.As(err, &syntaxErr) || syntaxErr.Code != syntax.ErrNestingDepth {
+			t.Errorf("inner=%q の原因 = %v, want ErrNestingDepth", inner, variantErr.Cause)
+		}
+		// 同じパターンでも、stickyでなければ派生パターンを作らないので成功する
+		global, err := re.Compile("/" + body + "/g")
+		if err != nil {
+			t.Fatalf("inner=%q のg付きCompile: %v", inner, err)
+		}
+		if got, want := global.FindAll("a"), []string{"a"}; !reflect.DeepEqual(got, want) {
+			t.Errorf("inner=%q のg付きFindAll = %q, want %q", inner, got, want)
+		}
+	}
+}
+
+// TestV06ContextAbsoluteAssertions は、絶対位置を見る 『\A』『\z』と、開いた
+// 引用を含む文脈付きパターンが、位置指定でも意味を保つことを固定する。
+func TestV06ContextAbsoluteAssertions(t *testing.T) {
+	tests := []struct {
+		pattern, input string
+		want           []string
+	}{
+		{`/\Aa/gy`, "aa", []string{"a"}},
+		{`/a\z/gy`, "aa", nil},
+		{`/a\z/gy`, "a", []string{"a"}},
+		{`/\b\Q/gy`, "a", []string{"", ""}},
+	}
+	for _, tt := range tests {
 		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}

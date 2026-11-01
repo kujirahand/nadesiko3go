@@ -2,6 +2,7 @@ package stdlib_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -224,5 +225,73 @@ func TestV06ConflictingFlags(t *testing.T) {
 		if _, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String(pattern)); err != nil {
 			t.Errorf("『%s』は通るべき: %v", pattern, err)
 		}
+	}
+}
+
+// TestV06ClosedQuoteCommands は、Goの 『\Q...\E』 を閉じたまま含むパターンを
+// 命令の入口から固定する。期待値はimmutable archiveのe526/baseが返した成功
+// literalで、920は同じ入口でpanicしていた。
+func TestV06ClosedQuoteCommands(t *testing.T) {
+	tests := []struct {
+		name, input, pattern string
+		want                 []string
+	}{
+		{"閉じた引用のoptional", "a", `/(?:\Q\\E)?/gy`, []string{"", ""}},
+		{"閉じた引用と語境界", `\a`, `/\Q\\E\b/gy`, []string{`\`}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := v06Call(t, "正規表現マッチ", value.String(tt.input), value.String(tt.pattern))
+			if err != nil {
+				t.Fatalf("正規表現マッチ(%q, %q): %v", tt.input, tt.pattern, err)
+			}
+			if items := v06Items(t, got); !reflect.DeepEqual(items, tt.want) {
+				t.Errorf("正規表現マッチ(%q, %q) = %v, want %v", tt.input, tt.pattern, items, tt.want)
+			}
+		})
+	}
+	// 名前付き組でも、閉じた引用の位置指定照合はpanicしない
+	got, err := v06Call(t, "正規表現抽出", value.String("a"), value.String(`/(?<n>(?:\Q\\E)?)/gy`))
+	if err != nil {
+		t.Fatalf("正規表現抽出: %v", err)
+	}
+	if items := v06Items(t, got); !reflect.DeepEqual(items, []string{"", ""}) {
+		t.Errorf("正規表現抽出 = %v, want [空 空]", items)
+	}
+}
+
+// TestV06SuffixCaptureCommands は、context-freeの位置指定照合が返す一致全体と
+// 捕獲の位置を、命令の戻り値と置換テンプレートで固定する。期待値はNodeの
+// 実行結果で、未参加の組は空文字の参加と区別できる。
+func TestV06SuffixCaptureCommands(t *testing.T) {
+	got, err := v06Call(t, "正規表現置換", value.String("あいう"), value.String("/(あ)?(?<n>い?)/gy"), value.String("<$1:$<n>>"))
+	if err != nil {
+		t.Fatalf("正規表現置換: %v", err)
+	}
+	if text := value.ToString(got); text != "<あ:い><:>う<:>" {
+		t.Errorf("正規表現置換 = %q, want %q", text, "<あ:い><:>う<:>")
+	}
+}
+
+// TestV06DeepContextLanguageError は、元のパターンは正しいが文脈付きの位置
+// 指定照合にだけ使えない深さの入力を、言語のエラーとして返すことを固定する。
+// 未受入の残余制約なので、一致なしへ潰さず、パターン不正とも言わない。
+func TestV06DeepContextLanguageError(t *testing.T) {
+	body := strings.Repeat("(", 997) + "a?$" + strings.Repeat(")", 997)
+	pattern := "/" + body + "/gy"
+	_, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String(pattern))
+	if err == nil {
+		t.Fatal("深い文脈付きパターンはエラーになるべき")
+	}
+	if want := "正規表現『" + pattern + "』はyフラグの位置指定照合には深すぎます。"; err.Error() != want {
+		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
+	}
+	// 同じパターンでもgだけなら成功する
+	got, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String("/"+body+"/g"))
+	if err != nil {
+		t.Fatalf("gだけの正規表現マッチ: %v", err)
+	}
+	if items := v06Items(t, got); !reflect.DeepEqual(items, []string{"a"}) {
+		t.Errorf("gだけの正規表現マッチ = %v, want [a]", items)
 	}
 }

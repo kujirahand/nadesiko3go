@@ -141,6 +141,14 @@ func compilePattern(pattern string) (*re.Regexp, error) {
 		}
 		return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
 	}
+	var variantErr *re.StickyVariantError
+	if errors.As(err, &variantErr) {
+		// 元のパターンは正しい。文脈を見る位置指定照合にだけ使えない。
+		if variantErr.Depth {
+			return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合には深すぎます。")
+		}
+		return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合に使えません。")
+	}
 	if err != nil {
 		return nil, errors.New("正規表現『" + pattern + "』が正しくありません。")
 	}

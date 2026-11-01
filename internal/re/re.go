@@ -14,9 +14,9 @@ package re
 import (
 	"errors"
 	"regexp"
+	"regexp/syntax"
 	"strconv"
 	"strings"
-	"sync"
 	"unicode/utf8"
 )
 
@@ -50,21 +50,51 @@ func (e *FlagError) Error() string {
 // JavaScriptでは正しい入力なので受理する。
 const validFlags = "dgimsuvy"
 
-// stickyTail は位置指定照合に使う派生パターン。空一致し得るstickyと、正の
-// 単語境界を綴るstickyだけがこれを持つ。派生パターンは初回の位置指定照合まで
-// 作らず、包みを組み立てるときに 『\Q』 の引用を閉じるので、コンパイルは
-// 失敗しない。
-type stickyTail struct {
-	once sync.Once
-	re   *regexp.Regexp
+// stickyMode は sticky の照合がどの経路を使うかを表す。位置指定の照合が
+// 要らないパターンはGoの走査をそのまま使い、要るパターンは、前後の文字を
+// 見るアサーション（『^』『$』『\b』など）を含むかどうかで分ける。
+type stickyMode uint8
+
+const (
+	// stickyScan はGoのFindAll走査をそのまま使い、先頭から連続する一致だけを
+	// 残す。空一致し得ず、文脈を見るアサーションを含まないパターンだけが
+	// ここに入る。
+	stickyScan stickyMode = iota
+	// stickySuffix は文脈を見ない位置指定照合。元のパターンを s[pos:] に
+	// 当てて先頭一致だけを採る。一致の可否が後ろの文字だけで決まるので、
+	// 派生パターンを作らなくても意味が変わらない。
+	stickySuffix
+	// stickyContext は前後の文字を見るアサーションを含む位置指定照合。
+	// 直前の1runeを残した部分文字列に派生パターンを当てる。
+	stickyContext
+)
+
+// StickyVariantError は、文脈を見る位置指定照合用の派生パターンを作れな
+// かったことを表す。元のパターン自体はGoの正規表現として正しいので、
+// 『パターンが正しくない』とは区別する。
+type StickyVariantError struct {
+	// Depth は入れ子の深さがGoの上限を超えたことを表す。
+	Depth bool
+	Cause error
 }
+
+func (e *StickyVariantError) Error() string {
+	if e.Depth {
+		return "文脈を見る位置指定照合用の派生パターンが深すぎます"
+	}
+	return "文脈を見る位置指定照合用の派生パターンを作れません"
+}
+
+func (e *StickyVariantError) Unwrap() error { return e.Cause }
 
 // Regexp はコンパイル済みのパターンと、そのとき書かれたフラグをまとめたもの。
 type Regexp struct {
 	re *regexp.Regexp
-	// tail は位置指定照合の派生パターン。空一致し得ないstickyではnilで、
-	// GoのFindAll走査と連続開始filterだけで済ませる。
-	tail *stickyTail
+	// tail は文脈を見る位置指定照合用の派生パターン。stickyContextのときだけ
+	// 非nilで、Compileで作り切る。照合の途中でコンパイルしない。
+	tail *regexp.Regexp
+	// mode はstickyの照合経路。stickyでないパターンではstickyScanのまま。
+	mode stickyMode
 	// Global はJavaScriptの 『g』 フラグ。置換がすべての一致を対象にするか、
 	// 最初の一致だけかを決める。
 	Global bool
@@ -153,19 +183,42 @@ func Compile(pattern string) (*Regexp, error) {
 			break
 		}
 	}
-	var tail *stickyTail
-	if sticky && needsPositionalSearch(compiled) {
-		tail = &stickyTail{}
+	mode, tail, context, err := stickySearch(compiled, sticky)
+	if err != nil {
+		return nil, err
 	}
-	textScan := sticky && tail == nil && !hasContextAssertion(compiled.String())
+	textScan := sticky && mode == stickyScan && !context
 	return &Regexp{
 		re:       compiled,
 		Global:   global,
 		Sticky:   sticky,
 		tail:     tail,
+		mode:     mode,
 		hasNames: hasNames,
 		textScan: textScan,
 	}, nil
+}
+
+// stickySearch はstickyの照合経路を決める。位置指定の照合が要らないなら
+// 走査のまま。要るなら、前後の文字を見るアサーションの有無で、元のパターンを
+// そのまま当てる経路と、派生パターンを当てる経路に分ける。派生パターンは
+// errorを返せるCompileの中で作る。
+func stickySearch(compiled *regexp.Regexp, sticky bool) (stickyMode, *regexp.Regexp, bool, error) {
+	if !sticky {
+		return stickyScan, nil, false, nil
+	}
+	context := hasRealContextAssertion(compiled)
+	if !needsPositionalSearch(compiled) {
+		return stickyScan, nil, context, nil
+	}
+	if !context {
+		return stickySuffix, nil, false, nil
+	}
+	tail, err := compileStickyTail(compiled)
+	if err != nil {
+		return stickyScan, nil, context, err
+	}
+	return stickyContext, tail, context, nil
 }
 
 // needsPositionalSearch は位置指定の照合が要るかを判定する。空一致し得る
@@ -184,6 +237,40 @@ func needsPositionalSearch(re *regexp.Regexp) bool {
 func hasContextAssertion(pattern string) bool {
 	for _, token := range []string{"^", "$", `\b`, `\B`, `\A`, `\z`} {
 		if strings.Contains(pattern, token) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasRealContextAssertion は、そのゼロ幅アサーションが本当に構文木に現れるかを
+// 確かめる。文字列の走査だけでは、文字クラスの中の 『$』 や、エスケープした
+// リテラル、『\Q...\E』 の中の文字まで拾ってしまう。拾い過ぎたまま派生パターンを
+// 作ると、元が正しくても深さの都合で拒むことになる。
+func hasRealContextAssertion(compiled *regexp.Regexp) bool {
+	src := compiled.String()
+	if !hasContextAssertion(src) {
+		return false
+	}
+	expr, err := syntax.Parse(src, syntax.Perl)
+	if err != nil {
+		// 文字列としては疑わしいのに構文木へ落とせない。安全側に倒して
+		// 文脈ありとして扱う。
+		return true
+	}
+	return hasContextAssertionNode(expr)
+}
+
+// hasContextAssertionNode は、一致の前後の文字や絶対位置を見るアサーションが
+// 構文木にあるかを返す。対象は 『^』『$』『\A』『\z』『\b』『\B』 だけ。
+func hasContextAssertionNode(expr *syntax.Regexp) bool {
+	switch expr.Op {
+	case syntax.OpBeginLine, syntax.OpEndLine, syntax.OpBeginText, syntax.OpEndText,
+		syntax.OpWordBoundary, syntax.OpNoWordBoundary:
+		return true
+	}
+	for _, sub := range expr.Sub {
+		if hasContextAssertionNode(sub) {
 			return true
 		}
 	}
@@ -341,55 +428,45 @@ func prevRuneStart(s string, pos int) int {
 	return pos - size
 }
 
-// wrapStickyTail は位置 pos>0 から始まる一致を求めるための包みを作る。
+// compileStickyTail は、文脈を見る位置指定照合用の派生パターンを作る。
 //
 // 部分文字列を切り出して再マッチすると ^ や \b のような文脈が失われるので、
 // 直前の1runeを残した部分文字列に 『\A(?s:.)』 を前置する。前の1runeを消費
 // させたうえで先頭に固定するので、照合位置から見た前後の文脈は元の文字列の
 // ままになる。
 //
-// Goの 『\Q』 は対応する 『\E』 が無いと後ろをすべてリテラルとして飲み込み、
-// 包みの 『)』 まで巻き込む。引用が開いたまま終わるパターンだけ 『\E』 を補う。
-// 補うのは開いているときだけなので、閉じた 『\Q...\E』 やエスケープされた
-// 『\\Q』 の意味は変えない。
-func wrapStickyTail(src string) string {
-	if quoteOpenAtEnd(src) {
-		src += `\E`
+// 派生パターンは元のパターンより1段深い。元がvalidでもGoの入れ子の上限を
+// 超えることがあるので、作れなかったことはerrorで返す。まず素の包みを試し、
+// Goの 『\Q』 が対応する 『\E』 を欠いて後ろを飲み込んでいる場合だけ、包みの
+// 中で引用を閉じる。
+func compileStickyTail(compiled *regexp.Regexp) (*regexp.Regexp, error) {
+	src := compiled.String()
+	tail, err := regexp.Compile(`\A(?s:.)(?:` + src + `)`)
+	if err == nil {
+		return tail, nil
 	}
-	return `\A(?s:.)(?:` + src + `)`
+	if closed, closeErr := regexp.Compile(`\A(?s:.)(?:` + src + `\E)`); closeErr == nil {
+		return closed, nil
+	}
+	return nil, &StickyVariantError{Depth: isNestingDepth(err), Cause: err}
 }
 
-// quoteOpenAtEnd は 『\Q』 の引用が文字列の末尾で開いたままかを返す。
-// エスケープされた円記号の後ろの Q は引用を開かない。
-func quoteOpenAtEnd(src string) bool {
-	open := false
-	for i := 0; i < len(src); i++ {
-		if src[i] != '\\' || i+1 >= len(src) {
-			continue
-		}
-		switch src[i+1] {
-		case 'Q':
-			open = true
-		case 'E':
-			open = false
-		}
-		i++
-	}
-	return open
-}
-
-// stickyTailRE は位置指定照合用の変種を返す。初回の照合までコンパイルを
-// 遅らせるので、位置指定照合を使わない呼び出しにコストを課さない。
-func (r *Regexp) stickyTailRE() *regexp.Regexp {
-	r.tail.once.Do(func() {
-		r.tail.re = regexp.MustCompile(wrapStickyTail(r.re.String()))
-	})
-	return r.tail.re
+// isNestingDepth は、Goの正規表現が入れ子の深さの上限で失敗したかを返す。
+func isNestingDepth(err error) bool {
+	var syntaxErr *syntax.Error
+	return errors.As(err, &syntaxErr) && syntaxErr.Code == syntax.ErrNestingDepth
 }
 
 // matchAt は pos からちょうど始まる一致全体と捕獲を、s の座標で返す。そこか
 // ら始まる一致がなければnilを返す。
 func (r *Regexp) matchAt(s string, pos int) []int {
+	if r.mode == stickySuffix {
+		m := r.re.FindStringSubmatchIndex(s[pos:])
+		if m == nil || m[0] != 0 {
+			return nil
+		}
+		return shiftIndexes(m, pos)
+	}
 	if pos == 0 {
 		m := r.re.FindStringSubmatchIndex(s)
 		if m == nil || m[0] != 0 {
@@ -398,7 +475,7 @@ func (r *Regexp) matchAt(s string, pos int) []int {
 		return m
 	}
 	base := prevRuneStart(s, pos)
-	m := r.stickyTailRE().FindStringSubmatchIndex(s[base:])
+	m := r.tail.FindStringSubmatchIndex(s[base:])
 	if m == nil {
 		return nil
 	}
@@ -416,8 +493,30 @@ func (r *Regexp) matchAt(s string, pos int) []int {
 	return row
 }
 
+// shiftIndexes は部分文字列の座標を元の文字列の座標へ移す。参加していない
+// 組の-1はそのまま残す。
+func shiftIndexes(m []int, offset int) []int {
+	row := make([]int, len(m))
+	row[0], row[1] = offset+m[0], offset+m[1]
+	for i := 2; i < len(m); i += 2 {
+		if m[i] < 0 {
+			row[i], row[i+1] = -1, -1
+			continue
+		}
+		row[i], row[i+1] = offset+m[i], offset+m[i+1]
+	}
+	return row
+}
+
 // matchWholeAt は一致全体だけを要る呼び出し元のための matchAt。
 func (r *Regexp) matchWholeAt(s string, pos int) []int {
+	if r.mode == stickySuffix {
+		m := r.re.FindStringIndex(s[pos:])
+		if m == nil || m[0] != 0 {
+			return nil
+		}
+		return []int{pos, pos + m[1]}
+	}
 	if pos == 0 {
 		m := r.re.FindStringIndex(s)
 		if m == nil || m[0] != 0 {
@@ -426,7 +525,7 @@ func (r *Regexp) matchWholeAt(s string, pos int) []int {
 		return m
 	}
 	base := prevRuneStart(s, pos)
-	m := r.stickyTailRE().FindStringIndex(s[base:])
+	m := r.tail.FindStringIndex(s[base:])
 	if m == nil {
 		return nil
 	}
@@ -461,12 +560,14 @@ func (r *Regexp) stickyWholeMatches(s string) [][]int {
 	return out
 }
 
-// stickyIndexes はグローバルなsticky検索が訪れる一致の位置列を返す。空一致
-// し得ないパターンはGoのFindAll走査をそのまま使い、各一致が前の一致の終端
-// から始まることだけを確かめる。空一致が落ちる心配がないので走査は完全で
-// ある。それ以外は位置指定の照合を使う。
+// stickyIndexes はグローバルなsticky検索が訪れる一致の位置列を返す。位置指定
+// の照合が要らないパターンはGoのFindAll走査をそのまま使い、各一致が前の一致の
+// 終端から始まることだけを確かめる。空一致が落ちる心配がないので走査は完全で
+// ある。位置指定の照合が要るパターンは、派生パターンを持つかどうかではなく
+// 経路そのもので分ける。派生パターンを持たない後ろ向きの経路でも空一致は
+// 走査から落ちるので、位置を指定して1件ずつ確かめる。
 func (r *Regexp) stickyIndexes(s string, submatch bool) [][]int {
-	if r.tail != nil {
+	if r.mode != stickyScan {
 		if submatch {
 			return r.stickySubmatches(s)
 		}

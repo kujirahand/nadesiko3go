@@ -39,28 +39,53 @@ func TestV06StickyFromTextsNilAfterFirstGap(t *testing.T) {
 	}
 }
 
-// TestV06QuoteOpenAtEnd は、位置指定照合用の包みを組む前に引用の開閉を
-// 正しく判定できることを固定する。エスケープされた円記号の後ろのQは引用を
-// 開かない。
-func TestV06QuoteOpenAtEnd(t *testing.T) {
+// TestV06StickyModeRouting は、stickyの照合経路が3状態のどれになるかを固定
+// する。位置指定の照合が要らないならscan、要るなら、本当に前後の文字を見る
+// アサーションの有無でsuffixとcontextに分かれる。文字列の走査で拾っただけの
+// トークンはsuffixへ倒す。
+func TestV06StickyModeRouting(t *testing.T) {
 	tests := []struct {
-		src  string
-		want bool
+		pattern  string
+		want     stickyMode
+		textScan bool
 	}{
-		{"", false},
-		{"abc", false},
-		{`\Q`, true},
-		{`\Qab`, true},
-		{`\Qa\E`, false},
-		{`\Qa\E\Qb`, true},
-		{`\\Q`, false},
-		{`\\\Q`, true},
-		{`\Qabc\E`, false},
-		{`(a)\Q`, true},
+		// 空一致し得ず、\bも綴らない: Goの走査が完全なのでscan
+		{"/a+/gy", stickyScan, true},
+		{`/\$a/gy`, stickyScan, true},
+		{"/[a]b/gy", stickyScan, true},
+		// 空一致し得るので位置指定。実アサーションが無いのでsuffix
+		{"/a*|b/gy", stickySuffix, false},
+		{"/(?:)/gy", stickySuffix, false},
+		{`/(?:\Q\\E)?/gy`, stickySuffix, false},
+		{`/(?:\^)?a?/gy`, stickySuffix, false},
+		{`/(?:\$)?a?/gy`, stickySuffix, false},
+		{`/(?:[$])?a?/gy`, stickySuffix, false},
+		{`/(?:\\b)?a?/gy`, stickySuffix, false},
+		{`/(?:\Q^\E)?a?/gy`, stickySuffix, false},
+		// 本当に前後の文字を見るアサーションを含むのでcontext
+		{"/^/gy", stickyContext, false},
+		{"/a?$/gy", stickyContext, false},
+		{`/\b./gy`, stickyContext, false},
+		{`/\A/gy`, stickyContext, false},
+		{`/\z/gy`, stickyContext, false},
+		{`/\B/gy`, stickyContext, false},
+		// 位置指定の照合が要らないパターンでも、実アサーションがあれば
+		// 一致文字列だけの連続判定には使わない
+		{`/a\B/gy`, stickyScan, false},
 	}
 	for _, tt := range tests {
-		if got := quoteOpenAtEnd(tt.src); got != tt.want {
-			t.Errorf("quoteOpenAtEnd(%q) = %v, want %v", tt.src, got, tt.want)
+		r, err := Compile(tt.pattern)
+		if err != nil {
+			t.Fatalf("Compile(%q): %v", tt.pattern, err)
+		}
+		if r.mode != tt.want {
+			t.Errorf("Compile(%q).mode = %v, want %v", tt.pattern, r.mode, tt.want)
+		}
+		if r.textScan != tt.textScan {
+			t.Errorf("Compile(%q).textScan = %v, want %v", tt.pattern, r.textScan, tt.textScan)
+		}
+		if (r.mode == stickyContext) != (r.tail != nil) {
+			t.Errorf("Compile(%q): mode=%v tail=%v, 派生パターンはcontextのときだけ非nil", tt.pattern, r.mode, r.tail != nil)
 		}
 	}
 }

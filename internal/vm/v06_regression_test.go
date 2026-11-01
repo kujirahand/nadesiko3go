@@ -1,6 +1,7 @@
 package vm_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/vm"
@@ -37,6 +38,50 @@ func TestV06RegexpLiveCases(t *testing.T) {
 				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestV06HybridLiveCases は、920がpanicしていた入力を同じ入口（なでしこの
+// 正規表現命令）から通す。閉じた引用の3件はimmutable archiveのe526/baseが
+// 返した成功literal、深さ998はNodeで固定したliteral。
+func TestV06HybridLiveCases(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{"閉じた引用の空一致", `A=「a」を「/(?:\Q\\E)?/gy」で正規表現マッチ。AをJSONエンコードして表示`, `["",""]`},
+		{"閉じた引用と語境界", `A=「\a」を「/\Q\\E\b/gy」で正規表現マッチ。AをJSONエンコードして表示`, `["\\"]`},
+		{"名前付き抽出の閉じた引用", `A=「a」を「/(?<n>(?:\Q\\E)?)/gy」で正規表現抽出。AをJSONエンコードして表示`, `["",""]`},
+		{"名前付き組の位置補正", `「あいう」の「/(あ)?(?<n>い?)/gy」を「<$1:$<n>>」に正規表現置換して表示`, `<あ:い><:>う<:>`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06DepthContextFreeLiveCase は、元がvalidな深さ998のcontext-freeパターンが
+// 命令の入口から成功することを固定する。920は初回の位置指定照合でpanicし、
+// e526は深さを理由にerrorにしていた。
+func TestV06DepthContextFreeLiveCase(t *testing.T) {
+	body := strings.Repeat("(", 998) + "a?" + strings.Repeat(")", 998)
+	code := `A=「a」を「/` + body + `/gy」で正規表現マッチ。AをJSONエンコードして表示`
+	if got, want := run(t, code), `["a",""]`; got != want {
+		t.Errorf("深さ998の正規表現マッチ = %q, want %q", got, want)
+	}
+}
+
+// TestV06DeepContextLiveError は、文脈を見るアサーションを含む深いパターンを、
+// 同じ入口から明示的な言語エラーとして返すことを固定する。yフラグの位置指定
+// 照合にだけ使えないのであって、パターン自体は正しい。
+func TestV06DeepContextLiveError(t *testing.T) {
+	body := strings.Repeat("(", 997) + "a?$" + strings.Repeat(")", 997)
+	code := `A=「a」を「/` + body + `/gy」で正規表現マッチ。Aを表示`
+	want := "[実行時エラー]main.nako3(1行目): 正規表現『/" + body + "/gy』はyフラグの位置指定照合には深すぎます。"
+	if _, err := vm.RunSource(code, "main.nako3", nil); err == nil {
+		t.Fatal("深い文脈付きパターンはエラーになるべき")
+	} else if err.Error() != want {
+		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
 	}
 }
 
