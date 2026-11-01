@@ -3,14 +3,14 @@ package re_test
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/re"
 )
 
-// TestV06SplitParts pins the data shape a split returns: the segments and the
-// capture groups interleaved, with a missing capture marked undefined instead
-// of being flattened to an empty string.
+// TestV06SplitParts は区切りが返すデータの形を固定する。区切りの断片と捕獲が
+// 交互に並び、参加しなかった捕獲は空文字へ潰さずundefinedとして印を付ける。
 func TestV06SplitParts(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -40,8 +40,8 @@ func TestV06SplitParts(t *testing.T) {
 	}
 }
 
-// TestV06CaptureParticipation pins that Find tells a group that did not take
-// part apart from a group that matched the empty string.
+// TestV06CaptureParticipation は、Find が参加しなかった組と空文字に一致した組を
+// 区別できることを固定する。
 func TestV06CaptureParticipation(t *testing.T) {
 	r, err := re.Compile(`/(a)|(b)/`)
 	if err != nil {
@@ -62,8 +62,8 @@ func TestV06CaptureParticipation(t *testing.T) {
 	}
 }
 
-// TestV06StickyFind pins the 『y』 flag: a match has to start where the
-// previous one ended, and the first one starts at the beginning.
+// TestV06StickyFind は 『y』 フラグを固定する。一致は前の一致が終わった位置から
+// 始まる必要があり、最初の一致は先頭から探す。
 func TestV06StickyFind(t *testing.T) {
 	if _, ok := mustCompile(t, "/b/y").Find("ab"); ok {
 		t.Error(`/b/y は "ab" の先頭で一致しないので、一致なしになるべき`)
@@ -86,8 +86,8 @@ func TestV06StickyFind(t *testing.T) {
 	}
 }
 
-// TestV06StickyReplace pins that a sticky replacement only touches the
-// contiguous run of matches from the beginning.
+// TestV06StickyReplace は、stickyの置換が先頭から連続する一致だけを対象にする
+// ことを固定する。
 func TestV06StickyReplace(t *testing.T) {
 	tests := []struct{ pattern, input, want string }{
 		{"/a/y", "ba", "ba"},
@@ -101,9 +101,9 @@ func TestV06StickyReplace(t *testing.T) {
 	}
 }
 
-// TestV06StickyNullable pins that an empty match right after a match still
-// counts. Go's FindAll drops that empty match, so a sticky search that starts
-// from its match list stops too early; the values here are Node's.
+// TestV06StickyNullable は、一致の直後にある空一致も1件として数えることを
+// 固定する。GoのFindAllはその空一致を落とすので、その一致列から始めるsticky
+// 検索は途中で止まってしまう。ここに並ぶ期待値はNodeの結果。
 func TestV06StickyNullable(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -125,9 +125,8 @@ func TestV06StickyNullable(t *testing.T) {
 	}
 }
 
-// TestV06StickyContext pins that ^, $, \b and \B still see the characters
-// around a match that does not start at the beginning. Cutting the subject at
-// the match position would lose them.
+// TestV06StickyContext は、先頭以外から始まる一致でも ^ $ \b \B が前後の文字を
+// 見ていることを固定する。一致位置で対象を切り出すとその文脈が失われる。
 func TestV06StickyContext(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -150,9 +149,9 @@ func TestV06StickyContext(t *testing.T) {
 	}
 }
 
-// TestV06StickyCaptureAndReplace pins the capture offsets when a sticky match
-// starts after the beginning, and that characters no match consumed stay in
-// place.
+// TestV06StickyCaptureAndReplace は、先頭以外から始まるstickyの一致で捕獲の
+// 位置がずれないことと、どの一致も消費しなかった文字がそのまま残ることを
+// 固定する。
 func TestV06StickyCaptureAndReplace(t *testing.T) {
 	tests := []struct {
 		pattern, input, template, want string
@@ -171,10 +170,9 @@ func TestV06StickyCaptureAndReplace(t *testing.T) {
 	}
 }
 
-// TestV06StickyRuneBased pins the deliberate rune-based difference from
-// JavaScript: the subject is walked by rune, not by UTF-16 code unit. Node
-// with the 『u』 flag agrees with these values; without it, a character outside
-// the BMP is split in two (AGENTS.md §5).
+// TestV06StickyRuneBased はJavaScriptとの意図的なrune基準の差を固定する。対象は
+// UTF-16コード単位ではなくruneでたどる。Nodeに 『u』 フラグを付けるとこの値に
+// 一致し、付けない場合はBMP外の文字が2つに分かれる（AGENTS.md §5）。
 func TestV06StickyRuneBased(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -191,8 +189,8 @@ func TestV06StickyRuneBased(t *testing.T) {
 	}
 }
 
-// TestV06FlagErrors pins that a repeated, unknown or conflicting flag is
-// reported with the offending letter, which is what the language error names.
+// TestV06FlagErrors は、重複・未知・同時指定不可のフラグを、問題の文字を添えて
+// 報告することを固定する。言語のエラー文面もその文字を示す。
 func TestV06FlagErrors(t *testing.T) {
 	_, err := re.Compile("/a/gg")
 	var flagErr *re.FlagError
@@ -220,9 +218,8 @@ func TestV06FlagErrors(t *testing.T) {
 	}
 }
 
-// TestV06StickyNonEmptyFastPath pins the fast path for a sticky pattern that
-// cannot match an empty string: Go's FindAll scan is complete there, so the
-// matches only need the contiguous-start check.
+// TestV06StickyNonEmptyFastPath は、空一致し得ないstickyの高速経路を固定する。
+// そのときGoのFindAll走査は完全なので、先頭からの連続だけを確かめればよい。
 func TestV06StickyNonEmptyFastPath(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -240,9 +237,8 @@ func TestV06StickyNonEmptyFastPath(t *testing.T) {
 	}
 }
 
-// TestV06StickyEmptySubject pins the boundary at the empty subject. 『\b』 is
-// the only zero-width assertion that fails there, which is why it keeps the
-// positional search.
+// TestV06StickyEmptySubject は空の対象での境界を固定する。そこでは 『\b』 だけが
+// 偽になるゼロ幅アサーションで、そのため位置指定の照合を残している。
 func TestV06StickyEmptySubject(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -263,10 +259,9 @@ func TestV06StickyEmptySubject(t *testing.T) {
 	}
 }
 
-// TestV06StickyWordBoundaryIsPositional pins the counterexamples behind the
-// proof: 『a+|\b』 does not match an empty subject yet matches empty in a
-// context, and 『\B』 matches the empty subject. Both must use the positional
-// search, so the values here are Node's.
+// TestV06StickyWordBoundaryIsPositional は証明の反例を固定する。『a+|\b』 は空の
+// 対象では一致しないが、文脈の中では空一致する。『\B』 は空の対象でも一致する。
+// どちらも位置指定の照合を使うべきで、ここに並ぶ期待値はNodeの結果。
 func TestV06StickyWordBoundaryIsPositional(t *testing.T) {
 	tests := []struct {
 		pattern, input string
@@ -282,4 +277,31 @@ func TestV06StickyWordBoundaryIsPositional(t *testing.T) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
+}
+
+// TestV06StickyConcurrentReuse は、1つのコンパイル済みパターンを複数のgoroutine
+// から同時に使えることを固定する。派生パターンは sync.Once の下で1度だけ作る。
+func TestV06StickyConcurrentReuse(t *testing.T) {
+	positional := mustCompile(t, "/a*|b/gy")
+	fast := mustCompile(t, "/a+/gy")
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := 0; j < 100; j++ {
+				if got, want := positional.FindAll("ab"), []string{"a", "", ""}; !reflect.DeepEqual(got, want) {
+					t.Errorf("位置指定検索のFindAll = %q, want %q", got, want)
+					return
+				}
+				if got, want := fast.FindAll("aaab"), []string{"aaa"}; !reflect.DeepEqual(got, want) {
+					t.Errorf("走査経路のFindAll = %q, want %q", got, want)
+					return
+				}
+				positional.Replace("ab", "X")
+				fast.FindAllMatches("aaab")
+			}
+		}()
+	}
+	wg.Wait()
 }

@@ -133,8 +133,8 @@ func TestJavaScriptUnicodeEscapes(t *testing.T) {
 	}
 }
 
-// partTexts renders split parts as texts, spelling an undefined part as
-// 『undefined』 so a missing capture is visible in a failure message.
+// partTexts は区切りの断片を文字列の並びにする。undefinedの断片は 『undefined』
+// と書いて、捕獲が欠けたことを失敗メッセージで見えるようにする。
 func partTexts(parts []re.SplitPart) []string {
 	texts := make([]string, len(parts))
 	for i, part := range parts {

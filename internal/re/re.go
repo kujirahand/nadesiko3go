@@ -24,15 +24,14 @@ import (
 // backreferences and lookaround by design.
 var ErrUnsupported = errors.New("この正規表現はまだ対応していません")
 
-// FlagError reports a flag JavaScript rejects in the 『/pattern/flags』 form:
-// a letter it does not know, one that already appeared, or a pair that cannot
-// be written together. All of them are a SyntaxError in JavaScript, so they
-// are a language error here too.
+// FlagError は 『/pattern/flags』 の形でJavaScriptが拒むフラグを表す。知らない
+// 文字、すでに現れた文字、同時に書けない組み合わせのいずれか。JavaScriptでは
+// どれもSyntaxErrorなので、ここでも言語のエラーにする。
 type FlagError struct {
 	Flag      byte
 	Duplicate bool
-	// Conflict is the other flag of a pair JavaScript refuses. 『u』 and 『v』
-	// each select Unicode mode, so only one may appear.
+	// Conflict はJavaScriptが同時指定を拒む相手のフラグ。『u』と『v』は
+	// どちらもUnicodeモードを選ぶので、片方しか書けない。
 	Conflict byte
 }
 
@@ -46,56 +45,55 @@ func (e *FlagError) Error() string {
 	return "正規表現のフラグ『" + string(e.Flag) + "』は使えません"
 }
 
-// validFlags are the letters JavaScript accepts as 『/pattern/flags』. 『d』
-// (match indices) and 『u』/『v』 (Unicode mode) do not change what a pattern
-// matches in Go, but they are still valid input and are accepted.
+// validFlags はJavaScriptが 『/pattern/flags』 として受け付ける文字。『d』
+// (一致位置) と 『u』/『v』 (Unicodeモード) はGoでパターンの意味を変えないが、
+// JavaScriptでは正しい入力なので受理する。
 const validFlags = "dgimsuvy"
 
-// Regexp is a compiled pattern together with the flags it was written with.
+// stickyTail は位置指定照合に使う派生パターンを、必要になった時点で1度だけ
+// 作って保持する。空一致し得るstickyと、正の単語境界を綴るstickyだけがこれ
+// を持つ。
+type stickyTail struct {
+	once sync.Once
+	re   *regexp.Regexp
+}
+
+// Regexp はコンパイル済みのパターンと、そのとき書かれたフラグをまとめたもの。
 type Regexp struct {
 	re *regexp.Regexp
-	// Global is the JavaScript 『g』 flag. It decides whether a replacement
-	// touches every match or only the first.
+	// tail は位置指定照合の派生パターン。空一致し得ないstickyではnilで、
+	// GoのFindAll走査と連続開始filterだけで済ませる。
+	tail *stickyTail
+	// Global はJavaScriptの 『g』 フラグ。置換がすべての一致を対象にするか、
+	// 最初の一致だけかを決める。
 	Global bool
-	// Sticky is the JavaScript 『y』 flag. Every match has to start where the
-	// previous one ended, so a fresh match starts at the beginning of the
-	// subject instead of being searched for anywhere in it.
+	// Sticky はJavaScriptの 『y』 フラグ。一致は前の一致が終わった位置から
+	// 始まる必要があり、最初の一致は対象の先頭から探す。
 	Sticky bool
-	// stickyPattern はフラグの接頭辞を含むGoのパターンで、stickyの位置指定
-	// 照合に使う。先頭位置の照合は元のコンパイル結果で足りるので、この変種は
-	// 2件目以降を探すときにはじめてコンパイルする。
-	stickyPattern string
-	stickyOnce    sync.Once
-	stickyTail    *regexp.Regexp
-	// stickyPositional は位置指定の照合が要るか。空一致をし得るパターンと、
-	// 正の単語境界 『\b』 を含むパターンが該当する。\b は空の対象では成立
-	// しないが、前後に文字がある位置では成立する唯一のゼロ幅アサーション
-	// なので、GoのFindAllの一致列を信用できない。
-	stickyPositional bool
 	// hasNames はパターンが名前付きキャプチャを持つか。JavaScriptでは
 	// 名前付き組を持たない正規表現では置換テンプレートの $<name> が
 	// リテラルになるため、その判定に使う
 	hasNames bool
 }
 
-// Group is one capture group of a match. Ok is false when the group did not
-// take part in the match: JavaScript has undefined for that, while Go's
-// regexp reports the same empty string as a group that matched 『』.
+// Group は一致の捕獲1つ分。Okがfalseならその組は一致に参加していない。
+// JavaScriptではこれがundefinedになるが、Goの正規表現は 『』 に一致した組と
+// 同じ空文字で返すため、区別できるようにしている。
 type Group struct {
 	Text string
 	Ok   bool
 }
 
-// Match is one whole match together with its capture groups. Text is the text
-// the whole pattern matched; Groups holds groups 1..n in order.
+// Match は一致全体とその捕獲をまとめたもの。Textはパターン全体が一致した
+// 文字列で、Groupsは1番目以降の組を順に持つ。
 type Match struct {
 	Text   string
 	Groups []Group
 }
 
-// SplitPart is one item of a split. Undefined marks a capture group that did
-// not take part, which JavaScript puts in the array as undefined; Text is then
-// empty and the language value is undefined rather than 『』.
+// SplitPart は区切りの結果1つ分。Undefinedがtrueなら、その捕獲は参加して
+// おらず、JavaScriptでは配列にundefinedとして入る。そのときTextは空で、
+// 言語の値は 『』 ではなくundefinedになる。
 type SplitPart struct {
 	Text      string
 	Undefined bool
@@ -151,29 +149,32 @@ func Compile(pattern string) (*Regexp, error) {
 			break
 		}
 	}
-	stickyPattern := ""
-	positional := false
-	if sticky {
-		stickyPattern = prefix.String() + body
-		// 空の対象で一致しないことと、正の単語境界を綴っていないことが、
-		// 空一致しないことの保守的な証明になる（\b だけが空では偽で、
-		// 文脈では真になり得るゼロ幅アサーション）。
-		positional = compiled.MatchString("") || strings.Contains(stickyPattern, `\b`)
+	var tail *stickyTail
+	if sticky && needsPositionalSearch(compiled) {
+		tail = &stickyTail{}
 	}
 	return &Regexp{
-		re:               compiled,
-		Global:           global,
-		Sticky:           sticky,
-		stickyPattern:    stickyPattern,
-		stickyPositional: positional,
-		hasNames:         hasNames,
+		re:       compiled,
+		Global:   global,
+		Sticky:   sticky,
+		tail:     tail,
+		hasNames: hasNames,
 	}, nil
 }
 
-// validateFlags rejects what JavaScript rejects in a flag list. A repeated flag
-// is a SyntaxError there, and so is an unknown letter; ignoring either would
-// run a pattern with a meaning nobody wrote. 『u』 and 『v』 both select Unicode
-// mode, so writing both is refused as well.
+// needsPositionalSearch は位置指定の照合が要るかを判定する。空一致し得る
+// パターンと、正の単語境界 『\b』 を綴るパターンが該当する。空の対象で一致
+// しないこと自体は、正の幅の要素を要求している証拠になる。ただし 『\b』 は
+// 空の対象では偽になり、前後に文字がある位置では真になり得る唯一のゼロ幅
+// アサーションなので、それを綴るパターンはGoのFindAllの一致列を信用できない。
+func needsPositionalSearch(re *regexp.Regexp) bool {
+	return re.MatchString("") || strings.Contains(re.String(), `\b`)
+}
+
+// validateFlags はJavaScriptがフラグ列で拒むものを拒む。重複したフラグも、
+// 知らない文字も、JavaScriptではSyntaxError。無言で受理すると、書いた意図と
+// 違うパターンが動いてしまう。『u』と『v』はどちらもUnicodeモードを選ぶので、
+// 同時に書くことも拒む。
 func validateFlags(flags string) error {
 	var seen [256]bool
 	for i := 0; i < len(flags); i++ {
@@ -224,9 +225,9 @@ func unsupportedByRE2(pattern string) bool {
 // backreferenceRE matches 『\1』 and friends, but not an escaped backslash.
 var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 
-// FindAll returns every whole match. It reports nil when there is none, which
-// the commands turn into 『空』. A sticky pattern walks the positions JavaScript
-// visits, so a match only counts when it starts where the previous one ended.
+// FindAll は一致全体をすべて返す。一致がなければnilを返し、命令側で 『空』 に
+// なる。stickyのパターンはJavaScriptが訪れる位置をたどるので、前の一致が
+// 終わった位置から始まる一致だけを数える。
 func (r *Regexp) FindAll(s string) []string {
 	if !r.Sticky {
 		return r.re.FindAllString(s, -1)
@@ -242,7 +243,7 @@ func (r *Regexp) FindAll(s string) []string {
 	return found
 }
 
-// FindAllMatches returns every match with its capture groups.
+// FindAllMatches は一致とその捕獲をすべて返す。
 func (r *Regexp) FindAllMatches(s string) []Match {
 	var indexes [][]int
 	if r.Sticky {
@@ -260,8 +261,8 @@ func (r *Regexp) FindAllMatches(s string) []Match {
 // SubexpNames reports the name of each capture group. Index 0 is always empty.
 func (r *Regexp) SubexpNames() []string { return r.re.SubexpNames() }
 
-// Find returns the first match and its capture groups. It reports false when
-// there is none, or when a sticky pattern does not match at the beginning.
+// Find は最初の一致とその捕獲を返す。一致がないときと、stickyのパターンが
+// 先頭で一致しないときはfalseを返す。
 func (r *Regexp) Find(s string) (Match, bool) {
 	indexes := r.re.FindStringSubmatchIndex(s)
 	if indexes == nil || r.Sticky && indexes[0] != 0 {
@@ -270,9 +271,8 @@ func (r *Regexp) Find(s string) (Match, bool) {
 	return matchFromIndexes(s, indexes), true
 }
 
-// matchFromIndexes builds a Match from the index pairs that the regexp methods
-// return. A group that did not take part has -1 indexes, which is a missing
-// value rather than an empty string.
+// matchFromIndexes は正規表現が返す位置の組からMatchを組み立てる。参加しな
+// かった組は-1の位置を持ち、空文字ではなく「値がない」として扱う。
 func matchFromIndexes(s string, indexes []int) Match {
 	m := Match{Text: s[indexes[0]:indexes[1]]}
 	m.Groups = make([]Group, len(indexes)/2-1)
@@ -299,15 +299,16 @@ func prevRuneStart(s string, pos int) int {
 // させたうえで先頭に固定するので、照合位置から見た前後の文脈は元の文字列の
 // ままになる。この変種は必要になった時点で作る。
 func (r *Regexp) stickyTailRE() *regexp.Regexp {
-	r.stickyOnce.Do(func() {
-		r.stickyTail = regexp.MustCompile(`\A(?s:.)(?:` + r.stickyPattern + `)`)
+	r.tail.once.Do(func() {
+		// 元のコンパイル結果からパターンを引き直すので、パターン文字列を
+		// 別に持ち回る必要はない。
+		r.tail.re = regexp.MustCompile(`\A(?s:.)(?:` + r.re.String() + `)`)
 	})
-	return r.stickyTail
+	return r.tail.re
 }
 
-// matchAt returns the whole match and capture groups that start exactly at
-// pos, with indexes in the coordinates of s. It reports nil when no match
-// starts there.
+// matchAt は pos からちょうど始まる一致全体と捕獲を、s の座標で返す。そこか
+// ら始まる一致がなければnilを返す。
 func (r *Regexp) matchAt(s string, pos int) []int {
 	if pos == 0 {
 		m := r.re.FindStringSubmatchIndex(s)
@@ -335,7 +336,7 @@ func (r *Regexp) matchAt(s string, pos int) []int {
 	return row
 }
 
-// matchWholeAt is matchAt for callers that only need the whole match.
+// matchWholeAt は一致全体だけを要る呼び出し元のための matchAt。
 func (r *Regexp) matchWholeAt(s string, pos int) []int {
 	if pos == 0 {
 		m := r.re.FindStringIndex(s)
@@ -352,8 +353,8 @@ func (r *Regexp) matchWholeAt(s string, pos int) []int {
 	return []int{pos, base + m[1]}
 }
 
-// advanceMatch reports where the next sticky match may start. An empty match
-// moves one rune on, which is how JavaScript's global search advances.
+// advanceMatch は次のstickyの一致を探し始める位置を返す。空の一致は1rune
+// 進める。JavaScriptのグローバル検索も同じ進み方をする。
 func advanceMatch(s string, m []int) int {
 	if m[1] != m[0] {
 		return m[1]
@@ -365,8 +366,8 @@ func advanceMatch(s string, m []int) int {
 	return m[1] + size
 }
 
-// stickyWholeMatches returns the whole match positions a global sticky search
-// visits, in JavaScript's order.
+// stickyWholeMatches はグローバルなsticky検索が訪れる一致全体の位置を、
+// JavaScriptと同じ順に返す。
 func (r *Regexp) stickyWholeMatches(s string) [][]int {
 	var out [][]int
 	for pos := 0; pos <= len(s); {
@@ -380,12 +381,12 @@ func (r *Regexp) stickyWholeMatches(s string) [][]int {
 	return out
 }
 
-// stickyIndexes returns the index rows a global sticky search visits. A pattern
-// that cannot match an empty string keeps Go's FindAll scan and only checks that
-// each match starts where the previous one ended; no empty match can be dropped
-// there, so the scan is complete. Everything else uses the positional search.
+// stickyIndexes はグローバルなsticky検索が訪れる一致の位置列を返す。空一致
+// し得ないパターンはGoのFindAll走査をそのまま使い、各一致が前の一致の終端
+// から始まることだけを確かめる。空一致が落ちる心配がないので走査は完全で
+// ある。それ以外は位置指定の照合を使う。
 func (r *Regexp) stickyIndexes(s string, submatch bool) [][]int {
-	if r.stickyPositional {
+	if r.tail != nil {
 		if submatch {
 			return r.stickySubmatches(s)
 		}
@@ -397,9 +398,9 @@ func (r *Regexp) stickyIndexes(s string, submatch bool) [][]int {
 	return stickyFromScan(r.re.FindAllStringIndex(s, -1))
 }
 
-// stickyFromScan keeps the leading run of matches that starts at the beginning
-// and continues without a gap. It is only used for patterns that cannot match an
-// empty string, so Go's scan has every match the sticky search could reach.
+// stickyFromScan は先頭から途切れずに続く一致だけを残す。空一致し得ない
+// パターンにだけ使い、そのときGoの走査はsticky検索が到達し得る一致をすべて
+// 含んでいる。
 func stickyFromScan(matches [][]int) [][]int {
 	kept := matches[:0]
 	next := 0
@@ -413,7 +414,7 @@ func stickyFromScan(matches [][]int) [][]int {
 	return kept
 }
 
-// stickySubmatches is stickyWholeMatches keeping the capture groups.
+// stickySubmatches は stickyWholeMatches の捕獲付き版。
 func (r *Regexp) stickySubmatches(s string) [][]int {
 	var out [][]int
 	for pos := 0; pos <= len(s); {

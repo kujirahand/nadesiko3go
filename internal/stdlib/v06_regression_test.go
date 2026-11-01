@@ -8,7 +8,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/value"
 )
 
-// v06Call runs one command through the registry, the way the VM does.
+// v06Call はVMと同じように、レジストリ越しに命令を1つ実行する。
 func v06Call(t *testing.T, name string, args ...value.Value) (value.Value, error) {
 	t.Helper()
 	r := stdlib.NewRegistry()
@@ -19,8 +19,8 @@ func v06Call(t *testing.T, name string, args ...value.Value) (value.Value, error
 	return entry.Fn(newContext(), args)
 }
 
-// v06Items renders an array as texts, spelling an undefined item as
-// 『undefined』 so a missing capture is visible in the failure message.
+// v06Items は配列を文字列の並びにする。undefinedの要素は 『undefined』 と書いて、
+// 捕獲が欠けたことを失敗メッセージで見えるようにする。
 func v06Items(t *testing.T, v value.Value) []string {
 	t.Helper()
 	arr, ok := v.Array()
@@ -43,9 +43,9 @@ func v06Items(t *testing.T, v value.Value) []string {
 	return items
 }
 
-// TestV06SplitKeepsCaptures pins JavaScript's String.prototype.split: capture
-// groups sit between the segments, and a group that did not take part is
-// undefined rather than an empty string.
+// TestV06SplitKeepsCaptures はJavaScriptの String.prototype.split を固定する。
+// 捕獲は区切りの断片の間に並び、参加しなかった組は空文字ではなくundefinedに
+// なる。
 func TestV06SplitKeepsCaptures(t *testing.T) {
 	tests := []struct {
 		name, input, pattern string
@@ -74,8 +74,8 @@ func TestV06SplitKeepsCaptures(t *testing.T) {
 	}
 }
 
-// TestV06StickyMatch pins the 『y』 flag: every match has to start where the
-// previous one ended, so a fresh match starts at the beginning of the subject.
+// TestV06StickyMatch は 『y』 フラグを固定する。どの一致も前の一致が終わった位置
+// から始まる必要があり、最初の一致は対象の先頭から探す。
 func TestV06StickyMatch(t *testing.T) {
 	tests := []struct{ name, input, pattern, want string }{
 		{"先頭でなければ一致しない", "ab", "/b/y", "null"},
@@ -97,8 +97,8 @@ func TestV06StickyMatch(t *testing.T) {
 	}
 }
 
-// TestV06StickyReplace pins that a sticky replacement only touches a match
-// that starts where the previous one ended, so 『/a/y』 on 『ba』 changes nothing.
+// TestV06StickyReplace は、stickyの置換が前の一致の終端から始まる一致だけを
+// 対象にすることを固定する。『ba』 に対する 『/a/y』 は何も変えない。
 func TestV06StickyReplace(t *testing.T) {
 	tests := []struct{ name, input, pattern, template, want string }{
 		{"先頭でなければ置換しない", "ba", "/a/y", "X", "ba"},
@@ -119,9 +119,9 @@ func TestV06StickyReplace(t *testing.T) {
 	}
 }
 
-// TestV06StickyNullableCommands pins the command results for a nullable sticky
-// pattern. Go's FindAll drops the empty match right after a match, so a sticky
-// search that trusts it stops too early; the values here are Node's.
+// TestV06StickyNullableCommands は、空一致し得るstickyのパターンで命令が返す値を
+// 固定する。GoのFindAllは一致の直後の空一致を落とすので、それを信じるsticky
+// 検索は途中で止まる。ここに並ぶ期待値はNodeの結果。
 func TestV06StickyNullableCommands(t *testing.T) {
 	tests := []struct {
 		name, input, pattern string
@@ -145,9 +145,9 @@ func TestV06StickyNullableCommands(t *testing.T) {
 	}
 }
 
-// TestV06StickyReplaceKeepsRest pins that a sticky replacement touches only
-// the contiguous matches from the beginning and leaves the rest of the subject
-// alone, including the capture groups of a match that starts after the first.
+// TestV06StickyReplaceKeepsRest は、stickyの置換が先頭から連続する一致だけを
+// 対象にし、残りの文字をそのまま残すことを固定する。2件目以降の一致の捕獲も
+// 同じように扱う。
 func TestV06StickyReplaceKeepsRest(t *testing.T) {
 	tests := []struct{ name, input, pattern, template, want string }{
 		{"一致しない残りはそのまま", "ab ab", "/ab/gy", "X", "X ab"},
@@ -170,7 +170,7 @@ func TestV06StickyReplaceKeepsRest(t *testing.T) {
 	}
 }
 
-// TestV06StickyExtract pins the capture list of 正規表現抽出 for sticky matches.
+// TestV06StickyExtract は、stickyの一致に対する 正規表現抽出 の捕獲一覧を固定する。
 func TestV06StickyExtract(t *testing.T) {
 	got, err := v06Call(t, "正規表現抽出", value.String("1a2b"), value.String(`/(\d)([a-z])/gy`))
 	if err != nil {
@@ -181,9 +181,9 @@ func TestV06StickyExtract(t *testing.T) {
 	}
 }
 
-// TestV06DuplicateFlags pins that a repeated flag is a language error. A fresh
-// RegExp in JavaScript throws a SyntaxError; accepting 『/a/gg』 silently
-// changes the meaning of the pattern.
+// TestV06DuplicateFlags は、重複したフラグを言語のエラーにすることを固定する。
+// JavaScriptでは新しいRegExpがSyntaxErrorを投げる。『/a/gg』 を無言で受理すると
+// 書いた意図と違うパターンが動く。
 func TestV06DuplicateFlags(t *testing.T) {
 	if _, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String("/a/gg")); err == nil {
 		t.Fatal("『/a/gg』はエラーになるべき")
@@ -192,8 +192,8 @@ func TestV06DuplicateFlags(t *testing.T) {
 	}
 }
 
-// TestV06InvalidFlags pins that a flag JavaScript does not know is an error
-// instead of being ignored.
+// TestV06InvalidFlags は、JavaScriptが知らないフラグを無視せずエラーにすることを
+// 固定する。
 func TestV06InvalidFlags(t *testing.T) {
 	if _, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String("/a/zz")); err == nil {
 		t.Fatal("『/a/zz』はエラーになるべき")
@@ -202,9 +202,9 @@ func TestV06InvalidFlags(t *testing.T) {
 	}
 }
 
-// TestV06ConflictingFlags pins that 『u』 and 『v』 cannot be written together,
-// as in JavaScript, and that each one alone is still accepted. This is input
-// validation, so it does not depend on the engine supporting Unicode sets.
+// TestV06ConflictingFlags は、JavaScriptと同じく 『u』 と 『v』 を同時に書けず、
+// 片方だけなら受理されることを固定する。入力の検証なので、エンジンがUnicode
+// 集合演算に対応しているかどうかとは切り離してある。
 func TestV06ConflictingFlags(t *testing.T) {
 	tests := []struct{ pattern, want string }{
 		{"/a/uv", "正規表現『/a/uv』のフラグ『u』と『v』は同時に使えません。"},

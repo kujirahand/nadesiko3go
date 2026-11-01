@@ -6,9 +6,8 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
-// TestV06RegexpLiveCases runs the Issue V06 repro through the VM, in the same
-// spelling the reproduction file uses. Each expected value is the one the
-// TypeScript implementation produces with Node's RegExp.
+// TestV06RegexpLiveCases は、Issue V06 の再現を再現ファイルと同じ書き方でVMに
+// 通す。各期待値はTypeScript実装がNodeのRegExpで出す値。
 func TestV06RegexpLiveCases(t *testing.T) {
 	tests := []struct{ name, code, want string }{
 		{"区切の捕獲", `「a,b」を「/(,)/」で正規表現区切をJSONエンコードして表示`, `["a",",","b"]`},
@@ -41,8 +40,8 @@ func TestV06RegexpLiveCases(t *testing.T) {
 	}
 }
 
-// TestV06FlagErrors pins the message a duplicate, unknown or conflicting flag
-// produces. A Go error leaking out would not name the flag.
+// TestV06FlagErrors は、重複・未知・同時指定不可のフラグが出すメッセージを
+// 固定する。Goのエラーがそのまま漏れるとフラグ名が出ない。
 func TestV06FlagErrors(t *testing.T) {
 	tests := []struct{ name, code, want string }{
 		{
