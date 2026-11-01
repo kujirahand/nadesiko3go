@@ -139,3 +139,28 @@ func TestV06InvalidFlags(t *testing.T) {
 		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
 	}
 }
+
+// TestV06ConflictingFlags pins that 『u』 and 『v』 cannot be written together,
+// as in JavaScript, and that each one alone is still accepted. This is input
+// validation, so it does not depend on the engine supporting Unicode sets.
+func TestV06ConflictingFlags(t *testing.T) {
+	tests := []struct{ pattern, want string }{
+		{"/a/uv", "正規表現『/a/uv』のフラグ『u』と『v』は同時に使えません。"},
+		{"/a/vu", "正規表現『/a/vu』のフラグ『v』と『u』は同時に使えません。"},
+		{"/a/guv", "正規表現『/a/guv』のフラグ『u』と『v』は同時に使えません。"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			if _, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String(tt.pattern)); err == nil {
+				t.Fatalf("『%s』はエラーになるべき", tt.pattern)
+			} else if err.Error() != tt.want {
+				t.Errorf("Error()\n got %q\nwant %q", err.Error(), tt.want)
+			}
+		})
+	}
+	for _, pattern := range []string{"/a/u", "/a/v"} {
+		if _, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String(pattern)); err != nil {
+			t.Errorf("『%s』は通るべき: %v", pattern, err)
+		}
+	}
+}

@@ -33,8 +33,8 @@ func TestV06RegexpLiveCases(t *testing.T) {
 	}
 }
 
-// TestV06FlagErrors pins the message a duplicate or unknown flag produces. A
-// Go error leaking out would not name the flag.
+// TestV06FlagErrors pins the message a duplicate, unknown or conflicting flag
+// produces. A Go error leaking out would not name the flag.
 func TestV06FlagErrors(t *testing.T) {
 	tests := []struct{ name, code, want string }{
 		{
@@ -46,6 +46,11 @@ func TestV06FlagErrors(t *testing.T) {
 			"不正フラグ",
 			`「a」を「/a/zz」で正規表現マッチを表示。`,
 			"[実行時エラー]main.nako3(1行目): 正規表現『/a/zz』のフラグ『z』は使えません。",
+		},
+		{
+			"uとvの同時指定",
+			`「a」を「/a/uv」で正規表現マッチを表示。`,
+			"[実行時エラー]main.nako3(1行目): 正規表現『/a/uv』のフラグ『u』と『v』は同時に使えません。",
 		},
 	}
 	for _, tt := range tests {

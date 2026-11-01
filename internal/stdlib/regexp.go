@@ -136,6 +136,9 @@ func compilePattern(pattern string) (*re.Regexp, error) {
 		if flagErr.Duplicate {
 			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』が重複しています。")
 		}
+		if flagErr.Conflict != 0 {
+			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』と『" + string(flagErr.Conflict) + "』は同時に使えません。")
+		}
 		return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
 	}
 	if err != nil {

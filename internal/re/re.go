@@ -24,16 +24,23 @@ import (
 var ErrUnsupported = errors.New("この正規表現はまだ対応していません")
 
 // FlagError reports a flag JavaScript rejects in the 『/pattern/flags』 form:
-// a letter it does not know, or one that already appeared. Both are a
-// SyntaxError in JavaScript, so they are a language error here too.
+// a letter it does not know, one that already appeared, or a pair that cannot
+// be written together. All of them are a SyntaxError in JavaScript, so they
+// are a language error here too.
 type FlagError struct {
 	Flag      byte
 	Duplicate bool
+	// Conflict is the other flag of a pair JavaScript refuses. 『u』 and 『v』
+	// each select Unicode mode, so only one may appear.
+	Conflict byte
 }
 
 func (e *FlagError) Error() string {
-	if e.Duplicate {
+	switch {
+	case e.Duplicate:
 		return "正規表現のフラグ『" + string(e.Flag) + "』が重複しています"
+	case e.Conflict != 0:
+		return "正規表現のフラグ『" + string(e.Flag) + "』と『" + string(e.Conflict) + "』は同時に使えません"
 	}
 	return "正規表現のフラグ『" + string(e.Flag) + "』は使えません"
 }
@@ -137,7 +144,8 @@ func Compile(pattern string) (*Regexp, error) {
 
 // validateFlags rejects what JavaScript rejects in a flag list. A repeated flag
 // is a SyntaxError there, and so is an unknown letter; ignoring either would
-// run a pattern with a meaning nobody wrote.
+// run a pattern with a meaning nobody wrote. 『u』 and 『v』 both select Unicode
+// mode, so writing both is refused as well.
 func validateFlags(flags string) error {
 	var seen [256]bool
 	for i := 0; i < len(flags); i++ {
@@ -149,6 +157,12 @@ func validateFlags(flags string) error {
 			return &FlagError{Flag: f, Duplicate: true}
 		}
 		seen[f] = true
+	}
+	if iu, iv := strings.IndexByte(flags, 'u'), strings.IndexByte(flags, 'v'); iu >= 0 && iv >= 0 {
+		if iu < iv {
+			return &FlagError{Flag: 'u', Conflict: 'v'}
+		}
+		return &FlagError{Flag: 'v', Conflict: 'u'}
 	}
 	return nil
 }

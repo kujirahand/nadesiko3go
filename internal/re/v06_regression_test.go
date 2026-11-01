@@ -101,8 +101,8 @@ func TestV06StickyReplace(t *testing.T) {
 	}
 }
 
-// TestV06FlagErrors pins that a repeated or unknown flag is reported with the
-// offending letter, which is what the language error names.
+// TestV06FlagErrors pins that a repeated, unknown or conflicting flag is
+// reported with the offending letter, which is what the language error names.
 func TestV06FlagErrors(t *testing.T) {
 	_, err := re.Compile("/a/gg")
 	var flagErr *re.FlagError
@@ -113,8 +113,17 @@ func TestV06FlagErrors(t *testing.T) {
 	if !errors.As(err, &flagErr) || flagErr.Duplicate || flagErr.Flag != 'z' {
 		t.Errorf(`Compile("/a/zz") = %v, want unknown z`, err)
 	}
+	// 『u』と『v』はどちらもUnicodeモードを選ぶので、同時には書けない
+	_, err = re.Compile("/a/uv")
+	if !errors.As(err, &flagErr) || flagErr.Duplicate || flagErr.Flag != 'u' || flagErr.Conflict != 'v' {
+		t.Errorf(`Compile("/a/uv") = %v, want u and v in conflict`, err)
+	}
+	_, err = re.Compile("/a/vu")
+	if !errors.As(err, &flagErr) || flagErr.Duplicate || flagErr.Flag != 'v' || flagErr.Conflict != 'u' {
+		t.Errorf(`Compile("/a/vu") = %v, want v and u in conflict`, err)
+	}
 	// JavaScriptが受け付けるフラグはそのまま通す
-	for _, pattern := range []string{"/a/dgimsuvy", "/a/i", "/a/gy"} {
+	for _, pattern := range []string{"/a/dgimsy", "/a/i", "/a/gy", "/a/u", "/a/v"} {
 		if _, err := re.Compile(pattern); err != nil {
 			t.Errorf("Compile(%q) = %v, want no error", pattern, err)
 		}
