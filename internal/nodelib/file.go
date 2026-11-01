@@ -390,8 +390,11 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 
 // checkMoveTarget は、移動元 src と移動先 dest の関係を調べ、移動先が
 // 移動元と同一実体またはその子孫にある場合はエラーを返す。
-// 移動先から祖先を深い方へ順に辿り、移動元と同一の実体にぶつかったら
-// 拒否する。os.Stat がシンボリックリンクを実体へ解決し、大小文字を
+// 移動先の実在する最長の先祖までシンボリックリンクを解決してから、
+// 祖先を深い方へ順に辿り、移動元と同一の実体にぶつかったら拒否する。
+// 解決せずに文字列の親を辿ると、移動先の祖先だけがシンボリックリンクで
+// 末尾が未作成の場合（link/new など）に、リンクが指す実体が移動元の内側に
+// あることを見落とす。os.Stat がシンボリックリンクを実体へ解決し、大小文字を
 // 区別しないファイルシステムでは表記違いのパスも同一実体として返る
 // ため、文字列表記の比較では捕捉できない経路も検出できる (#186, #195)。
 func checkMoveTarget(src, dest string) error {
@@ -403,31 +406,22 @@ func checkMoveTarget(src, dest string) error {
 		return nil // 読み取り可否の報告は copyMergeWithProgress が行う
 	}
 	// 相対パスのままでは祖先走査が「.」(作業フォルダ)で止まり、その上位の
-	// 実祖先や「..」の先を検査できないため、必ず絶対パスにしてから辿る
-	abs, err := filepath.Abs(dest)
-	if err != nil {
-		abs = filepath.Clean(dest)
-	}
-	paths := []string{abs}
-	// 移動先自身がシンボリックリンクのとき、Stat はリンク先の実体を返す。
-	// リンク先が移動元の内側にある場合を捕捉するため、解決後の実パスも調べる。
-	if resolved, err := filepath.EvalSymlinks(abs); err == nil && resolved != abs {
-		paths = append(paths, resolved)
-	}
-	for _, p := range paths {
-		for cur, first := p, true; ; first = false {
-			if info, err := os.Stat(cur); err == nil && os.SameFile(srcInfo, info) {
-				if first {
-					return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
-				}
-				return fmt.Errorf("ファイル移動先は移動元の内側です: %s → %s", src, dest)
+	// 実祖先や「..」の先を検査できない。resolveExisting は絶対パス化したうえで
+	// 実在する最長の先祖のシンボリックリンクを解決し、未作成の末尾を連結する
+	// (zip.go。圧縮先が圧縮元の内側かの判定と同じ実体パスの求め方)。
+	realDest := resolveExisting(dest)
+	for cur, first := realDest, true; ; first = false {
+		if info, err := os.Stat(cur); err == nil && os.SameFile(srcInfo, info) {
+			if first {
+				return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)
 			}
-			parent := filepath.Dir(cur)
-			if parent == cur {
-				break
-			}
-			cur = parent
+			return fmt.Errorf("ファイル移動先は移動元の内側です: %s → %s", src, dest)
 		}
+		parent := filepath.Dir(cur)
+		if parent == cur {
+			break
+		}
+		cur = parent
 	}
 	return nil
 }
