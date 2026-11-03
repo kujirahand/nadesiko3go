@@ -9,8 +9,8 @@
 package event
 
 import (
+	"container/heap"
 	"errors"
-	"sort"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/host"
@@ -26,13 +26,63 @@ type timer struct {
 	interval time.Duration // 0 なら単発
 	callback host.CallbackID
 	seq      uint64 // 同じ時刻に積まれたものの順序
+
+	// ヒープ内の位置。-1 は未収容。要素を任意の位置から O(log n) で外すために持つ。
+	inAll  int
+	inOnce int
+}
+
+// timerHeap は予定時刻、続いて登録順でタイマーを並べる。
+// Cancel で中央の要素を除去できるよう、各要素の位置を書き戻す。
+type timerHeap struct {
+	items []*timer
+	pos   func(*timer) *int
+}
+
+func (h *timerHeap) Len() int { return len(h.items) }
+
+func (h *timerHeap) Less(i, j int) bool {
+	a, b := h.items[i], h.items[j]
+	if !a.at.Equal(b.at) {
+		return a.at.Before(b.at)
+	}
+	return a.seq < b.seq
+}
+
+func (h *timerHeap) Swap(i, j int) {
+	h.items[i], h.items[j] = h.items[j], h.items[i]
+	*h.pos(h.items[i]) = i
+	*h.pos(h.items[j]) = j
+}
+
+func (h *timerHeap) Push(x any) {
+	t := x.(*timer)
+	*h.pos(t) = len(h.items)
+	h.items = append(h.items, t)
+}
+
+func (h *timerHeap) Pop() any {
+	n := len(h.items) - 1
+	t := h.items[n]
+	h.items[n] = nil
+	h.items = h.items[:n]
+	*h.pos(t) = -1
+	return t
 }
 
 // Loop is the timer queue. It is not safe for concurrent use, which is the
 // point: a single thread of control keeps the order observable.
 type Loop struct {
-	now    time.Time
-	queue  []*timer
+	now time.Time
+
+	// all holds every timer and oneShots only the one-shot ones, both in the
+	// same time-then-seq order. RunUntil drains all, RunUntilIdle pops oneShots
+	// so that a repeating timer at the head never needs a linear scan.
+	// byID makes Cancel independent of the queue size.
+	all      timerHeap
+	oneShots timerHeap
+	byID     map[host.TimerID]*timer
+
 	nextID host.TimerID
 	seq    uint64
 
@@ -95,7 +145,14 @@ const DefaultMaxCallbacks = 100000
 
 // New creates a loop whose virtual clock starts at start.
 func New(start time.Time) *Loop {
-	return &Loop{now: start, MaxCallbacks: DefaultMaxCallbacks}
+	l := &Loop{
+		now:          start,
+		byID:         make(map[host.TimerID]*timer),
+		MaxCallbacks: DefaultMaxCallbacks,
+	}
+	l.all.pos = func(t *timer) *int { return &t.inAll }
+	l.oneShots.pos = func(t *timer) *int { return &t.inOnce }
+	return l
 }
 
 // Now reports the virtual time. Commands that read the clock must go through
@@ -119,38 +176,51 @@ func (l *Loop) PostEvery(at time.Time, interval time.Duration, callback host.Cal
 func (l *Loop) schedule(at time.Time, interval time.Duration, callback host.CallbackID) host.TimerID {
 	l.nextID++
 	l.seq++
-	t := &timer{id: l.nextID, at: at, interval: interval, callback: callback, seq: l.seq}
-	l.queue = append(l.queue, t)
-	l.sortQueue()
+	t := &timer{
+		id:       l.nextID,
+		at:       at,
+		interval: interval,
+		callback: callback,
+		seq:      l.seq,
+		inAll:    -1,
+		inOnce:   -1,
+	}
+	l.byID[t.id] = t
+	heap.Push(&l.all, t)
+	if interval == 0 {
+		heap.Push(&l.oneShots, t)
+	}
 	return t.id
 }
 
-// sortQueue orders by time, then by the order the timers were posted.
-func (l *Loop) sortQueue() {
-	sort.SliceStable(l.queue, func(i, j int) bool {
-		if !l.queue[i].at.Equal(l.queue[j].at) {
-			return l.queue[i].at.Before(l.queue[j].at)
-		}
-		return l.queue[i].seq < l.queue[j].seq
-	})
+// remove takes one timer out of both heaps and the index.
+func (l *Loop) remove(t *timer) {
+	heap.Remove(&l.all, t.inAll)
+	if t.inOnce >= 0 {
+		heap.Remove(&l.oneShots, t.inOnce)
+	}
+	delete(l.byID, t.id)
 }
 
 // Cancel removes a timer. It reports whether there was one to remove.
 func (l *Loop) Cancel(id host.TimerID) bool {
-	for i, t := range l.queue {
-		if t.id == id {
-			l.queue = append(l.queue[:i], l.queue[i+1:]...)
-			return true
-		}
+	t, ok := l.byID[id]
+	if !ok {
+		return false
 	}
-	return false
+	l.remove(t)
+	return true
 }
 
 // CancelAll removes every timer.
-func (l *Loop) CancelAll() { l.queue = nil }
+func (l *Loop) CancelAll() {
+	l.all.items = nil
+	l.oneShots.items = nil
+	clear(l.byID)
+}
 
 // Pending reports how many timers are still scheduled.
-func (l *Loop) Pending() int { return len(l.queue) }
+func (l *Loop) Pending() int { return len(l.byID) }
 
 // Dispatch runs one callback. The loop calls it and stops on the first error.
 type Dispatch func(host.CallbackID) error
@@ -194,21 +264,19 @@ func (l *Loop) RunUntilIdle(dispatch Dispatch) error {
 
 // nextDue returns the earliest scheduled timer, or nil when the queue is empty.
 func (l *Loop) nextDue() *timer {
-	if len(l.queue) == 0 {
+	if l.all.Len() == 0 {
 		return nil
 	}
-	return l.queue[0]
+	return l.all.items[0]
 }
 
 // nextDueOneShot returns the earliest one-shot still scheduled, skipping the
 // repeating timers that would otherwise hide everything queued behind them.
 func (l *Loop) nextDueOneShot() *timer {
-	for _, t := range l.queue {
-		if t.interval == 0 {
-			return t
-		}
+	if l.oneShots.Len() == 0 {
+		return nil
 	}
-	return nil
+	return l.oneShots.items[0]
 }
 
 // runOne advances the clock to a timer's time and dispatches it, re-scheduling
@@ -228,9 +296,9 @@ func (l *Loop) runOne(t *timer, dispatch Dispatch) error {
 		t.at = t.at.Add(t.interval)
 		l.seq++
 		t.seq = l.seq
-		l.sortQueue()
+		heap.Fix(&l.all, t.inAll)
 	} else {
-		l.Cancel(t.id)
+		l.remove(t)
 	}
 	return dispatch(t.callback)
 }
