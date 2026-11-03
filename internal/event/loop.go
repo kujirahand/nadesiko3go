@@ -32,8 +32,8 @@ type timer struct {
 	inOnce int
 }
 
-// timerHeap orders timers by time, then by the order they were posted. Write
-// back each element's position so that Cancel can remove one from the middle.
+// timerHeap は予定時刻、続いて登録順でタイマーを並べる。
+// Cancel で中央の要素を除去できるよう、各要素の位置を書き戻す。
 type timerHeap struct {
 	items []*timer
 	pos   func(*timer) *int
