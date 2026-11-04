@@ -73,17 +73,17 @@ func TestV06StickyFind(t *testing.T) {
 	if match, ok := mustCompile(t, "/b/y").Find("ba"); !ok || match.Text != "b" {
 		t.Errorf(`/b/y の "ba" = %#v (ok=%v), want "b"`, match, ok)
 	}
-	if got, want := mustCompile(t, "/ab/gy").FindAll("abab"), []string{"ab", "ab"}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, mustCompile(t, "/ab/gy"), "abab"), []string{"ab", "ab"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %v, want %v", got, want)
 	}
 	// 途切れたらそこで止まる。空の一致のあとは1文字ぶん進む。
-	if got, want := mustCompile(t, "/ab/gy").FindAll("ab ab"), []string{"ab"}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, mustCompile(t, "/ab/gy"), "ab ab"), []string{"ab"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %v, want %v", got, want)
 	}
-	if got, want := mustCompile(t, "/(?:)/gy").FindAll("abc"), []string{"", "", "", ""}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, mustCompile(t, "/(?:)/gy"), "abc"), []string{"", "", "", ""}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %q, want %q", got, want)
 	}
-	if got, want := mustCompile(t, "/ab/g").FindAll("ab ab"), []string{"ab", "ab"}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, mustCompile(t, "/ab/g"), "ab ab"), []string{"ab", "ab"}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %v, want %v", got, want)
 	}
 }
@@ -97,7 +97,7 @@ func TestV06StickyReplace(t *testing.T) {
 		{"/a/gy", "aba", "Xba"},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).Replace(tt.input, "X"); got != tt.want {
+		if got := mustReplace(t, mustCompile(t, tt.pattern), tt.input, "X"); got != tt.want {
 			t.Errorf("Replace(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -121,7 +121,7 @@ func TestV06StickyNullable(t *testing.T) {
 		{`/\d*/gy`, "a1b", []string{"", "1", "", ""}},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -145,7 +145,7 @@ func TestV06StickyContext(t *testing.T) {
 		{"/a|b$/gy", "ab", []string{"a", "b"}},           // 2件目の$は文字列の終端
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -166,7 +166,7 @@ func TestV06StickyCaptureAndReplace(t *testing.T) {
 		{"/a*|b/gy", "ab", "X", "XXbX"},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).Replace(tt.input, tt.template); got != tt.want {
+		if got := mustReplace(t, mustCompile(t, tt.pattern), tt.input, tt.template); got != tt.want {
 			t.Errorf("Replace(%q, %q, %q) = %q, want %q", tt.pattern, tt.input, tt.template, got, tt.want)
 		}
 	}
@@ -185,7 +185,7 @@ func TestV06StickyRuneBased(t *testing.T) {
 		{"/a*/gy", "𩸽あ", []string{"", "", ""}},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -233,7 +233,7 @@ func TestV06StickyNonEmptyFastPath(t *testing.T) {
 		{"/a+\\b/gy", "aa bb", []string{"aa"}}, // \bを含むので位置指定側
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -255,7 +255,7 @@ func TestV06StickyEmptySubject(t *testing.T) {
 		{`/\b/gy`, "", nil},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -275,15 +275,15 @@ func TestV06StickyWordBoundaryIsPositional(t *testing.T) {
 		{`/a+\b/gy`, "aa bb", []string{"aa"}},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
 }
 
 // TestV06StickyConcurrentReuse は、1つのコンパイル済みパターンを複数のgoroutine
-// から同時に使えることを固定する。照合経路で使う派生パターンはCompileで
-// 作り切るので、照合は読み取りだけになる。
+// から同時に使えることを固定する。照合経路で使う派生パターンは、初めて必要に
+// なったときに一度だけ作り、それ以降の照合は読み取りだけになる。
 func TestV06StickyConcurrentReuse(t *testing.T) {
 	positional := mustCompile(t, "/a*|b/gy")
 	fast := mustCompile(t, "/a+/gy")
@@ -294,21 +294,45 @@ func TestV06StickyConcurrentReuse(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < 100; j++ {
-				if got, want := positional.FindAll("ab"), []string{"a", "", ""}; !reflect.DeepEqual(got, want) {
+				got, err := positional.FindAll("ab")
+				if err != nil {
+					t.Errorf("位置指定検索のFindAll: %v", err)
+					return
+				}
+				if want := []string{"a", "", ""}; !reflect.DeepEqual(got, want) {
 					t.Errorf("位置指定検索のFindAll = %q, want %q", got, want)
 					return
 				}
-				if got, want := fast.FindAll("aaab"), []string{"aaa"}; !reflect.DeepEqual(got, want) {
+				got, err = fast.FindAll("aaab")
+				if err != nil {
+					t.Errorf("走査経路のFindAll: %v", err)
+					return
+				}
+				if want := []string{"aaa"}; !reflect.DeepEqual(got, want) {
 					t.Errorf("走査経路のFindAll = %q, want %q", got, want)
 					return
 				}
-				if got, want := context.FindAll("a b"), []string{"a", " ", "b"}; !reflect.DeepEqual(got, want) {
+				got, err = context.FindAll("a b")
+				if err != nil {
+					t.Errorf("文脈付き検索のFindAll: %v", err)
+					return
+				}
+				if want := []string{"a", " ", "b"}; !reflect.DeepEqual(got, want) {
 					t.Errorf("文脈付き検索のFindAll = %q, want %q", got, want)
 					return
 				}
-				positional.Replace("ab", "X")
-				fast.FindAllMatches("aaab")
-				context.Replace("a b", "X")
+				if _, err := positional.Replace("ab", "X"); err != nil {
+					t.Errorf("位置指定検索のReplace: %v", err)
+					return
+				}
+				if _, err := fast.FindAllMatches("aaab"); err != nil {
+					t.Errorf("走査経路のFindAllMatches: %v", err)
+					return
+				}
+				if _, err := context.Replace("a b", "X"); err != nil {
+					t.Errorf("文脈付き検索のReplace: %v", err)
+					return
+				}
 			}
 		}()
 	}
@@ -334,7 +358,7 @@ func TestV06StickyTextScanBoundary(t *testing.T) {
 		{"/[a-z]+/gy", "abc123def", []string{"abc"}},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -350,20 +374,20 @@ func TestV06StickyTextScanRetention(t *testing.T) {
 	r := mustCompile(t, "/a/gy")
 
 	// 途中で途切れる: 結果は先頭の1件、容量はその1件分まで
-	if got := r.FindAll(middle); !reflect.DeepEqual(got, []string{"a"}) {
+	if got := mustFindAll(t, r, middle); !reflect.DeepEqual(got, []string{"a"}) {
 		t.Errorf("途中で途切れるFindAll = %q, want [a]", got)
 	}
-	if got := r.FindAll(middle); cap(got) > 1 {
+	if got := mustFindAll(t, r, middle); cap(got) > 1 {
 		t.Errorf("途中で途切れるFindAllの容量 = %d, want 1以下", cap(got))
 	}
 
 	// 先頭で途切れる: nil
-	if got := r.FindAll(first); got != nil {
+	if got := mustFindAll(t, r, first); got != nil {
 		t.Errorf("先頭で途切れるFindAll = %v, want nil", got)
 	}
 
 	// 最後まで連続する: 全件返す
-	if got := r.FindAll(strings.Repeat("a", 100)); len(got) != 100 {
+	if got := mustFindAll(t, r, strings.Repeat("a", 100)); len(got) != 100 {
 		t.Errorf("全部連続するFindAllの件数 = %d, want 100", len(got))
 	}
 }
@@ -378,14 +402,14 @@ func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 		t.Fatalf("Compile: %v", err)
 	}
 	// Goの正規表現では 『\Q』 だけで空に一致するパターンになる
-	if got, want := r.FindAll("abc"), []string{"", "", "", ""}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, r, "abc"), []string{"", "", "", ""}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %q, want %q", got, want)
 	}
-	if got := r.FindAllMatches("abc"); len(got) != 4 {
+	if got := mustFindAllMatches(t, r, "abc"); len(got) != 4 {
 		t.Errorf("FindAllMatchesの件数 = %d, want 4", len(got))
 	}
 	// 末尾の一致も位置指定の照合を通る
-	if got, want := r.FindAll("a"), []string{"", ""}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, r, "a"), []string{"", ""}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll(a) = %q, want %q", got, want)
 	}
 	// 引用の閉じ方（閉じた引用、エスケープされた円記号、開いた引用の連続）で
@@ -401,7 +425,7 @@ func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 		{`/\Q)\Q/gy`, ")x", nil},
 	}
 	for _, tt := range variants {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -413,7 +437,7 @@ func TestV06StickyQuotedPatternDoesNotPanic(t *testing.T) {
 // Nodeの実行結果（uフラグ相当のrune基準）に合わせている。
 func TestV06SuffixContextFree(t *testing.T) {
 	r := mustCompile(t, "/(あ)?(?<n>い?)/gy")
-	if got, want := r.FindAll("あいう"), []string{"あい", "", ""}; !reflect.DeepEqual(got, want) {
+	if got, want := mustFindAll(t, r, "あいう"), []string{"あい", "", ""}; !reflect.DeepEqual(got, want) {
 		t.Errorf("FindAll = %q, want %q", got, want)
 	}
 	wantMatches := []struct {
@@ -424,7 +448,7 @@ func TestV06SuffixContextFree(t *testing.T) {
 		{"", []re.Group{{Ok: false}, {Text: "", Ok: true}}},
 		{"", []re.Group{{Ok: false}, {Text: "", Ok: true}}},
 	}
-	got := r.FindAllMatches("あいう")
+	got := mustFindAllMatches(t, r, "あいう")
 	if len(got) != len(wantMatches) {
 		t.Fatalf("FindAllMatchesの件数 = %d, want %d", len(got), len(wantMatches))
 	}
@@ -434,10 +458,10 @@ func TestV06SuffixContextFree(t *testing.T) {
 		}
 	}
 	// 置換は一致全体と組の位置をともに元の座標で見る
-	if got, want := r.Replace("あいう", "<$1:$<n>>"), "<あ:い><:>う<:>"; got != want {
+	if got, want := mustReplace(t, r, "あいう", "<$1:$<n>>"), "<あ:い><:>う<:>"; got != want {
 		t.Errorf("Replace(部分一致) = %q, want %q", got, want)
 	}
-	if got, want := r.Replace("あいう", "[$`|$'|$&]"), "[|う|あい][あい|う|]う[あいう||]"; got != want {
+	if got, want := mustReplace(t, r, "あいう", "[$`|$'|$&]"), "[|う|あい][あい|う|]う[あいう||]"; got != want {
 		t.Errorf("Replace($`と$') = %q, want %q", got, want)
 	}
 	// 区切りはg/yに依存しない
@@ -459,7 +483,7 @@ func TestV06SuffixDepthContextFree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("depth=%d のCompile: %v", depth, err)
 		}
-		if got, want := r.FindAll("a"), []string{"a", ""}; !reflect.DeepEqual(got, want) {
+		if got, want := mustFindAll(t, r, "a"), []string{"a", ""}; !reflect.DeepEqual(got, want) {
 			t.Errorf("depth=%d FindAll = %q, want %q", depth, got, want)
 		}
 		match, ok := r.Find("a")
@@ -471,7 +495,7 @@ func TestV06SuffixDepthContextFree(t *testing.T) {
 				t.Fatalf("depth=%d Findの%d組目 = %#v, want \"a\"", depth, i, group)
 			}
 		}
-		matches := r.FindAllMatches("a")
+		matches := mustFindAllMatches(t, r, "a")
 		if len(matches) != 2 {
 			t.Fatalf("depth=%d FindAllMatchesの件数 = %d, want 2", depth, len(matches))
 		}
@@ -484,7 +508,7 @@ func TestV06SuffixDepthContextFree(t *testing.T) {
 				t.Fatalf("depth=%d 末尾の%d組目 = %#v, want 参加した空文字", depth, i, group)
 			}
 		}
-		if got, want := r.Replace("a", "<$1>"), "<a><>"; got != want {
+		if got, want := mustReplace(t, r, "a", "<$1>"), "<a><>"; got != want {
 			t.Errorf("depth=%d Replace = %q, want %q", depth, got, want)
 		}
 		parts := r.Split("a")
@@ -505,7 +529,7 @@ func TestV06SuffixDepthContextFree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("depth=%d のgだけのCompile: %v", depth, err)
 		}
-		if got, want := global.FindAll("a"), []string{"a"}; !reflect.DeepEqual(got, want) {
+		if got, want := mustFindAll(t, global, "a"), []string{"a"}; !reflect.DeepEqual(got, want) {
 			t.Errorf("depth=%d gだけのFindAll = %q, want %q", depth, got, want)
 		}
 	}
@@ -535,38 +559,70 @@ func TestV06DeepLiteralTokensStayContextFree(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: Compile: %v", tt.name, err)
 		}
-		if got := r.FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, r, tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("%s: FindAll = %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }
 
-// TestV06DeepContextStillRejected は、本当に前後の文字を見るアサーションを
-// 含む深いパターンを、明示的な言語エラーとして返すことを固定する。派生
-// パターンは元より深くなるので、元のコンパイルが成功しても作れないことが
-// ある。これは未受入の残余制約であり、黙って一致なしに潰さない。
-func TestV06DeepContextStillRejected(t *testing.T) {
+// TestV06DeepContextTailDeferred は、本当に前後の文字を見るアサーションを
+// 含む深いパターンの扱いを固定する。派生パターンは元より深くなるので、元の
+// コンパイルが成功しても作れないことがある。ただし派生パターンは使う操作で
+// 初めて作るので、Compile自体は成功し、区切や先頭だけの照合・置換のように
+// 使わない経路は成功する。使う経路では、入力によらず照合を始める前に同じ
+// StickyVariantError を返す。これは残る制約であり、黙って一致なしに潰さない。
+func TestV06DeepContextTailDeferred(t *testing.T) {
 	const depth = 997
-	for _, inner := range []string{"a?$", `a?\b`} {
-		body := strings.Repeat("(", depth) + inner + strings.Repeat(")", depth)
-		_, err := re.Compile("/" + body + "/y")
+	checkVariantErr := func(inner, name string, err error) {
+		t.Helper()
 		var variantErr *re.StickyVariantError
 		if !errors.As(err, &variantErr) {
-			t.Fatalf("inner=%q のy付きCompile = %v, want StickyVariantError", inner, err)
+			t.Fatalf("inner=%q の%s = %v, want StickyVariantError", inner, name, err)
 		}
 		if !variantErr.Depth {
-			t.Errorf("inner=%q のStickyVariantError.Depth = false, want true", inner)
+			t.Errorf("inner=%q の%sのStickyVariantError.Depth = false, want true", inner, name)
 		}
 		var syntaxErr *syntax.Error
 		if !errors.As(err, &syntaxErr) || syntaxErr.Code != syntax.ErrNestingDepth {
-			t.Errorf("inner=%q の原因 = %v, want ErrNestingDepth", inner, variantErr.Cause)
+			t.Errorf("inner=%q の%sの原因 = %v, want ErrNestingDepth", inner, name, variantErr.Cause)
 		}
+	}
+	for _, inner := range []string{"a?$", `a?\b`} {
+		body := strings.Repeat("(", depth) + inner + strings.Repeat(")", depth)
+		r, err := re.Compile("/" + body + "/y")
+		if err != nil {
+			t.Fatalf("inner=%q のy付きCompile: %v", inner, err)
+		}
+		// 派生パターンを使わない経路は成功する
+		if match, ok := r.Find("a"); !ok || match.Text != "a" {
+			t.Errorf("inner=%q のFind = %#v (ok=%v), want \"a\"", inner, match, ok)
+		}
+		if parts := r.Split("a"); len(parts) != depth+2 {
+			t.Errorf("inner=%q のSplitの件数 = %d, want %d", inner, len(parts), depth+2)
+		}
+		if got, err := r.Replace("a", "<$1>"); err != nil || got != "<a>" {
+			t.Errorf("inner=%q の非global置換 = %q, %v, want \"<a>\"", inner, got, err)
+		}
+		// 派生パターンが要る経路は、照合を始める前にエラーを返す。先頭で
+		// 一致しない入力でも、結果が入力次第で揺れないよう同じエラーにする
+		_, err = r.FindAll("a")
+		checkVariantErr(inner, "FindAll", err)
+		_, err = r.FindAll("b")
+		checkVariantErr(inner, "FindAll(一致なし)", err)
+		_, err = r.FindAllMatches("a")
+		checkVariantErr(inner, "FindAllMatches", err)
+		gy, err := re.Compile("/" + body + "/gy")
+		if err != nil {
+			t.Fatalf("inner=%q のgy付きCompile: %v", inner, err)
+		}
+		_, err = gy.Replace("a", "X")
+		checkVariantErr(inner, "global置換", err)
 		// 同じパターンでも、stickyでなければ派生パターンを作らないので成功する
 		global, err := re.Compile("/" + body + "/g")
 		if err != nil {
 			t.Fatalf("inner=%q のg付きCompile: %v", inner, err)
 		}
-		if got, want := global.FindAll("a"), []string{"a"}; !reflect.DeepEqual(got, want) {
+		if got, want := mustFindAll(t, global, "a"), []string{"a"}; !reflect.DeepEqual(got, want) {
 			t.Errorf("inner=%q のg付きFindAll = %q, want %q", inner, got, want)
 		}
 	}
@@ -585,7 +641,7 @@ func TestV06ContextAbsoluteAssertions(t *testing.T) {
 		{`/\b\Q/gy`, "a", []string{"", ""}},
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).FindAll(tt.input); !reflect.DeepEqual(got, tt.want) {
+		if got := mustFindAll(t, mustCompile(t, tt.pattern), tt.input); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("FindAll(%q, %q) = %q, want %q", tt.pattern, tt.input, got, tt.want)
 		}
 	}
@@ -627,5 +683,22 @@ func TestV06NonASCIIFlagRejected(t *testing.T) {
 		if _, err := re.Compile(pattern); err != nil {
 			t.Errorf("%s は通るべき: %v", pattern, err)
 		}
+	}
+}
+
+// TestV06StickyScanRetention は、走査経路（stickyFromScan）で途中に途切れが
+// あるとき、走査結果の大きなbackingを返り値が保持しないことを固定する。
+// 文脈を見るアサーションを含むので textScan には入らず、位置指定も要らない
+// 走査経路を通るパターンで確かめる。その経路選択自体は、内部テストの
+// TestV06StickyModeRouting が同じ `/a\B/gy` で stickyScan・textScan=false と
+// 固定している。
+func TestV06StickyScanRetention(t *testing.T) {
+	r := mustCompile(t, `/a\B/gy`)
+	got := mustFindAll(t, r, "aaX"+strings.Repeat("a", 65536))
+	if !reflect.DeepEqual(got, []string{"a", "a"}) {
+		t.Fatalf("途中で途切れるFindAll = %q, want [a a]", got)
+	}
+	if cap(got) > 2 {
+		t.Errorf("途中で途切れるFindAllの容量 = %d, want 2以下", cap(got))
 	}
 }
