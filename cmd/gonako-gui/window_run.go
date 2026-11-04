@@ -11,7 +11,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,11 +101,8 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 		sourceName = "gui.nako3"
 	}
 	session := &guiSession{}
-	html := ""
-	server, err := startOwnedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(html))
-	}))
+	page := &ownedPageHandler{}
+	server, err := startOwnedServer(page)
 	if err != nil {
 		showMessageWindow(title, fmt.Sprintf("ローカルサーバーを起動できません: %v", err))
 		return
@@ -119,8 +115,6 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 	}
 	defer tw.Close()
 	session.window = newNativeWindowController(tw.Window)
-	runID := session.start(string(data), sourceName, true, nil, nil)
-	html = bundledAsyncProgramPage(runID)
 	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
@@ -135,11 +129,15 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 	_ = tw.Window.Bind("closeBundledWindow", func() {
 		tw.Window.Terminate()
 	})
+	// Bindの失敗はプログラムを走らせる前に返す。ここで諦めれば、実行画面から
+	// 呼べない命令を残したまま利用者のプログラムを開始しない。
 	if err := tw.BindErr(); err != nil {
 		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
+	runID := session.start(string(data), sourceName, true, nil, nil)
+	page.SetHTML(bundledAsyncProgramPage(runID))
 	if err := tw.Navigate("/"); err != nil {
 		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))

@@ -1899,11 +1899,15 @@ using browser_engine = detail::gtk_webkit_engine;
 namespace webview {
 namespace detail {
 
-// S01: cmd/gonako-gui/drop_darwin.m が実装する。delegateは実SDKの
+// S01: third_party/webview_go/trust_darwin.m が実装する。delegateは実SDKの
 // WKNavigationDelegate型を使い、exact origin以外をCancelする。
 extern "C" void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
                                               const char *scheme,
                                               const char *host, int port);
+
+// S01: 破棄時に、WKWebViewが生存しているうちにguardを外す。guardが持つ
+// engineの生ポインタを解放前に無効化するための関数。
+extern "C" void gonakoDetachNavigationGuard(void *wkwebview);
 
 // S01: Cocoaのnavigation Aもnative trustの失効へ追随するための照会関数。
 extern "C" int gonakoNativeTrustAllowsURL(void *engine, const char *url);
@@ -2034,6 +2038,9 @@ public:
         if (m_webview == objc::msg_send<id>(m_window, "contentView"_sel)) {
           objc::msg_send<void>(m_window, "setContentView:"_sel, nullptr);
         }
+        // S01: viewが生存しているうちにguardを外し、guardが持つengineの
+        // 生ポインタを捨てる。guardの寿命をengineより短くする。
+        gonakoDetachNavigationGuard((void *)m_webview);
         objc::msg_send<void>(m_webview, "release"_sel);
         m_webview = nullptr;
       }
@@ -2143,7 +2150,7 @@ public:
         WKUserScriptInjectionTimeAtDocumentStart, YES));
     objc::msg_send<void>(m_manager, "addUserScript:"_sel, script);
   }
-  // S01: drop_darwin.m のWKNavigationDelegate action/response guardを設定する。
+  // S01: trust_darwin.m のWKNavigationDelegate action/response guardを設定する。
   // originの各componentはstrict parserで確認済みである。
   bool install_trust_guard_impl() override {
     if (!m_webview) {
@@ -2376,6 +2383,12 @@ private:
     set_up_window();
   }
   void on_window_will_close(id /*delegate*/, id /*window*/) {
+    // S01: viewが破棄される前にguardを外し、guardが持つengineの生ポインタを
+    // 無効化する（この時点のengineはまだ生存している）。破棄後のdestructorは
+    // m_webviewを見ないので、外すのはここで行う。
+    if (m_webview) {
+      gonakoDetachNavigationGuard((void *)m_webview);
+    }
     // Widget destroyed along with window.
     m_webview = nullptr;
     m_window = nullptr;

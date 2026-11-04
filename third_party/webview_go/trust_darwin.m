@@ -18,6 +18,13 @@ extern int gonakoNativeTrustAllowsURL(void *engine, const char *url);
 @implementation GonakoNavigationGuard
 
 - (void)dealloc {
+    // deallocは、view側のteardownに伴う解放と、gonakoDetachNavigationGuardに
+    // よる明示的な解放の両方から来る。前者の時点ではviewは自分のdeallocを
+    // 終えており、weakなnavigationDelegateもview側で無効化されている。後者では
+    // 呼び出し側が先にdelegateを外している。どちらの場合もviewへメッセージは
+    // 送らず、engineの生ポインタだけを捨てる（viewのdealloc中にviewを触ると、
+    // 解放済みの内部状態に触れてしまう）。
+    _engine = NULL;
     // MRC: copy propertyの所有参照を解放する。
     [_scheme release];
     [_host release];
@@ -87,6 +94,8 @@ extern int gonakoNativeTrustAllowsURL(void *engine, const char *url);
 
 @end
 
+static char gonakoNavigationGuardKey;
+
 void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
                                   const char *scheme, const char *host,
                                   int port) {
@@ -99,8 +108,26 @@ void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
     guard.port = port;
     // navigationDelegateはweakなので、guardはassociated objectで保持する。
     view.navigationDelegate = guard;
-    objc_setAssociatedObject(view, "gonakoNavigationGuard", guard,
+    objc_setAssociatedObject(view, &gonakoNavigationGuardKey, guard,
                              OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     // newの所有参照を解放し、associated objectのretainだけに残す。
     [guard release];
+}
+
+// 保護windowの破棄時に、WKWebViewがまだ生存しているうちにdelegateを外す。
+// engineの生ポインタはここで捨てるので、engineの解放後にguardがnavigation
+// callbackを受けて解放済みメモリを読むことはない。guardはassociated objectが
+// 保持しているため、最後にassociated objectを外して解放する。
+void gonakoDetachNavigationGuard(void *wkwebview) {
+    WKWebView *view = (__bridge WKWebView *)wkwebview;
+    if (view == nil) return;
+    GonakoNavigationGuard *guard = objc_getAssociatedObject(
+        view, &gonakoNavigationGuardKey);
+    if (guard == nil) return;
+    // 順序: viewは生存中なのでdelegateを先に外す。次にengineを無効化してから
+    // associated objectを外す（この解放でdeallocが走る）。
+    view.navigationDelegate = nil;
+    guard.engine = NULL;
+    objc_setAssociatedObject(view, &gonakoNavigationGuardKey, nil,
+                             OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }

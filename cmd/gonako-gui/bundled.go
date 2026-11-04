@@ -17,7 +17,6 @@ import (
 	"html"
 	htmltemplate "html/template"
 	"io/fs"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,11 +123,8 @@ func runBundledProgram(packed *bundle.Bundle) {
 		return
 	}
 	session := &guiSession{}
-	html := ""
-	server, err := startOwnedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(html))
-	}))
+	page := &ownedPageHandler{}
+	server, err := startOwnedServer(page)
 	if err != nil {
 		showMessageWindow(packed.Title, err.Error())
 		return
@@ -141,8 +137,6 @@ func runBundledProgram(packed *bundle.Bundle) {
 	}
 	defer tw.Close()
 	session.window = newNativeWindowController(tw.Window)
-	runID := session.startCompiled(packed.Program, os.Args[1:], packed)
-	html = bundledAsyncProgramPage(runID)
 	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
@@ -157,11 +151,15 @@ func runBundledProgram(packed *bundle.Bundle) {
 	_ = tw.Window.Bind("closeBundledWindow", func() {
 		tw.Window.Terminate()
 	})
+	// Bindの失敗はプログラムを走らせる前に返す。ここで諦めれば、実行画面から
+	// 呼べない命令を残したまま梱包プログラムを開始しない。
 	if err := tw.BindErr(); err != nil {
 		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
+	runID := session.startCompiled(packed.Program, os.Args[1:], packed)
+	page.SetHTML(bundledAsyncProgramPage(runID))
 	if err := tw.Navigate("/"); err != nil {
 		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))

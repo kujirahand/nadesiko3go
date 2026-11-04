@@ -163,24 +163,35 @@ func (s *ownedServer) URL(path string) string {
 	return s.origin + path
 }
 
+// ownedPageHandler は、生成の途中で一度だけ確定するHTMLを配信する。
+// HTMLを確定するのはウィンドウを作った側のgoroutine、読むのはHTTPサーバーの
+// goroutineであり、その間の順序はC（WebViewのイベントループ）とソケット越しに
+// しか起きない。Goのrace detectorにはその順序が見えないため、値はmutexで
+// 保護して明示的なhappens-beforeを作る。
+type ownedPageHandler struct {
+	mu   sync.RWMutex
+	html string
+}
+
+// SetHTML は配信するHTMLを差し替える。Navigateの前に一度だけ呼ぶ。
+func (h *ownedPageHandler) SetHTML(html string) {
+	h.mu.Lock()
+	h.html = html
+	h.mu.Unlock()
+}
+
+func (h *ownedPageHandler) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	h.mu.RLock()
+	html := h.html
+	h.mu.RUnlock()
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(html))
+}
+
 // trustedWindow は保護windowとその所有serverをまとめて破棄する。
 type trustedWindow struct {
 	Window *webview.Protected
 	server *ownedServer
-}
-
-// newTrustedWindow は新しいloopback serverと保護windowを作る。
-func newTrustedWindow(debug bool, handler http.Handler, settings guilib.WindowSettings) (*trustedWindow, error) {
-	server, err := startOwnedServer(handler)
-	if err != nil {
-		return nil, err
-	}
-	tw, err := newTrustedWindowWithServer(debug, server, settings)
-	if err != nil {
-		server.Close()
-		return nil, err
-	}
-	return tw, nil
 }
 
 // newTrustedWindowWithServer は既存serverのoriginで保護windowを作る。
@@ -265,12 +276,4 @@ func newPlainWindow(debug bool, settings guilib.WindowSettings) (*webview.Plain,
 		return nil, err
 	}
 	return w, nil
-}
-
-// onePageHandler は生成HTMLを1ページだけ配信する。
-func onePageHandler(html string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(html))
-	})
 }

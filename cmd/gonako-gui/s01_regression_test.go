@@ -164,6 +164,51 @@ func TestS01CocoaAndWindowsGuards(t *testing.T) {
 	}
 }
 
+// guardはengineの生ポインタを持つため、engineの破棄時にviewが生存しているうちに
+// delegateを外す。guardの寿命をengineより短くする。
+func TestS01CocoaGuardDetachesBeforeEngineDies(t *testing.T) {
+	darwin := readS01(t, "../../third_party/webview_go/trust_darwin.m")
+	for _, required := range []string{
+		"gonakoDetachNavigationGuard",
+		"_engine = NULL",
+		"view.navigationDelegate = nil",
+	} {
+		if !strings.Contains(darwin, required) {
+			t.Fatalf("trust_darwin.m に %q がありません", required)
+		}
+	}
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	if !strings.Contains(header, "gonakoDetachNavigationGuard((void *)m_webview)") {
+		t.Fatal("engineの破棄時にguardを外していません")
+	}
+	detachIdx := strings.Index(header, "gonakoDetachNavigationGuard((void *)m_webview)")
+	releaseIdx := strings.Index(header[detachIdx:], `objc::msg_send<void>(m_webview, "release"_sel)`)
+	if detachIdx < 0 || releaseIdx < 0 {
+		t.Fatal("viewのrelease前にguardを外す順序が見つかりません")
+	}
+	// Low: コメントのファイル名が旧名（drop_darwin.m）のままになっていない。
+	if strings.Contains(header, "drop_darwin.m") {
+		t.Fatal("webview.h のコメントが旧ファイル名 drop_darwin.m のままです")
+	}
+}
+
+// Bindの失敗はプログラムを開始する前に返す。失敗時に副作用のある実行を始めない。
+func TestS01BindFailurePrecedesProgramStart(t *testing.T) {
+	for _, file := range []string{"bundled.go", "window_run.go"} {
+		src := readS01(t, file)
+		bindErr := strings.Index(src, "tw.BindErr()")
+		start := strings.Index(src, "runID := session.start")
+		if bindErr < 0 || start < 0 || bindErr > start {
+			t.Fatalf("%s: Bind失敗の確認がプログラム開始より後ろにあります", file)
+		}
+		// 生成HTMLは共有変数ではなく、同期付きのhandlerへ渡す。
+		if !strings.Contains(src, "page := &ownedPageHandler{}") ||
+			!strings.Contains(src, "page.SetHTML(") {
+			t.Fatalf("%s: HTMLの受け渡しが同期付きhandlerになっていません", file)
+		}
+	}
+}
+
 func TestS01OwnedServerFailureRevocation(t *testing.T) {
 	trusted := readS01(t, "trusted_window.go")
 	for _, required := range []string{
