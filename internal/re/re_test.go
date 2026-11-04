@@ -44,11 +44,11 @@ func TestFindAndReplace(t *testing.T) {
 	if got := mustCompile(t, "").FindAll("abc"); len(got) != 4 {
 		t.Errorf("空パターンの一致数 = %d, want 4", len(got))
 	}
-	if got := mustCompile(t, "/[0-9]+/").Find("abc123"); !reflect.DeepEqual(got, []string{"123"}) {
-		t.Errorf("Find = %v, want [123]", got)
+	if got, ok := mustCompile(t, "/[0-9]+/").Find("abc123"); !ok || got.Text != "123" || len(got.Groups) != 0 {
+		t.Errorf("Find = %#v (ok=%v), want text \"123\" without groups", got, ok)
 	}
-	if got := mustCompile(t, "/[0-9]+/").Find("abc"); got != nil {
-		t.Errorf("Find = %v, want nil", got)
+	if _, ok := mustCompile(t, "/[0-9]+/").Find("abc"); ok {
+		t.Error("Find = ok, want no match")
 	}
 
 	tests := []struct {
@@ -69,8 +69,8 @@ func TestFindAndReplace(t *testing.T) {
 		{`/\Boo/`, "foo", "X", "fX"},
 		{`/\B(o+)/`, "foo", "[$1]", "f[oo]"},
 		// JavaScriptの置換テンプレート（Issue #214）
-		{"/b/", "abc", "$$x", "a$xc"},   // $$ は1個の $ に畳む
-		{"/(b)/", "abc", "$$$1", "a$bc"}, // $$ の畳み込みと $1 の併用
+		{"/b/", "abc", "$$x", "a$xc"},              // $$ は1個の $ に畳む
+		{"/(b)/", "abc", "$$$1", "a$bc"},           // $$ の畳み込みと $1 の併用
 		{"/b/", "aXbXc", "[$`|$']", "aX[aX|Xc]Xc"}, // 一致より前/後の部分
 		{"/a/g", "aaa", "$`|$'", "|aaa|aaa|"},      // g付きでは各一致位置で展開
 		{`/(?<x>b)/`, "abc", "<$<x>>", "a<b>c"},    // 名前付き組の参照
@@ -89,7 +89,7 @@ func TestFindAndReplace(t *testing.T) {
 		}
 	}
 
-	if got := mustCompile(t, "/[0-9]+/").Split("a1b22c"); !reflect.DeepEqual(got, []string{"a", "b", "c"}) {
+	if got := mustCompile(t, "/[0-9]+/").Split("a1b22c"); !reflect.DeepEqual(partTexts(got), []string{"a", "b", "c"}) {
 		t.Errorf("Split = %v, want [a b c]", got)
 	}
 }
@@ -124,11 +124,25 @@ func TestRuneBased(t *testing.T) {
 }
 
 func TestJavaScriptUnicodeEscapes(t *testing.T) {
-	if got := mustCompile(t, `^[\u0020-\u007E\uFF61-\uFF9F]`).Find("abc"); got == nil {
+	if _, ok := mustCompile(t, `^[\u0020-\u007E\uFF61-\uFF9F]`).Find("abc"); !ok {
 		t.Fatal("JavaScript形式のUnicodeエスケープがASCIIに一致しません")
 	}
 	pattern := `^[\u3005\u3007\u4E00-\u9FFF]|[\uD840-\uD87F][\uDC00-\uDFFF]`
-	if got := mustCompile(t, pattern).Find("色"); got == nil {
+	if _, ok := mustCompile(t, pattern).Find("色"); !ok {
 		t.Fatal("Unicodeエスケープを含む漢字範囲に一致しません")
 	}
+}
+
+// partTexts は区切りの断片を文字列の並びにする。undefinedの断片は 『undefined』
+// と書いて、捕獲が欠けたことを失敗メッセージで見えるようにする。
+func partTexts(parts []re.SplitPart) []string {
+	texts := make([]string, len(parts))
+	for i, part := range parts {
+		if part.Undefined {
+			texts[i] = "undefined"
+			continue
+		}
+		texts[i] = part.Text
+	}
+	return texts
 }

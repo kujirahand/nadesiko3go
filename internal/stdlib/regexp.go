@@ -33,13 +33,15 @@ func regexpImpls(m map[string]Impl) {
 			return stringArray(found), nil
 		}
 
-		groups := pattern.Find(str(a, 0))
-		if groups == nil {
+		matched, ok := pattern.Find(str(a, 0))
+		if !ok {
 			return value.Null(), nil
 		}
-		// 部分マッチは『抽出文字列』に入れ、戻り値は一致した全体にする
-		ctx.SetSysVar(SysMatched, stringArray(groups[1:]))
-		return value.String(groups[0]), nil
+		// 部分マッチは『抽出文字列』に入れ、戻り値は一致した全体にする。
+		// 参加しなかった組はJavaScriptと同じくundefinedにし、空文字に
+		// 一致した参加組は空文字のまま残す。
+		ctx.SetSysVar(SysMatched, groupArray(matched.Groups))
+		return value.String(matched.Text), nil
 	}
 
 	m["正規表現抽出"] = func(ctx Context, a []value.Value) (value.Value, error) {
@@ -48,7 +50,7 @@ func regexpImpls(m map[string]Impl) {
 			return value.Undefined(), err
 		}
 		clearMatched(ctx)
-		matches := pattern.FindAllSubmatches(str(a, 0))
+		matches := pattern.FindAllMatches(str(a, 0))
 		flat := make([]value.Value, 0)
 		rows := make([]value.Value, 0, len(matches))
 		names := pattern.SubexpNames()
@@ -62,9 +64,9 @@ func regexpImpls(m map[string]Impl) {
 		for _, match := range matches {
 			if hasNames {
 				row := value.NewDict()
-				for i := 1; i < len(match) && i < len(names); i++ {
+				for i := 1; i <= len(match.Groups) && i < len(names); i++ {
 					if names[i] != "" {
-						item := value.String(match[i])
+						item := groupValue(match.Groups[i-1])
 						row.Set(names[i], item)
 						flat = append(flat, item)
 					}
@@ -72,13 +74,17 @@ func regexpImpls(m map[string]Impl) {
 				rows = append(rows, value.DictValue(row))
 				continue
 			}
-			groups := match[1:]
+			groups := match.Groups
 			if len(groups) == 0 {
-				groups = match[:1]
+				// 組がないときは一致した全体を1件として返す
+				item := value.String(match.Text)
+				flat = append(flat, item)
+				rows = append(rows, value.ArrayValue(value.NewArray(item)))
+				continue
 			}
 			items := make([]value.Value, len(groups))
 			for i, group := range groups {
-				items[i] = value.String(group)
+				items[i] = groupValue(group)
 				flat = append(flat, items[i])
 			}
 			rows = append(rows, value.ArrayValue(value.NewArray(items...)))
@@ -100,7 +106,18 @@ func regexpImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return stringArray(pattern.Split(str(a, 0))), nil
+		parts := pattern.Split(str(a, 0))
+		items := make([]value.Value, len(parts))
+		for i, part := range parts {
+			// 未参加の捕獲はJavaScriptと同じくundefinedにする。空文字に
+			// 潰すと、区切りの結果に『』が混ざったのと区別できない。
+			if part.Undefined {
+				items[i] = value.Undefined()
+				continue
+			}
+			items[i] = value.String(part.Text)
+		}
+		return value.ArrayValue(value.NewArray(items...)), nil
 	}
 }
 
@@ -110,6 +127,24 @@ func compilePattern(pattern string) (*re.Regexp, error) {
 	compiled, err := re.Compile(pattern)
 	if errors.Is(err, re.ErrUnsupported) {
 		return nil, errors.New("正規表現『" + pattern + "』の後方参照や先読みには対応していません。")
+	}
+	var flagErr *re.FlagError
+	if errors.As(err, &flagErr) {
+		if flagErr.Duplicate {
+			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』が重複しています。")
+		}
+		if flagErr.Conflict != 0 {
+			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』と『" + string(flagErr.Conflict) + "』は同時に使えません。")
+		}
+		return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
+	}
+	var variantErr *re.StickyVariantError
+	if errors.As(err, &variantErr) {
+		// 元のパターンは正しい。文脈を見る位置指定照合にだけ使えない。
+		if variantErr.Depth {
+			return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合には深すぎます。")
+		}
+		return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合に使えません。")
 	}
 	if err != nil {
 		return nil, errors.New("正規表現『" + pattern + "』が正しくありません。")
@@ -127,6 +162,25 @@ func stringArray(items []string) value.Value {
 	values := make([]value.Value, len(items))
 	for i, s := range items {
 		values[i] = value.String(s)
+	}
+	return value.ArrayValue(value.NewArray(values...))
+}
+
+// groupValue は捕獲1つ分をなでしこの値にする。参加しなかった組はundefined、
+// 空文字に一致した参加組は空文字にする。Goの正規表現はどちらも空文字で返す
+// ので、re.Group.Okの区別をここで値モデルへ写す。
+func groupValue(group re.Group) value.Value {
+	if !group.Ok {
+		return value.Undefined()
+	}
+	return value.String(group.Text)
+}
+
+// groupArray は捕獲の並びを値の配列にする。
+func groupArray(groups []re.Group) value.Value {
+	values := make([]value.Value, len(groups))
+	for i, group := range groups {
+		values[i] = groupValue(group)
 	}
 	return value.ArrayValue(value.NewArray(values...))
 }
