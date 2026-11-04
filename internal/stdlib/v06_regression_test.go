@@ -353,6 +353,20 @@ func TestV06NonASCIIFlagLanguageError(t *testing.T) {
 	}
 }
 
+// TestV06VSetOperationLanguageError は、『v』フラグの集合演算を含む
+// パターンが、JavaScriptと違う結果を黙って返さず、集合演算が未対応で
+// あることを示す言語のエラーになることを命令の入口から固定する（#401）。
+// 後方参照や先読みの文面とは区別する。
+func TestV06VSetOperationLanguageError(t *testing.T) {
+	_, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String(`/[\w&&\d]/v`))
+	if err == nil {
+		t.Fatal("『/[\\w&&\\d]/v』はエラーになるべき")
+	}
+	if want := "正規表現『/[\\w&&\\d]/v』のvフラグの集合演算には対応していません。"; err.Error() != want {
+		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
+	}
+}
+
 // TestV06SplitCaptureParticipation は、区切りに入る捕獲の参加状態を固定する。
 // 参加しなかった組はundefined、空文字に一致した参加組は空文字で、未参加と
 // 空一致はどちらも空文字に潰さず区別する。

@@ -147,6 +147,10 @@ func compilePattern(pattern string) (*re.Regexp, error) {
 // friends, not only from Compile; both go through the same conversion so the
 // wording does not depend on when the failure is detected.
 func patternError(pattern string, err error) error {
+	var vSetErr *re.UnsupportedVSetError
+	if errors.As(err, &vSetErr) {
+		return errors.New("正規表現『" + pattern + "』のvフラグの集合演算には対応していません。")
+	}
 	if errors.Is(err, re.ErrUnsupported) {
 		return errors.New("正規表現『" + pattern + "』の後方参照や先読みには対応していません。")
 	}
