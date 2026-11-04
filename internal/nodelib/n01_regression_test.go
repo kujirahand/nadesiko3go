@@ -83,6 +83,40 @@ func TestN01MoveIntoAbsoluteAncestorSymlinkIsRejected(t *testing.T) {
 	assertSourceKept(t, src)
 }
 
+// TestN01MoveToSlashSeparatedAbsolutePathViaSymlinkSucceeds は、移動先を
+// 「/」区切りの絶対パスで指定し、その祖先が移動元の外を指すシンボリック
+// リンクでも、リンク先の実体フォルダへ正しく移動できることを確認する。
+// resolveExisting は区切りを正規化してからコンポーネント分割するため、
+// 未作成の末尾があっても symlink 祖先を解決できる（Windows では正規化が
+// 無いと1コンポーネント扱いになり解決に失敗する。Unix では FromSlash が
+// no-op なので、ここでは共通の文字列処理経路を固定する）。
+func TestN01MoveToSlashSeparatedAbsolutePathViaSymlinkSucceeds(t *testing.T) {
+	dir, src := setupAliasIntoSource(t)
+	out := filepath.Join(dir, "out")
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(dir, "outlink")
+	if err := os.Symlink(out, link); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	dest := filepath.ToSlash(filepath.Join(link, "new"))
+	code := fmt.Sprintf(`「%s」を「%s」にファイル上書移動`, filepath.ToSlash(src), dest)
+	runIn(t, dir, code)
+
+	if _, err := os.Stat(src); err == nil {
+		t.Errorf("移動元が残っています: %s", src)
+	}
+	moved := filepath.Join(out, "new")
+	if got, err := os.ReadFile(filepath.Join(moved, "keep.txt")); err != nil || string(got) != "keep" {
+		t.Errorf("移動先の keep.txt が壊れています: content=%q err=%v", got, err)
+	}
+	if got, err := os.ReadFile(filepath.Join(moved, "inner", "deep.txt")); err != nil || string(got) != "deep" {
+		t.Errorf("移動先の inner/deep.txt が壊れています: content=%q err=%v", got, err)
+	}
+}
+
 // TestN01MoveIntoSymlinkedExistingAliasIsRejected は、移動先のシンボリック
 // リンク先が実在する場合（alias → src/inner そのもの）も拒否されることを
 // 確認する。既存の内部移動拒否を維持するケース。

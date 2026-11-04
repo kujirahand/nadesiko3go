@@ -212,14 +212,29 @@ func summarizeNames(names []string) string {
 // 指すときに alias/../new を「作業フォルダ直下の new」と誤認し、実体である
 // src/new（移動元の内側）を見逃す。OS は「..」をシンボリックリンク解決後の
 // 親に対して適用するので、ここでも同じ順序で辿る (#328)。
+//
+// 分割は os.PathSeparator で行うため、先に filepath.FromSlash で区切りを
+// 正規化する。Windows のなでしこプログラムは「/」区切りでパスを書くことが
+// 多く、正規化しないと「C:/work/alias/new」が1コンポーネント扱いになり、
+// 未作成の末尾で EvalSymlinks が失敗して alias を解決しないまま cleaned
+// path を返してしまう (#365)。Unix では no-op。
 func resolveExisting(path string) string {
+	path = filepath.FromSlash(path)
 	abs := path
 	if !filepath.IsAbs(abs) {
 		wd, err := os.Getwd()
 		if err != nil {
 			return filepath.Clean(path)
 		}
-		abs = wd + string(os.PathSeparator) + abs
+		// ドライブを持たない rooted path（\foo）は IsAbs が false になるが、
+		// 作業フォルダからの相対ではなく現在のドライブのルートを指す。
+		// 作業フォルダのボリュームで解決する。Unix では「/foo」が IsAbs に
+		// なるためこの分岐には入らない。
+		if vol := filepath.VolumeName(wd); vol != "" && isRootedPath(abs) {
+			abs = vol + abs
+		} else {
+			abs = wd + string(os.PathSeparator) + abs
+		}
 	}
 	vol := filepath.VolumeName(abs)
 	resolved := vol + string(os.PathSeparator)
@@ -245,6 +260,13 @@ func resolveExisting(path string) string {
 	return resolved
 }
 
+// isRootedPath は区切り文字で始まるパスかを返す。Windows の「\foo」は
+// ドライブを持たないため filepath.IsAbs が false になる。Unix では
+// 区切り文字で始まるパスは常に絶対パスなので、この判定は使われない。
+func isRootedPath(path string) bool {
+	return len(path) > 0 && os.IsPathSeparator(path[0])
+}
+
 // pathInside はtargetがbaseフォルダの内側（自身を含む）にあるかを返す。
 // 実体パスで比較するため、シンボリックリンク越しの表記差も拾う。
 func pathInside(base, target string) bool {
@@ -254,5 +276,3 @@ func pathInside(base, target string) bool {
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
-
-
