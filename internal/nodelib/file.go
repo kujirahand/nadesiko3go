@@ -542,6 +542,15 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 		}
 	}
 
+	// FIFO・デバイス・ソケットなどの非通常ファイルは、内容を読みに行くと
+	// 書き手が現れるまでブロックしたり無限に読み続けたりする可能性がある。
+	// ディレクトリ内のエントリーと同じく、読み取り前に明示エラーにする (#406)。
+	// os.Stat はシンボリックリンクを辿るため、通常ファイルへのリンクは
+	// 従来どおりコピーでき、FIFO等へのリンクはリンク先の種別で弾かれる。
+	if !srcInfo.IsDir() && !srcInfo.Mode().IsRegular() {
+		return fmt.Errorf("移動できない形式のファイルです: %s", src)
+	}
+
 	if !srcInfo.IsDir() {
 		data, err := os.ReadFile(src)
 		if err != nil {
