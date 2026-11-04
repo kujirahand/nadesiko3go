@@ -28,7 +28,8 @@ func TestCSVRoundTripProperty(t *testing.T) {
 			for j := range table[i] {
 				table[i][j] = parts[rng.Intn(len(parts))]
 			}
-			// 空セルだけの1セル行は既知の差分として別テストで扱う。
+			// 空セルだけの1セル行は、末尾にあると往復で畳まれる既知の差分
+			// （TestCSVRoundTripKnownDiffs で固定）に当たるため、生成対象から外す。
 			if len(table[i]) == 1 && table[i][0] == "" {
 				table[i] = append(table[i], "a")
 			}
