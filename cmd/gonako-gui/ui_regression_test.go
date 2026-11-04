@@ -90,6 +90,20 @@ func TestGUIEventPayloadCarriesCheckedAndDropFiles(t *testing.T) {
 	}
 }
 
+// TestGUIValuesRegressionRunsInNode は、文字列の有無ではなく実物の収集・反映
+// 関数を Node で実行して確かめる (Issue #355 の受け入れ条件: エディタと
+// 梱包アプリの両方で checked が伝わること)。
+func TestGUIValuesRegressionRunsInNode(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("JavaScriptの確認にはNode.jsが必要です")
+	}
+	cmd := exec.Command(node, "testdata/gui-values-regression.cjs")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("GUIの値収集と checked 反映: %v\n%s", err, output)
+	}
+}
+
 func TestGUIOperationBridgeSupportsPartAttributesAndSelectReplacement(t *testing.T) {
 	for _, asset := range []string{"app.js", "bundled/app.js"} {
 		source := readUIAsset(t, asset)

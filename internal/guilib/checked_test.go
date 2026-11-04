@@ -279,3 +279,37 @@ func TestDropFilesArriveInDedicatedPayloadField(t *testing.T) {
 		}
 	}
 }
+
+func TestRadioExclusivityAppliesToEveryCheckedPath(t *testing.T) {
+	// HTML表示で同名radioが2つともcheckedで書かれたら、ブラウザと同じく
+	// 最後の1つだけが選択済みになる。wrapper=1、radio=2・3。
+	screen, _ := runGUIProgram(t, `「<input type="radio" name="色" value="赤" checked><input type="radio" name="色" value="青" checked>」をHTML表示`)
+	if on, _ := screen.isChecked(2); on {
+		t.Fatal("HTML表示: 先のradioが選択済みのままです")
+	}
+	if on, _ := screen.isChecked(3); !on {
+		t.Fatal("HTML表示: 後のradioが選択済みになっていません")
+	}
+
+	// DOM属性一括設定でcheckedを付けたときも、先に選択されていた同名radioが外れる。
+	if err := screen.setAttributes(2, map[string]string{"checked": ""}); err != nil {
+		t.Fatal(err)
+	}
+	if on, _ := screen.isChecked(2); !on {
+		t.Fatal("DOM属性一括設定: 対象が選択済みになっていません")
+	}
+	if on, _ := screen.isChecked(3); on {
+		t.Fatal("DOM属性一括設定: 同名radioが外れていません")
+	}
+
+	// 作成時にchecked属性を渡したときも同じ。
+	screen = NewScreen()
+	first := screen.createWithAttributes("input", "A", "", "色", 0, map[string]string{"type": "radio", "checked": ""})
+	second := screen.createWithAttributes("input", "B", "", "色", 0, map[string]string{"type": "radio", "checked": ""})
+	if on, _ := screen.isChecked(first); on {
+		t.Fatal("作成時: 先のradioが選択済みのままです")
+	}
+	if on, _ := screen.isChecked(second); !on {
+		t.Fatal("作成時: 後のradioが選択済みになっていません")
+	}
+}

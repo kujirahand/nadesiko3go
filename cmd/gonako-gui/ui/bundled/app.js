@@ -4,7 +4,7 @@
 //
 // Go側とのやり取りは main.go が Bind した4つの関数だけ。
 //   pollNakoRun(runId)                          途中経過を取り出す
-//   startNakoEvent(runId, handle, name, values) イベントハンドラを起動する
+//   startNakoEvent(runId, handle, name, payload) イベントハンドラを起動する
 //   resolveNakoDialog(runId, id, text, ok)      ダイアログの応答を返す
 //   closeBundledWindow()                        利用者がウィンドウを閉じる操作に使う
 

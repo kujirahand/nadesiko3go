@@ -119,6 +119,9 @@ func (s *Screen) createNode(tag, text, html, name string, parent int, attrs map[
 	// HTMLと同じく、checked属性があれば(値が何であれ)選択済みで始める。
 	_, checked := attrs["checked"]
 	s.nodes[h].checked = checked
+	if checked {
+		s.clearRadioGroup(s.nodes[h])
+	}
 	op := Operation{
 		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name,
 		Attributes: attrs, Detached: detached,
@@ -208,6 +211,10 @@ func (s *Screen) DisplayHTML(markup string) int {
 				s.nodes[handle] = &screenNode{
 					handle: handle, tag: dom.Data, name: attrs["name"], parent: parent,
 					text: attrs["value"], checked: checked, styles: map[string]string{}, attributes: attrs,
+				}
+				if checked {
+					// ブラウザは同名radioのうち最後のcheckedだけを残す。モデルもそろえる。
+					s.clearRadioGroup(s.nodes[handle])
 				}
 				nodeRefs[handle] = dom
 				nextParent = handle
@@ -421,6 +428,23 @@ func (s *Screen) formScope(n *screenNode) int {
 	return 0
 }
 
+// clearRadioGroup は、選択状態になった radio と同じform内の同名 radio を外す。
+// 画面側のDOMはブラウザの標準動作で外れるので、操作は送らずモデルだけをそろえる。
+// 呼び出し側で s.mu を取っていること。
+func (s *Screen) clearRadioGroup(n *screenNode) {
+	if n == nil || !n.checkable() || !strings.EqualFold(n.attributes["type"], "radio") || n.name == "" {
+		return
+	}
+	scope := s.formScope(n)
+	for h, other := range s.nodes {
+		if h != n.handle && other.checked && other.checkable() &&
+			strings.EqualFold(other.attributes["type"], "radio") &&
+			other.name == n.name && s.formScope(other) == scope {
+			other.checked = false
+		}
+	}
+}
+
 // setChecked は選択状態を変える。radioを選ぶと、同じform内の同名のradioは外れる
 // (画面側のDOMも同じ動きをするので、Go側のモデルをそろえるだけで操作は1つ送る)。
 func (s *Screen) setChecked(handle int, on bool) error {
@@ -434,14 +458,8 @@ func (s *Screen) setChecked(handle int, on bool) error {
 		return errors.New("『チェック設定』にはcheckboxまたはradioの部品を指定してください。")
 	}
 	n.checked = on
-	if on && strings.EqualFold(n.attributes["type"], "radio") && n.name != "" {
-		scope := s.formScope(n)
-		for h, other := range s.nodes {
-			if h != handle && other.checkable() && strings.EqualFold(other.attributes["type"], "radio") &&
-				other.name == n.name && s.formScope(other) == scope {
-				other.checked = false
-			}
-		}
+	if on {
+		s.clearRadioGroup(n)
 	}
 	s.operations = append(s.operations, Operation{Type: "checked", Handle: handle, Checked: &on})
 	return nil
@@ -656,6 +674,9 @@ func (s *Screen) setAttributes(handle int, attrs map[string]string) error {
 			// checked属性の指定は選択済みにする(HTMLの属性の意味に合わせる)。
 			n.checked = true
 		}
+	}
+	if _, ok := attrs["checked"]; ok {
+		s.clearRadioGroup(n)
 	}
 	s.operations = append(s.operations, Operation{Type: "attributes", Handle: handle, Attributes: attrs})
 	return nil
