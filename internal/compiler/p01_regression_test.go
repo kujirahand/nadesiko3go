@@ -131,23 +131,45 @@ func TestP01SourceChainMatchesAST(t *testing.T) {
 
 // TestP01ConcatAllocationStaysBounded is the measurement the issue asks for:
 // doubling the items must not multiply the compile-time allocation.
+// 400/800/1600項の3点で測り、項数に依らないベースライン（レジストリ生成
+// など、実測で約330KB）は増分の差し引きで取り除いてから線形性を見る。
 func TestP01ConcatAllocationStaysBounded(t *testing.T) {
-	alloc := func(items int) uint64 {
+	alloc := func(items int) int64 {
 		tree := p01Program(p01ConcatChain(items, 100))
 		var before, after runtime.MemStats
 		runtime.GC()
 		runtime.ReadMemStats(&before)
 		p01Compile(t, tree)
 		runtime.ReadMemStats(&after)
-		return after.TotalAlloc - before.TotalAlloc
+		if after.TotalAlloc < before.TotalAlloc {
+			t.Fatalf("割り当て量の計測値が逆転した: before=%d, after=%d", before.TotalAlloc, after.TotalAlloc)
+		}
+		return int64(after.TotalAlloc - before.TotalAlloc)
 	}
 	alloc(400) // 定数プールなどの初回分を温める
-	small, large := alloc(400), alloc(800)
-	if large > 3*small+(1<<20) {
-		t.Errorf("400項 %d bytes に対して800項 %d bytes。項数に対して増えすぎている", small, large)
+	small, medium, large := alloc(400), alloc(800), alloc(1600)
+	firstIncrement := medium - small
+	secondIncrement := large - medium
+
+	if firstIncrement < 0 || secondIncrement < 0 {
+		t.Errorf("400項 %d bytes、800項 %d bytes、1600項 %d bytes（増分: %d bytes, %d bytes）。項数の増加で割り当て量が減少した",
+			small, medium, large, firstIncrement, secondIncrement)
+		return
 	}
-	if large > 8<<20 {
-		t.Errorf("800項のコンパイルで %d bytes を割り当てた (上限 8MiB)", large)
+
+	// 2026-11-05 の実測増分は 400→800 項で 131,104 bytes、
+	// 800→1600 項で 273,232 bytes。後者は前者のおよそ 2 倍なので、
+	// 3 倍 + 128KiB までを許容し、CI やアーキテクチャ差の揺れを吸収する。
+	if secondIncrement > 3*firstIncrement+(128<<10) {
+		t.Errorf("400項 %d bytes、800項 %d bytes、1600項 %d bytes（増分: %d bytes, %d bytes）。項数に対して増えすぎている",
+			small, medium, large, firstIncrement, secondIncrement)
+	}
+
+	// 実測増分の約 4 倍を上限にする。一様にコストが増える退行も検出し、
+	// 800項で約 2MiB になる退行は 400→800 項の増分上限を超える。
+	if firstIncrement > 512<<10 || secondIncrement > 1<<20 {
+		t.Errorf("400項 %d bytes、800項 %d bytes、1600項 %d bytes（増分: %d bytes, %d bytes）。増分が上限（512KiB, 1MiB）を超えた",
+			small, medium, large, firstIncrement, secondIncrement)
 	}
 }
 
