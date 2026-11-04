@@ -5,12 +5,19 @@ package vm_test
 // 経由で組み合わせて検証する。期待値はすべて実測で確認した現行挙動。
 // キー順が実装依存で変わりうる箇所（JSONエンコード整形・TOMLエンコード）は、
 // 出力文字列を直接比べず、デコードし直して値で比べる。
+//
+// 注意: CSVプラグインはプロセス内で共有され、CSVオプション設定の内容は
+// 実行をまたいで残る。このファイルではオプションを変更せず、既定値
+// （区切り文字「,」・数値の自動変換あり）を前提にする。他のテストが
+// オプションを変更する場合は、v01_regression_test.go のように
+// t.Cleanup で既定値へ戻すこと。
 
 import (
 	"bytes"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -38,8 +45,8 @@ func TestDataConvSJISFileCSV(t *testing.T) {
 	wantBytes := encodeForTest(t, japanese.ShiftJIS, content)
 
 	// 命令で保存したファイルが、実際に Shift_JIS のバイト列であること
-	path := fmt.Sprintf("%s/input.csv", dir)
-	code := fmt.Sprintf("P=「%s」\n「%s」をPにSJISファイル保存\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path, content)
+	path := filepath.Join(dir, "input.csv")
+	code := "P=" + nakoString(path) + "\n「" + content + "」をPにSJISファイル保存\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示"
 	got, err := runCUICommands(t, code)
 	if err != nil {
 		t.Fatalf("err=%v", err)
@@ -56,11 +63,11 @@ func TestDataConvSJISFileCSV(t *testing.T) {
 	}
 
 	// 外部で作られた Shift_JIS のバイト列（ファイル）を正しく読めること
-	path2 := fmt.Sprintf("%s/external.csv", dir)
+	path2 := filepath.Join(dir, "external.csv")
 	if err := os.WriteFile(path2, wantBytes, 0o644); err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	got, err = runCUICommands(t, fmt.Sprintf("P=「%s」\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path2))
+	got, err = runCUICommands(t, "P="+nakoString(path2)+"\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -81,8 +88,9 @@ func TestDataConvSJISCharsCSV(t *testing.T) {
 		{"2バイト目が0x5Cの文字", "表,ソ,能", `[["表","ソ","能"]]`, false},
 		{"全角チルダU+FF5E", "～", `[["～"]]`, false},
 		// 波ダッシュ(U+301C)と U+2212 は、x/text の ShiftJIS では扱えず
-		// SJIS変換がエラーになる。Windows の cp932 との既知の差異として、
-		// エラーになる現行挙動を固定する（黙って文字が消えることはない）。
+		// SJIS変換がエラーになる。Windows の cp932 との既知の差異。
+		// cp932 互換の対応（U+301C→0x8160 など）を入れたら、この2件は
+		// 「エラー」ではなく往復で一致する期待値に置き換えること。
 		{"波ダッシュU+301Cは変換エラー", "〜", "", true},
 		{"U+2212は変換エラー", "−", "", true},
 	}
@@ -93,6 +101,11 @@ func TestDataConvSJISCharsCSV(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("エラーになるはずが got=%q", got)
+				}
+				// 文法ミス等の別原因のエラーで合格しないよう、
+				// SJIS変換由来のエラーであることを文面で確認する。
+				if !strings.Contains(err.Error(), "rune not supported") {
+					t.Fatalf("SJIS変換のエラーではない: err=%v", err)
 				}
 				return
 			}
@@ -112,8 +125,8 @@ func TestDataConvEUCFileCSV(t *testing.T) {
 	want := `[["名前","値"],["桜",1]]`
 	wantBytes := encodeForTest(t, japanese.EUCJP, content)
 
-	path := fmt.Sprintf("%s/input.csv", dir)
-	code := fmt.Sprintf("P=「%s」\n「%s」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path, content)
+	path := filepath.Join(dir, "input.csv")
+	code := "P=" + nakoString(path) + "\n「" + content + "」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示"
 	got, err := runCUICommands(t, code)
 	if err != nil {
 		t.Fatalf("err=%v", err)
@@ -130,11 +143,11 @@ func TestDataConvEUCFileCSV(t *testing.T) {
 	}
 
 	// 外部で作られた EUC-JP のバイト列（ファイル）を正しく読めること
-	path2 := fmt.Sprintf("%s/external.csv", dir)
+	path2 := filepath.Join(dir, "external.csv")
 	if err := os.WriteFile(path2, wantBytes, 0o644); err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	got, err = runCUICommands(t, fmt.Sprintf("P=「%s」\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path2))
+	got, err = runCUICommands(t, "P="+nakoString(path2)+"\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
@@ -143,8 +156,8 @@ func TestDataConvEUCFileCSV(t *testing.T) {
 	}
 
 	// JIS X 0212 の補助漢字（鷗 U+9DD7）を含む行の往復
-	path3 := fmt.Sprintf("%s/x0212.csv", dir)
-	code = fmt.Sprintf("P=「%s」\n「鳥,鷗\n」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path3)
+	path3 := filepath.Join(dir, "x0212.csv")
+	code = "P=" + nakoString(path3) + "\n「鳥,鷗\n」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示"
 	got, err = runCUICommands(t, code)
 	if err != nil {
 		t.Fatalf("err=%v", err)
@@ -162,6 +175,19 @@ func TestDataConvBOMCSV(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 	if want := "[[\"\ufeffa\",\"b\"]]"; got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+
+	// BOM付きUTF-8ファイルを「読」で読んで CSV取得 する経路でも同じ。
+	path := filepath.Join(t.TempDir(), "bom.csv")
+	if err := os.WriteFile(path, []byte("\ufeffa,b\n1,2\n"), 0o644); err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	got, err = runCUICommands(t, "P="+nakoString(path)+"\nS=Pを読む\nT=SをCSV取得\nTをJSONエンコードして表示")
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if want := "[[\"\ufeffa\",\"b\"],[1,2]]"; got != want {
 		t.Errorf("got=%q want=%q", got, want)
 	}
 }
@@ -211,12 +237,14 @@ func TestDataConvJSONEncode(t *testing.T) {
 		})
 	}
 	// JSONエンコード整形は現行ではキー順が変わる（Issue #349）ため、
-	// 整形結果の文字列ではなく、デコードし直した値で確認する。
-	got, err := runCUICommands(t, "A=『{\"b\":1,\"a\":2}』をJSONデコード\nS=AをJSONエンコード整形\nT=SをJSONデコード\nTをJSONエンコードして表示")
+	// 整形結果をデコードし直し、キー順に依存しないよう値ごとに確認する。
+	// （#349 が直ってキー順が保持されるようになっても、このテストは
+	// 値の往復だけを見るので失敗しない。）
+	got, err := runCUICommands(t, "A=『{\"b\":1,\"a\":2}』をJSONデコード\nS=AをJSONエンコード整形\nT=SをJSONデコード\nT[\"b\"]を表示\nT[\"a\"]を表示")
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	if want := `{"a":2,"b":1}`; got != want {
+	if want := "1\n2"; got != want {
 		t.Errorf("整形の往復 got=%q want=%q", got, want)
 	}
 }
@@ -227,7 +255,6 @@ func TestDataConvJSONErrors(t *testing.T) {
 		{"シングルクォート", `{'a':1}`},
 		{"閉じていない配列", `[1,2`},
 		{"空文字列", ``},
-		{"範囲外の指数", `1e400`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -264,13 +291,29 @@ func TestDataConvTOMLDecode(t *testing.T) {
 			}
 		})
 	}
-	// inf/nan は JSON では null になるため、TOMLエンコードへの往復で確認する
-	got, err := runCUICommands(t, "『c = inf\nd = nan\ne = -inf』をTOMLデコードしてTOMLエンコードして表示")
-	if err != nil {
-		t.Fatalf("err=%v", err)
+	// inf/nan は JSON では null になるため、TOMLエンコードへの往復で確認する。
+	// エンコーダのキー順に依存しないよう、1キーずつ往復させる。
+	for _, input := range []string{"c = inf", "d = nan", "e = -inf"} {
+		got, err := runCUICommands(t, fmt.Sprintf("『%s』をTOMLデコードしてTOMLエンコードして表示", input))
+		if err != nil {
+			t.Fatalf("err=%v", err)
+		}
+		if got != input {
+			t.Errorf("got=%q want=%q", got, input)
+		}
 	}
-	if want := "c = inf\nd = nan\ne = -inf"; got != want {
-		t.Errorf("got=%q want=%q", got, want)
+}
+
+// 範囲外の指数（1e400）は、本家（JSON.parse）では Infinity になるが、
+// Go版は float64 の範囲外でエラーになる既知の差異。互換として扱うか
+// どうかは未判断のため、ここではエラーになる現行挙動だけを記録する。
+func TestDataConvJSONHugeExponent(t *testing.T) {
+	got, err := runCUICommands(t, "『1e400』をJSONデコードして表示")
+	if err == nil {
+		t.Fatalf("エラーになるはずが got=%q", got)
+	}
+	if !strings.Contains(err.Error(), "JSONデコードに失敗しました。") {
+		t.Errorf("err=%q", err)
 	}
 }
 
@@ -331,6 +374,42 @@ func TestDataConvCSVToJSON(t *testing.T) {
 		t.Fatalf("err=%v", err)
 	}
 	if want := `[["名前","値"],["桜",1],["青",2]]`; got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+}
+
+// CSV変換（書き込み方向）と文字コード保存・読み取りの往復。
+// クォートが必要なセル（カンマ・引用符・改行を含む）でも壊れないことと、
+// 書き出しの改行（既定は CRLF）が読み戻しで揃うことを確認する。
+func TestDataConvCSVWriteRoundtrip(t *testing.T) {
+	want := `[["a,b","x\"y"],["改\n行","z"]]`
+	for _, enc := range []string{"SJIS", "EUC"} {
+		t.Run(enc, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "write.csv")
+			code := "A=『[[\"a,b\",\"x\\\"y\"],[\"改\\n行\",\"z\"]]』をJSONデコード\n" +
+				"S=AをCSV変換\n" +
+				"P=" + nakoString(path) + "\n" +
+				"SをPに" + enc + "ファイル保存\n" +
+				"T=Pを" + enc + "ファイル読\n" +
+				"U=TをCSV取得\nUをJSONエンコードして表示"
+			got, err := runCUICommands(t, code)
+			if err != nil {
+				t.Fatalf("err=%v", err)
+			}
+			if got != want {
+				t.Errorf("got=%q want=%q", got, want)
+			}
+		})
+	}
+}
+
+// JSON→CSV の向きの変換。CSV変換の改行は既定で CRLF、末尾にも付く。
+func TestDataConvJSONToCSV(t *testing.T) {
+	got, err := runCUICommands(t, "A=『[[1,2],[3,4]]』をJSONデコード\nS=AをCSV変換\nSをJSONエンコードして表示")
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if want := `"1,2\r\n3,4\r\n"`; got != want {
 		t.Errorf("got=%q want=%q", got, want)
 	}
 }
