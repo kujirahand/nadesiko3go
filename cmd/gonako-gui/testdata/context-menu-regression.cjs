@@ -1,6 +1,7 @@
 // #354: 「保存して開く」の保存待ち中にコンテキストメニューが閉じても、
 // 操作開始時に選んだファイルを開けることを、製品 app.js の対象範囲を
-// 切り出して DOM スタブで実行し確認する。
+// 切り出して DOM スタブで実行し確認する。同種の参照をしていた
+// menuRevealFinder（Finder表示）もあわせて確認する。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,26 +12,34 @@ const source = fs.readFileSync(
   'utf8',
 );
 const start = source.indexOf('  function openContextMenu');
-const end = source.indexOf('  menuRevealFinder.addEventListener', start);
+const end = source.indexOf('  async function copyFilePath', start);
 
 assert.notEqual(start, -1, 'openContextMenuが見つかりません');
-assert.notEqual(end, -1, 'menuRevealFinderハンドラーが見つかりません');
+assert.notEqual(end, -1, 'copyFilePathが見つかりません');
 
 const extracted = source.slice(start, end);
 
 const listeners = {};
 const testState = {
   confirm: async () => true,
+  reveal: async () => {},
   opened: [],
   loadedDirectories: [],
+  revealed: [],
+  statuses: [],
 };
 
-const menuOpenEditor = {
-  textContent: '',
-  addEventListener(type, listener) {
-    listeners[type] = listener;
-  },
-};
+function makeMenuItem(key) {
+  return {
+    textContent: '',
+    addEventListener(type, listener) {
+      listeners[key] = listener;
+    },
+  };
+}
+
+const menuOpenEditor = makeMenuItem('openEditor');
+const menuRevealFinder = makeMenuItem('revealFinder');
 
 const fileContextMenu = {
   style: {},
@@ -40,10 +49,13 @@ const context = vm.createContext({
   console,
   fileContextMenu,
   menuOpenEditor,
+  menuRevealFinder,
+  setStatus: (message) => testState.statuses.push(message),
   testState,
   window: {
     innerWidth: 1024,
     innerHeight: 768,
+    revealInFinder: (filePath) => testState.reveal(filePath),
   },
 });
 
@@ -86,7 +98,7 @@ async function main() {
     return true;
   };
   openContextMenu(10, 20, fileB);
-  await listeners.click();
+  await listeners.openEditor();
 
   // vm内で作られたオブジェクトはプロトタイプが異なるため、値を取り出して比較する。
   assert.deepEqual(testState.opened.map(({ path: p, name }) => ({ path: p, name })), [{
@@ -98,7 +110,7 @@ async function main() {
   testState.opened.length = 0;
   testState.confirm = async () => false;
   openContextMenu(10, 20, fileB);
-  await listeners.click();
+  await listeners.openEditor();
 
   assert.deepEqual(testState.opened, []);
 
@@ -110,9 +122,22 @@ async function main() {
     isDir: true,
   };
   openContextMenu(10, 20, directory);
-  await listeners.click();
+  await listeners.openEditor();
 
   assert.deepEqual(testState.loadedDirectories, ['/tmp/project']);
+
+  // Finder表示でも、表示待ちの間にメニューが閉じても対象の名前を使う。
+  testState.revealed.length = 0;
+  testState.statuses.length = 0;
+  testState.reveal = async (filePath) => {
+    testState.revealed.push(filePath);
+    closeContextMenu();
+  };
+  openContextMenu(10, 20, fileB);
+  await listeners.revealFinder();
+
+  assert.deepEqual(testState.revealed, ['/tmp/B.nako3']);
+  assert.deepEqual(testState.statuses, ['ファイルを表示しました: B.nako3']);
 }
 
 main().catch((err) => {
