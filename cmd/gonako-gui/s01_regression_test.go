@@ -326,3 +326,37 @@ func TestS01GtkRegisterHandlerCallArity(t *testing.T) {
 	}
 }
 
+// 指摘6: sender originの判定はmain frameとsub frameで同一規則である。
+// frameの別を判定入力にしないこと（引数ごと削除したこと）と、コメントだけの
+// 空ブロックが戻らないことを固定する。
+func TestS01AllowSenderOriginIgnoresFrameKind(t *testing.T) {
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	if !strings.Contains(header, "bool allow_sender_origin(const sender_origin_t &origin) const {") {
+		t.Fatal("allow_sender_origin が frame の別を引数に取っています")
+	}
+	if !strings.Contains(header, "void on_message_from(const std::string &msg, const sender_origin_t &origin) {") {
+		t.Fatal("on_message_from が frame の別を引数に取っています")
+	}
+	// 旧引数がどこかに残っていれば、空ブロックか未使用引数が復活している。
+	if strings.Contains(header, "is_main_frame") {
+		t.Fatal("webview.h に未使用の is_main_frame が残っています")
+	}
+	if strings.Contains(header, "isMainFrame") {
+		t.Fatal("Cocoa が frameInfo.isMainFrame を読み続けています")
+	}
+	// 条件だけ書いて本体がコメントのみのブロックを、関数本体に限定して検出する。
+	start := strings.Index(header, "bool allow_sender_origin(const sender_origin_t &origin) const {")
+	end := strings.Index(header[start:], "\n  }\n")
+	if end < 0 {
+		t.Fatal("allow_sender_origin の終端が見つかりません")
+	}
+	body := header[start : start+end]
+	commentOnly := regexp.MustCompile(`if \([^\n]*\) \{\s*(?://[^\n]*\s*)*\}`)
+	if commentOnly.MatchString(body) {
+		t.Fatal("allow_sender_origin に本体がコメントだけの空ブロックがあります")
+	}
+	if !strings.Contains(body, "origin.opaque") {
+		t.Fatal("allow_sender_origin が opaque origin を拒否していません")
+	}
+}
+

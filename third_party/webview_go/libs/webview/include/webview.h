@@ -1084,8 +1084,15 @@ public:
   }
 
   // S01: 実sender originのtuple照合。opaque/sandboxはURLが同じでもdenyする。
-  // same-origin childはorigin-wide authorityとしてtuple一致で許可し、
-  // main-frame情報は判定入力として保持する。
+  //
+  // main frameとsub frameで規則は同一であり、frameの別は判定入力にしない。
+  // - opaque origin（sandbox付きiframeなどtupleを作れない文書）はopaque判定で
+  //   denyする。よって外部originのchildはoriginの段階で落ちる。
+  // - same-origin childはtuple一致なのでallowする。parent DOM relayと同じ
+  //   origin wide authorityであり、frameの別で規則を変えない。
+  // frameの別を引数で受け取らないのは、「main frameだけ許可」への挙動変更を
+  // ここで暗黙に行わないためである。各backendのmain/sub判別は実機で未検証なので、
+  // 緩和する場合は検証とdocsの更新を同時に行うこと。
   //
   // 全platformのtop-frame RPC policy:
   // - Cocoa: WKFrameInfo.securityOriginのprotocol/host/portを照合する。
@@ -1095,17 +1102,12 @@ public:
   // - Windows: 既存top-level WebMessageReceivedだけを使い、Frame2 receiverは
   //   追加しない。get_SourceはURLでありsecurityOriginではないため、iframe到達性は
   //   native検証項目として残す。
-  bool allow_sender_origin(const sender_origin_t &origin,
-                           bool is_main_frame) const {
+  bool allow_sender_origin(const sender_origin_t &origin) const {
     if (!trust_installed_.load() || origin.opaque) {
       return false;
     }
     if (origin.scheme.empty() || origin.host.empty() || origin.port.empty()) {
       return false;
-    }
-    if (!is_main_frame) {
-      // same-origin childはparent DOM relayと同じorigin authorityで扱う。
-      // opaque childは上のopaque判定で既にdenyされる。
     }
     return origin.scheme == trust_origin_.scheme &&
            origin.host == trust_origin_.host &&
@@ -1255,15 +1257,14 @@ protected:
   }
 
   // S01: senderを報告できるplatform向けのmessage guard。保護windowは、
-  // 報告されたdocument URLがexact originと一致するmessageだけを受け付ける。
+  // 報告されたoriginがexact tupleと一致するmessageだけを受け付ける。
   // trust originを持たない一般webviewは従来の挙動を保つ。
-  void on_message_from(const std::string &msg, const sender_origin_t &origin,
-                       bool is_main_frame) {
+  // senderがmain frameかsub frameかは受け取らない（allow_sender_originと同じ規則）。
+  void on_message_from(const std::string &msg, const sender_origin_t &origin) {
     // trust_configured_ は revoke 後も true のまま。revoke 後は installed=false
     // なので、一般windowのlegacy許可へ落とさずに必ずdenyする。
     if (trust_configured_.load()) {
-      if (!trust_installed_.load() ||
-          !allow_sender_origin(origin, is_main_frame)) {
+      if (!trust_installed_.load() || !allow_sender_origin(origin)) {
         return;
       }
     }
@@ -2208,10 +2209,10 @@ private:
                                              body, "UTF8String"_sel)
                                        : nullptr;
             id frame = objc::msg_send<id>(msg, "frameInfo"_sel);
-            BOOL mainFrame =
-                frame ? objc::msg_send<BOOL>(frame, "isMainFrame"_sel) : NO;
             // S01: senderのURLではなく、WKFrameInfo.securityOriginの実tupleを
             // 使う。opaque/sandbox originはtupleを作らずdenyする。
+            // main frameかsub frameかは渡さない。判定規則はどちらも同じで、
+            // frameの別を規則に持ち込むと暗黙の挙動変更になるため。
             sender_origin_t senderOrigin;
             id securityOrigin =
                 frame ? objc::msg_send<id>(frame, "securityOrigin"_sel)
@@ -2238,8 +2239,7 @@ private:
                 senderOrigin.opaque = false;
               }
             }
-            w->on_message_from(bodyText ? bodyText : "", senderOrigin,
-                               mainFrame != NO);
+            w->on_message_from(bodyText ? bodyText : "", senderOrigin);
           }),
           "v@:@@");
       objc_registerClassPair(cls);

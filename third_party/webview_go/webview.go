@@ -180,6 +180,12 @@ type TrustSpec struct {
 }
 
 // protectedBase は Bind を含まない。保護windowの生の Bind 経路を型から外す。
+//
+// これは「同一package外からは生の Bind に到達しにくい」という慣習レベルの
+// 境界であり、型システムによる強制ではない。埋め込みフィールド(*webview)は
+// protectedBase の後ろに隠れているだけで、リフレクションや型アサーション
+// （例: interface{ Bind(string, interface{}) error } への変換）を使えば突破できる。
+// 実際の強制は native 側の trust guard（origin 照合と revoke）が担う。
 type protectedBase interface {
 	Run()
 	Terminate()

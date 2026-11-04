@@ -51,6 +51,19 @@ extern int gonakoNativeTrustAllowsURL(void *engine, const char *url);
 - (void)webView:(WKWebView *)webView
     decidePolicyForNavigationAction:(WKNavigationAction *)action
                   decisionHandler:(void (^)(WKNavigationActionPolicy))handler {
+    // S01: 保護ウィンドウの現行仕様（意図した挙動であり、未実装ではない）。
+    // - このdelegateはmain frameとsub frameの両方のnavigation actionに来る。
+    //   ここではtargetFrameの別を見ず、要求URLのoriginだけで判定する。したがって
+    //   外部originのsub frame（動画埋め込み等のiframe）は読み込めない。
+    //   about:blank / about:srcdoc / data: / blob: のchildも、要求URLがtrusted
+    //   originのtuple（scheme/host/port、portは必須）に一致しないため拒否される。
+    // - new-window（targetFrame == nil、target=_blank / window.open / mailto: 等）は
+    //   常にcancelする。別ウィンドウに特権Bindを渡さないための措置で、外部ブラウザへ
+    //   委ねる経路はこのguardには持たせていない。Go側のopenExternalURL
+    //   （http/httpsのみ）が、アプリが用意した安全な外部遷移の経路である。
+    // - 「main frameだけ判定する」への緩和は意図的に見送っている。緩和するには
+    //   GTK/Windowsのmain/sub判別を実機で確認する必要があり、未検証の挙動変更は
+    //   行わない。スコープを狭める場合は、このコメントとdocsの記載を同時に直すこと。
     // nil targetFrameはnew-window要求である。trusted URLでも作成しない。
     if (action.targetFrame == nil) {
         handler(WKNavigationActionPolicyCancel);

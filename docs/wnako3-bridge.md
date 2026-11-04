@@ -118,6 +118,18 @@ N=「文字数」を[「あいう」]でGONAKO関数実行
   `runNakoCode` / `startNakoCode` と同じ前提で、ブリッジで権限が広がるわけではない。
   信頼できないスクリプト（出所の分からないCDNのJSなど）をHTMLに読み込まないこと
 - **外部ページ**: `-url` で開いた外部ページには、ローダーを注入しない
+- **保護ウィンドウの遷移policy（S01）**: `-dir` のフォルダ・梱包アプリ・エディタの実行画面を
+  載せる保護ウィンドウは、自前HTTPサーバーの厳密なorigin（scheme/host/portの完全一致）以外への
+  遷移を拒否する。判定はmain frameとsub frameを区別しないため、外部originのiframe
+  （動画埋め込み等）は読み込めない。`about:blank` / `about:srcdoc` / `data:` / `blob:` の
+  サブフレームはopaque originとして拒否する。`target=_blank` / `window.open` / `mailto:` などの
+  新規ウィンドウ要求も常に拒否する（cancel）。外部ブラウザで開きたい場合は、HTMLのJSからGo側の
+  `openExternalURL`（http/httpsのみ許可、`cmd/gonako-gui/main.go`）を呼ぶ。`mailto:` はこの経路
+  でも開けない。いずれも「保護ウィンドウに別originのdocumentや別ウィンドウを与えない」ための
+  意図した仕様である。main frameだけを判定する緩和は、GTK/Windowsのmain/sub判別が実機で
+  未検証のため行っていない。WindowsはWebView2の `NavigationStarting`（main frame）と
+  `NewWindowRequested` だけを登録し、frame navigation用のhandlerを持たないので、
+  サブフレームが実際にどこまで止まるかはWindows実機での確認待ちである
 - **DNS rebinding対策**: ローカルHTTPサーバーは `loopbackOnly`（`cmd/gonako-gui/wnako3.go`）で
   Hostヘッダーが `127.0.0.1` / `localhost` / `::1` の要求だけを受け付ける。ふつうのブラウザで開いた
   悪意あるサイトが、自分のドメインを127.0.0.1へ向け直してフォルダのファイルを読むのを防ぐ。
