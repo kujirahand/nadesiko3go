@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"encoding/xml"
@@ -37,6 +38,12 @@ type BuildResult struct {
 	Size  int64  `json:"size,omitempty"`
 	Kind  string `json:"kind,omitempty"`
 	Error string `json:"error,omitempty"`
+	// Warning is set when the new app is already at Path but something could
+	// not be cleaned up. That is a completed build, not Error.
+	Warning string `json:"warning,omitempty"`
+	// Leftover lists what the warning left behind, so the caller can show the
+	// real paths instead of claiming the old app is fully recoverable.
+	Leftover []string `json:"leftover,omitempty"`
 }
 
 // runBundledApp runs the application packed into this executable, if there is
@@ -293,6 +300,23 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 		return BuildResult{Error: fmt.Sprintf("出力先が分かりません: %v", err)}
 	}
 
+	// 出力先が梱包対象フォルダそのものだと、既存の.appを退避したうえで
+	// プロジェクトフォルダごと入れ替えてしまい、ソース一式を失う。
+	// symlink経由の同一パスも、実体で比べて拒否する。
+	realFolder, err := filepath.EvalSymlinks(folder)
+	if err != nil {
+		return BuildResult{Error: fmt.Sprintf("フォルダの場所が分かりません: %v", err)}
+	}
+	realOut, outErr := resolveRealPath(out)
+	if outErr == nil && realOut == realFolder {
+		return BuildResult{Error: "出力先が変換するフォルダと同じ場所です。別のフォルダを指定してください"}
+	}
+	// 出力先(.app)の内側に梱包対象がある場合も、公開時に出力先ごと
+	// 入れ替わってソースが消えるため拒否する。
+	if outErr == nil && outputInside(realOut, realFolder) {
+		return BuildResult{Error: "出力先が変換するフォルダを含んでいます。別のフォルダを指定してください"}
+	}
+
 	self, err := runtimePathForBuild()
 	if err != nil {
 		return BuildResult{Error: fmt.Sprintf("ランタイムの場所が分かりません: %v", err)}
@@ -328,13 +352,30 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 
 	// macOSでは「1つの実行ファイル」ではなく .app フォルダにまとめる。
 	// Dockに名前とアイコンが出て、Finderからそのまま開ける形になる。
+	// 完成するまで最終パスには触らない。隣に隠しフォルダを作り、その中の
+	// 最終basenameの.appを完成させてから置き換える。
 	target := out
+	var staging *macAppStaging
 	if strings.EqualFold(filepath.Ext(out), appExt) {
-		exe, err := prepareMacAppBundle(out, title)
+		if err := checkMacAppOutput(out); err != nil {
+			return BuildResult{Error: err.Error()}
+		}
+		staging, err = newMacAppStaging(out)
 		if err != nil {
 			return BuildResult{Error: err.Error()}
 		}
-		useFolderIcon(out, folder)
+		defer func() { _ = staging.discard() }()
+		// 出力先がフォルダの中にあるときだけ、既存の.appが梱包対象に入る。
+		// 完成まで残すので、その中身を明示的に外しておく。symlink経由の
+		// 出力先でも、梱包が歩く実体側のツリーを外す。
+		if outErr == nil && outputInside(realFolder, realOut) {
+			skipExistingTree(spec.Skip, realOut)
+		}
+		exe, err := prepareMacAppBundle(staging.app, title)
+		if err != nil {
+			return BuildResult{Error: err.Error()}
+		}
+		useFolderIcon(staging.app, folder)
 		target = exe
 		// .app の中身は変換の途中で書き換わるので、梱包対象から外す
 		spec.Skip[exe] = true
@@ -343,14 +384,35 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 	if err := bundle.BuildSpec(target, self, spec); err != nil {
 		return BuildResult{Error: err.Error()}
 	}
-	if err := os.Chmod(target, 0o755); err != nil {
+	if err := chmodBuiltApp(target, 0o755); err != nil {
 		return BuildResult{Error: fmt.Sprintf("実行権限を付けられません: %v", err)}
 	}
 	if err := makeWindowsGUI(target); err != nil {
 		return BuildResult{Error: fmt.Sprintf("Windowsアプリの設定を書き換えられません: %v", err)}
 	}
-
-	return BuildResult{OK: true, Path: out, Size: pathSize(out), Kind: spec.Kind}
+	result := BuildResult{OK: true, Path: out, Kind: spec.Kind}
+	if staging != nil {
+		installed, err := installMacApp(staging.app, out)
+		if err != nil {
+			return BuildResult{Error: err.Error()}
+		}
+		var warnings []string
+		if installed.Leftover != "" {
+			warnings = append(warnings, fmt.Sprintf(
+				"新しいアプリは公開しましたが、古いアプリを片付けられませんでした。残ったbackup『%s』は完全でない可能性があります: %v",
+				installed.Leftover, installed.CleanupErr))
+			result.Leftover = append(result.Leftover, installed.Leftover)
+		}
+		if err := staging.discard(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("新しいアプリは公開しましたが、一時フォルダを片付けられませんでした: %v", err))
+			result.Leftover = append(result.Leftover, staging.root)
+		}
+		result.Warning = strings.Join(warnings, "\n")
+	}
+	// サイズは公開後の最終成果物から測る。置換前のoutは存在しないか旧.app
+	// なので、ここより前で測ると初回0・再ビルド旧サイズになる。
+	result.Size = pathSize(out)
+	return result
 }
 
 // Windowsのサブシステム。実行ファイルのヘッダに入っている。
@@ -454,10 +516,13 @@ type macAppFields struct {
 	Icon       string
 }
 
-// prepareMacAppBundle writes the .app folder from the embedded template and
+// prepareMacAppBundle writes a fresh .app folder from the embedded template and
 // reports where the executable must go.
 //
-// 持ち込みの icon.icns がフォルダにあれば、それをアプリのアイコンにする。
+// It writes where it is told and never replaces an existing bundle, so the
+// caller finishes the app in a private folder and swaps it in only after
+// packaging succeeded. 持ち込みの icon.icns がフォルダにあれば、それをアプリの
+// アイコンにする。
 func prepareMacAppBundle(appPath, title string) (execPath string, err error) {
 	name := strings.TrimSuffix(filepath.Base(appPath), appExt)
 	if name == "" {
@@ -465,20 +530,6 @@ func prepareMacAppBundle(appPath, title string) (execPath string, err error) {
 	}
 	if title == "" {
 		title = name
-	}
-
-	// 作り直せるように、前の .app は消してから書く。間違って別のフォルダを
-	// 消さないよう、.app の形をしているものだけを対象にする。
-	if info, statErr := os.Stat(appPath); statErr == nil {
-		if !info.IsDir() {
-			return "", fmt.Errorf("『%s』はフォルダではありません", appPath)
-		}
-		if _, plistErr := os.Stat(filepath.Join(appPath, macPlistPath)); plistErr != nil {
-			return "", fmt.Errorf("『%s』はmacOSアプリではないので上書きしません", appPath)
-		}
-		if err := os.RemoveAll(appPath); err != nil {
-			return "", fmt.Errorf("古いアプリを消せません: %w", err)
-		}
 	}
 
 	fields := macAppFields{
@@ -523,6 +574,161 @@ func prepareMacAppBundle(appPath, title string) (execPath string, err error) {
 		return "", err
 	}
 	return filepath.Join(execDir, name), nil
+}
+
+// 変換の途中で失敗を注入できるように、テストが差し替える口を用意する。
+var (
+	chmodBuiltApp  = os.Chmod
+	renameBuiltApp = os.Rename
+)
+
+// checkMacAppOutput refuses to replace anything that is not a macOS app, so a
+// failed build can never be blamed for deleting an unrelated folder.
+func checkMacAppOutput(appPath string) error {
+	info, err := os.Stat(appPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("『%s』を確認できません: %w", appPath, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("『%s』はフォルダではありません", appPath)
+	}
+	if _, err := os.Stat(filepath.Join(appPath, macPlistPath)); err != nil {
+		return fmt.Errorf("『%s』はmacOSアプリではないので上書きしません", appPath)
+	}
+	return nil
+}
+
+// macAppStaging is the private folder a .app is finished in. The bundle inside
+// keeps the final basename so the executable name and the bundle identifier
+// never inherit the random folder name.
+type macAppStaging struct {
+	root string
+	app  string
+}
+
+// newMacAppStaging creates the private folder next to the final app. Keeping it
+// a sibling means the later swap stays on one filesystem.
+func newMacAppStaging(appPath string) (*macAppStaging, error) {
+	dir := filepath.Dir(appPath)
+	// 出力先の親フォルダが無くても、以前のテンプレート書き出しと同じように
+	// 作ってから staging を置く。
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("出力先のフォルダを作れません: %w", err)
+	}
+	root, err := os.MkdirTemp(dir, "."+filepath.Base(appPath)+".staging-")
+	if err != nil {
+		return nil, fmt.Errorf("一時フォルダを作れません: %w", err)
+	}
+	return &macAppStaging{root: root, app: filepath.Join(root, filepath.Base(appPath))}, nil
+}
+
+// discard removes the private folder. It is safe to call after the bundle was
+// moved out, and on every failure path.
+func (s *macAppStaging) discard() error {
+	return os.RemoveAll(s.root)
+}
+
+// macAppInstall reports how far the swap got. A non-nil error means the new
+// app never took the final path. Leftover names an old backup that stayed
+// behind after the new app was published, which is a warning, not a failure:
+// the backup may already be partly deleted, so it must not be presented as a
+// complete rescue copy.
+type macAppInstall struct {
+	Leftover   string
+	CleanupErr error
+}
+
+// installMacApp swaps the finished staging bundle onto appPath. The previous
+// app is moved aside first and put back when the swap fails, so a failed
+// rebuild never leaves the user without a working app. Once the new app took
+// the final path, a cleanup failure is reported separately instead of being
+// rolled back or hidden.
+func installMacApp(stagingApp, appPath string) (macAppInstall, error) {
+	var result macAppInstall
+	backup := ""
+	if _, err := os.Lstat(appPath); err == nil {
+		var err error
+		backup, err = macAppBackupPath(appPath)
+		if err != nil {
+			return result, err
+		}
+		if err := renameBuiltApp(appPath, backup); err != nil {
+			return result, fmt.Errorf("古いアプリを退避できません: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return result, fmt.Errorf("出力先『%s』を確認できません: %w", appPath, err)
+	}
+
+	if err := renameBuiltApp(stagingApp, appPath); err != nil {
+		if backup == "" {
+			return result, fmt.Errorf("新しいアプリを置けません: %w", err)
+		}
+		if restoreErr := renameBuiltApp(backup, appPath); restoreErr != nil {
+			return result, fmt.Errorf(
+				"新しいアプリを置けません: %w。古いアプリは『%s』に残っていますが、元の場所へ戻せません: %v",
+				err, backup, restoreErr)
+		}
+		return result, fmt.Errorf("新しいアプリを置けません: %w", err)
+	}
+	if backup != "" {
+		if err := os.RemoveAll(backup); err != nil {
+			result.Leftover = backup
+			result.CleanupErr = err
+		}
+	}
+	return result, nil
+}
+
+// macAppBackupPath picks an unused hidden name next to the app.
+func macAppBackupPath(appPath string) (string, error) {
+	dir := filepath.Dir(appPath)
+	for range 10 {
+		candidate := filepath.Join(dir, "."+filepath.Base(appPath)+".backup-"+rand.Text())
+		if _, err := os.Lstat(candidate); os.IsNotExist(err) {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("退避先の名前が重複しました")
+}
+
+// resolveRealPath returns path with symlinks resolved. A path that does not
+// exist yet is resolved through its parent, because the output is created
+// later.
+func resolveRealPath(path string) (string, error) {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved, nil
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(path)), nil
+}
+
+// outputInside reports whether the resolved path is below the resolved folder.
+// The bundle walker packs the resolved resource folder, so both sides must be
+// compared after symlink resolution; a lexical comparison would miss an output
+// reached through a symlinked parent.
+func outputInside(realFolder, realPath string) bool {
+	rel, err := filepath.Rel(realFolder, realPath)
+	if err != nil {
+		return false
+	}
+	return rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// skipExistingTree keeps an existing output folder out of the payload. The
+// bundle walker skips files, not folders, so every file has to be named.
+func skipExistingTree(skip map[string]bool, root string) {
+	_ = filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
+		if err == nil && !fi.IsDir() {
+			skip[p] = true
+		}
+		return nil
+	})
 }
 
 // useFolderIcon replaces the template icon with one the folder provides.
