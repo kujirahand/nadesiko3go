@@ -189,6 +189,7 @@ func TestGoModContentReplacePathParsedByToolchain(t *testing.T) {
 		{"空白入り", filepath.Join(base, "source checkout")},
 		{"引用符入り", filepath.Join(base, `a"b`)},
 		{"空白と日本語", filepath.Join(base, "日本語 フォルダ")},
+		{"NBSP入り", filepath.Join(base, "a\u00a0b")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

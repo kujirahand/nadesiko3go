@@ -123,8 +123,9 @@ func buildWithGo(sourcePath, outPath string) GoBuildResult {
 // 「/」にそろえたうえで Go 文字列リテラルとして引用する (Issue #352)。
 // 引用しないと空白でパスが分割され、go mod tidy が失敗する。引用だけ
 // してエスケープしないと、Windows の「\」が不正なエスケープ列になる。
-// 空白のないパスを引用しても害はない (go mod tidy が必要なら無引用の
-// 形に書き直す)。
+// 空白のないパスを引用しても害はない (引用した形でもツールチェインは
+// 正しく読む。手元の Go では go mod tidy が無引用の形に書き直すことも
+// 実測済み)。
 func goModContent(srcDir string) string {
 	replacePath := strconv.Quote(filepath.ToSlash(srcDir))
 	return "module gonakobuild\n\ngo 1.23\n\n" +
