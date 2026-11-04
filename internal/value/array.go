@@ -91,6 +91,9 @@ func (a *Array) Truncate(n int) {
 		n = 0
 	}
 	if n < len(a.items) {
+		// 切り捨てる要素への参照を基底配列から消し、配列が生きている間も
+		// 削除した値がGCで回収されるようにする (#343)。
+		clear(a.items[n:])
 		a.items = a.items[:n]
 	}
 }
@@ -151,7 +154,13 @@ func (a *Array) Remove(index, count int) []Value {
 		end = len(a.items)
 	}
 	removed := append([]Value(nil), a.items[index:end]...)
-	a.items = append(a.items[:index], a.items[end:]...)
+	// 残存要素を前へ詰めた後、新しい長さより後ろに残る複製への参照を消し、
+	// 削除した値がGCで回収されるようにする (#343)。
+	// removed はコピーなので、利用側が保持しても値は失われない。
+	newLen := len(a.items) - (end - index)
+	copy(a.items[index:], a.items[end:])
+	clear(a.items[newLen:])
+	a.items = a.items[:newLen]
 	return removed
 }
 

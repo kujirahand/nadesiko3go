@@ -3,6 +3,7 @@ package stdlib
 import (
 	"errors"
 	"math"
+	"math/rand/v2"
 	"regexp"
 	"strings"
 
@@ -171,9 +172,7 @@ func arrayImpls(m map[string]Impl) {
 		if !ok {
 			return value.Undefined(), errors.New("『配列シャッフル』で配列以外が指定されました。")
 		}
-		// The observable contract is mutation plus preservation of all items.
-		// Use a deterministic permutation so compatibility tests stay repeatable.
-		arr.Reverse()
+		shuffleArray(arr, rand.IntN)
 		return arg(a, 0), nil
 	}
 
@@ -501,6 +500,18 @@ func spliceStartInt(f float64) int {
 		return math.MinInt
 	}
 	return int(f)
+}
+
+// shuffleArray は本家 TypeScript 版と同じ Fisher-Yates 法で配列をその場で
+// 並べ替える。intn は [0, n) の一様な整数を返す関数で、本番では
+// math/rand/v2 の IntN を渡し、テストでは決定的な系列に差し替える (#345)。
+func shuffleArray(arr *value.Array, intn func(int) int) {
+	for i := arr.Len() - 1; i > 0; i-- {
+		j := intn(i + 1)
+		item := arr.Get(i)
+		arr.Set(i, arr.Get(j))
+		arr.Set(j, item)
+	}
 }
 
 func requireTable(name string, v value.Value) (*value.Array, error) {
