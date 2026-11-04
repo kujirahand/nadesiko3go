@@ -3,10 +3,13 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -144,6 +147,187 @@ func TestBuildWithGoDownloadsRealSource(t *testing.T) {
 	}
 	if !res.Downloaded {
 		t.Fatal("ダウンロードしたはずなのに Downloaded=false")
+	}
+	outBytes, err := exec.Command(res.Path).CombinedOutput()
+	if err != nil {
+		t.Fatalf("ビルドした実行ファイルが動かない: %v\n%s", err, outBytes)
+	}
+	if string(outBytes) != "こんにちは、Goビルド！\n" {
+		t.Fatalf("出力が違う: %q", outBytes)
+	}
+}
+
+// replacePathToken は goModContent が生成した go.mod から replace 先の
+// 引用文字列を取り出す。引用を解いた値の検証に使う。
+func replacePathToken(t *testing.T, content string) string {
+	t.Helper()
+	for _, line := range strings.Split(content, "\n") {
+		if !strings.HasPrefix(line, "replace ") {
+			continue
+		}
+		_, token, ok := strings.Cut(line, " => ")
+		if !ok {
+			t.Fatalf("replace 行に => がない: %q", line)
+		}
+		return strings.TrimSpace(token)
+	}
+	t.Fatalf("replace 行がない: %q", content)
+	return ""
+}
+
+// TestGoModContentReplacePathParsedByToolchain は、生成した go.mod を
+// 実際の Go ツールチェイン (go mod edit -json) で解析し、replace 先が
+// 配置パス (パス区切りを「/」にそろえた形) と一致することを確かめる
+// (Issue #352)。標準ライブラリだけで検証するため x/mod には依存しない。
+func TestGoModContentReplacePathParsedByToolchain(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go コマンドがない")
+	}
+	base := t.TempDir()
+	cases := []struct{ name, dir string }{
+		{"空白なし", filepath.Join(base, "checkout")},
+		{"空白入り", filepath.Join(base, "source checkout")},
+		{"引用符入り", filepath.Join(base, `a"b`)},
+		{"空白と日本語", filepath.Join(base, "日本語 フォルダ")},
+		{"NBSP入り", filepath.Join(base, "a\u00a0b")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goModContent(tc.dir)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command("go", "mod", "edit", "-json")
+			cmd.Dir = dir
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("go mod edit -json が生成 go.mod を解析できない: %v\n%s\ngo.mod:\n%s", err, out, goModContent(tc.dir))
+			}
+			var mod struct {
+				Replace []struct {
+					Old struct{ Path string }
+					New struct{ Path string }
+				}
+			}
+			if err := json.Unmarshal(out, &mod); err != nil {
+				t.Fatal(err)
+			}
+			if len(mod.Replace) != 1 {
+				t.Fatalf("replace の数 = %d, want 1", len(mod.Replace))
+			}
+			if mod.Replace[0].Old.Path != "github.com/kujirahand/nadesiko3go" {
+				t.Fatalf("replace 元 = %q", mod.Replace[0].Old.Path)
+			}
+			// goModContent は区切りを「/」にそろえるので、解析結果もそろう。
+			if want := filepath.ToSlash(tc.dir); mod.Replace[0].New.Path != want {
+				t.Fatalf("replace 先 = %q, want %q", mod.Replace[0].New.Path, want)
+			}
+		})
+	}
+}
+
+// TestGoModContentEscapesReplacePath は、実行中の OS ではローカルパス
+// として解釈できない形式 (Windows のドライブパスなど) でも、引用した
+// replace 先が文字列として往復し、元のパス (区切りをそろえた形) に
+// 戻ることを確かめる。引用符やバックスラッシュのエスケープ漏れは、
+// 単にダブルクォートで囲むだけの実装ではここで失敗する。
+func TestGoModContentEscapesReplacePath(t *testing.T) {
+	cases := []struct{ name, dir string }{
+		{"Windowsの空白と引用符", `C:\Users\My Documents\a"quoted"\repo`},
+		{"Windowsの空白のみ", `D:\source checkout\nadesiko3go`},
+		{"Unixの空白と引用符", `/home/user/source checkout/a"b/repo`},
+		{"空白なし", `/home/user/nadesiko3go`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			token := replacePathToken(t, goModContent(tc.dir))
+			got, err := strconv.Unquote(token)
+			if err != nil {
+				t.Fatalf("replace 先 %q が Go 文字列として解釈できない: %v", token, err)
+			}
+			if want := filepath.ToSlash(tc.dir); got != want {
+				t.Fatalf("復元したパス = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// TestBuildGoSourceWithSpacedReplacePath は、空白入りの配置パスにある
+// 最小の置換先モジュールに対して buildGoSource (go mod tidy + go build)
+// が通ることを確かめる (Issue #352)。置換先は依存のない最小構成にして、
+// ネットワークなしで replace の解決だけを検証する。
+func TestBuildGoSourceWithSpacedReplacePath(t *testing.T) {
+	if testing.Short() {
+		t.Skip("go mod tidy/go build; skipped under -short")
+	}
+	for _, tc := range []struct{ name, dirName string }{
+		{"空白なし", "checkout"},
+		{"空白入り", "source checkout"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			srcDir := filepath.Join(t.TempDir(), tc.dirName)
+			runtimeDir := filepath.Join(srcDir, "pkg", "runtime")
+			if err := os.MkdirAll(runtimeDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(srcDir, "go.mod"),
+				[]byte("module github.com/kujirahand/nadesiko3go\n\ngo 1.23\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(runtimeDir, "runtime.go"),
+				[]byte("package runtime\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			src := []byte("package main\n\nimport _ \"github.com/kujirahand/nadesiko3go/pkg/runtime\"\n\nfunc main() {}\n")
+			outPath := filepath.Join(t.TempDir(), "gonako-test")
+			built, err := buildGoSource(src, srcDir, outPath)
+			if err != nil {
+				t.Fatalf("buildGoSource が失敗した: %v", err)
+			}
+			if _, err := os.Stat(built); err != nil {
+				t.Fatalf("ビルド成果物がない: %v", err)
+			}
+		})
+	}
+}
+
+// TestBuildWithGoSpacedCheckoutPath は、本物のチェックアウトを空白入り
+// パス経由 (シンボリックリンク) で指して buildWithGo がビルドでき、
+// 成果物が動くことを確かめる (Issue #352 の受け入れ条件)。リンクを
+// 作れない環境 (Windows の権限など) ではスキップする。
+func TestBuildWithGoSpacedCheckoutPath(t *testing.T) {
+	if testing.Short() {
+		t.Skip("go mod tidy/go build; skipped under -short")
+	}
+	root := repoRoot(t)
+	link := filepath.Join(t.TempDir(), "source checkout", "nadesiko3go")
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(root, link); err != nil {
+		t.Skipf("シンボリックリンクを作れないためスキップ: %v", err)
+	}
+	restore := swapSourceDir(t, func() (string, error) { return link, nil })
+	defer restore()
+
+	called := false
+	origDownload := downloadSourceFunc
+	downloadSourceFunc = func(string) error { called = true; return nil }
+	defer func() { downloadSourceFunc = origDownload }()
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "hello.nako3")
+	if err := os.WriteFile(src, []byte("「こんにちは、Goビルド！」と表示。\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out := filepath.Join(dir, "hello")
+
+	res := buildWithGo(src, out)
+	if called {
+		t.Fatal("既存のチェックアウトがあるのにダウンロード関数が呼ばれた")
+	}
+	if !res.OK {
+		t.Fatalf("空白入りパス経由のビルドに失敗した: %s", res.Error)
 	}
 	outBytes, err := exec.Command(res.Path).CombinedOutput()
 	if err != nil {

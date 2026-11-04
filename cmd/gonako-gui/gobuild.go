@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
@@ -116,6 +117,22 @@ func buildWithGo(sourcePath, outPath string) GoBuildResult {
 	return GoBuildResult{OK: true, Path: out, Size: size, Downloaded: downloaded}
 }
 
+// goModContent は buildGoSource が使う一時モジュールの go.mod の内容を
+// 生成する。replace 先は、配置パスに空白・引用符・バックスラッシュが
+// 含まれていても go.mod の構文として正しく読めるよう、パス区切りを
+// 「/」にそろえたうえで Go 文字列リテラルとして引用する (Issue #352)。
+// 引用しないと空白でパスが分割され、go mod tidy が失敗する。引用だけ
+// してエスケープしないと、Windows の「\」が不正なエスケープ列になる。
+// 空白のないパスを引用しても害はない (引用した形でもツールチェインは
+// 正しく読む。手元の Go では go mod tidy が無引用の形に書き直すことも
+// 実測済み)。
+func goModContent(srcDir string) string {
+	replacePath := strconv.Quote(filepath.ToSlash(srcDir))
+	return "module gonakobuild\n\ngo 1.23\n\n" +
+		"require github.com/kujirahand/nadesiko3go v0.0.0\n\n" +
+		"replace github.com/kujirahand/nadesiko3go => " + replacePath + "\n"
+}
+
 // buildGoSource writes src into a throwaway module that replaces
 // github.com/kujirahand/nadesiko3go with srcDir, then builds it.
 func buildGoSource(src []byte, srcDir, outPath string) (string, error) {
@@ -128,10 +145,7 @@ func buildGoSource(src []byte, srcDir, outPath string) (string, error) {
 	if err := os.WriteFile(filepath.Join(buildDir, "main.go"), src, 0o644); err != nil {
 		return "", fmt.Errorf("Goソースを書き出せません: %w", err)
 	}
-	goMod := "module gonakobuild\n\ngo 1.23\n\n" +
-		"require github.com/kujirahand/nadesiko3go v0.0.0\n\n" +
-		"replace github.com/kujirahand/nadesiko3go => " + srcDir + "\n"
-	if err := os.WriteFile(filepath.Join(buildDir, "go.mod"), []byte(goMod), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(buildDir, "go.mod"), []byte(goModContent(srcDir)), 0o644); err != nil {
 		return "", fmt.Errorf("go.modを書き出せません: %w", err)
 	}
 
