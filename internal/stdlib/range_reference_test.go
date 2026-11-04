@@ -75,6 +75,9 @@ func TestReferenceRangeJSSemantics(t *testing.T) {
 		{"末尾+Inf", 0, inf, "abc", "0,1,2,3"},
 		{"両方+Inf", inf, inf, "", ""},
 		{"先頭-Inf", math.Inf(-1), 1, "ab", "0,1"},
+		{"末尾-Inf", 0, math.Inf(-1), "", ""},
+		{"末尾-Infで先頭1", 1, math.Inf(-1), "a", ""},
+		{"先頭+Infで末尾は有限", inf, 1, "c", ""},
 		{"小数", 1.7, 2.9, "bc", "1,2"},
 		{"負の範囲", -3, -1, "", ""},
 		{"巨大値", 0, 1e19, "abc", "0,1,2,3"},
@@ -141,6 +144,10 @@ func TestArrayCutRangeJSSemantics(t *testing.T) {
 		{"通常", 1, 2, "1,2", "0,3"},
 		{"逆転", 2, 0, "", "0,1,2,3"},
 		{"末尾NaN", 0, math.NaN(), "", "0,1,2,3"},
+		{"末尾-Inf", 0, math.Inf(-1), "", "0,1,2,3"},
+		{"先頭+Inf", math.Inf(1), 1, "", "0,1,2,3"},
+		{"小数", 1.7, 2.9, "1,2", "0,3"},
+		{"巨大な末尾", 0, 1e19, "0,1,2,3", ""},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
