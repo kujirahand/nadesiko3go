@@ -722,3 +722,17 @@ func TestPrivilegedBridgeBoundOnlyForInternalUI(t *testing.T) {
 		}
 	}
 }
+
+// #354: コンテキストメニューの「保存して開く」で、保存待ち中にメニューが
+// 閉じても操作開始時に選んだファイルを開けることを確認する。
+// 製品 app.js の対象範囲を Node.js で DOM スタブ実行して検証する。
+func TestContextMenuOpenEditorKeepsTargetAcrossSave(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("JavaScriptの確認にはNode.jsが必要です")
+	}
+	cmd := exec.Command(node, "testdata/context-menu-regression.cjs")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("コンテキストメニューの回帰テストに失敗しました: %v\n%s", err, output)
+	}
+}
