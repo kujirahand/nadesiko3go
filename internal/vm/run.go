@@ -37,6 +37,8 @@ func (m *VM) protect(f *frame, pc int) (result value.Value, handled bool, target
 		if r == nil {
 			return
 		}
+		// 終了 (exitPanic) は nakoPanic ではないので、ここで再 panic されて
+		// エラー監視を通過する (#337)
 		np, isNako := r.(nakoPanic)
 		if !isNako || len(f.handlers) == 0 {
 			panic(r)
@@ -844,12 +846,8 @@ func (m *VM) ReadResource(name string) ([]byte, bool) { return m.host.ReadResour
 // process, the compat runner just stops the program.
 func (m *VM) Exit(code int) {
 	m.host.Exit(code)
-	panic(nakoPanic{&errs.NakoError{Kind: errs.Runtime, File: m.fileName(0), Msg: exitMessage}})
+	panic(exitPanic{code})
 }
-
-// exitMessage marks the panic that 『終了』 raises, so Run can tell an intended
-// stop from a real error.
-const exitMessage = "\x00終了"
 
 func (m *VM) SysVar(name string) value.Value { return m.loadGlobalByName(name) }
 
@@ -861,8 +859,20 @@ func (m *VM) CallFunc(fn *value.Func, args []value.Value) (result value.Value, e
 	if fn == nil {
 		return value.Undefined(), errors.New("関数が指定されていません。")
 	}
+	// 実行の外からの直接呼び出し（GUIの画面イベントなど）なら、自身が入口になる
+	top := m.entry == 0
+	if top {
+		defer m.enter()()
+	}
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(exitPanic); ok {
+				if top {
+					result, err = value.Undefined(), nil // 入口で終了を受け止める
+					return
+				}
+				panic(r) // 実行中の命令からの呼び出しは、終了を素通りさせる (#337)
+			}
 			np, ok := r.(nakoPanic)
 			if !ok {
 				panic(r)
@@ -932,8 +942,13 @@ func (m *VM) CallCommand(name string, args []value.Value) (value.Value, error) {
 // InvokeCommand はVMの外（gonako-guiのwnako3ブリッジなど）から命令を呼ぶ。
 // 命令の中で起きたなでしこのエラーを、panicではなく通常のerrorとして返す。
 func (m *VM) InvokeCommand(name string, args []value.Value) (result value.Value, err error) {
+	defer m.enter()()
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(exitPanic); ok {
+				result, err = value.Undefined(), nil // 終了は Host に記録済み (#337)
+				return
+			}
 			np, ok := r.(nakoPanic)
 			if !ok {
 				result, err = value.Undefined(), fmt.Errorf("命令『%s』の実行中にエラーが発生しました: %v", name, r)

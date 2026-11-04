@@ -181,6 +181,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	// 『N で強制終了』の終了コードを、gonako 本体（cmd/gonako の finish）と揃える
+	if host.Exited && host.ExitCode != 0 {
+		os.Exit(host.ExitCode)
+	}
 }
 `)
 	}

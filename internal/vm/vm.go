@@ -87,6 +87,11 @@ type VM struct {
 	executed uint64
 	options  Options
 
+	// entry は実行の入口（Run / InvokeCommand / 外部からの CallFunc）の
+	// 入れ子の数。0 のときに CallFunc が呼ばれたら、それは実行の外からの
+	// 直接呼び出しである (#337)。
+	entry int
+
 	// natives holds a Go-compiled stand-in for Funcs[index], for the gogen
 	// backend (AGENTS.md §12). callClosure calls it instead of interpreting
 	// bytecode, but everything around the call — depth limit, capture
@@ -263,21 +268,37 @@ func (m *VM) Vars(prefix string, names []string) map[string]value.Value {
 // nakoPanic carries a nadesiko runtime error out of the interpreter loop.
 type nakoPanic struct{ err *errs.NakoError }
 
+// exitPanic は『終了』『強制終了』が投げる (#337)。
+// nakoPanic とは別の型にすることで、エラー監視（protect や生成コードの
+// Recover）や CallFunc の「nakoPanic だけを捕まえる」処理を素通りし、
+// 実行の最上位（Run / InvokeCommand / 外部からの CallFunc）でだけ
+// 正常終了として扱われる。終了コードの正本は Host が持つ。
+type exitPanic struct{ code int }
+
+// enter は実行の入口を1つ数え、数え戻す関数を返す。
+// CallFunc が「実行中の命令からの呼び出し」か「実行の外からの直接呼び出し」かを
+// 区別するために使う。
+func (m *VM) enter() (leave func()) {
+	m.entry++
+	return func() { m.entry-- }
+}
+
 // Run executes the program's entry function.
 func (m *VM) Run() (err error) {
+	defer m.enter()()
 	defer func() {
 		m.loop.CloseExternal()
 		m.hasExternal = false
 	}()
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(exitPanic); ok {
+				err = nil // 『終了』で止めたので、エラーではない
+				return
+			}
 			np, ok := r.(nakoPanic)
 			if !ok {
 				panic(r)
-			}
-			if np.err.Msg == exitMessage {
-				err = nil // 『終了』で止めたので、エラーではない
-				return
 			}
 			err = np.err
 		}
