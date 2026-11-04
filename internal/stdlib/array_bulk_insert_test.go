@@ -31,6 +31,12 @@ func TestArrayBulkInsert(t *testing.T) {
 		{"負-100", value.Number(-100), []int{200, 100, 10, 20, 30, 40}},
 		{"正の無限大は末尾", value.Number(math.Inf(1)), []int{10, 20, 30, 40, 100, 200}},
 		{"負の無限大は先頭へ逆順", value.Number(math.Inf(-1)), []int{200, 100, 10, 20, 30, 40}},
+		{"NaNは先頭", value.Number(math.NaN()), []int{100, 200, 10, 20, 30, 40}},
+		{"巨大な正の有限値は末尾", value.Number(1e300), []int{10, 20, 30, 40, 100, 200}},
+		{"巨大な負の有限値は先頭へ逆順", value.Number(-1e300), []int{200, 100, 10, 20, 30, 40}},
+		{"正の小数は切り捨て", value.Number(1.9), []int{10, 100, 200, 20, 30, 40}},
+		{"負の小数は要素ごとに切り捨て", value.Number(-1.9), []int{200, 10, 20, 30, 100, 40}},
+		{"負の小数-0.5は要素ごとに切り捨て", value.Number(-0.5), []int{200, 100, 10, 20, 30, 40}},
 	}
 	r := stdlib.NewRegistry()
 	e, ok := r.Lookup("配列一括挿入")
@@ -61,6 +67,7 @@ func TestArrayBulkInsertSelfInsert(t *testing.T) {
 		{0, []int{1, 2, 3, 1, 2, 3}},
 		{1, []int{1, 1, 2, 3, 2, 3}},
 		{-1, []int{2, 3, 1, 2, 1, 3}},
+		{-2, []int{3, 1, 1, 2, 2, 3}},
 		{99, []int{1, 2, 3, 1, 2, 3}},
 	}
 	r := stdlib.NewRegistry()

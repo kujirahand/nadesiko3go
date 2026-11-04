@@ -2,6 +2,7 @@ package value
 
 import (
 	"math"
+	"slices"
 	"sort"
 	"strconv"
 )
@@ -118,6 +119,9 @@ func (a *Array) InsertAll(index int, values []Value) {
 	// 挿入元を固定し、自己挿入でも処理が終わるようにする。
 	src := append([]Value(nil), values...)
 	if index < 0 {
+		// i は非負なので index+i が MinInt 側から溢れることはない。
+		// 極端に負の index は Insert の clamp で毎回 0 になり、先頭への
+		// 逆順挿入になる (公式実装で位置が -Inf の場合の挙動と同じ)。
 		for i, item := range src {
 			a.Insert(index+i, item)
 		}
@@ -128,7 +132,8 @@ func (a *Array) InsertAll(index int, values []Value) {
 	}
 	oldLen := len(a.items)
 	count := len(src)
-	a.items = append(a.items, make([]Value, count)...)
+	a.items = slices.Grow(a.items, count)
+	a.items = a.items[:oldLen+count]
 	// 右側の既存要素を一度だけ移動する。copy は領域の重なりを安全に処理する。
 	copy(a.items[index+count:], a.items[index:oldLen])
 	copy(a.items[index:index+count], src)

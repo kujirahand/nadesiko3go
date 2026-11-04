@@ -87,25 +87,34 @@ func arrayImpls(m map[string]Impl) {
 		if !ok || !srcOK {
 			return value.Undefined(), errors.New("『配列一括挿入』で配列以外の要素への挿入。")
 		}
-		// 公式実装と同じく、数値に変換できない位置 (NaN) は先頭として扱う。
-		// int(NaN) や int(±Inf) の変換結果は処理系依存のため、明示的に寄せる:
-		// +Inf は splice では末尾、-Inf は逐次再評価で先頭への逆順挿入になる。
+		// 挿入元を固定し、同じ配列への挿入でも処理が終わるようにする。
+		items := src.Values()
 		number := value.ToNumber(arg(a, 1))
-		at := 0
+		// 公式実装と同じく、数値に変換できない位置 (NaN) は先頭として扱う。
+		// 範囲外の float64→int 変換は処理系依存で、amd64 では正の巨大値
+		// (1e300 や +Inf) まで MinInt になってしまうため、変換前に範囲で
+		// 寄せる (レビュー指摘で実測確認)。
 		switch {
 		case math.IsNaN(number):
-			at = 0
-		case math.IsInf(number, 1):
-			at = dst.Len()
-		case math.IsInf(number, -1):
-			at = math.MinInt
+			dst.InsertAll(0, items)
+		case math.IsInf(number, 1) || number >= float64(math.MaxInt):
+			// splice では末尾への追加になる。
+			dst.InsertAll(dst.Len(), items)
+		case math.IsInf(number, -1) || number <= float64(math.MinInt):
+			// splice では毎回先頭になるため逆順に入る。
+			dst.InsertAll(math.MinInt, items)
+		case number < 0 && number != math.Trunc(number):
+			// 負の小数は、先に切り捨ててから加算すると公式とずれる
+			// (例: -0.5 は splice ごとに -0.5, 0.5, 1.5... を切り捨てる)。
+			// 公式どおり pos+j を要素ごとに切り捨てて逐次挿入する。
+			for j, item := range items {
+				dst.Insert(spliceStartInt(number+float64(j)), item)
+			}
 		default:
-			at = int(number)
+			// 非負位置は InsertAll が一括確保と copy で O(n+m) に処理し、
+			// 負位置は逐次再評価の意味を保つ (#344)。
+			dst.InsertAll(int(number), items)
 		}
-		// 挿入元を固定し、同じ配列への挿入でも処理が終わるようにする。
-		// 非負位置は InsertAll が一括確保と copy で O(n+m) に処理し、
-		// 負位置は逐次再評価の意味を保つ (#344)。
-		dst.InsertAll(at, src.Values())
 		return arg(a, 0), nil
 	}
 
@@ -480,6 +489,18 @@ func arrayImpls(m map[string]Impl) {
 		}
 		return value.ArrayValue(value.NewArray(rows...)), nil
 	}
+}
+
+// spliceStartInt は JS の ToIntegerOrInfinity 相当の変換を行う。
+// 0方向へ切り捨て、int の範囲を超える値は範囲内に寄せる。
+func spliceStartInt(f float64) int {
+	if f >= float64(math.MaxInt) {
+		return math.MaxInt
+	}
+	if f <= float64(math.MinInt) {
+		return math.MinInt
+	}
+	return int(f)
 }
 
 func requireTable(name string, v value.Value) (*value.Array, error) {
