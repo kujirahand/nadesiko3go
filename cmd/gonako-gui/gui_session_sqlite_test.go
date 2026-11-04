@@ -25,6 +25,18 @@ func TestGUIRerunReleasesForgottenSQLiteConnections(t *testing.T) {
 	if !first.OK {
 		t.Fatalf("初回実行 = %#v", first)
 	}
+	// waitBelow はgoroutine数が上限以下になるまでポーリングする。
+	waitBelow := func(limit int) int {
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			runtime.GC()
+			n := runtime.NumGoroutine()
+			if n <= limit || time.Now().After(deadline) {
+				return n
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
 	base := count()
 	for i := 0; i < 30; i++ {
 		result := session.run("「:memory:」をSQLITE3開く", "gui.nako3", false, nil, nil)
@@ -32,13 +44,13 @@ func TestGUIRerunReleasesForgottenSQLiteConnections(t *testing.T) {
 			t.Fatalf("再実行 %d = %#v", i, result)
 		}
 	}
-	after := count()
+	after := waitBelow(base + 5)
 	if after > base+5 {
 		t.Fatalf("goroutineが蓄積した: base=%d after=%d", base, after)
 	}
 	// セッション自体の終了でも、最後の実行が退役すること。
 	session.close()
-	afterClose := count()
+	afterClose := waitBelow(base + 5)
 	if afterClose > base+5 {
 		t.Fatalf("セッション終了後もgoroutineが残った: base=%d afterClose=%d", base, afterClose)
 	}

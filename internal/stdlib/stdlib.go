@@ -105,29 +105,25 @@ type Registry struct {
 	// plugins は Close で解放するために保持するプラグイン実体。
 	plugins []Plugin
 	closeMu sync.Mutex
-	closed  bool
 }
 
 // closeablePlugin は実行環境の退役時に解放できるプラグインの任意インターフェース。
+// Close は二重に呼んでも安全で、呼んだ後もプラグインを再利用できることが前提。
 type closeablePlugin interface {
 	Close() error
 }
 
 // Close は、Close() error を持つプラグインすべてのリソースを解放する。
-// 実行環境（VM）の破棄・終了・置換のときに呼ばれ、二重に呼んでも安全。
+// 実行環境（VM）の破棄・終了・置換のときに呼ばれる。
+// レジストリを使い捨てにはしない: 同じレジストリで再び実行し、その環境を
+// 退役させるときにもう一度呼べば、その実行で開かれた分も解放される。
+// 実際の退役は VM.Close が一度きりに制限するので、通常は実行ごとに1回呼ばれる。
 func (r *Registry) Close() error {
 	r.closeMu.Lock()
-	if r.closed {
-		r.closeMu.Unlock()
-		return nil
-	}
-	r.closed = true
-	plugins := r.plugins
-	r.plugins = nil
-	r.closeMu.Unlock()
+	defer r.closeMu.Unlock()
 
 	var errs []error
-	for _, plugin := range plugins {
+	for _, plugin := range r.plugins {
 		closer, ok := plugin.(closeablePlugin)
 		if !ok {
 			continue

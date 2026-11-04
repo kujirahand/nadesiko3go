@@ -19,6 +19,21 @@ func goroutineCount(t *testing.T) int {
 	return n
 }
 
+// waitGoroutinesAtMost はgoroutine数が上限以下になるまでポーリングする。
+// プロセス全体の数を数えるため、一時的な増減に揺れないよう待ちを入れる。
+func waitGoroutinesAtMost(t *testing.T, limit int) int {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		runtime.GC()
+		n := runtime.NumGoroutine()
+		if n <= limit || time.Now().After(deadline) {
+			return n
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // Issue #363: 『SQLITE3開く』で開いたまま閉じ忘れたプログラムを繰り返し
 // 実行しても、接続に紐づくgoroutineが蓄積しないことを確かめる。
 // 一回限りの実行入口（RunProgram）は実行の終了時に環境を退役させる。
@@ -30,7 +45,7 @@ func TestSQLiteForgottenCloseDoesNotAccumulateGoroutines(t *testing.T) {
 			t.Fatalf("実行 %d: %v (出力 %q)", i, err, got)
 		}
 	}
-	after := goroutineCount(t)
+	after := waitGoroutinesAtMost(t, base+5)
 	if after > base+5 {
 		t.Fatalf("goroutineが蓄積した: base=%d after=%d", base, after)
 	}
@@ -45,7 +60,7 @@ func TestSQLiteErrorRunDoesNotAccumulateGoroutines(t *testing.T) {
 			t.Fatal("存在しない表への実行はエラーになるはず")
 		}
 	}
-	after := goroutineCount(t)
+	after := waitGoroutinesAtMost(t, base+5)
 	if after > base+5 {
 		t.Fatalf("goroutineが蓄積した: base=%d after=%d", base, after)
 	}

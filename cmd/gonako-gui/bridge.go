@@ -87,7 +87,16 @@ func (b *commandBridge) prepare() {
 // （SQLiteなど）を解放する（#363）。ウィンドウを閉じるときに呼ぶ。
 // 常駐VMがまだ作られていなければ何もしない。
 func (b *commandBridge) close() {
-	b.mu.Lock()
+	// 実行中の命令（ダイアログ待ちなど）が b.mu を握っている間は待たない。
+	// 終了経路で固まらないよう、短い猶予で取れなければ退役を諦める。
+	// その場合はプロセスの終了時にOSが接続ごと回収する。
+	deadline := time.Now().Add(dispatchLockGrace)
+	for !b.mu.TryLock() {
+		if time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
 	defer b.mu.Unlock()
 	if b.machine != nil {
 		_ = b.machine.Close()
