@@ -1651,25 +1651,28 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   menuOpenEditor.addEventListener('click', async () => {
-    if (!selectedContextFile) return;
-    if (selectedContextFile.isDir) {
-      loadDirectory(selectedContextFile.path);
-    } else {
-      if (!(await confirmSaveIfDirty())) return;
-      openFile(selectedContextFile.path, selectedContextFile.name);
-    }
+    // 非同期処理中にメニューが閉じても、操作開始時の対象を維持する (#354)。
+    const target = selectedContextFile;
+    if (!target) return;
     closeContextMenu();
+    if (target.isDir) {
+      loadDirectory(target.path);
+      return;
+    }
+    if (!(await confirmSaveIfDirty())) return;
+    openFile(target.path, target.name);
   });
 
   menuRevealFinder.addEventListener('click', async () => {
-    if (!selectedContextFile || typeof window.revealInFinder !== 'function') return;
+    const target = selectedContextFile;
+    if (!target || typeof window.revealInFinder !== 'function') return;
+    closeContextMenu();
     try {
-      await window.revealInFinder(selectedContextFile.path);
-      setStatus(`ファイルを表示しました: ${selectedContextFile.name}`);
+      await window.revealInFinder(target.path);
+      setStatus(`ファイルを表示しました: ${target.name}`);
     } catch (err) {
       console.error('Finder表示エラー:', err);
     }
-    closeContextMenu();
   });
 
   async function copyFilePath(relative) {
