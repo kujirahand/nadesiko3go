@@ -342,39 +342,53 @@ func isOverwrite(ctx stdlib.Context) bool {
 	return mode == "上書き" || mode == "上書" || mode == "overwrite"
 }
 
-type filePair struct {
-	src string
-	rel string
+type moveEntryInfo struct {
+	src  string      // 移動元のパス
+	rel  string      // 移動元からの相対パス
+	mode os.FileMode // 通常ファイル・ディレクトリ・シンボリックリンクの別
 }
 
-func listFilesRecursive(baseDir, curPath string) []filePair {
-	info, err := os.Stat(curPath)
+// listEntries はroot配下の全エントリーを列挙する。filepath.WalkDir は
+// シンボリックリンクを辿らずにLstat相当で種別を返すため、リンク先が
+// 存在しない壊れたsymlinkもエントリーとして扱え、空ディレクトリも
+// 落とさない。列挙の失敗は握りつぶさず呼び出し元へ返す。
+// root自身がディレクトリへのsymlinkのとき、WalkDir はrootのリンクも
+// 辿らないため、実体へ解決してから列挙する。移動元の削除は呼び出し元が
+// 元のパスで行う。
+func listEntries(root string) ([]moveEntryInfo, error) {
+	resolved, err := filepath.EvalSymlinks(root)
 	if err != nil {
-		return nil
+		return nil, err
 	}
-	if !info.IsDir() {
-		rel, err := filepath.Rel(baseDir, curPath)
+	root = resolved
+	var entries []moveEntryInfo
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			rel = filepath.Base(curPath)
+			return err
 		}
-		return []filePair{{src: curPath, rel: rel}}
-	}
-	var res []filePair
-	entries, err := os.ReadDir(curPath)
-	if err != nil {
+		if path == root {
+			return nil // 移動元自身は移動先のルートとして作る
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		entries = append(entries, moveEntryInfo{src: path, rel: rel, mode: info.Mode()})
 		return nil
-	}
-	for _, e := range entries {
-		sub := listFilesRecursive(baseDir, filepath.Join(curPath, e.Name()))
-		res = append(res, sub...)
-	}
-	return res
+	})
+	return entries, err
 }
 
 // moveEntry は『ファイル移動』系命令の共通処理。コピーしてから移動元を
 // 削除する順序なので、移動先が移動元と同一実体またはその内側にあると、
 // コピーしたばかりの内容まで削除に巻き込まれる。それを防ぐため、
 // 実行前に checkMoveTarget で拒否する (#186, #195)。
+// コピーに失敗した場合は移動元を削除しない。削除に失敗した場合も
+// 成功を返さず、エラーとして報告する。
 func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 	if err := checkMoveTarget(src, dest); err != nil {
 		return err
@@ -383,9 +397,75 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 		return err
 	}
 	if !value.ToBool(ctx.CommandState("__fileProcessStop")) {
-		_ = os.RemoveAll(src)
+		if err := removeSource(src); err != nil {
+			return fileError("削除でき", src, err)
+		}
 	}
 	return nil
+}
+
+// removeSource は移動元を削除する。
+//
+// 移動元がカレントディレクトリ自身を指すとき (src が「.」のとき) だけ、
+// ディレクトリごと削除せず中身だけを削除し、元の空ディレクトリを残す。
+// 使用中のカレントディレクトリ自身は削除できず、os.RemoveAll(".") は
+// invalid argument などのエラーを返す (中身を消せたとしてもディレクトリは
+// 残る) ため、この分岐が無いと「.」からの移動は削除失敗になる。
+// 判定は os.SameFile で実体を比べるので、"./" のような相対表記だけでなく、
+// カレントディレクトリを指す絶対パス表記でも同じ扱いになる。
+//
+// ただし判定は os.Lstat で行い、移動元自身がシンボリックリンクのときは
+// この特例に入れない。os.Stat はリンクを解決するため「カレントディレクトリを
+// 指すリンク」(alias -> .) も同一実体と判定され、リンク先である
+// カレントディレクトリの中身を削除してしまう。symlink はリンクとして
+// 削除し、リンク先には触れない。末尾の区切り文字が付いた "alias/" も、
+// 区切りを取り除いてから判定することで "alias" と同じリンクとして扱う。
+//
+// filepath.Clean は使わない。シンボリックリンクの後ろにある ".." は字句的
+// には畳み込めない（"alias/.." は alias のリンク先の親を指す）ため、
+// Clean するとコピー側が OS のパス解決で参照した実体とは別のパスを削除
+// してしまう。最終要素がリンクでない場合は filepath.EvalSymlinks で
+// 実体を確定し、解決済みのパスをカレントディレクトリ判定と削除の両方に
+// 使うことで、コピーした実体と削除する実体を常に一致させる。
+//
+// それ以外の削除失敗は呼び出し元へ返し、移動の成功扱いにしない。
+func removeSource(src string) error {
+	// 最終要素の symlink を os.Lstat で判定できるよう、末尾の区切り文字
+	// だけを取り除く。ルートを表す区切り文字は残す。
+	volumeLen := len(filepath.VolumeName(src))
+	for len(src) > volumeLen+1 && os.IsPathSeparator(src[len(src)-1]) {
+		src = src[:len(src)-1]
+	}
+
+	srcInfo, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if srcInfo.Mode()&os.ModeSymlink != 0 {
+		return os.RemoveAll(src)
+	}
+
+	resolvedSrc, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+	resolvedInfo, err := os.Stat(resolvedSrc)
+	if err != nil {
+		return err
+	}
+	if cwdInfo, cwdErr := os.Stat("."); cwdErr == nil && os.SameFile(resolvedInfo, cwdInfo) {
+		entries, err := os.ReadDir(resolvedSrc)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if err := os.RemoveAll(filepath.Join(resolvedSrc, e.Name())); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return os.RemoveAll(resolvedSrc)
 }
 
 // checkMoveTarget は、移動元 src と移動先 dest の関係を調べ、移動先が
@@ -484,31 +564,79 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 		return nil
 	}
 
-	// ディレクトリのマージコピー
-	files := listFilesRecursive(src, src)
-	total := len(files)
+	// ディレクトリのマージコピー。空ディレクトリとsymlinkを含む全エントリーを
+	// 保つ。列挙やコピーの失敗は呼び出し元へ返し、移動元を削除させない。
+	entries, err := listEntries(src)
+	if err != nil {
+		return fileError("読み込め", src, err)
+	}
+	if err := os.MkdirAll(dest, 0o755); err != nil {
+		return fileError("作成でき", dest, err)
+	}
+	// 進捗の件数は従来どおり内容を持つエントリー(通常ファイルとsymlink)だけを数える
+	total := 0
+	for _, e := range entries {
+		if !e.mode.IsDir() {
+			total++
+		}
+	}
 
-	for i, f := range files {
+	done := 0
+	for _, e := range entries {
 		stopVal := ctx.CommandState("__fileProcessStop")
 		if value.ToBool(stopVal) {
 			break
 		}
-		destFile := filepath.Join(dest, f.rel)
-		if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
-			return fileError("作成でき", filepath.Dir(destFile), err)
+		destFile := filepath.Join(dest, e.rel)
+		switch {
+		case e.mode.IsDir():
+			if err := os.MkdirAll(destFile, 0o755); err != nil {
+				return fileError("作成でき", destFile, err)
+			}
+			continue
+		case e.mode&os.ModeSymlink != 0:
+			// symlinkはリンク先を辿らず、同じリンク先を持つsymlinkとして作る。
+			// リンク先が存在しない壊れたsymlinkもこの経路で保存される。
+			target, err := os.Readlink(e.src)
+			if err != nil {
+				return fileError("読み込め", e.src, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
+				return fileError("作成でき", filepath.Dir(destFile), err)
+			}
+			if overwrite {
+				if _, err := os.Lstat(destFile); err == nil {
+					if err := os.Remove(destFile); err != nil {
+						return fileError("作成でき", destFile, err)
+					}
+				}
+			}
+			if err := os.Symlink(target, destFile); err != nil {
+				return fileError("書き込め", destFile, err)
+			}
+		default:
+			if !e.mode.IsRegular() {
+				// FIFOやデバイスは読み取りが停止しうるため、扱わないことを明示して
+				// 移動元を残す
+				return fmt.Errorf("移動できない形式のファイルです: %s", e.src)
+			}
+			data, err := os.ReadFile(e.src)
+			if err != nil {
+				return fileError("読み込め", e.src, err)
+			}
+			if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
+				return fileError("作成でき", filepath.Dir(destFile), err)
+			}
+			if err := os.WriteFile(destFile, data, 0o644); err != nil {
+				return fileError("書き込め", destFile, err)
+			}
 		}
-		data, err := os.ReadFile(f.src)
-		if err != nil {
-			return fileError("読み込め", f.src, err)
-		}
-		if err := os.WriteFile(destFile, data, 0o644); err != nil {
-			return fileError("書き込め", destFile, err)
-		}
+		done++
 
 		if hasCb {
 			d := value.NewDict()
 			d.Set("件数", value.Number(float64(total)))
-			d.Set("現在", value.Number(float64(i+1)))
+			d.Set("現在", value.Number(float64(done)))
 			progress := value.DictValue(d)
 			ctx.SetSysVar("対象", progress)
 			_, _ = ctx.CallFunc(cbFn, []value.Value{progress})
