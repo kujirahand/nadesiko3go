@@ -15,6 +15,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/inilib"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -61,6 +62,7 @@ func pluginForFile(file string) string {
 		strings.HasPrefix(file, "internal/officelib/"),
 		strings.HasPrefix(file, "internal/pdflib/"),
 		strings.HasPrefix(file, "internal/imagelib/"),
+		strings.HasPrefix(file, "internal/inilib/"),
 		strings.HasPrefix(file, "internal/guilib/"):
 		return "gonako"
 	default:
@@ -96,6 +98,7 @@ var groupDirFallback = map[string]string{
 	"csvlib":    "CSV",
 	"mathlib":   "数学",
 	"tomllib":   "TOML",
+	"inilib":    "INI",
 }
 
 // groupForFile は本家に対応する命令が無いGo独自命令について、
@@ -395,7 +398,7 @@ func main() {
 
 	reg := stdlib.NewRegistry(
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(), tomllib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), guilib.New(), tomllib.New(), inilib.New(),
 	)
 	list := reg.FuncList()
 

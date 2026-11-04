@@ -6,6 +6,7 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/inilib"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -33,6 +34,7 @@ var pluginConstructors = map[string]struct {
 	"pdflib":    {func() stdlib.Plugin { return pdflib.New() }, "rt.PDFLib()"},
 	"imagelib":  {func() stdlib.Plugin { return imagelib.New() }, "rt.ImageLib()"},
 	"tomllib":   {func() stdlib.Plugin { return tomllib.New() }, "rt.TOMLLib()"},
+	"inilib":    {func() stdlib.Plugin { return inilib.New() }, "rt.INILib()"},
 }
 
 // PluginNames lists the plugins BuildRegistry and Generate know, sorted.
