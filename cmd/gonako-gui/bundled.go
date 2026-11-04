@@ -300,6 +300,18 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 		return BuildResult{Error: fmt.Sprintf("出力先が分かりません: %v", err)}
 	}
 
+	// 出力先が梱包対象フォルダそのものだと、既存の.appを退避したうえで
+	// プロジェクトフォルダごと入れ替えてしまい、ソース一式を失う。
+	// symlink経由の同一パスも、実体で比べて拒否する。
+	realFolder, err := filepath.EvalSymlinks(folder)
+	if err != nil {
+		return BuildResult{Error: fmt.Sprintf("フォルダの場所が分かりません: %v", err)}
+	}
+	realOut, outErr := resolveRealPath(out)
+	if outErr == nil && realOut == realFolder {
+		return BuildResult{Error: "出力先が変換するフォルダと同じ場所です。別のフォルダを指定してください"}
+	}
+
 	self, err := runtimePathForBuild()
 	if err != nil {
 		return BuildResult{Error: fmt.Sprintf("ランタイムの場所が分かりません: %v", err)}
@@ -349,9 +361,10 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 		}
 		defer func() { _ = staging.discard() }()
 		// 出力先がフォルダの中にあるときだけ、既存の.appが梱包対象に入る。
-		// 完成まで残すので、その中身を明示的に外しておく。
-		if outputInside(folder, out) {
-			skipExistingTree(spec.Skip, out)
+		// 完成まで残すので、その中身を明示的に外しておく。symlink経由の
+		// 出力先でも、梱包が歩く実体側のツリーを外す。
+		if outErr == nil && outputInside(realFolder, realOut) {
+			skipExistingTree(spec.Skip, realOut)
 		}
 		exe, err := prepareMacAppBundle(staging.app, title)
 		if err != nil {
@@ -676,11 +689,26 @@ func macAppBackupPath(appPath string) (string, error) {
 	return "", fmt.Errorf("退避先の名前が重複しました")
 }
 
-// outputInside reports whether path is below folder. The bundle walker packs
-// everything below the resource folder, so only then does an existing output
-// need explicit skipping.
-func outputInside(folder, path string) bool {
-	rel, err := filepath.Rel(folder, path)
+// resolveRealPath returns path with symlinks resolved. A path that does not
+// exist yet is resolved through its parent, because the output is created
+// later.
+func resolveRealPath(path string) (string, error) {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		return resolved, nil
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(path))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(parent, filepath.Base(path)), nil
+}
+
+// outputInside reports whether the resolved path is below the resolved folder.
+// The bundle walker packs the resolved resource folder, so both sides must be
+// compared after symlink resolution; a lexical comparison would miss an output
+// reached through a symlinked parent.
+func outputInside(realFolder, realPath string) bool {
+	rel, err := filepath.Rel(realFolder, realPath)
 	if err != nil {
 		return false
 	}

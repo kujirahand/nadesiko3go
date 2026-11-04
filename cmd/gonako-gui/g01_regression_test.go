@@ -797,3 +797,56 @@ func TestG01CreatesMissingOutputParent(t *testing.T) {
 		t.Fatalf("出力先の親フォルダが作られていない: %v", err)
 	}
 }
+
+// 出力先が梱包対象フォルダそのものだと、既存の.appを退避したうえで
+// プロジェクトフォルダごと入れ替えてしまい、ソース一式を失う。
+func TestG01RefusesOutputEqualToSourceFolder(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	// フォルダ自体が正常な.appなら checkMacAppOutput を通ってしまう。
+	folder := filepath.Join(dir, "Src.app")
+	writeFile(t, filepath.Join(folder, "Contents", "Info.plist"), "<plist/>")
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>やあ</h1>")
+	before := appTreeSnapshot(t, folder)
+
+	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), folder, "App")
+	if res.OK {
+		t.Fatal("梱包対象フォルダ自身を出力先にして変換してしまった")
+	}
+	if !strings.Contains(res.Error, "同じ") {
+		t.Fatalf("同一パスの説明が変わっている: %s", res.Error)
+	}
+	assertAppUnchanged(t, folder, before)
+	if leftovers := leftoverEntries(t, dir); len(leftovers) != 0 {
+		t.Fatalf("失敗後に一時成果物が残った: %v", leftovers)
+	}
+}
+
+// 出力先の親をsymlink経由で指定しても、実体側の既存.appを梱包しない。
+func TestG01SymlinkedOutputParentDoesNotPackExistingApp(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	folder := filepath.Join(dir, "src")
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>やあ</h1>")
+	link := filepath.Join(dir, "link")
+	if err := os.Symlink(folder, link); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+	out := filepath.Join(link, "App.app")
+	if res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App"); !res.OK {
+		t.Fatalf("1回目の変換に失敗した: %s", res.Error)
+	}
+	writeFile(t, filepath.Join(out, "Contents", "Resources", "旧版のしるし.txt"), "前回の残り")
+	if res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App"); !res.OK {
+		t.Fatalf("2回目の変換に失敗した: %s", res.Error)
+	}
+
+	packed, err := bundle.Open(filepath.Join(out, "Contents", "MacOS", "App"))
+	if err != nil {
+		t.Fatalf("新しい.appの実行ファイルを開けない: %v", err)
+	}
+	defer packed.Close()
+	if _, ok := packed.ReadResource("App.app/Contents/Resources/旧版のしるし.txt"); ok {
+		t.Fatal("symlink経由の出力先にある前回の.appが新しい.appに梱包された")
+	}
+}
