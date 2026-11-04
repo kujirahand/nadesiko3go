@@ -1,8 +1,7 @@
 package main
 
 import (
-	"encoding/json"
-
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	webview "github.com/webview/webview_go"
 )
 
@@ -49,22 +48,15 @@ func splitDroppedPaths(buf []byte) []string {
 
 // withDroppedFiles はdropイベントの値へ、ネイティブ側で取れたフルパスを反映する。
 // 取れなかった場合(未対応環境など)は、JavaScriptが渡したファイル名のままにする。
-func withDroppedFiles(event string, values map[string]string) map[string]string {
+func withDroppedFiles(event string, payload guilib.EventPayload) guilib.EventPayload {
 	if event != "drop" {
-		return values
+		return payload
 	}
 	paths := platformTakeDroppedFiles()
 	if len(paths) == 0 {
-		return values
+		return payload
 	}
-	encoded, err := json.Marshal(paths)
-	if err != nil {
-		return values
-	}
-	merged := make(map[string]string, len(values)+1)
-	for k, v := range values {
-		merged[k] = v
-	}
-	merged["__gonako_drop_files"] = string(encoded)
-	return merged
+	// 呼び出し元の値は書き換えず、専用フィールドだけを差し替えたコピーを返す。
+	payload.DropFiles = paths
+	return payload
 }

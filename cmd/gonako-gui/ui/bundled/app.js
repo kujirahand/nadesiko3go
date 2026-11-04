@@ -14,11 +14,17 @@ let state = { runId };
 // documentへ未接続の要素も、追加されるまでハンドルで保持する。
 const elements = new Map();
 
-// 入力欄の現在値を、なでしこ側のハンドル番号をキーにして集める。
+// 入力欄の現在値を、なでしこ側のハンドル番号をキーにして {value, checked?} で集める。
+// checked は checkbox・radio のときだけ付け、未選択(false)も必ず送る。
+// value だけだと未選択でも "on" 等が残り、選択済みと区別できない (#355)。
 function values() {
   const v = {};
   root.querySelectorAll('[data-gonako-handle]').forEach(e => {
-    if (e.matches('input,textarea,select')) v[e.dataset.gonakoHandle] = e.value;
+    if (e.matches('input,textarea,select')) {
+      const field = { value: e.value };
+      if (e.matches('input[type="checkbox"], input[type="radio"]')) field.checked = e.checked;
+      v[e.dataset.gonakoHandle] = field;
+    }
   });
   return v;
 }
@@ -26,9 +32,10 @@ function values() {
 // イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
 // ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
 // この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
-async function send(h, n, extraValues) {
+// extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列）。
+async function send(h, n, extra) {
   const err = document.getElementById('gonako-error');
-  const raw = await window.startNakoEvent(state.runId, Number(h), n, { ...values(), ...(extraValues || {}) });
+  const raw = await window.startNakoEvent(state.runId, Number(h), n, { values: values(), ...(extra || {}) });
   const st = typeof raw === 'string' ? JSON.parse(raw) : raw;
   if (st.error) {
     err.textContent = st.error;
@@ -81,7 +88,7 @@ function apply(ops) {
             const result = messageEvent.data;
             if (result?.type !== 'gonako-file-drop-paths' || result.requestId !== requestId) return;
             bridge.removeEventListener('message', onMessage);
-            send(0, 'drop', { __gonako_drop_files: JSON.stringify(result.paths || []) });
+            send(0, 'drop', { dropFiles: result.paths || [] });
           };
           bridge.addEventListener('message', onMessage);
           try {
@@ -92,7 +99,7 @@ function apply(ops) {
           }
         }
         const names = files.map(file => file.path || file.name).filter(Boolean);
-        send(0, 'drop', { __gonako_drop_files: JSON.stringify(names) });
+        send(0, 'drop', { dropFiles: names });
       }, true);
       return;
     }
@@ -114,6 +121,7 @@ function apply(ops) {
       if (o.html) e.innerHTML = o.html;
       else if (e.matches('input,textarea,select')) e.value = o.text || '';
       else e.textContent = o.text || '';
+      if (o.checked) e.checked = true;
       if (!o.detached) {
         const p = o.parent ? find(o.parent) : root;
         if (p) p.appendChild(e);
@@ -141,6 +149,10 @@ function apply(ops) {
       Object.entries(o.styles || {}).forEach(([k, v]) => e.style[k] = v);
     } else if (o.type === 'attributes') {
       Object.entries(o.attributes || {}).forEach(([k, v]) => e.setAttribute(k, v));
+      // 操作済みのcheckboxはchecked属性を足しても状態が変わらないので、直接選択する。
+      if (Object.prototype.hasOwnProperty.call(o.attributes || {}, 'checked')) e.checked = true;
+    } else if (o.type === 'checked') {
+      e.checked = !!o.checked;
     } else if (o.type === 'listen' && !e.dataset['gonakoEvent' + o.event]) {
       // 同じイベントを二重に登録しない
       e.dataset['gonakoEvent' + o.event] = '1';

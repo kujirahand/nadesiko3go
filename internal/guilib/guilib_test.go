@@ -23,7 +23,7 @@ func TestGuilibPlugin(t *testing.T) {
 		"DOM要素取得", "DOM要素ID取得", "DOM要素全取得",
 		"DOMテキスト取得", "DOMテキスト変更", "HTML取得", "HTML変更", "DOM注目",
 		"テキストエリア作成", "キャンバス作成", "画像作成", "改行作成",
-		"チェックボックス作成", "セレクトボックス作成", "セレクトボックスアイテム設定",
+		"チェックボックス作成", "チェック取得", "チェック設定", "セレクトボックス作成", "セレクトボックスアイテム設定",
 		"色選択ボックス作成", "日付選択ボックス作成", "パスワード入力エディタ作成", "値指定バー作成",
 	} {
 		if _, ok := funcs[name]; !ok {
@@ -33,7 +33,7 @@ func TestGuilibPlugin(t *testing.T) {
 	if parent := funcs["DOM親要素"]; parent == nil || parent.Type != "const" || parent.Value != 0 {
 		t.Fatalf("DOM親要素 = %#v", parent)
 	}
-	for _, name := range []string{"DOMスキン", "DOMスキン辞書", "DOM部品オプション"} {
+	for _, name := range []string{"DOMスキン", "DOMスキン辞書", "DOM部品オプション", "フォームチェック"} {
 		if item := funcs[name]; item == nil || item.Type != "const" {
 			t.Fatalf("%s = %#v", name, item)
 		}
@@ -149,7 +149,7 @@ func TestAdditionalDOMPartCommands(t *testing.T) {
 	if got := screen.nodes[18].attributes; got["min"] != "10" || got["max"] != "20" {
 		t.Fatalf("range attributes = %#v", got)
 	}
-	if err := screen.DispatchEvent(10, "change", map[string]string{"10": "黄", "17": "xyz"}); err != nil {
+	if err := screen.DispatchEvent(10, "change", textFields(map[string]string{"10": "黄", "17": "xyz"})); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.TrimSpace(out.String()); got != "黄" {
@@ -417,7 +417,7 @@ func TestDOMPartRemoveDiscardsRegisteredEvent(t *testing.T) {
 	if err := vm.RunWithHostAndRegistry(code, "gui.nako3", registry, host); err != nil {
 		t.Fatal(err)
 	}
-	if err := screen.DispatchEvent(1, "click", nil); err == nil || !strings.Contains(err.Error(), "登録されていません") {
+	if err := screen.DispatchEvent(1, "click", EventPayload{}); err == nil || !strings.Contains(err.Error(), "登録されていません") {
 		t.Fatalf("deleted event error = %v", err)
 	}
 }
@@ -712,7 +712,7 @@ func TestScreenCommandsAndClickEvent(t *testing.T) {
 	if len(ops) != 3 || ops[0].Tag != "input" || ops[1].Tag != "button" || ops[2].Type != "listen" {
 		t.Fatalf("operations = %#v", ops)
 	}
-	if err := screen.DispatchEvent(2, "click", map[string]string{"1": "更新後"}); err != nil {
+	if err := screen.DispatchEvent(2, "click", textFields(map[string]string{"1": "更新後"})); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.TrimSpace(out.String()); got != "更新後" {
@@ -759,7 +759,7 @@ func TestFormSubmitProvidesNamedValues(t *testing.T) {
 		t.Fatal(err)
 	}
 	// form=1, label=2, editor=3, submit=4
-	if err := screen.DispatchEvent(1, "submit", map[string]string{"3": "花子"}); err != nil {
+	if err := screen.DispatchEvent(1, "submit", textFields(map[string]string{"3": "花子"})); err != nil {
 		t.Fatal(err)
 	}
 	if got := strings.TrimSpace(out.String()); got != "花子" {

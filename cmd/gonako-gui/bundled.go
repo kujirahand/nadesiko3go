@@ -140,8 +140,8 @@ func runBundledProgram(packed *bundle.Bundle) {
 	}
 	defer tw.Close()
 	session.window = newNativeWindowController(tw.Window)
-	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
-		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
+	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, payload guilib.EventPayload) string {
+		b, _ := json.Marshal(session.startEvent(runID, handle, event, payload))
 		return string(b)
 	})
 	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {

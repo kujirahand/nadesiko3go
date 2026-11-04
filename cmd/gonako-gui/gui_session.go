@@ -529,7 +529,7 @@ type EventStart struct {
 // イベント呼び出しの戻り値をまだ待っている。互いに待ち合う行き詰まりで、
 // ウィンドウごと固まってしまう。通常実行と同じポーリング経路に載せれば、
 // 画面はダイアログを見つけて resolveDialog を返せる。
-func (s *guiSession) startEvent(runID uint64, handle int, event string, values map[string]string) EventStart {
+func (s *guiSession) startEvent(runID uint64, handle int, event string, payload guilib.EventPayload) EventStart {
 	// 実行中のイベントは、少しだけ待って取れなければ断る。無制限に待つと、
 	// WebViewのバインド呼び出しはUIスレッド上で処理されるため、長く走る
 	// プログラムの間ウィンドウごと固まってしまう。画面部品は実行中にも
@@ -575,7 +575,7 @@ func (s *guiSession) startEvent(runID uint64, handle int, event string, values m
 			defer wg.Done()
 			streamPendingOutput(state, exec.host, exec.screen, done)
 		}()
-		err := exec.screen.DispatchEvent(handle, event, withDroppedFiles(event, values))
+		err := exec.screen.DispatchEvent(handle, event, withDroppedFiles(event, payload))
 		close(done)
 		wg.Wait()
 

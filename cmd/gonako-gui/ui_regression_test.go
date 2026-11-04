@@ -66,6 +66,30 @@ func TestGUIEventBridgeIsWired(t *testing.T) {
 	}
 }
 
+// イベントのpayloadは { values: {ハンドル: {value, checked?}}, dropFiles } の形で送る (#355)。
+// checkbox・radioの選択状態を送ること、dropのファイルを専用フィールドで渡すこと、
+// Goから届くcheckedの操作を画面へ反映することを、エディタと梱包アプリの両方で確かめる。
+func TestGUIEventPayloadCarriesCheckedAndDropFiles(t *testing.T) {
+	for _, asset := range []string{"app.js", "bundled/app.js"} {
+		source := readUIAsset(t, asset)
+		for _, required := range []string{
+			"{ value: ",
+			`input[type="checkbox"], input[type="radio"]`,
+			".checked = ",
+			"values: ",
+			"dropFiles:",
+			"'checked'",
+		} {
+			if !strings.Contains(source, required) {
+				t.Fatalf("%s is missing event payload contract %q", asset, required)
+			}
+		}
+		if strings.Contains(source, "__gonako_drop_files") {
+			t.Fatalf("%s still uses the retired __gonako_drop_files key", asset)
+		}
+	}
+}
+
 func TestGUIOperationBridgeSupportsPartAttributesAndSelectReplacement(t *testing.T) {
 	for _, asset := range []string{"app.js", "bundled/app.js"} {
 		source := readUIAsset(t, asset)

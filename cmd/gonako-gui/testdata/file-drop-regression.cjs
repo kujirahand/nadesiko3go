@@ -41,7 +41,8 @@ for (const [file, start, end, applyName] of [
   assert.equal(calls.length, 1, file);
   assert.equal(calls[0][0], 0, file);
   assert.equal(calls[0][1], 'drop', file);
-  assert.deepEqual(JSON.parse(calls[0][2].__gonako_drop_files), ['日本語.txt', '画像.png']);
+  // vmコンテキストの配列はプロトタイプが違うので、外側の配列へ写して比べる。
+  assert.deepEqual(Array.from(calls[0][2].dropFiles), ['日本語.txt', '画像.png']);
 
   // WebView2ではFileをホストへ渡し、返された絶対パスを採用する。
   // 既存RPCハンドラーからの文字列エコーや別の要求の返信は無視する。
@@ -77,7 +78,7 @@ for (const [file, start, end, applyName] of [
       requestId: requests[index].message.slice('gonako-file-drop-paths:'.length),
       paths: fullPaths,
     });
-    assert.deepEqual(JSON.parse(calls[calls.length - 1][2].__gonako_drop_files), fullPaths, file);
+    assert.deepEqual(Array.from(calls[calls.length - 1][2].dropFiles), fullPaths, file);
   }
   assert.equal(calls.length, 3, file);
   assert.equal(messageListeners.size, 0, file);

@@ -72,6 +72,7 @@ func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
 	list["ドロップファイル"] = &lexer.FuncItem{Name: "ドロップファイル", Type: "const", Value: value.ArrayValue(value.NewArray())}
 	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
+	list["フォームチェック"] = &lexer.FuncItem{Name: "フォームチェック", Type: "const", Value: value.DictValue(value.NewDict())}
 	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
 	list["DOMスキン"] = &lexer.FuncItem{Name: "DOMスキン", Type: "const", Value: ""}
 	list["DOMスキン辞書"] = &lexer.FuncItem{Name: "DOMスキン辞書", Type: "const", Value: value.DictValue(value.NewDict())}
@@ -276,6 +277,15 @@ func (p *Plugin) commands() map[string]command {
 		"テキスト取得": {
 			josi: [][]string{{"の", "から"}},
 			fn:   p.cmdGetText,
+		},
+		"チェック設定": { // @checkbox・radioの選択状態を真偽で設定する。radioを選ぶと同じform内の同名radioは外れる // @ちぇっくせってい
+			josi:       [][]string{{"に", "の", "へ"}, {"を"}},
+			returnNone: true,
+			fn:         p.cmdSetChecked,
+		},
+		"チェック取得": { // @checkbox・radioの選択状態を真偽で返す // @ちぇっくしゅとく
+			josi: [][]string{{"の", "から"}},
+			fn:   p.cmdGetChecked,
 		},
 		"DOMスタイル一括設定": {
 			josi:       [][]string{{"に", "へ"}, {"を"}},
@@ -981,6 +991,23 @@ func (p *Plugin) cmdGetText(_ stdlib.Context, args []value.Value) (value.Value, 
 	}
 	text, err := p.screen.text(h)
 	return value.String(text), err
+}
+
+func (p *Plugin) cmdSetChecked(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	return value.Undefined(), p.screen.setChecked(h, value.ToBool(arg(args, 1)))
+}
+
+func (p *Plugin) cmdGetChecked(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	h, err := handleValue(arg(args, 0))
+	if err != nil {
+		return value.Bool(false), err
+	}
+	on, err := p.screen.isChecked(h)
+	return value.Bool(on), err
 }
 
 func (p *Plugin) cmdSetStyles(_ stdlib.Context, args []value.Value) (value.Value, error) {

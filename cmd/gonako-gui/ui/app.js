@@ -2387,11 +2387,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- なでしこプログラム実行処理 ---
+  // 入力欄の現在値を { ハンドル: {value, checked?} } で集める。checked は
+  // checkbox・radio のときだけ付け、未選択(false)も必ず送る。value だけだと
+  // 未選択でも "on" 等が残り、選択済みと区別できない (#355)。
   function collectGUIValues() {
     const values = {};
     windowPreview.querySelectorAll('[data-gonako-handle]').forEach(el => {
       if (el.matches('input, textarea, select')) {
-        values[el.dataset.gonakoHandle] = el.value;
+        const field = { value: el.value };
+        if (el.matches('input[type="checkbox"], input[type="radio"]')) field.checked = el.checked;
+        values[el.dataset.gonakoHandle] = field;
       }
     });
     return values;
@@ -2414,11 +2419,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // イベント処理はGo側で非同期に走る。同期実行だとハンドラ内の『言う』が
   // ダイアログの応答を待ち、その応答を返すこの関数はイベントの終了を
   // 待っている、という行き詰まりでウィンドウが固まっていた（#59）。
-  async function sendGUIEvent(handle, eventName, extraValues) {
+  // extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列）。
+  async function sendGUIEvent(handle, eventName, extra) {
     if (!activeGUIRunID || typeof window.startNakoEvent !== 'function') return;
     try {
       const started = parseBoundJSON(await window.startNakoEvent(
-        activeGUIRunID, Number(handle), eventName, { ...collectGUIValues(), ...(extraValues || {}) }
+        activeGUIRunID, Number(handle), eventName, { values: collectGUIValues(), ...(extra || {}) }
       ));
       if (started.error) {
         reportGUIEventError(started.error);
@@ -2477,7 +2483,7 @@ document.addEventListener('DOMContentLoaded', () => {
               const result = messageEvent.data;
               if (result?.type !== 'gonako-file-drop-paths' || result.requestId !== requestId) return;
               bridge.removeEventListener('message', onMessage);
-              sendGUIEvent(0, 'drop', { __gonako_drop_files: JSON.stringify(result.paths || []) });
+              sendGUIEvent(0, 'drop', { dropFiles: result.paths || [] });
             };
             bridge.addEventListener('message', onMessage);
             try {
@@ -2488,7 +2494,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
           const names = files.map(file => file.path || file.name).filter(Boolean);
-          sendGUIEvent(0, 'drop', { __gonako_drop_files: JSON.stringify(names) });
+          sendGUIEvent(0, 'drop', { dropFiles: names });
         }, true);
         return;
       }
@@ -2514,6 +2520,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
           el.textContent = op.text || '';
         }
+        if (op.checked) el.checked = true;
         if (!op.detached) {
           const parent = op.parent ? findElement(op.parent) : windowPreview;
           if (parent) parent.appendChild(el);
@@ -2542,6 +2549,10 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(op.styles || {}).forEach(([key, value]) => { el.style[key] = value; });
       } else if (op.type === 'attributes') {
         Object.entries(op.attributes || {}).forEach(([key, value]) => el.setAttribute(key, value));
+        // 操作済みのcheckboxはchecked属性を足しても状態が変わらないので、直接選択する。
+        if (Object.prototype.hasOwnProperty.call(op.attributes || {}, 'checked')) el.checked = true;
+      } else if (op.type === 'checked') {
+        el.checked = !!op.checked;
       } else if (op.type === 'listen') {
         const marker = `gonakoEvent${op.event}`;
         if (el.dataset[marker]) return;
