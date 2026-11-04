@@ -180,6 +180,16 @@ func TestEncodingGetInputs(t *testing.T) {
 		{"不正バイト/SJIS", invalid, "sjis", "���"},
 		{"不正バイト/EUC", invalid, "euc-jp", "���"},
 		{"不正バイト/UTF-8", invalid, "utf-8", "���"},
+		// 置換の単位は系列によって異なる。代表ケースを実測で固定する。
+		{"不正バイト/SJISリードバイトのみ", []byte{0x82}, "sjis", "�"},
+		{"不正バイト/SJIS不正なトレイル", []byte{0x82, 0x20}, "sjis", "� "},
+		{"不正バイト/SJIS有効バイト混在", []byte{0x61, 0xFF, 0x62}, "sjis", "a�b"},
+		{"不正バイト/SJIS有効文字と切れたリード", []byte{0x82, 0xA0, 0x82}, "sjis", "あ�"},
+		{"不正バイト/EUC切れた2バイト目", []byte{0xA4}, "euc-jp", "�"},
+		{"不正バイト/EUC有効文字と切れたバイト", []byte{0xA4, 0xA2, 0xA4}, "euc-jp", "あ�"},
+		{"不正バイト/UTF-8切れた3バイト文字", []byte{0xE3, 0x81}, "utf-8", "�"},
+		{"不正バイト/UTF-8オーバーロング", []byte{0xC0, 0xAF}, "utf-8", "��"},
+		{"不正バイト/UTF-8有効バイト混在", []byte{0x61, 0xFF, 0x62}, "utf-8", "a�b"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
