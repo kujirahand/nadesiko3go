@@ -420,8 +420,16 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 // カレントディレクトリの中身を削除してしまう。symlink はリンクとして
 // 削除し、リンク先には触れない。
 //
+// 判定の前には filepath.Clean で表記を正規化する。末尾スラッシュ付きの
+// "alias/" は os.Lstat でもリンク先のディレクトリへ解決されるため、上の
+// symlink ガードをすり抜けてリンク先の中身を削除してしまう。Clean は末尾の
+// 区切りを落とし、symlink 自体を指す表記にしてから判定させる。
+// カレントディレクトリ自身を指す "." や "./" は Clean しても "." のままで、
+// 特例の対象は変わらない。
+//
 // それ以外の削除失敗は呼び出し元へ返し、移動の成功扱いにしない。
 func removeSource(src string) error {
+	src = filepath.Clean(src)
 	if srcInfo, err := os.Lstat(src); err == nil && srcInfo.Mode()&os.ModeSymlink == 0 {
 		if cwdInfo, cwdErr := os.Stat("."); cwdErr == nil && os.SameFile(srcInfo, cwdInfo) {
 			entries, err := os.ReadDir(src)

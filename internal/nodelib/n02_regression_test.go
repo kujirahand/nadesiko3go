@@ -333,45 +333,53 @@ func TestN02MoveFromCurrentDirectoryLeavesEmptyDirectory(t *testing.T) {
 // 「zalias」は中身より後に並ぶ名前で、リンク自身が先頭に来る「alias」では
 // 特例が先にリンクを消して以後の削除が不発になり、旧実装の破壊を再現できない。
 // 報告された再現（alias -> .）と、実際に中身が消える並びの両方を固定する。
+// 末尾スラッシュ付きの「alias/」は os.Lstat でもリンク先のディレクトリへ
+// 解決されるため、filepath.Clean での正規化も同じ表で固定する。
 func TestN02MoveSymlinkToCurrentDirectoryKeepsTarget(t *testing.T) {
 	for _, linkName := range []string{"alias", "zalias"} {
-		t.Run(linkName, func(t *testing.T) {
-			work := filepath.Join(t.TempDir(), "work")
-			if err := os.MkdirAll(filepath.Join(work, "inner"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(work, "file.txt"), []byte("hello"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(work, "inner", "deep.txt"), []byte("deep"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.Symlink(".", filepath.Join(work, linkName)); err != nil {
-				t.Skipf("シンボリックリンクを作れません: %v", err)
-			}
-			// 移動先はカレントディレクトリの外に置く（内側だと checkMoveTarget が拒否する）
-			dst := filepath.Join(t.TempDir(), "dst")
-
-			code := fmt.Sprintf(`「%s」を「%s」にファイル移動`, linkName, filepath.ToSlash(dst))
-			if err := runExpectError(t, work, code); err != nil {
-				t.Fatalf("symlink の移動がエラーになりました: %v", err)
-			}
-
-			// リンク先（カレントディレクトリ）の中身が残っていること
-			for _, rel := range []string{"file.txt", "inner/deep.txt"} {
-				if _, err := os.Stat(filepath.Join(work, filepath.FromSlash(rel))); err != nil {
-					t.Errorf("リンク先の %s が失われました: %v", rel, err)
+		for _, trailingSlash := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s-trailingSlash=%v", linkName, trailingSlash), func(t *testing.T) {
+				work := filepath.Join(t.TempDir(), "work")
+				if err := os.MkdirAll(filepath.Join(work, "inner"), 0o755); err != nil {
+					t.Fatal(err)
 				}
-			}
-			// 移動元の symlink 自体はリンクとして削除されていること
-			if _, err := os.Lstat(filepath.Join(work, linkName)); err == nil {
-				t.Errorf("移動元の symlink が残っています: %s", filepath.Join(work, linkName))
-			}
-			// リンク先の中身を移動先へ移す既存の扱いは変えない
-			if got, err := os.ReadFile(filepath.Join(dst, "file.txt")); err != nil || string(got) != "hello" {
-				t.Errorf("移動先の file.txt が壊れています: content=%q err=%v", got, err)
-			}
-		})
+				if err := os.WriteFile(filepath.Join(work, "file.txt"), []byte("hello"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(work, "inner", "deep.txt"), []byte("deep"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Symlink(".", filepath.Join(work, linkName)); err != nil {
+					t.Skipf("シンボリックリンクを作れません: %v", err)
+				}
+				// 移動先はカレントディレクトリの外に置く（内側だと checkMoveTarget が拒否する）
+				dst := filepath.Join(t.TempDir(), "dst")
+				srcArg := linkName
+				if trailingSlash {
+					srcArg += "/"
+				}
+
+				code := fmt.Sprintf(`「%s」を「%s」にファイル移動`, srcArg, filepath.ToSlash(dst))
+				if err := runExpectError(t, work, code); err != nil {
+					t.Fatalf("symlink の移動がエラーになりました: %v", err)
+				}
+
+				// リンク先（カレントディレクトリ）の中身が残っていること
+				for _, rel := range []string{"file.txt", "inner/deep.txt"} {
+					if _, err := os.Stat(filepath.Join(work, filepath.FromSlash(rel))); err != nil {
+						t.Errorf("リンク先の %s が失われました: %v", rel, err)
+					}
+				}
+				// 移動元の symlink 自体はリンクとして削除されていること
+				if _, err := os.Lstat(filepath.Join(work, linkName)); err == nil {
+					t.Errorf("移動元の symlink が残っています: %s", filepath.Join(work, linkName))
+				}
+				// リンク先の中身を移動先へ移す既存の扱いは変えない
+				if got, err := os.ReadFile(filepath.Join(dst, "file.txt")); err != nil || string(got) != "hello" {
+					t.Errorf("移動先の file.txt が壊れています: content=%q err=%v", got, err)
+				}
+			})
+		}
 	}
 }
 
