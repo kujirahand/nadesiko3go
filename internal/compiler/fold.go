@@ -39,12 +39,25 @@ import (
 // なるので、大きくなったら実行時に任せる。
 const maxFoldedString = 4096
 
+// foldRefusal は、長さの上限で畳み込みを断念した節点を、コンパイル中の
+// 関数文脈と組にして表す。左結合の『&』の連なりでは、同じ部分木を祖先の
+// 数だけ畳み直していた。断念を覚えておけば、部分木をもう一度組み立てずに
+// 済む。『定数』の可視性が増えても、ある節点が作る文字列が短くなることは
+// ないので、記録した断念が対象外になることはない。
+type foldRefusal struct {
+	node *ast.Node
+	fn   *funcCtx
+}
+
 // foldConst evaluates n at compile time when it is made only of literals,
 // operators, and 『定数』 whose value is already known. It reports false for
 // anything that reads a variable, calls a command, or otherwise needs the
 // program to be running.
 func (c *Compiler) foldConst(n *ast.Node) (value.Value, bool) {
 	if n == nil {
+		return value.Undefined(), false
+	}
+	if c.foldRefused(n) {
 		return value.Undefined(), false
 	}
 	switch n.Type {
@@ -105,13 +118,57 @@ func (c *Compiler) foldOp(n *ast.Node) (value.Value, bool) {
 	}
 	a, ok := c.foldConst(n.Block(0))
 	if !ok {
+		c.refuseFoldWithRefusedChild(n, n.Block(0))
 		return value.Undefined(), false
 	}
 	b, ok := c.foldConst(n.Block(1))
 	if !ok {
+		c.refuseFoldWithRefusedChild(n, n.Block(1))
+		return value.Undefined(), false
+	}
+	// 連結してから上限を判定すると、上限を超える文字列を毎回作り捨てることに
+	// なる。連結の前に、実行時と同じ文字列化後の長さで判定する (P01)。
+	if op == ir.BinConcat && concatLenBound(a)+concatLenBound(b) > maxFoldedString {
+		c.refuseFold(n)
 		return value.Undefined(), false
 	}
 	return ops.Binary(op, a, b), true
+}
+
+// foldRefused は n がすでに長さの上限で断念されたかどうかを返す。
+func (c *Compiler) foldRefused(n *ast.Node) bool {
+	_, ok := c.foldRefusals[foldRefusal{node: n, fn: c.fn}]
+	return ok
+}
+
+// refuseFold は n が長さの上限を超えるので畳めないと記録する。
+func (c *Compiler) refuseFold(n *ast.Node) {
+	c.foldRefusals[foldRefusal{node: n, fn: c.fn}] = struct{}{}
+}
+
+// refuseFoldWithRefusedChild は、失敗した子がすでに上限で断念済みなら、
+// 親も同じ理由で断念したと記録する。祖先が辿り直しても子孫は畳めないので、
+// 途中の節点で打ち切れるようにするため。
+func (c *Compiler) refuseFoldWithRefusedChild(n, child *ast.Node) {
+	if c.foldRefused(child) {
+		c.refuseFold(n)
+	}
+}
+
+// concatLenBound は『&』で連結したときに v が寄与する長さを返す。
+//
+// 『&』の実行時の実装は両辺を value.ToString で文字列化してから連結する
+// (ops.Binary → value.Concat) ので、数値・真偽値・null も文字列として長さに
+// 効く。文字列だけを数えて他を 0 にすると、例えば4091バイトの文字列と
+// math.MaxFloat64 の連結が上限判定をすり抜け、4096バイトを超える一時文字列を
+// 作ってから constantOf に捨てられる。実行時と同じ関数で見積もれば、
+// この取りこぼしが無くなる。
+//
+// 文字列に対しては value.ToString が同じ文字列をそのまま返す (コピーしない)
+// ので、見積もり自体は確保を伴わない。連結の結果は
+// ToString(a)+ToString(b) なので、この和は下限ではなく実長と一致する。
+func concatLenBound(v value.Value) int {
+	return len(value.ToString(v))
 }
 
 // constantOf turns a folded value into a constant pool entry. It reports

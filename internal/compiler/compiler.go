@@ -91,6 +91,9 @@ type Compiler struct {
 	// constGlobalValues holds the value of the module 『定数』 declared on the
 	// straight line of main. → fold.go
 	constGlobalValues map[int]value.Value
+	// foldRefusals は、maxFoldedString の上限で畳み込みを断念した節点を
+	// 覚えておく。→ fold.go
+	foldRefusals map[foldRefusal]struct{}
 	// branchDepth counts the conditionals and loops enclosing the statement
 	// being compiled. A 『定数』 declared inside one may never run, so only a
 	// declaration at depth 0 is recorded for propagation.
@@ -111,6 +114,7 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 		globalIndex:       map[string]int{},
 		constGlobals:      map[int]bool{},
 		constGlobalValues: map[int]value.Value{},
+		foldRefusals:      map[foldRefusal]struct{}{},
 		file:              filename,
 	}
 	c.prog.Version = ir.CurrentVersion
