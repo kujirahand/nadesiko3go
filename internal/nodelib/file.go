@@ -404,9 +404,16 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 	return nil
 }
 
-// removeSource は移動元を削除する。カレントディレクトリ自身はディレクトリ
-// エントリーを削除できない(os.RemoveAll が invalid argument を返す)ため、
-// コピーが済んだ後は中身だけを削除し、元の空ディレクトリを残す。
+// removeSource は移動元を削除する。
+//
+// 移動元がカレントディレクトリ自身を指すとき (src が「.」のとき) だけ、
+// ディレクトリごと削除せず中身だけを削除し、元の空ディレクトリを残す。
+// 使用中のカレントディレクトリ自身は削除できず、os.RemoveAll(".") は
+// invalid argument などのエラーを返す (中身を消せたとしてもディレクトリは
+// 残る) ため、この分岐が無いと「.」からの移動は削除失敗になる。
+// 判定は os.SameFile で実体を比べるので、"./" のような相対表記だけでなく、
+// カレントディレクトリを指す絶対パス表記でも同じ扱いになる。
+//
 // それ以外の削除失敗は呼び出し元へ返し、移動の成功扱いにしない。
 func removeSource(src string) error {
 	if srcInfo, err := os.Stat(src); err == nil {

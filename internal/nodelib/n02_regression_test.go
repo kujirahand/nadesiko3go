@@ -273,6 +273,57 @@ func TestN02MoveSymlinkedSourceKeepsContent(t *testing.T) {
 	}
 }
 
+// TestN02MoveFromCurrentDirectoryLeavesEmptyDirectory は、移動元がカレント
+// ディレクトリ自身（"."）の場合を固定する。カレントディレクトリ自身は
+// 削除できないため、removeSource は "." を指すときだけ中身の削除へ切り替え、
+// 元の空ディレクトリを残す。この分岐が無いと、コピーは済んでも移動全体が
+// 「削除できません」で失敗する。symlink も権限も使わないので、どのOSでも
+// スキップせずに実行できる。
+func TestN02MoveFromCurrentDirectoryLeavesEmptyDirectory(t *testing.T) {
+	for _, cmd := range []string{"ファイル移動", "ファイル上書移動"} {
+		t.Run(cmd, func(t *testing.T) {
+			root := t.TempDir()
+			src := filepath.Join(root, "work")
+			if err := os.MkdirAll(filepath.Join(src, "inner"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(src, "file.txt"), []byte("hello"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(src, "inner", "deep.txt"), []byte("deep"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			dst := filepath.Join(root, "dst")
+
+			code := fmt.Sprintf("「.」を「%s」に%s", filepath.ToSlash(dst), cmd)
+			if err := runExpectError(t, src, code); err != nil {
+				t.Fatalf("%s: カレントディレクトリからの移動がエラーになりました: %v", cmd, err)
+			}
+			if got, err := os.ReadFile(filepath.Join(dst, "file.txt")); err != nil || string(got) != "hello" {
+				t.Errorf("移動先の file.txt が壊れています: content=%q err=%v", got, err)
+			}
+			if got, err := os.ReadFile(filepath.Join(dst, "inner", "deep.txt")); err != nil || string(got) != "deep" {
+				t.Errorf("移動先の inner/deep.txt が壊れています: content=%q err=%v", got, err)
+			}
+			info, err := os.Stat(src)
+			if err != nil || !info.IsDir() {
+				t.Fatalf("移動元のカレントディレクトリが失われました: info=%v err=%v", info, err)
+			}
+			entries, err := os.ReadDir(src)
+			if err != nil {
+				t.Fatalf("移動元を読めません: %v", err)
+			}
+			if len(entries) != 0 {
+				names := make([]string, len(entries))
+				for i, e := range entries {
+					names[i] = e.Name()
+				}
+				t.Errorf("移動元の中身が残っています: %v", names)
+			}
+		})
+	}
+}
+
 // BenchmarkN02MoveDirectory は perf 用。空ディレクトリ 10 個と通常ファイル
 // 100 個を持つディレクトリの移動を、VM を含む実際の命令経路で測る。
 // checkMoveTarget は非公開のため、パッケージ外テストからは実入口を通して測る。
