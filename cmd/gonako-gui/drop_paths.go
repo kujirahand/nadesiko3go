@@ -12,7 +12,8 @@ import (
 
 // bindFileDrop はJavaScriptからドロップのフルパス取得を有効にする関数を公開する。
 // ウィンドウ(ハンドル0)にドロップ受付が登録されたときに画面側が呼ぶ。
-func bindFileDrop(w webview.WebView) {
+// bindFileDrop は保護windowにだけドロップ経路を登録する。
+func bindFileDrop(w *webview.Protected) {
 	installed := false
 	_ = w.Bind("enableFileDropPaths", func() error {
 		if installed {

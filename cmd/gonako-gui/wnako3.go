@@ -173,7 +173,7 @@ func newWNako3PageConfig(forceWNako3 bool) wnako3PageConfig {
 
 // installWNako3 はwnako3のローダーと、Go側の命令を呼ぶブリッジをWebViewへ組み込む。
 // Bind より前、Navigate/SetHtml より前に呼ぶこと。
-func installWNako3(w webview.WebView, cfg wnako3PageConfig, windows guilib.WindowController, packed *bundle.Bundle) *commandBridge {
+func installWNako3(w *webview.Protected, cfg wnako3PageConfig, windows guilib.WindowController, packed *bundle.Bundle) *commandBridge {
 	if script := wnako3InitScript(cfg); script != "" {
 		w.Init(script)
 	}

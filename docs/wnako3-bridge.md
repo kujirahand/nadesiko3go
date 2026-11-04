@@ -118,6 +118,33 @@ N=「文字数」を[「あいう」]でGONAKO関数実行
   `runNakoCode` / `startNakoCode` と同じ前提で、ブリッジで権限が広がるわけではない。
   信頼できないスクリプト（出所の分からないCDNのJSなど）をHTMLに読み込まないこと
 - **外部ページ**: `-url` で開いた外部ページには、ローダーを注入しない
+- **保護ウィンドウの遷移policy（S01）**: `-dir` のフォルダ・梱包アプリ・エディタの実行画面を
+  載せる保護ウィンドウは、自前HTTPサーバーの厳密なorigin（scheme/host/portの完全一致）以外への
+  遷移を拒否する。外部リンク（`target=_blank` / `window.open` / `mailto:` など）は
+  Cocoa・GTK・WebView2 の3 backend とも拒否する（cancel）。外部ブラウザで開きたい場合は、
+  HTMLのJSからGo側の `openExternalURL`（http/httpsのみ許可、`cmd/gonako-gui/main.go`）を
+  呼ぶ。`mailto:` はこの経路でも開けない。いずれも「保護ウィンドウに別originのdocumentや
+  別ウィンドウを与えない」ための意図した仕様である。main frameだけを判定する緩和は、
+  GTK/Windowsのmain/sub判別が実機で未検証のため行っていない
+- **メッセージ判定**: ブリッジのメッセージはURLではなく `WKFrameInfo.securityOrigin` の
+  tuple照合で許可する。HTML仕様上 about:blank や trustedページが生成した blob: が親originを
+  継承し、securityOriginがtrusted tupleを報告すれば許可されうる。継承originは親と同じ権限で
+  あり、権限昇格ではなくセキュリティ上の穴ではない。`about:blank` / `about:srcdoc` /
+  `data:` / `blob:` のサブフレームの扱いはCocoa実機での確認待ちである
+- **外部iframeのプラットフォーム差（S01）**: 外部originのiframe（動画埋め込み等）は、
+  Cocoa（WKWebView）と GTK（WebKitGTK）では**読み込めない**。どちらもサブフレームの
+  navigationもguardの対象にしており、要求URLのoriginだけで判定するためである
+  （Cocoaはmain frameとsub frameの両方にdelegateが来る。GTKは `decide-policy` で
+  main/subframe/subresourceを問わず同じ規則を使う）。一方、WebView2はframe navigation用の
+  hookを持たず、`NavigationStarting`（main frame）と `NewWindowRequested` だけを登録する
+  ため、外部iframeは**従来どおり表示される**。特権RPCはtop-levelの `WebMessageReceived`
+  だけが受け付ける（iframe用のreceiverは登録しない）。iframeからのメッセージが届くか
+  どうかはWindows実機での確認待ちだが、届いた場合も送信元originの照合で拒否される。
+  ただしsame-originのchildはparent DOM経由でtop-levelのrelayに届く（親と同じ権限）
+- **互換性の変化**: 保護ウィンドウは「main frameとsub frameを区別せずoriginで判定する」
+  方針へ変わったため、既存の`-dir`アプリが外部originのiframeを使っている場合、
+  macOS/Linuxではその埋め込みが表示されなくなる（Windows/WebView2では表示されたまま）。
+  この差は未検証のmain/sub判別を挙動に入れないための意図的な仕様である
 - **DNS rebinding対策**: ローカルHTTPサーバーは `loopbackOnly`（`cmd/gonako-gui/wnako3.go`）で
   Hostヘッダーが `127.0.0.1` / `localhost` / `::1` の要求だけを受け付ける。ふつうのブラウザで開いた
   悪意あるサイトが、自分のドメインを127.0.0.1へ向け直してフォルダのファイルを読むのを防ぐ。

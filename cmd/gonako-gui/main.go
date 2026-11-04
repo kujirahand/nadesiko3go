@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -633,70 +632,67 @@ func main() {
 		handler = newSiteHandler(subFS)
 	}
 
-	var finalURL string
+	// -url は非特権のplain window。Bindもtheme同期も登録しない。
 	if targetURL != "" {
-		finalURL = targetURL
-	} else {
-		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		w, err := newPlainWindow(*debugFlag, windowSettings)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "ローカルサーバーの起動に失敗しました: %v\n", err)
+			fmt.Fprintf(os.Stderr, "WebViewの初期化に失敗しました: %v\n", err)
 			os.Exit(1)
 		}
-		defer listener.Close()
-
-		port := listener.Addr().(*net.TCPAddr).Port
-		server := &http.Server{Handler: loopbackOnly(handler)}
-		go func() {
-			_ = server.Serve(listener)
-		}()
-		finalURL = fmt.Sprintf("http://127.0.0.1:%d/%s", port, startPage)
+		defer w.Destroy()
+		w.Navigate(targetURL)
+		w.Run()
+		return
 	}
 
-	// WebViewウィンドウの初期化
-	w := webview.New(*debugFlag)
-	if w == nil {
-		fmt.Fprintln(os.Stderr, "WebViewの初期化に失敗しました。OSのWebView2/WebKitGTK/Cocoa環境を確認してください。")
+	server, err := startOwnedServer(handler)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-	defer w.Destroy()
-	bindFileDrop(w)
-
-	if err := applyWindowSettings(w, windowSettings, false); err != nil {
-		fmt.Fprintf(os.Stderr, "ウィンドウ設定を適用できません: %v\n", err)
+	tw, err := newTrustedWindowWithServer(*debugFlag, server, windowSettings)
+	if err != nil {
+		server.Close()
+		fmt.Fprintf(os.Stderr, "WebViewの初期化に失敗しました: %v\n", err)
 		os.Exit(1)
 	}
+	defer tw.Close()
 
-	guiRuntime := &guiSession{window: newNativeWindowController(w)}
-	directWindow := newDirectNativeWindowController(w)
+	guiRuntime := &guiSession{window: newNativeWindowController(tw.Window)}
+	directWindow := newDirectNativeWindowController(tw.Window)
 
 	// wnako3（ブラウザ版なでしこ）のローダーとGo命令ブリッジ（#63）。
-	// 外部URLのページには注入しない。
-	if targetURL == "" {
-		forceWNako3 := false
-		if targetDir != "" {
-			if data, err := os.ReadFile(filepath.Join(targetDir, windowConfigFile)); err == nil {
-				forceWNako3 = wnako3ConfigFromIndexJSON(data)
-			}
+	forceWNako3 := false
+	if targetDir != "" {
+		if data, err := os.ReadFile(filepath.Join(targetDir, windowConfigFile)); err == nil {
+			forceWNako3 = wnako3ConfigFromIndexJSON(data)
 		}
-		installWNako3(w, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
 	}
+	installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
 
-	// 特権ブリッジ（ファイル操作・コード実行・ダイアログ等）は信頼できる
-	// 内部UI（内蔵エディタ・-dirの独自HTML）にだけ公開する。外部URL(-url)の
-	// ページにもBindのJS shimが注入されてしまうため、その場合は登録しない（#183）。
+	// 特権ブリッジ（ファイル操作・コード実行・ダイアログ等）は、policy設定に
+	// 成功した保護windowにだけ登録する。Bind失敗はこの時点で起動を止める。
 	if targetURL == "" {
-		bindPrivilegedBridge(w, guiRuntime, directWindow, initialWorkingDir, initialFile, editorMode)
+		bindPrivilegedBridge(tw.Window, guiRuntime, directWindow, initialWorkingDir, initialFile, editorMode)
+	}
+	if err := tw.BindErr(); err != nil {
+		fmt.Fprintf(os.Stderr, "特権Bindを登録できません: %v\n", err)
+		tw.Close()
+		os.Exit(1)
 	}
 
-	// WebViewを開く
-	w.Navigate(finalURL)
-	w.Run()
+	if err := tw.Navigate("/" + startPage); err != nil {
+		fmt.Fprintf(os.Stderr, "ウィンドウを開けません: %v\n", err)
+		tw.Close()
+		os.Exit(1)
+	}
+	tw.Window.Run()
 }
 
 // bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ
 // 公開するGo側APIをまとめてBindする。ファイル操作やコード実行を含むため、
 // 外部URL(-url)を表示するウィンドウでは呼んではいけない（#183）。
-func bindPrivilegedBridge(w webview.WebView, guiRuntime *guiSession, directWindow *directNativeWindowController, initialWorkingDir, initialFile string, editorMode bool) {
+func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWindow *directNativeWindowController, initialWorkingDir, initialFile string, editorMode bool) {
 	// Go ↔ JavaScript バインディング: 独自HTMLから使う従来の実行API
 	_ = w.Bind("runNakoCode", func(code string) string {
 		result := guiRuntime.runWithWindow(code, "gui.nako3", false, nil, nil, directWindow)

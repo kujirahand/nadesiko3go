@@ -193,6 +193,54 @@ extern "C" {
 WEBVIEW_API webview_t webview_create(int debug, void *window);
 
 /**
+ * Restricts this webview to one exact trusted origin.
+ *
+ * The origin must be an absolute http(s) origin with an explicit numeric port,
+ * for example "http://127.0.0.1:49152". The native navigation policy and the
+ * native message guard only accept that exact scheme/host/port authority.
+ * Returns zero on success and non-zero on failure. A webview without a
+ * successful call to this function is unprivileged and must not be used with
+ * privileged bindings.
+ *
+ * @param w The webview instance.
+ * @param origin The exact trusted origin.
+ * @return Zero on success, non-zero on failure.
+ */
+WEBVIEW_API int webview_set_trust_origin(webview_t w, const char *origin);
+
+/**
+ * Revokes a webview's trust immediately. This is an atomic flag update and is
+ * safe to call from any thread; it does not touch UI objects.
+ */
+WEBVIEW_API void webview_revoke_trust(webview_t w);
+
+/**
+ * Reports whether a webview's trust is currently installed.
+ *
+ * The value is an atomic flag read. It becomes zero after
+ * webview_revoke_trust and stays zero. Additional native listeners that can
+ * expose privileged data must consult this before acting, so a revoked window
+ * cannot answer queued messages.
+ *
+ * @param w The webview instance.
+ * @return Non-zero while trust is installed, zero otherwise.
+ */
+WEBVIEW_API int webview_trust_installed(webview_t w);
+
+/**
+ * The purpose of an origin check inside the native guard.
+ *
+ * WEBVIEW_TRUST_TOP_DOCUMENT is used by the message guard; the navigation
+ * kinds are used by the platform navigation policy. Unknown kinds are denied.
+ */
+typedef enum {
+  WEBVIEW_TRUST_NAVIGATION = 0,
+  WEBVIEW_TRUST_RESPONSE = 1,
+  WEBVIEW_TRUST_NEW_WINDOW = 2,
+  WEBVIEW_TRUST_TOP_DOCUMENT = 3,
+} webview_trust_kind_t;
+
+/**
  * Destroys a webview instance and closes the native window.
  *
  * @param w The webview instance.
@@ -396,6 +444,7 @@ WEBVIEW_API const webview_version_info_t *webview_version(void);
 #include <array>
 #include <atomic>
 #include <cassert>
+#include <cctype>
 #include <cstdint>
 #include <functional>
 #include <future>
@@ -404,6 +453,7 @@ WEBVIEW_API const webview_version_info_t *webview_version(void);
 #include <utility>
 #include <vector>
 
+#include <cstdlib>
 #include <cstring>
 
 #if defined(_WIN32)
@@ -888,6 +938,93 @@ private:
   mod_handle_t m_handle{};
 };
 
+// S01: 各platformのguardが共有するexact originのtrust policy。
+//
+// 一般のURL parserより意図的に厳しくし、http(s)・明示的な数値port・
+// userinfoとIPv6括弧を含まないhostだけを受け付ける。見た目が似たauthority
+// ("127.0.0.1.evil"、"127.0.0.1@evil"、"127.0.0.1:1234.evil") は
+// prefix比較へ流さず失敗させる。
+struct trust_origin_t {
+  std::string scheme;
+  std::string host;
+  std::string port;
+  bool valid{};
+};
+
+// S01: 実際のsender frameのsecurityOrigin。opaque/sandboxはopaque=trueのままdenyする。
+struct sender_origin_t {
+  std::string scheme;
+  std::string host;
+  std::string port;
+  bool opaque{true};
+};
+
+inline std::string ascii_lower(std::string value) {
+  for (auto &ch : value) {
+    ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+  }
+  return value;
+}
+
+inline bool parse_uri_authority(const std::string &url, std::string &scheme,
+                                std::string &host, std::string &port) {
+  scheme.clear();
+  host.clear();
+  port.clear();
+  auto sep = url.find("://");
+  if (sep == std::string::npos || sep == 0) {
+    return false;
+  }
+  scheme = ascii_lower(url.substr(0, sep));
+  if (scheme != "http" && scheme != "https") {
+    return false;
+  }
+  auto rest = url.substr(sep + 3);
+  auto end = rest.find_first_of("/?#");
+  auto authority = rest.substr(0, end);
+  if (authority.empty()) {
+    return false;
+  }
+  if (authority.find('@') != std::string::npos ||
+      authority.find('[') != std::string::npos ||
+      authority.find(']') != std::string::npos) {
+    return false;
+  }
+  for (char ch : authority) {
+    auto c = static_cast<unsigned char>(ch);
+    if (c <= 0x20 || c == 0x7f) {
+      return false;
+    }
+  }
+  auto colon = authority.rfind(':');
+  if (colon == std::string::npos) {
+    host = ascii_lower(authority);
+    port = scheme == "https" ? "443" : "80";
+  } else {
+    host = ascii_lower(authority.substr(0, colon));
+    port = authority.substr(colon + 1);
+    if (host.empty() || port.empty()) {
+      return false;
+    }
+    for (char ch : port) {
+      if (!std::isdigit(static_cast<unsigned char>(ch))) {
+        return false;
+      }
+    }
+  }
+  return !host.empty();
+}
+
+inline bool parse_trust_origin(const std::string &origin, trust_origin_t &out) {
+  trust_origin_t parsed;
+  if (!parse_uri_authority(origin, parsed.scheme, parsed.host, parsed.port)) {
+    return false;
+  }
+  parsed.valid = true;
+  out = std::move(parsed);
+  return true;
+}
+
 class engine_base {
 public:
   virtual ~engine_base() = default;
@@ -898,6 +1035,83 @@ public:
       return;
     }
     navigate_impl(url);
+  }
+
+  // S01: exact originのpolicyとplatform guardを設定する。特権Bindには必須で、
+  // ここでの失敗は「許可」ではなく保護windowの作成失敗として扱う。
+  bool set_trust_origin(const std::string &origin) {
+    trust_origin_t parsed;
+    if (!parse_trust_origin(origin, parsed)) {
+      return false;
+    }
+    trust_origin_ = std::move(parsed);
+    if (!install_trust_guard_impl()) {
+      trust_origin_ = trust_origin_t{};
+      return false;
+    }
+    trust_configured_.store(true);
+    trust_installed_.store(true);
+    return true;
+  }
+
+  void revoke_trust() { trust_installed_.store(false); }
+
+  bool trust_installed() const { return trust_installed_.load(); }
+
+  bool trust_configured() const { return trust_configured_.load(); }
+
+  bool allow_url(const std::string &url, webview_trust_kind_t kind) const {
+    if (!trust_installed_.load() || !trust_origin_.valid) {
+      return false;
+    }
+    switch (kind) {
+    case WEBVIEW_TRUST_NAVIGATION:
+    case WEBVIEW_TRUST_RESPONSE:
+    case WEBVIEW_TRUST_NEW_WINDOW:
+    case WEBVIEW_TRUST_TOP_DOCUMENT:
+      break;
+    default:
+      return false;
+    }
+    std::string scheme;
+    std::string host;
+    std::string port;
+    if (!parse_uri_authority(url, scheme, host, port)) {
+      return false;
+    }
+    return scheme == trust_origin_.scheme && host == trust_origin_.host &&
+           port == trust_origin_.port;
+  }
+
+  // S01: 実sender originのtuple照合。opaque/sandboxはURLが同じでもdenyする。
+  //
+  // main frameとsub frameで規則は同一であり、frameの別は判定入力にしない。
+  // - opaque origin（sandbox付きiframeなどtupleを作れない文書）はopaque判定で
+  //   denyする。よって外部originのchildはoriginの段階で落ちる。
+  // - same-origin childはtuple一致なのでallowする。parent DOM relayと同じ
+  //   origin wide authorityであり、frameの別で規則を変えない。
+  // frameの別を引数で受け取らないのは、「main frameだけ許可」への挙動変更を
+  // ここで暗黙に行わないためである。各backendのmain/sub判別は実機で未検証なので、
+  // 緩和する場合は検証とdocsの更新を同時に行うこと。
+  //
+  // 全platformのtop-frame RPC policy:
+  // - Cocoa: WKFrameInfo.securityOriginのprotocol/host/portを照合する。
+  //   空protocol/空host/port 0はopaqueとしてdenyする。
+  // - GTK: private-worldのTOP_FRAME relayだけがnativeを呼ぶ。same-origin childは
+  //   parent DOM経由でrelayに届くが、opaque childはparent DOMへ触れない。
+  // - Windows: 既存top-level WebMessageReceivedだけを使い、Frame2 receiverは
+  //   追加しない。get_SourceはURLでありsecurityOriginではないため、iframe到達性は
+  //   native検証項目として残す。
+  bool allow_sender_origin(const sender_origin_t &origin) const {
+    if (!trust_installed_.load() || origin.opaque) {
+      return false;
+    }
+    if (origin.scheme.empty() || origin.host.empty() || origin.port.empty()) {
+      return false;
+    }
+    return origin.scheme == trust_origin_.scheme &&
+           origin.host == trust_origin_.host &&
+           origin.port == trust_origin_.port;
   }
 
   using binding_t = std::function<void(std::string, std::string, void *)>;
@@ -1024,6 +1238,12 @@ protected:
   virtual void init_impl(const std::string &js) = 0;
   virtual void eval_impl(const std::string &js) = 0;
 
+  // S01: navigation/message guardを設定するplatform hook。falseを返すと
+  // set_trust_originが中止し、guardが不完全な保護windowは起動しない。
+  // 既定はfalse。guardを実装したbackendだけが明示的にtrueを返す。
+  virtual bool install_trust_guard_impl() { return false; }
+  virtual bool allow_top_document() const { return true; }
+
   virtual void on_message(const std::string &msg) {
     auto seq = json_parse(msg, "id", 0);
     auto name = json_parse(msg, "method", 0);
@@ -1036,6 +1256,30 @@ protected:
     context.callback(seq, args, context.arg);
   }
 
+  // S01: senderを報告できるplatform向けのmessage guard。保護windowは、
+  // 報告されたoriginがexact tupleと一致するmessageだけを受け付ける。
+  // trust originを持たない一般webviewは従来の挙動を保つ。
+  // senderがmain frameかsub frameかは受け取らない（allow_sender_originと同じ規則）。
+  void on_message_from(const std::string &msg, const sender_origin_t &origin) {
+    // trust_configured_ は revoke 後も true のまま。revoke 後は installed=false
+    // なので、一般windowのlegacy許可へ落とさずに必ずdenyする。
+    if (trust_configured_.load()) {
+      if (!trust_installed_.load() || !allow_sender_origin(origin)) {
+        return;
+      }
+    }
+    on_message(msg);
+  }
+
+  // S01: GTK private-world relay向けのmessage guard。relayはtop frameだけに
+  // 注入されるため、allow_top_document()がdocumentの確認になる。
+  void on_message_guarded(const std::string &msg) {
+    if (!trust_installed_.load() || !allow_top_document()) {
+      return;
+    }
+    on_message(msg);
+  }
+
   virtual void on_window_created() { inc_window_count(); }
 
   virtual void on_window_destroyed(bool skip_termination = false) {
@@ -1045,6 +1289,12 @@ protected:
       }
     }
   }
+
+  // S01: 設定済みのexact origin。platformのsubclassがnative guardの設定時に
+  // 各componentを読む。
+  trust_origin_t trust_origin_{};
+  std::atomic<bool> trust_configured_{};
+  std::atomic<bool> trust_installed_{};
 
 private:
   static std::atomic_uint &window_ref_count() {
@@ -1263,7 +1513,11 @@ public:
                                     WebKitJavascriptResult *r, gpointer arg) {
                        auto *w = static_cast<gtk_webkit_engine *>(arg);
                        char *s = get_string_from_js_result(r);
-                       w->on_message(s);
+                       // 保護window（revoke後を含む）では旧default-world handlerを
+                       // 不活性にする。trust設定済みかで判定する。
+                       if (!w->trust_configured()) {
+                         w->on_message(s);
+                       }
                        g_free(s);
                      }),
                      this);
@@ -1388,7 +1642,172 @@ public:
     }
   }
 
+  // S01: 保護windowでは旧default-worldの"external" transportを置換する。
+  // page worldは文字列CustomEventだけを送り、"gonako" worldのrelayだけが
+  // private-world handlerを呼ぶ。relayはtop frameにだけ注入する。
+  bool install_trust_guard_impl() override {
+    if (!m_webview) {
+      return false;
+    }
+    WebKitUserContentManager *manager =
+        webkit_web_view_get_user_content_manager(WEBKIT_WEB_VIEW(m_webview));
+    webkit_user_content_manager_unregister_script_message_handler(manager,
+                                                                  "external");
+    g_signal_connect(manager, "script-message-received::gonako",
+                     G_CALLBACK(+[](WebKitUserContentManager *,
+                                    WebKitJavascriptResult *r, gpointer arg) {
+                       auto *w = static_cast<gtk_webkit_engine *>(arg);
+                       char *s = get_string_from_js_result(r);
+                       w->on_message_guarded(s);
+                       g_free(s);
+                     }),
+                     this);
+    if (!webkit_user_content_manager_register_script_message_handler_in_world(
+            manager, "gonako", "gonako")) {
+      return false;
+    }
+    static const char *relay =
+        "document.addEventListener('gonako-rpc',function(e){"
+        "if(typeof e.detail!=='string')return;"
+        "window.webkit.messageHandlers.gonako.postMessage(e.detail);"
+        "},true);";
+    webkit_user_content_manager_add_script(
+        manager, webkit_user_script_new_for_world(
+                     relay, WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+                     WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, "gonako",
+                     nullptr, nullptr));
+    static const char *shim =
+        "window.external={invoke:function(s){"
+        "document.dispatchEvent(new CustomEvent('gonako-rpc',"
+        "{detail:String(s)}));"
+        "}};";
+    webkit_user_content_manager_add_script(
+        manager, webkit_user_script_new(
+                     shim, WEBKIT_USER_CONTENT_INJECT_TOP_FRAME,
+                     WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START, nullptr,
+                     nullptr));
+    g_signal_connect(m_webview, "load-changed",
+                     G_CALLBACK(+[](WebKitWebView *, WebKitLoadEvent event,
+                                    gpointer arg) {
+                       static_cast<gtk_webkit_engine *>(arg)->on_load_changed(
+                           event);
+                     }),
+                     this);
+    g_signal_connect(m_webview, "load-failed",
+                     G_CALLBACK(+[](WebKitWebView *, WebKitLoadEvent,
+                                    const gchar *, GError *, gpointer arg)
+                                    -> gboolean {
+                       auto *w = static_cast<gtk_webkit_engine *>(arg);
+                       w->top_failed_ = true;
+                       w->top_allowed_ = false;
+                       // The default handler would load alternate HTML at the
+                       // failing URI; a protected window does not give that
+                       // document any authority.
+                       return TRUE;
+                     }),
+                     this);
+    g_signal_connect(m_webview, "decide-policy",
+                     G_CALLBACK(+[](WebKitWebView *, WebKitPolicyDecision *d,
+                                    WebKitPolicyDecisionType type,
+                                    gpointer arg) -> gboolean {
+                       return static_cast<gtk_webkit_engine *>(arg)
+                           ->on_decide_policy(d, type);
+                     }),
+                     this);
+    g_signal_connect(m_webview, "create",
+                     G_CALLBACK(+[](WebKitWebView *, WebKitNavigationAction *,
+                                    gpointer) -> GtkWidget * {
+                       // No new privileged window. This is not an iframe
+                       // receiver; it closes the new-window path.
+                       return nullptr;
+                     }),
+                     this);
+    return true;
+  }
+
+  bool allow_top_document() const override { return top_allowed_; }
+
 private:
+  void on_load_changed(WebKitLoadEvent event) {
+    const gchar *uri = webkit_web_view_get_uri(WEBKIT_WEB_VIEW(m_webview));
+    top_uri_ = uri ? uri : "";
+    switch (event) {
+    case WEBKIT_LOAD_STARTED:
+    case WEBKIT_LOAD_REDIRECTED:
+      // A requested/provisional URI is not the sender document. Keep the
+      // window closed until a trusted commit is observed.
+      top_allowed_ = false;
+      top_failed_ = false;
+      action_allowed_ = false;
+      response_allowed_ = false;
+      break;
+    case WEBKIT_LOAD_COMMITTED:
+      top_allowed_ = !top_failed_ &&
+                     allow_url(top_uri_, WEBVIEW_TRUST_TOP_DOCUMENT) &&
+                     (action_allowed_ || response_allowed_);
+      break;
+    case WEBKIT_LOAD_FINISHED:
+      if (top_failed_) {
+        top_allowed_ = false;
+      }
+      break;
+    }
+  }
+
+  gboolean on_decide_policy(WebKitPolicyDecision *decision,
+                            WebKitPolicyDecisionType type) {
+    switch (type) {
+    case WEBKIT_POLICY_DECISION_TYPE_NAVIGATION_ACTION: {
+      auto *action =
+          webkit_navigation_policy_decision_get_navigation_action(
+              WEBKIT_NAVIGATION_POLICY_DECISION(decision));
+      const gchar *uri =
+          action ? webkit_uri_request_get_uri(
+                       webkit_navigation_action_get_request(action))
+                 : nullptr;
+      if (uri && allow_url(uri, WEBVIEW_TRUST_NAVIGATION)) {
+        action_allowed_ = true;
+        webkit_policy_decision_use(decision);
+      } else {
+        action_allowed_ = false;
+        webkit_policy_decision_ignore(decision);
+      }
+      return TRUE;
+    }
+    case WEBKIT_POLICY_DECISION_TYPE_NEW_WINDOW_ACTION:
+      webkit_policy_decision_ignore(decision);
+      return TRUE;
+    case WEBKIT_POLICY_DECISION_TYPE_RESPONSE: {
+      auto *responseDecision = WEBKIT_RESPONSE_POLICY_DECISION(decision);
+      auto *request =
+          webkit_response_policy_decision_get_request(responseDecision);
+      auto *response =
+          webkit_response_policy_decision_get_response(responseDecision);
+      const gchar *requestURI =
+          request ? webkit_uri_request_get_uri(request) : nullptr;
+      const gchar *responseURI =
+          response ? webkit_uri_response_get_uri(response) : nullptr;
+      // S01: RESPONSEはmain/subframe/subresourceを問わず、request URIと
+      // final response URIの両方がexact originのときだけuseする。foreignや
+      // parse失敗、取得失敗はignoreする。mainResource分岐は置かない。
+      bool trusted = requestURI && responseURI &&
+                     allow_url(requestURI, WEBVIEW_TRUST_RESPONSE) &&
+                     allow_url(responseURI, WEBVIEW_TRUST_RESPONSE);
+      if (trusted) {
+        response_allowed_ = true;
+        webkit_policy_decision_use(decision);
+      } else {
+        response_allowed_ = false;
+        webkit_policy_decision_ignore(decision);
+      }
+      return TRUE;
+    }
+    default:
+      webkit_policy_decision_ignore(decision);
+      return TRUE;
+    }
+  }
+
   static char *get_string_from_js_result(WebKitJavascriptResult *r) {
     char *s;
 #if (WEBKIT_MAJOR_VERSION == 2 && WEBKIT_MINOR_VERSION >= 22) ||               \
@@ -1448,6 +1867,11 @@ private:
   bool m_owns_window{};
   GtkWidget *m_window{};
   GtkWidget *m_webview{};
+  bool top_allowed_{};
+  bool top_failed_{};
+  bool action_allowed_{};
+  bool response_allowed_{};
+  std::string top_uri_;
 };
 
 } // namespace detail
@@ -1474,6 +1898,20 @@ using browser_engine = detail::gtk_webkit_engine;
 
 namespace webview {
 namespace detail {
+
+// S01: third_party/webview_go/trust_darwin.m が実装する。delegateは実SDKの
+// WKNavigationDelegate型を使い、exact origin以外をCancelする。
+extern "C" void gonakoInstallNavigationGuard(void *wkwebview, void *engine,
+                                              const char *scheme,
+                                              const char *host, int port);
+
+// S01: 破棄時に、WKWebViewが生存しているうちにguardを外す。guardが持つ
+// engineの生ポインタを解放前に無効化するための関数。
+extern "C" void gonakoDetachNavigationGuard(void *wkwebview);
+
+// S01: Cocoaのnavigation Aもnative trustの失効へ追随するための照会関数。
+extern "C" int gonakoNativeTrustAllowsURL(void *engine, const char *url);
+
 namespace objc {
 
 // A convenient template function for unconditionally casting the specified
@@ -1600,6 +2038,9 @@ public:
         if (m_webview == objc::msg_send<id>(m_window, "contentView"_sel)) {
           objc::msg_send<void>(m_window, "setContentView:"_sel, nullptr);
         }
+        // S01: viewが生存しているうちにguardを外し、guardが持つengineの
+        // 生ポインタを捨てる。guardの寿命をengineより短くする。
+        gonakoDetachNavigationGuard((void *)m_webview);
         objc::msg_send<void>(m_webview, "release"_sel);
         m_webview = nullptr;
       }
@@ -1709,6 +2150,18 @@ public:
         WKUserScriptInjectionTimeAtDocumentStart, YES));
     objc::msg_send<void>(m_manager, "addUserScript:"_sel, script);
   }
+  // S01: trust_darwin.m のWKNavigationDelegate action/response guardを設定する。
+  // originの各componentはstrict parserで確認済みである。
+  bool install_trust_guard_impl() override {
+    if (!m_webview) {
+      return false;
+    }
+    gonakoInstallNavigationGuard(
+        (void *)m_webview, (void *)this, trust_origin_.scheme.c_str(),
+        trust_origin_.host.c_str(),
+        static_cast<int>(std::strtol(trust_origin_.port.c_str(), nullptr, 10)));
+    return true;
+  }
   void eval_impl(const std::string &js) override {
     objc::autoreleasepool arp;
     objc::msg_send<void>(m_webview, "evaluateJavaScript:completionHandler:"_sel,
@@ -1757,8 +2210,43 @@ private:
           cls, "userContentController:didReceiveScriptMessage:"_sel,
           (IMP)(+[](id self, SEL, id, id msg) {
             auto w = get_associated_webview(self);
-            w->on_message(objc::msg_send<const char *>(
-                objc::msg_send<id>(msg, "body"_sel), "UTF8String"_sel));
+            id body = objc::msg_send<id>(msg, "body"_sel);
+            const char *bodyText = body
+                                       ? objc::msg_send<const char *>(
+                                             body, "UTF8String"_sel)
+                                       : nullptr;
+            id frame = objc::msg_send<id>(msg, "frameInfo"_sel);
+            // S01: senderのURLではなく、WKFrameInfo.securityOriginの実tupleを
+            // 使う。opaque/sandbox originはtupleを作らずdenyする。
+            // main frameかsub frameかは渡さない。判定規則はどちらも同じで、
+            // frameの別を規則に持ち込むと暗黙の挙動変更になるため。
+            sender_origin_t senderOrigin;
+            id securityOrigin =
+                frame ? objc::msg_send<id>(frame, "securityOrigin"_sel)
+                      : nullptr;
+            if (securityOrigin) {
+              id protocol =
+                  objc::msg_send<id>(securityOrigin, "protocol"_sel);
+              id host = objc::msg_send<id>(securityOrigin, "host"_sel);
+              NSInteger port =
+                  objc::msg_send<NSInteger>(securityOrigin, "port"_sel);
+              const char *protocolText =
+                  protocol ? objc::msg_send<const char *>(protocol,
+                                                          "UTF8String"_sel)
+                           : nullptr;
+              const char *hostText =
+                  host ? objc::msg_send<const char *>(host, "UTF8String"_sel)
+                       : nullptr;
+              if (protocolText && protocolText[0] != '\0' && hostText &&
+                  hostText[0] != '\0' && port > 0) {
+                senderOrigin.scheme = ascii_lower(protocolText);
+                senderOrigin.host = ascii_lower(hostText);
+                senderOrigin.port =
+                    std::to_string(static_cast<long long>(port));
+                senderOrigin.opaque = false;
+              }
+            }
+            w->on_message_from(bodyText ? bodyText : "", senderOrigin);
           }),
           "v@:@@");
       objc_registerClassPair(cls);
@@ -1814,6 +2302,12 @@ private:
             objc::msg_send<void>(invocation, "invoke"_sel);
           }),
           "v@:@@@@");
+      // S01: new-window要求では特権WKWebViewを作らない。
+      class_addMethod(
+          cls,
+          "webView:createWebViewWithConfiguration:forNavigationAction:windowFeatures:"_sel,
+          (IMP)(+[](id, SEL, id, id, id, id) -> id { return nullptr; }),
+          "@@:@@@@");
       objc_registerClassPair(cls);
     }
     return objc::msg_send<id>((id)cls, "new"_sel);
@@ -1889,6 +2383,12 @@ private:
     set_up_window();
   }
   void on_window_will_close(id /*delegate*/, id /*window*/) {
+    // S01: viewが破棄される前にguardを外し、guardが持つengineの生ポインタを
+    // 無効化する（この時点のengineはまだ生存している）。破棄後のdestructorは
+    // m_webviewを見ないので、外すのはここで行う。
+    if (m_webview) {
+      gonakoDetachNavigationGuard((void *)m_webview);
+    }
     // Widget destroyed along with window.
     m_webview = nullptr;
     m_window = nullptr;
@@ -2805,6 +3305,14 @@ static constexpr auto message_received =
 static constexpr auto permission_requested =
     cast_info_t<ICoreWebView2PermissionRequestedEventHandler>{
         IID_ICoreWebView2PermissionRequestedEventHandler};
+
+static constexpr auto navigation_starting =
+    cast_info_t<ICoreWebView2NavigationStartingEventHandler>{
+        IID_ICoreWebView2NavigationStartingEventHandler};
+
+static constexpr auto new_window_requested =
+    cast_info_t<ICoreWebView2NewWindowRequestedEventHandler>{
+        IID_ICoreWebView2NewWindowRequestedEventHandler};
 } // namespace cast_info
 } // namespace mswebview2
 
@@ -2812,13 +3320,23 @@ class webview2_com_handler
     : public ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler,
       public ICoreWebView2CreateCoreWebView2ControllerCompletedHandler,
       public ICoreWebView2WebMessageReceivedEventHandler,
-      public ICoreWebView2PermissionRequestedEventHandler {
+      public ICoreWebView2PermissionRequestedEventHandler,
+      public ICoreWebView2NavigationStartingEventHandler,
+      public ICoreWebView2NewWindowRequestedEventHandler {
   using webview2_com_handler_cb_t =
       std::function<void(ICoreWebView2Controller *, ICoreWebView2 *webview)>;
 
 public:
   webview2_com_handler(HWND hwnd, msg_cb_t msgCb, webview2_com_handler_cb_t cb)
       : m_window(hwnd), m_msgCb(msgCb), m_cb(cb) {}
+
+  // S01: exact originが決まった後にwin32_edge_engineが設定する。handlerは
+  // イベント時に参照するため、controller生成の非同期順序にも対応する。
+  void set_trust(std::function<bool(const std::string &, int)> trust) {
+    m_trust = std::move(trust);
+  }
+
+  bool guard_failed() const { return m_guardFailed; }
 
   virtual ~webview2_com_handler() = default;
   webview2_com_handler(const webview2_com_handler &other) = delete;
@@ -2854,7 +3372,9 @@ public:
     if (cast_if_equal_iid(riid, controller_completed, ppv) ||
         cast_if_equal_iid(riid, environment_completed, ppv) ||
         cast_if_equal_iid(riid, message_received, ppv) ||
-        cast_if_equal_iid(riid, permission_requested, ppv)) {
+        cast_if_equal_iid(riid, permission_requested, ppv) ||
+        cast_if_equal_iid(riid, navigation_starting, ppv) ||
+        cast_if_equal_iid(riid, new_window_requested, ppv)) {
       return S_OK;
     }
 
@@ -2888,20 +3408,68 @@ public:
     ICoreWebView2 *webview;
     ::EventRegistrationToken token;
     controller->get_CoreWebView2(&webview);
-    webview->add_WebMessageReceived(this, &token);
+    if (FAILED(webview->add_WebMessageReceived(this, &token))) {
+      m_guardFailed = true;
+    }
     webview->add_PermissionRequested(this, &token);
+    if (FAILED(webview->add_NavigationStarting(this, &token))) {
+      m_guardFailed = true;
+    }
+    if (FAILED(webview->add_NewWindowRequested(this, &token))) {
+      m_guardFailed = true;
+    }
 
     m_cb(controller, webview);
     return S_OK;
   }
   HRESULT STDMETHODCALLTYPE Invoke(
       ICoreWebView2 *sender, ICoreWebView2WebMessageReceivedEventArgs *args) {
-    LPWSTR message;
-    args->TryGetWebMessageAsString(&message);
+    LPWSTR message = nullptr;
+    if (FAILED(args->TryGetWebMessageAsString(&message)) || !message) {
+      return S_OK;
+    }
+    if (m_trust) {
+      LPWSTR source = nullptr;
+      if (m_guardFailed || FAILED(args->get_Source(&source)) || !source ||
+          !m_trust(narrow_string(source), WEBVIEW_TRUST_TOP_DOCUMENT)) {
+        CoTaskMemFree(source);
+        CoTaskMemFree(message);
+        return S_OK;
+      }
+      CoTaskMemFree(source);
+    }
     m_msgCb(narrow_string(message));
     sender->PostWebMessageAsString(message);
 
     CoTaskMemFree(message);
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE Invoke(
+      ICoreWebView2 * /*sender*/,
+      ICoreWebView2NavigationStartingEventArgs *args) {
+    if (!m_trust) {
+      return S_OK;
+    }
+    LPWSTR uri = nullptr;
+    BOOL redirected = FALSE;
+    BOOL userInitiated = FALSE;
+    args->get_IsRedirected(&redirected);
+    args->get_IsUserInitiated(&userInitiated);
+    if (FAILED(args->get_Uri(&uri)) || !uri ||
+        !m_trust(narrow_string(uri), WEBVIEW_TRUST_NAVIGATION)) {
+      args->put_Cancel(TRUE);
+    }
+    CoTaskMemFree(uri);
+    return S_OK;
+  }
+  HRESULT STDMETHODCALLTYPE Invoke(
+      ICoreWebView2 * /*sender*/,
+      ICoreWebView2NewWindowRequestedEventArgs *args) {
+    if (!m_trust) {
+      return S_OK;
+    }
+    // A protected window never creates another privileged WebView.
+    args->put_Handled(TRUE);
     return S_OK;
   }
   HRESULT STDMETHODCALLTYPE
@@ -2971,6 +3539,8 @@ private:
   webview2_com_handler_cb_t m_cb;
   std::atomic<ULONG> m_ref_count{1};
   std::function<HRESULT()> m_attempt_handler;
+  std::function<bool(const std::string &, int)> m_trust;
+  bool m_guardFailed{};
   unsigned int m_max_attempts = 5;
   unsigned int m_attempts = 0;
 };
@@ -3306,6 +3876,19 @@ public:
     m_webview->ExecuteScript(wjs.c_str(), nullptr);
   }
 
+  // S01: WebView2 controllerは非同期に生成される。trust関数をengineに保持し、
+  // COM handlerが存在する時点で渡す。handlerはイベント時に参照する。
+  bool install_trust_guard_impl() override {
+    m_trust = [this](const std::string &url, int kind) {
+      return allow_url(url, static_cast<webview_trust_kind_t>(kind));
+    };
+    if (!m_com_handler) {
+      return false;
+    }
+    m_com_handler->set_trust(m_trust);
+    return !m_com_handler->guard_failed();
+  }
+
   void set_html_impl(const std::string &html) override {
     m_webview->NavigateToString(widen_string(html).c_str());
   }
@@ -3340,6 +3923,7 @@ private:
           m_webview = webview;
           flag.clear();
         });
+    m_com_handler->set_trust(m_trust);
 
     m_com_handler->set_attempt_handler([&] {
       return m_webview2_loader.create_environment_with_options(
@@ -3481,6 +4065,7 @@ private:
   ICoreWebView2 *m_webview = nullptr;
   ICoreWebView2Controller *m_controller = nullptr;
   webview2_com_handler *m_com_handler = nullptr;
+  std::function<bool(const std::string &, int)> m_trust;
   mswebview2::loader m_webview2_loader;
   int m_dpi{};
   bool m_owns_window{};
@@ -3498,6 +4083,18 @@ namespace webview {
 using webview = browser_engine;
 } // namespace webview
 
+// S01: Cocoa navigation guardからの照会。revoke後はtrust_installed_がfalseなので
+// allow_urlは0を返し、Aも同じ失効に追随する。
+extern "C" int gonakoNativeTrustAllowsURL(void *engine, const char *url) {
+  if (!engine || !url) {
+    return 0;
+  }
+  return static_cast<webview::webview *>(engine)->allow_url(
+             url, WEBVIEW_TRUST_NAVIGATION)
+             ? 1
+             : 0;
+}
+
 WEBVIEW_API webview_t webview_create(int debug, void *wnd) {
   auto w = new webview::webview(debug, wnd);
   if (!w->window()) {
@@ -3505,6 +4102,30 @@ WEBVIEW_API webview_t webview_create(int debug, void *wnd) {
     return nullptr;
   }
   return w;
+}
+
+WEBVIEW_API int webview_set_trust_origin(webview_t w, const char *origin) {
+  if (!w) {
+    return -1;
+  }
+  return static_cast<webview::webview *>(w)->set_trust_origin(
+             origin ? origin : "")
+             ? 0
+             : -1;
+}
+
+WEBVIEW_API void webview_revoke_trust(webview_t w) {
+  if (!w) {
+    return;
+  }
+  static_cast<webview::webview *>(w)->revoke_trust();
+}
+
+WEBVIEW_API int webview_trust_installed(webview_t w) {
+  if (!w) {
+    return 0;
+  }
+  return static_cast<webview::webview *>(w)->trust_installed() ? 1 : 0;
 }
 
 WEBVIEW_API void webview_destroy(webview_t w) {

@@ -173,6 +173,144 @@ func NewWindow(debug bool, window unsafe.Pointer) WebView {
 	return w
 }
 
+// TrustSpec は保護windowが許可する厳密なoriginを表す。
+// 例: "http://127.0.0.1:49152"。scheme/host/portの完全一致だけを許可する。
+type TrustSpec struct {
+	Origin string
+}
+
+// protectedBase は Bind を含まない。保護windowの生の Bind 経路を型から外す。
+//
+// これは「同一package外からは生の Bind に到達しにくい」という慣習レベルの
+// 境界であり、型システムによる強制ではない。埋め込みフィールド(*webview)は
+// protectedBase の後ろに隠れているだけで、リフレクションや型アサーション
+// （例: interface{ Bind(string, interface{}) error } への変換）を使えば突破できる。
+// 実際の強制は native 側の trust guard（origin 照合と revoke）が担う。
+type protectedBase interface {
+	Run()
+	Terminate()
+	Destroy()
+	Dispatch(func())
+	Window() unsafe.Pointer
+	NativeHandle(kind NativeHandleKind) unsafe.Pointer
+	SetTitle(title string)
+	SetSize(width int, height int, hint Hint)
+	Navigate(url string)
+	SetHtml(html string)
+	Init(js string)
+	Eval(js string)
+}
+
+// Protected は exact origin の policy を必須とする保護windowである。
+// policy の設定に失敗した場合、NewProtected は window を作らない。
+// Bind は policy 設定済みの native webview にだけ登録される。
+type Protected struct {
+	protectedBase
+	raw     *webview
+	spec    TrustSpec
+	mu      sync.Mutex
+	bindErr error
+}
+
+// Plain は Bind を持たない非特権windowである。-url とエラー表示に使う。
+type Plain struct {
+	protectedBase
+}
+
+// NewProtected は exact origin の native policy を設定した保護windowを作る。
+func NewProtected(debug bool, spec TrustSpec) (*Protected, error) {
+	if spec.Origin == "" {
+		return nil, errors.New("webview: trust origin is empty")
+	}
+	raw := &webview{}
+	raw.w = C.webview_create(boolToInt(debug), nil)
+	if raw.w == nil {
+		return nil, errors.New("webview: native window creation failed")
+	}
+	if err := raw.setTrustOrigin(spec.Origin); err != nil {
+		C.webview_destroy(raw.w)
+		return nil, err
+	}
+	return &Protected{protectedBase: raw, raw: raw, spec: spec}, nil
+}
+
+// NewPlain は Bind を持たないwindowを作る。
+func NewPlain(debug bool) (*Plain, error) {
+	raw := &webview{}
+	raw.w = C.webview_create(boolToInt(debug), nil)
+	if raw.w == nil {
+		return nil, errors.New("webview: native window creation failed")
+	}
+	return &Plain{protectedBase: raw}, nil
+}
+
+func (w *webview) setTrustOrigin(origin string) error {
+	cOrigin := C.CString(origin)
+	defer C.free(unsafe.Pointer(cOrigin))
+	if C.webview_set_trust_origin(w.w, cOrigin) != 0 {
+		return errors.New("webview: trust origin rejected by native guard")
+	}
+	return nil
+}
+
+// Bind は保護windowのpolicyが有効な場合だけ登録する。
+// 失敗は最初の1件を保持し、呼び出し側が BindErr で window を破棄できる。
+func (p *Protected) Bind(name string, f interface{}) error {
+	err := p.raw.bind(name, f)
+	if err != nil {
+		p.mu.Lock()
+		if p.bindErr == nil {
+			p.bindErr = err
+		}
+		p.mu.Unlock()
+	}
+	return err
+}
+
+// RevokeTrust は native trust を直ちに失効させる。atomic flag のみを更新するため
+// 任意の goroutine から呼べる。native window の寿命内でのみ呼ぶこと。
+func (p *Protected) RevokeTrust() {
+	if p == nil || p.raw == nil || p.raw.w == nil {
+		return
+	}
+	C.webview_revoke_trust(p.raw.w)
+}
+
+// TrustOrigin は保護windowの exact origin を返す。
+func (p *Protected) TrustOrigin() string { return p.spec.Origin }
+
+// NativeTrustHandle は native trust の状態照会に使う不透明ハンドルを返す。
+// app側の追加listenerが、失効後のメッセージで特権データを返さないために使う。
+// 返すハンドルは webview の Destroy まで有効で、listener は view と同じ寿命に
+// すること。返した値は TrustInstalled にだけ渡し、他の用途へ流用しないこと。
+func (p *Protected) NativeTrustHandle() unsafe.Pointer {
+	if p == nil || p.raw == nil {
+		return nil
+	}
+	return unsafe.Pointer(p.raw.w)
+}
+
+// TrustInstalled は native trust が現在も有効かを返す。失効後は常に false。
+//
+// 照会はこのパッケージ自身のCシンボル（webview_trust_installed）だけで完結する。
+// 利用側（cmd/gonako-gui など）の C/C++ から直接 webview_trust_installed を
+// 参照させると、cgoがpackage単位でCオブジェクトを作る都合でリンク順によっては
+// 未解決になるため、他packageのCコードはこのGo APIを経由すること。
+// handle は NativeTrustHandle が返した値だけを渡すこと。
+func TrustInstalled(handle unsafe.Pointer) bool {
+	if handle == nil {
+		return false
+	}
+	return C.webview_trust_installed(C.webview_t(handle)) != 0
+}
+
+// BindErr は保護windowで最初に失敗したBindを返す。
+func (p *Protected) BindErr() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.bindErr
+}
+
 func (w *webview) Destroy() {
 	C.webview_destroy(w.w)
 }
@@ -268,6 +406,10 @@ func _webviewBindingGoCallback(w C.webview_t, id *C.char, req *C.char, index uin
 }
 
 func (w *webview) Bind(name string, f interface{}) error {
+	return w.bind(name, f)
+}
+
+func (w *webview) bind(name string, f interface{}) error {
 	v := reflect.ValueOf(f)
 	// f must be a function
 	if v.Kind() != reflect.Func {

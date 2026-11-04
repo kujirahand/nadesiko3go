@@ -100,29 +100,48 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 	if sourceName == "" {
 		sourceName = "gui.nako3"
 	}
-	w := newAppWindow(defaultWindowSettings(title, 960, 640))
-	if w == nil {
+	session := &guiSession{}
+	page := &ownedPageHandler{}
+	server, err := startOwnedServer(page)
+	if err != nil {
+		showMessageWindow(title, fmt.Sprintf("ローカルサーバーを起動できません: %v", err))
 		return
 	}
-	defer w.Destroy()
-
-	session := &guiSession{window: newNativeWindowController(w)}
-	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
+	tw, err := newTrustedWindowWithServer(os.Getenv("GONAKO_DEBUG") == "1", server, defaultWindowSettings(title, 960, 640))
+	if err != nil {
+		server.Close()
+		showMessageWindow(title, fmt.Sprintf("ウィンドウを作成できません: %v", err))
+		return
+	}
+	defer tw.Close()
+	session.window = newNativeWindowController(tw.Window)
+	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
 	})
-	_ = w.Bind("pollNakoRun", func(runID uint64) string {
+	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {
 		b, _ := json.Marshal(session.poll(runID))
 		return string(b)
 	})
-	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
+	_ = tw.Window.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return session.resolveDialog(runID, dialogID, text, accepted)
 	})
-	_ = w.Bind("closeBundledWindow", func() {
-		w.Terminate()
+	_ = tw.Window.Bind("closeBundledWindow", func() {
+		tw.Window.Terminate()
 	})
-
+	// Bindの失敗はプログラムを走らせる前に返す。ここで諦めれば、実行画面から
+	// 呼べない命令を残したまま利用者のプログラムを開始しない。
+	if err := tw.BindErr(); err != nil {
+		tw.Close()
+		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
+		return
+	}
 	runID := session.start(string(data), sourceName, true, nil, nil)
-	w.SetHtml(bundledAsyncProgramPage(runID))
-	w.Run()
+	page.SetHTML(bundledAsyncProgramPage(runID))
+	if err := tw.Navigate("/"); err != nil {
+		tw.Close()
+		showMessageWindow(title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
+	tw.Window.Run()
 }

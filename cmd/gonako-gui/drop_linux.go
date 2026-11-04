@@ -78,7 +78,7 @@ import (
 	webview "github.com/webview/webview_go"
 )
 
-func platformInstallFileDrop(w webview.WebView) error {
+func platformInstallFileDrop(w *webview.Protected) error {
 	C.gonakoInstallFileDropHook(w.Window())
 	return nil
 }

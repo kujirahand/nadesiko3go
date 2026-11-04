@@ -17,8 +17,6 @@ import (
 	"html"
 	htmltemplate "html/template"
 	"io/fs"
-	"net"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +26,6 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/vm"
-	"github.com/webview/webview_go"
 )
 
 // BuildResult is the JSON structure returned to JavaScript after a build.
@@ -75,41 +72,45 @@ func runBundledHTML(packed *bundle.Bundle) {
 		return
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	server, err := startOwnedServer(newSiteHandler(resources))
 	if err != nil {
 		showMessageWindow(packed.Title, fmt.Sprintf("ローカルサーバーを起動できません: %v", err))
 		return
 	}
-	defer listener.Close()
-
-	server := &http.Server{Handler: loopbackOnly(newSiteHandler(resources))}
-	go func() { _ = server.Serve(listener) }()
-
-	port := listener.Addr().(*net.TCPAddr).Port
-	url := fmt.Sprintf("http://127.0.0.1:%d/%s", port, packed.Entry)
+	defer server.Close()
 
 	settings, err := bundledWindowSettings(packed)
 	if err != nil {
 		showMessageWindow(packed.Title, err.Error())
 		return
 	}
-	w := newAppWindow(settings)
-	if w == nil {
+	tw, err := newTrustedWindowWithServer(os.Getenv("GONAKO_DEBUG") == "1", server, settings)
+	if err != nil {
+		showMessageWindow(packed.Title, err.Error())
 		return
 	}
-	defer w.Destroy()
+	defer tw.Close()
 
 	// 梱包したHTMLからも window.gonako とwnako3が使えるようにする（#63）。
-	session := &guiSession{window: newNativeWindowController(w)}
-	bindAsyncRunAPI(w, session, os.Args[1:], packed)
+	session := &guiSession{window: newNativeWindowController(tw.Window)}
+	bindAsyncRunAPI(tw.Window, session, os.Args[1:], packed)
 	forceWNako3 := false
 	if data, ok := packed.ReadResource(windowConfigFile); ok {
 		forceWNako3 = wnako3ConfigFromIndexJSON(data)
 	}
-	installWNako3(w, newWNako3PageConfig(forceWNako3), session.window, packed)
+	installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), session.window, packed)
+	if err := tw.BindErr(); err != nil {
+		tw.Close()
+		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
+		return
+	}
 
-	w.Navigate(url)
-	w.Run()
+	if err := tw.Navigate("/" + packed.Entry); err != nil {
+		tw.Close()
+		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
+	tw.Window.Run()
 }
 
 // runBundledProgram runs the packed なでしこプログラム and shows what it
@@ -121,29 +122,50 @@ func runBundledProgram(packed *bundle.Bundle) {
 		showMessageWindow(packed.Title, err.Error())
 		return
 	}
-	w := newAppWindow(settings)
-	if w == nil {
+	session := &guiSession{}
+	page := &ownedPageHandler{}
+	server, err := startOwnedServer(page)
+	if err != nil {
+		showMessageWindow(packed.Title, err.Error())
 		return
 	}
-	defer w.Destroy()
-	session := &guiSession{window: newNativeWindowController(w)}
-	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
+	tw, err := newTrustedWindowWithServer(os.Getenv("GONAKO_DEBUG") == "1", server, settings)
+	if err != nil {
+		server.Close()
+		showMessageWindow(packed.Title, err.Error())
+		return
+	}
+	defer tw.Close()
+	session.window = newNativeWindowController(tw.Window)
+	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
 		return string(b)
 	})
-	_ = w.Bind("pollNakoRun", func(runID uint64) string {
+	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {
 		b, _ := json.Marshal(session.poll(runID))
 		return string(b)
 	})
-	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
+	_ = tw.Window.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return session.resolveDialog(runID, dialogID, text, accepted)
 	})
-	_ = w.Bind("closeBundledWindow", func() {
-		w.Terminate()
+	_ = tw.Window.Bind("closeBundledWindow", func() {
+		tw.Window.Terminate()
 	})
+	// Bindの失敗はプログラムを走らせる前に返す。ここで諦めれば、実行画面から
+	// 呼べない命令を残したまま梱包プログラムを開始しない。
+	if err := tw.BindErr(); err != nil {
+		tw.Close()
+		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
+		return
+	}
 	runID := session.startCompiled(packed.Program, os.Args[1:], packed)
-	w.SetHtml(bundledAsyncProgramPage(runID))
-	w.Run()
+	page.SetHTML(bundledAsyncProgramPage(runID))
+	if err := tw.Navigate("/"); err != nil {
+		tw.Close()
+		showMessageWindow(packed.Title, fmt.Sprintf("ウィンドウを開けません: %v", err))
+		return
+	}
+	tw.Window.Run()
 }
 
 // 実行画面のひな形の置き場。//go:embed でこのバイナリの中に入っている。
@@ -212,31 +234,13 @@ func bundledWindowSettings(packed *bundle.Bundle) (guilib.WindowSettings, error)
 	return settings, nil
 }
 
-// newAppWindow は変換済みアプリを実行するウィンドウを開く。
-func newAppWindow(settings guilib.WindowSettings) webview.WebView {
-	w := webview.New(os.Getenv("GONAKO_DEBUG") == "1")
-	if w == nil {
-		fmt.Fprintln(os.Stderr, "WebViewの初期化に失敗しました。")
-		return nil
-	}
-	bindFileDrop(w)
-	if !settings.HasTitle || settings.Title == "" {
-		settings.HasTitle = true
-		settings.Title = "なでしこ3"
-	}
-	if err := applyWindowSettings(w, settings, false); err != nil {
-		fmt.Fprintf(os.Stderr, "ウィンドウ設定を適用できません: %v\n", err)
-		w.Destroy()
-		return nil
-	}
-	return w
-}
-
 // showMessageWindow reports a startup failure where a GUI application can
 // actually be read: in a window, since there is no terminal attached.
 func showMessageWindow(title, message string) {
-	w := newAppWindow(defaultWindowSettings(title, 520, 220))
-	if w == nil {
+	settings := defaultWindowSettings(title, 520, 220)
+	settings.HasTheme = false
+	w, err := newPlainWindow(os.Getenv("GONAKO_DEBUG") == "1", settings)
+	if err != nil {
 		fmt.Fprintln(os.Stderr, message)
 		return
 	}
@@ -578,8 +582,8 @@ func prepareMacAppBundle(appPath, title string) (execPath string, err error) {
 
 // 変換の途中で失敗を注入できるように、テストが差し替える口を用意する。
 var (
-	chmodBuiltApp  = os.Chmod
-	renameBuiltApp = os.Rename
+	chmodBuiltApp     = os.Chmod
+	renameBuiltApp    = os.Rename
 )
 
 // checkMacAppOutput refuses to replace anything that is not a macOS app, so a
