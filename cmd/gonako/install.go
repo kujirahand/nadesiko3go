@@ -75,11 +75,13 @@ func installScript(args []string, stdout, stderr io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("起動用ファイルを作成できません（上書きは--force）: %w", err)
 		}
-		_, err = io.WriteString(file, script)
+		_, writeErr := io.WriteString(file, script)
+		// --force 経路と揃え、umask に依らず実行権限を意図どおり 0755 にする (#385)
+		modeErr := file.Chmod(0755)
 		closeErr := file.Close()
-		if err != nil || closeErr != nil {
+		if err := errors.Join(writeErr, modeErr, closeErr); err != nil {
 			os.Remove(output)
-			return errors.Join(err, closeErr)
+			return err
 		}
 	} else {
 		// 一時ファイルから置き換え、書込み途中の状態やリンク先への上書きを避ける。

@@ -311,13 +311,26 @@ func TestExtractPermOnlyMode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Perm() で取ったパーミッションに setuid が含まれていないことを確認
-	mode := fi.Mode().Perm()
-	if mode&0o4000 != 0 {
-		t.Errorf("setuidビットが残っている: %o", mode)
+	// 期待する通常パーミッションは umask で変わるため、0o755 固定でなく、
+	// 同じ条件で作った参照ファイルの実パーミッションと比較する
+	// (internal/bundle の TestBuildNewOutputRespectsUmask と同じ方式、#385)。
+	refPath := filepath.Join(dest, "expected_mode.txt")
+	if err := os.WriteFile(refPath, nil, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if mode&0o777 != 0o755 {
-		t.Errorf("パーミッションが違う: %o, want 0o755", mode)
+	refInfo, err := os.Stat(refPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// setuid ビットが除去されていることを確認する。
+	// Perm() は特殊ビットを含まないため、生の Mode でも確認する。
+	mode := fi.Mode().Perm()
+	if fi.Mode()&os.ModeSetuid != 0 {
+		t.Errorf("setuidビットが残っている: %v", fi.Mode())
+	}
+	if mode != refInfo.Mode().Perm() {
+		t.Errorf("パーミッションが違う: %o, want %o", mode, refInfo.Mode().Perm())
 	}
 }
 
