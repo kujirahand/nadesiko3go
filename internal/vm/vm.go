@@ -63,6 +63,9 @@ type VM struct {
 	// callbacks maps a scheduled callback to the function and arguments it runs.
 	callbacks    map[host.CallbackID]queuedCallback
 	nextCallback host.CallbackID
+	// timerCallbacks はタイマーIDからコールバックを引く対応表。
+	// 線形探索せずに停止時の解放ができる。
+	timerCallbacks map[host.TimerID]host.CallbackID
 
 	current            *frame
 	pendingTimerTarget float64
@@ -194,20 +197,21 @@ func New(prog *ir.Program, registry *stdlib.Registry, h Host, options Options) *
 	}
 
 	m := &VM{
-		prog:         prog,
-		registry:     registry,
-		host:         h,
-		globals:      globals,
-		globalIndex:  index,
-		funcValues:   map[int]*value.Func{},
-		commandState: map[string]value.Value{},
-		loop:         loop,
-		callbacks:    map[host.CallbackID]queuedCallback{},
-		isLeaf:       isLeaf,
-		blockEnds:    blockEnds,
-		options:      options,
-		bokanPath:    bokan,
-		currentPos:   -1,
+		prog:           prog,
+		registry:       registry,
+		host:           h,
+		globals:        globals,
+		globalIndex:    index,
+		funcValues:     map[int]*value.Func{},
+		commandState:   map[string]value.Value{},
+		loop:           loop,
+		callbacks:      map[host.CallbackID]queuedCallback{},
+		timerCallbacks: map[host.TimerID]host.CallbackID{},
+		isLeaf:         isLeaf,
+		blockEnds:      blockEnds,
+		options:        options,
+		bokanPath:      bokan,
+		currentPos:     -1,
 	}
 	// システム値の初期値。『それ』は空文字列、残りはstdlibの定数に従う。
 	for id := ir.Special(0); id < ir.SpecialCount; id++ {
@@ -301,6 +305,7 @@ func (m *VM) Close() error {
 		// 引数を解放する。
 		m.loop.CancelAll()
 		m.callbacks = map[host.CallbackID]queuedCallback{}
+		m.timerCallbacks = map[host.TimerID]host.CallbackID{}
 		m.loop.CloseExternal()
 		m.hasExternal = false
 		if m.registry != nil {
@@ -341,7 +346,8 @@ type queuedCallback struct {
 	fn      *value.Func
 	args    []value.Value
 	isTimer bool
-	timerID host.CallbackID
+	timerID host.TimerID
+	repeat  bool
 }
 
 func (f *frame) push(v value.Value) { f.stack = append(f.stack, v) }
