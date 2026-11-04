@@ -184,8 +184,8 @@ func stringToNumber(s string) float64 {
 	return n
 }
 
-// parseNonDecimal reads the digits after a 0x/0o/0b prefix the way
-// JavaScript's Number() does.
+// parseNonDecimal は 0x/0o/0b 接頭辞の後に続く数字を、JavaScript の
+// Number() と同じ規則で読み取る。
 //
 // 64bitに収まらないリテラルでも NaN にはせず、Number() と同じく最も近い
 // float64 へ丸める。0x10000000000000000 は 2^64 になる。
