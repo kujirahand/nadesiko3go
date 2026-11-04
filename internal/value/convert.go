@@ -1,6 +1,7 @@
 package value
 
 import (
+	"errors"
 	"math"
 	"math/big"
 	"regexp"
@@ -154,11 +155,7 @@ func stringToNumber(s string) float64 {
 			base = 2
 		}
 		if base != 0 {
-			n, err := strconv.ParseUint(s[2:], base, 64)
-			if err != nil {
-				return math.NaN()
-			}
-			return float64(n)
+			return parseNonDecimal(s[2:], base)
 		}
 	}
 	body := s
@@ -177,9 +174,37 @@ func stringToNumber(s string) float64 {
 	}
 	n, err := strconv.ParseFloat(s, 64)
 	if err != nil {
+		// 範囲超過は構文エラーと違って数値として扱える。JavaScript の
+		// Number() も 1e309 を Infinity にする。
+		if errors.Is(err, strconv.ErrRange) {
+			return n
+		}
 		return math.NaN()
 	}
 	return n
+}
+
+// parseNonDecimal は 0x/0o/0b 接頭辞の後に続く数字を、JavaScript の
+// Number() と同じ規則で読み取る。
+//
+// 64bitに収まらないリテラルでも NaN にはせず、Number() と同じく最も近い
+// float64 へ丸める。0x10000000000000000 は 2^64 になる。
+func parseNonDecimal(digits string, base int) float64 {
+	// Number() は接頭辞の後に符号を置けない。big.Int.SetString は符号を
+	// 受け付けるので、ここで弾く。
+	if digits == "" || digits[0] == '+' || digits[0] == '-' {
+		return math.NaN()
+	}
+	// 64bitに収まる値は strconv で足りる。
+	if n, err := strconv.ParseUint(digits, base, 64); err == nil {
+		return float64(n)
+	}
+	i, ok := new(big.Int).SetString(digits, base)
+	if !ok {
+		return math.NaN()
+	}
+	f, _ := i.Float64()
+	return f
 }
 
 // ParseFloat implements JavaScript's global parseFloat, which reads as much of
@@ -236,6 +261,10 @@ func ParseFloat(v Value) float64 {
 	}
 	n, err := strconv.ParseFloat(s[:i], 64)
 	if err != nil {
+		// 1e309 のような範囲超過は構文エラーではないので、値（±Inf）を返す。
+		if errors.Is(err, strconv.ErrRange) {
+			return n
+		}
 		return math.NaN()
 	}
 	return n
