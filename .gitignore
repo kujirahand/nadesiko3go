@@ -1,5 +1,8 @@
 # Binaries for programs and plugins
 
+# ビルド成果物（誤ってコミットされたため明示的に除外する）
+/gonako-gui
+
 # なでしこ3
 nadesiko3/
 manual
