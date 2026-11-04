@@ -270,6 +270,45 @@ func TestEqualityAndComparison(t *testing.T) {
 	}
 }
 
+// TestLooseEqualsBothObjects pins #346: when both sides of 『=』 are
+// objects, JavaScript compares them by reference and never converts both
+// to primitives. Converting both made [「[object Object]」] equal to {},
+// because both stringify to "[object Object]".
+func TestLooseEqualsBothObjects(t *testing.T) {
+	num, str, b := value.Number, value.String, value.Bool
+	same := arr(num(1))
+	fn := value.FuncValue(&value.Func{ID: 1})
+	tests := []struct {
+		name string
+		got  bool
+		want bool
+	}{
+		{"別配列どうし", value.LooseEquals(arr(num(1)), arr(num(1))), false},
+		{"同じ配列参照", value.LooseEquals(same, same), true},
+		{"別辞書どうし", value.LooseEquals(dict("x", num(1)), dict("x", num(1))), false},
+		{"配列と辞書", value.LooseEquals(arr(str("[object Object]")), dict()), false},
+		{"辞書と配列", value.LooseEquals(dict(), arr(str("[object Object]"))), false},
+		{"配列と関数", value.LooseEquals(arr(), fn), false},
+		{"辞書と関数", value.LooseEquals(dict(), fn), false},
+		{"同じ関数参照", value.LooseEquals(fn, fn), true},
+		// 片辺だけがオブジェクトなら、従来どおりプリミティブへ直して比べる
+		{"[1]=1", value.LooseEquals(arr(num(1)), num(1)), true},
+		{"1=[1]", value.LooseEquals(num(1), arr(num(1))), true},
+		{"[1]=\"1\"", value.LooseEquals(arr(num(1)), str("1")), true},
+		{"{}=\"[object Object]\"", value.LooseEquals(dict(), str("[object Object]")), true},
+		{"\"[object Object]\"={}", value.LooseEquals(str("[object Object]"), dict()), true},
+		// 真偽値を数値に直す経路と、null/undefined の経路はそのまま
+		{"[1]=オン", value.LooseEquals(arr(num(1)), b(true)), true},
+		{"null=undefined", value.LooseEquals(value.Null(), value.Undefined()), true},
+		{"null=[]", value.LooseEquals(value.Null(), arr()), false},
+	}
+	for _, tt := range tests {
+		if tt.got != tt.want {
+			t.Errorf("%s = %v, want %v", tt.name, tt.got, tt.want)
+		}
+	}
+}
+
 func TestToBoolAndTypeName(t *testing.T) {
 	tests := []struct {
 		in       value.Value

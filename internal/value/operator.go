@@ -178,6 +178,14 @@ func LooseEquals(a, b Value) bool {
 	if bk == KindBool {
 		return LooseEquals(a, Number(ToNumber(b)))
 	}
+	// 両辺がオブジェクトなら参照の同一性だけで決まる (#346)。
+	// 同じ Kind なら先頭の StrictEquals で判定済みで、Kind が違う時点で
+	// 同一参照ではありえない。双方をプリミティブ (文字列) に直してから
+	// 比べると、[「[object Object]」] と {} のように文字列表現が偶然
+	// 同じだけの別オブジェクトまで等しくなってしまう。
+	if isObject(ak) && isObject(bk) {
+		return false
+	}
 	// オブジェクトはプリミティブに直してから比べ直す
 	if isObject(ak) {
 		return LooseEquals(ToPrimitive(a), b)
