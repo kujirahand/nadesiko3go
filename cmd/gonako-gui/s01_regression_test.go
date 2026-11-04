@@ -276,18 +276,24 @@ func TestS01ThemeBindOnlyForProtected(t *testing.T) {
 
 // 指摘1: WebView2のdrop listenerはoriginだけでなくnative trustの現在値も見る。
 // 失効後は、同じoriginをsourceとするキュー済みメッセージでもパスを返さない。
+// 照会は cmd/gonako-gui の Go 関数（//export）を経由し、他packageのCシンボルを
+// 直接参照しない（cgoはpackage単位でCオブジェクトを作るため）。
 func TestS01WindowsDropListenerHonorsRevokedTrust(t *testing.T) {
 	windows := readS01(t, "drop_windows.cc")
 	for _, required := range []string{
-		"webview_trust_installed",
+		"gonakoTrustInstalled",
 		"trustHandle",
 	} {
 		if !strings.Contains(windows, required) {
 			t.Fatalf("drop_windows.cc に %q がありません", required)
 		}
 	}
+	// 他packageのCシンボルを直接参照するとリンク順で未解決になりうる。
+	if strings.Contains(windows, "webview_trust_installed") {
+		t.Fatal("drop_windows.cc が webview_go のCシンボルを直接参照しています")
+	}
 	// trustの確認はorigin判定より前に行う。失効後はoriginが一致してもdenyする。
-	trustIdx := strings.Index(windows, "webview_trust_installed(trustHandle)")
+	trustIdx := strings.Index(windows, "gonakoTrustInstalled(trustHandle)")
 	originIdx := strings.Index(windows, "gonakoOriginAllows(origin, senderText)")
 	if trustIdx < 0 || originIdx < 0 || trustIdx > originIdx {
 		t.Fatal("drop listener が origin 判定より前に trust を確認していません")
@@ -296,11 +302,26 @@ func TestS01WindowsDropListenerHonorsRevokedTrust(t *testing.T) {
 	if !strings.Contains(header, "webview_trust_installed") {
 		t.Fatal("webview.h に webview_trust_installed がありません")
 	}
-	if !strings.Contains(readS01(t, "../../third_party/webview_go/webview.go"), "func (p *Protected) NativeTrustHandle()") {
+	webviewGo := readS01(t, "../../third_party/webview_go/webview.go")
+	if !strings.Contains(webviewGo, "func (p *Protected) NativeTrustHandle()") {
 		t.Fatal("Protected.NativeTrustHandle がありません")
 	}
-	if !strings.Contains(readS01(t, "drop_windows.go"), "w.NativeTrustHandle()") {
+	// vendor側のGo APIが、自分のpackageのCシンボルだけを使って照会する。
+	if !strings.Contains(webviewGo, "func TrustInstalled(handle unsafe.Pointer) bool") {
+		t.Fatal("webview.TrustInstalled がありません")
+	}
+	if !strings.Contains(webviewGo, "C.webview_trust_installed(") {
+		t.Fatal("webview.TrustInstalled が webview_trust_installed を呼んでいません")
+	}
+	dropGo := readS01(t, "drop_windows.go")
+	if !strings.Contains(dropGo, "w.NativeTrustHandle()") {
 		t.Fatal("drop_windows.go が trust handle を listener へ渡していません")
+	}
+	if !strings.Contains(dropGo, "//export gonakoTrustInstalled") {
+		t.Fatal("drop_windows.go に gonakoTrustInstalled の //export がありません")
+	}
+	if !strings.Contains(dropGo, "webview.TrustInstalled(handle)") {
+		t.Fatal("gonakoTrustInstalled が webview.TrustInstalled を呼んでいません")
 	}
 }
 

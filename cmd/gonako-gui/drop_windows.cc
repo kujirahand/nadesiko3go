@@ -7,9 +7,10 @@
 #include <new>
 #include <string>
 
-// S01: native trustの現在値を照会する。失効後は同じoriginのメッセージでも
-// ローカルパスを返さないため、drop listenerもこの値を見る。
-extern "C" int webview_trust_installed(void *w);
+// S01: native trustの現在値を照会する。実体は同じpackageのGo関数
+// （drop_windows.go の //export gonakoTrustInstalled）で、cgoがpackage内の
+// Cオブジェクトに定義する。他packageのCシンボルは直接参照しない。
+extern "C" int gonakoTrustInstalled(void *w);
 
 // COMの取得した参照は、成功・失敗のどちらの経路でも必ず解放する。
 template <class T> struct GonakoComPtr {
@@ -160,7 +161,7 @@ public:
       // S01: trustが失効した後は、キュー済みのメッセージでもローカルパスを
       // 返さない。originだけでは、失効後に同じURLをsourceとするメッセージを
       // 区別できないため、native trustの現在値を先に確認する。
-      if (!trustHandle || !webview_trust_installed(trustHandle)) return S_OK;
+      if (!trustHandle || !gonakoTrustInstalled(trustHandle)) return S_OK;
       LPWSTR source = nullptr;
       if (FAILED(args->get_Source(&source)) || !source) {
         CoTaskMemFree(source);

@@ -282,12 +282,26 @@ func (p *Protected) TrustOrigin() string { return p.spec.Origin }
 // NativeTrustHandle は native trust の状態照会に使う不透明ハンドルを返す。
 // app側の追加listenerが、失効後のメッセージで特権データを返さないために使う。
 // 返すハンドルは webview の Destroy まで有効で、listener は view と同じ寿命に
-// すること。返した値を webview_trust_installed 以外へ渡さないこと。
+// すること。返した値は TrustInstalled にだけ渡し、他の用途へ流用しないこと。
 func (p *Protected) NativeTrustHandle() unsafe.Pointer {
 	if p == nil || p.raw == nil {
 		return nil
 	}
 	return unsafe.Pointer(p.raw.w)
+}
+
+// TrustInstalled は native trust が現在も有効かを返す。失効後は常に false。
+//
+// 照会はこのパッケージ自身のCシンボル（webview_trust_installed）だけで完結する。
+// 利用側（cmd/gonako-gui など）の C/C++ から直接 webview_trust_installed を
+// 参照させると、cgoがpackage単位でCオブジェクトを作る都合でリンク順によっては
+// 未解決になるため、他packageのCコードはこのGo APIを経由すること。
+// handle は NativeTrustHandle が返した値だけを渡すこと。
+func TrustInstalled(handle unsafe.Pointer) bool {
+	if handle == nil {
+		return false
+	}
+	return C.webview_trust_installed(C.webview_t(handle)) != 0
 }
 
 // BindErr は保護windowで最初に失敗したBindを返す。
