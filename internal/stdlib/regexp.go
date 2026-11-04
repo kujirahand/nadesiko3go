@@ -38,12 +38,9 @@ func regexpImpls(m map[string]Impl) {
 			return value.Null(), nil
 		}
 		// 部分マッチは『抽出文字列』に入れ、戻り値は一致した全体にする。
-		// 未参加の組は、従来どおり空文字として入れる。
-		groups := make([]string, len(matched.Groups))
-		for i, group := range matched.Groups {
-			groups[i] = group.Text
-		}
-		ctx.SetSysVar(SysMatched, stringArray(groups))
+		// 参加しなかった組はJavaScriptと同じくundefinedにし、空文字に
+		// 一致した参加組は空文字のまま残す。
+		ctx.SetSysVar(SysMatched, groupArray(matched.Groups))
 		return value.String(matched.Text), nil
 	}
 
@@ -69,7 +66,7 @@ func regexpImpls(m map[string]Impl) {
 				row := value.NewDict()
 				for i := 1; i <= len(match.Groups) && i < len(names); i++ {
 					if names[i] != "" {
-						item := value.String(match.Groups[i-1].Text)
+						item := groupValue(match.Groups[i-1])
 						row.Set(names[i], item)
 						flat = append(flat, item)
 					}
@@ -87,7 +84,7 @@ func regexpImpls(m map[string]Impl) {
 			}
 			items := make([]value.Value, len(groups))
 			for i, group := range groups {
-				items[i] = value.String(group.Text)
+				items[i] = groupValue(group)
 				flat = append(flat, items[i])
 			}
 			rows = append(rows, value.ArrayValue(value.NewArray(items...)))
@@ -165,6 +162,25 @@ func stringArray(items []string) value.Value {
 	values := make([]value.Value, len(items))
 	for i, s := range items {
 		values[i] = value.String(s)
+	}
+	return value.ArrayValue(value.NewArray(values...))
+}
+
+// groupValue は捕獲1つ分をなでしこの値にする。参加しなかった組はundefined、
+// 空文字に一致した参加組は空文字にする。Goの正規表現はどちらも空文字で返す
+// ので、re.Group.Okの区別をここで値モデルへ写す。
+func groupValue(group re.Group) value.Value {
+	if !group.Ok {
+		return value.Undefined()
+	}
+	return value.String(group.Text)
+}
+
+// groupArray は捕獲の並びを値の配列にする。
+func groupArray(groups []re.Group) value.Value {
+	values := make([]value.Value, len(groups))
+	for i, group := range groups {
+		values[i] = groupValue(group)
 	}
 	return value.ArrayValue(value.NewArray(values...))
 }

@@ -590,3 +590,42 @@ func TestV06ContextAbsoluteAssertions(t *testing.T) {
 		}
 	}
 }
+
+// TestV06NonASCIIFlagRejected は、最後の 『/』 より後を常にフラグ列として
+// 検証し、ASCII英字以外の文字をパターンの一部として黙って受理しないことを
+// 固定する。JavaScriptの読み取りは 『[a-zA-Z]*』 で終わる形だけをフラグ付きと
+// みなすので、修正前は 『/a/é』 がパターンそのものとして通っていた。
+func TestV06NonASCIIFlagRejected(t *testing.T) {
+	tests := []struct {
+		pattern string
+		flag    rune
+	}{
+		{"/a/é", 'é'},
+		{"/a/gé", 'é'},
+		{"/あ/い", 'い'},
+		{"/a/1", '1'},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			_, err := re.Compile(tt.pattern)
+			var flagErr *re.FlagError
+			if !errors.As(err, &flagErr) {
+				t.Fatalf("Compile(%q) = %v, want *FlagError", tt.pattern, err)
+			}
+			if rune(flagErr.Flag) != tt.flag {
+				t.Errorf("Flag = %q, want %q", flagErr.Flag, tt.flag)
+			}
+		})
+	}
+	// 末尾が 『/』 ならフラグ列は空で、本体の中の 『/』 はフラグではない
+	if _, err := re.Compile("/a/b/"); err != nil {
+		t.Errorf("/a/b/ は通るべき: %v", err)
+	}
+	// 先頭が 『/』 でない裸のパターンと、本体が空になる形はJavaScriptと同じく
+	// パターンとして扱う
+	for _, pattern := range []string{"a/b", "//"} {
+		if _, err := re.Compile(pattern); err != nil {
+			t.Errorf("%s は通るべき: %v", pattern, err)
+		}
+	}
+}

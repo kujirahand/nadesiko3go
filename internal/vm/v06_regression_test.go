@@ -115,3 +115,56 @@ func TestV06FlagErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestV06ParticipationLiveCases は、未参加の組と空文字に一致した参加組の
+// 区別を、なでしこのプログラムの入口からJSONで固定する。未参加はundefined、
+// 空一致は空文字で、どちらも区切りの結果と『抽出文字列』で同じ扱いになる。
+func TestV06ParticipationLiveCases(t *testing.T) {
+	tests := []struct{ name, code, want string }{
+		{
+			"抽出文字列の未参加",
+			`「b」を「/(a)|(b)/」で正規表現マッチ。抽出文字列をJSONエンコードして表示`,
+			`[null,"b"]`,
+		},
+		{
+			"抽出文字列の空一致",
+			`「1」を「/(x*)(\d)/」で正規表現マッチ。抽出文字列をJSONエンコードして表示`,
+			`["","1"]`,
+		},
+		{
+			"区切りの未参加",
+			`「a1b」を「/(x)?(\d)/」で正規表現区切をJSONエンコードして表示`,
+			`["a",null,"1","b"]`,
+		},
+		{
+			"区切りの空一致",
+			`「a1b」を「/(x*)(\d)/」で正規表現区切をJSONエンコードして表示`,
+			`["a","","1","b"]`,
+		},
+		{
+			"抽出の未参加",
+			`「a1b2c」を「/(\d)|(x)/」で正規表現抽出をJSONエンコードして表示`,
+			`["1",null,"2",null]`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, tt.code); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06NonASCIIFlagLiveError は、非ASCIIのフラグを命令の入口で言語の
+// エラーにし、問題の文字を添えることを固定する。修正前は『/a/é』が
+// パターンそのものとして受理されていた。
+func TestV06NonASCIIFlagLiveError(t *testing.T) {
+	code := `「a」を「/a/é」で正規表現マッチを表示。`
+	want := "[実行時エラー]main.nako3(1行目): 正規表現『/a/é』のフラグ『é』は使えません。"
+	if _, err := vm.RunSource(code, "main.nako3", nil); err == nil {
+		t.Fatal("『/a/é』はエラーになるべき")
+	} else if err.Error() != want {
+		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
+	}
+}

@@ -28,7 +28,9 @@ var ErrUnsupported = errors.New("この正規表現はまだ対応していま�
 // 文字、すでに現れた文字、同時に書けない組み合わせのいずれか。JavaScriptでは
 // どれもSyntaxErrorなので、ここでも言語のエラーにする。
 type FlagError struct {
-	Flag      byte
+	// Flag は問題のフラグ。ASCII英字以外の文字もそのまま報告できるよう
+	// runeで持つ。
+	Flag      rune
 	Duplicate bool
 	// Conflict はJavaScriptが同時指定を拒む相手のフラグ。『u』と『v』は
 	// どちらもUnicodeモードを選ぶので、片方しか書けない。
@@ -133,16 +135,32 @@ type SplitPart struct {
 	Undefined bool
 }
 
-// jsPatternRE splits the 『/pattern/flags』 form nadesiko writes patterns in.
-var jsPatternRE = regexp.MustCompile(`^/(.+)/([a-zA-Z]*)$`)
+// slashForm は 『/pattern/flags』 の形を本体とフラグ列に分ける。最後の
+// 『/』 より後を常にフラグ列として扱うので、フラグ列にASCII英字以外が来ても
+// 取りこぼさずに検証へ回せる。JavaScriptの正規表現リテラル読み取りは
+// 『[a-zA-Z]*』 で終わる形だけをこの形式とみなすため、『/a/é』 をパターン
+// そのものとして受理してしまう。ここではそれを言語のエラーにする。
+//
+// 先頭が 『/』 でないものと、本体が空になるもの（『//』 など）は、JavaScript
+// と同じく裸のパターンとして扱う。
+func slashForm(pattern string) (body, flags string, ok bool) {
+	if !strings.HasPrefix(pattern, "/") {
+		return "", "", false
+	}
+	last := strings.LastIndexByte(pattern, '/')
+	if last <= 1 {
+		return "", "", false
+	}
+	return pattern[1:last], pattern[last+1:], true
+}
 
 // Compile builds a pattern written the way nadesiko spells it: either
 // 『/pattern/flags』, or a bare pattern, which is treated as if it carried the
 // 『g』 flag.
 func Compile(pattern string) (*Regexp, error) {
 	body, flags := pattern, "g"
-	if m := jsPatternRE.FindStringSubmatch(pattern); m != nil {
-		body, flags = m[1], m[2]
+	if b, f, ok := slashForm(pattern); ok {
+		body, flags = b, f
 	}
 	body = normalizeJSUnicodeEscapes(body)
 	if err := validateFlags(flags); err != nil {
@@ -310,9 +328,8 @@ func stickyFromTexts(s string, matches []string) []string {
 // 同時に書くことも拒む。
 func validateFlags(flags string) error {
 	var seen [256]bool
-	for i := 0; i < len(flags); i++ {
-		f := flags[i]
-		if !strings.ContainsRune(validFlags, rune(f)) {
+	for _, f := range flags {
+		if !strings.ContainsRune(validFlags, f) {
 			return &FlagError{Flag: f}
 		}
 		if seen[f] {
@@ -707,16 +724,16 @@ func (r *Regexp) expandTemplate(out *strings.Builder, template, src string, matc
 	}
 }
 
-// Split cuts the string at every match, the way JavaScript's
-// String.prototype.split does: each capture group is inserted between the
-// segments around its match, and a group that did not take part is undefined.
+// Split は一致のたびに文字列を区切る。JavaScriptの String.prototype.split と
+// 同じで、一致の前後の断片の間に、その一致の捕獲を順に差し込む。参加しな
+// かった組はundefinedとして印を付ける。
 //
-// The 『g』 and 『y』 flags do not change a split: it always walks the string
-// from the beginning and stops at the end.
+// 『g』 と 『y』 のフラグは区切りの結果を変えない。区切りは常に文字列の先頭
+// から末尾まで歩く。
 func (r *Regexp) Split(s string) []SplitPart {
 	if s == "" {
-		// JavaScript returns no items when an empty subject is separated by a
-		// pattern that matches the empty string, and one empty item otherwise.
+		// 空の対象を、空文字に一致するパターンで区切ると、JavaScriptは
+		// 要素を1つも返さない。一致しないパターンなら空の要素を1つ返す。
 		if r.re.MatchString("") {
 			return nil
 		}

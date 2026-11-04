@@ -295,3 +295,83 @@ func TestV06DeepContextLanguageError(t *testing.T) {
 		t.Errorf("gだけの正規表現マッチ = %v, want [a]", items)
 	}
 }
+
+// TestV06NonASCIIFlagLanguageError は、フラグ列にASCII英字以外が来たら、
+// それをパターンの一部として受理せず、問題の文字を添えた言語のエラーに
+// することを命令の入口から固定する。
+func TestV06NonASCIIFlagLanguageError(t *testing.T) {
+	_, err := v06Call(t, "正規表現マッチ", value.String("a"), value.String("/a/é"))
+	if err == nil {
+		t.Fatal("『/a/é』はエラーになるべき")
+	}
+	if want := "正規表現『/a/é』のフラグ『é』は使えません。"; err.Error() != want {
+		t.Errorf("Error()\n got %q\nwant %q", err.Error(), want)
+	}
+}
+
+// TestV06SplitCaptureParticipation は、区切りに入る捕獲の参加状態を固定する。
+// 参加しなかった組はundefined、空文字に一致した参加組は空文字で、未参加と
+// 空一致はどちらも空文字に潰さず区別する。
+func TestV06SplitCaptureParticipation(t *testing.T) {
+	tests := []struct {
+		name, input, pattern string
+		want                 []string
+	}{
+		{"未参加の任意の組", "a1b", `/(x)?(\d)/`, []string{"a", "undefined", "1", "b"}},
+		{"空文字に一致した組", "a1b", `/(x*)(\d)/`, []string{"a", "", "1", "b"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := v06Call(t, "正規表現区切", value.String(tt.input), value.String(tt.pattern))
+			if err != nil {
+				t.Fatalf("正規表現区切(%q, %q): %v", tt.input, tt.pattern, err)
+			}
+			if items := v06Items(t, got); !reflect.DeepEqual(items, tt.want) {
+				t.Errorf("正規表現区切(%q, %q) = %v, want %v", tt.input, tt.pattern, items, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06MatchedGroupsParticipation は、正規表現マッチの 『抽出文字列』が、
+// 参加しなかった組をundefined、空文字に一致した参加組を空文字で持つことを
+// 固定する。修正前はどちらも空文字になっていた。
+func TestV06MatchedGroupsParticipation(t *testing.T) {
+	tests := []struct {
+		name, input, pattern string
+		want                 []string
+	}{
+		{"未参加の組", "a1b", `/(x)?(\d)/`, []string{"undefined", "1"}},
+		{"空文字に一致した組", "1", `/(x*)(\d)/`, []string{"", "1"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := newContext()
+			entry, ok := stdlib.NewRegistry().Lookup("正規表現マッチ")
+			if !ok {
+				t.Fatal("命令『正規表現マッチ』が登録されていない")
+			}
+			args := []value.Value{value.String(tt.input), value.String(tt.pattern)}
+			if _, err := entry.Fn(ctx, args); err != nil {
+				t.Fatalf("正規表現マッチ(%q, %q): %v", tt.input, tt.pattern, err)
+			}
+			matched := ctx.SysVar(stdlib.SysMatched)
+			if items := v06Items(t, matched); !reflect.DeepEqual(items, tt.want) {
+				t.Errorf("抽出文字列 = %v, want %v", items, tt.want)
+			}
+		})
+	}
+}
+
+// TestV06ExtractGroupsParticipation は、正規表現抽出の一次元配列でも、参加し
+// なかった組がundefinedになることを固定する。
+func TestV06ExtractGroupsParticipation(t *testing.T) {
+	got, err := v06Call(t, "正規表現抽出", value.String("a1b2c"), value.String(`/(\d)|(x)/`))
+	if err != nil {
+		t.Fatalf("正規表現抽出: %v", err)
+	}
+	want := []string{"1", "undefined", "2", "undefined"}
+	if items := v06Items(t, got); !reflect.DeepEqual(items, want) {
+		t.Errorf("正規表現抽出 = %v, want %v", items, want)
+	}
+}
