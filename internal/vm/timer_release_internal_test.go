@@ -159,6 +159,58 @@ func TestTimerReleaseOnCancelAllFromCallback(t *testing.T) {
 	}
 }
 
+// エラーを返した単発コールバックも解放され、繰り返しはエラー後も残る。
+func TestTimerReleaseOnCallbackError(t *testing.T) {
+	// 単発: エラーで実行が止まっても、実行前に解放済みなので残らない。
+	prog, err := CompileProgram("F=関数()\n「失敗」でエラー発生\nここまで\nFを0.01秒後\n0.1秒待つ", "timer_release_err_once.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(prog, runtimeRegistry(), &Collector{}, DefaultOptions())
+	if err := m.Run(); err == nil {
+		t.Fatal("単発コールバックのエラーが伝わらなかった")
+	}
+	if len(m.callbacks) != 0 || len(m.timerCallbacks) != 0 {
+		t.Errorf("エラー後の単発が残留: callbacks=%d timerCallbacks=%d", len(m.callbacks), len(m.timerCallbacks))
+	}
+
+	// 繰り返し: エラーで実行が止まってもタイマー自体は残る（イベントループの
+	// 既存の意味づけどおり）ので、コールバックも保持し続ける。
+	prog, err = CompileProgram("F=関数()\n「失敗」でエラー発生\nここまで\nFを0.01秒毎\n0.1秒待つ", "timer_release_err_repeat.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = New(prog, runtimeRegistry(), &Collector{}, DefaultOptions())
+	if err := m.Run(); err == nil {
+		t.Fatal("繰り返しコールバックのエラーが伝わらなかった")
+	}
+	if m.loop.Pending() != 1 {
+		t.Errorf("エラー後も繰り返しタイマーは残るはず: pending=%d", m.loop.Pending())
+	}
+	if len(m.callbacks) != 1 || len(m.timerCallbacks) != 1 {
+		t.Errorf("エラー後の繰り返しは保持されるはず: callbacks=%d timerCallbacks=%d", len(m.callbacks), len(m.timerCallbacks))
+	}
+}
+
+// コールバックの実行中に登録した新しいタイマーも、完了後に解放される。
+func TestTimerReleaseRegisterFromCallback(t *testing.T) {
+	prog, err := CompileProgram("N=0\nG=関数()\nN=N+1\nここまで\nF=関数()\nN=N+1\nGを0.01秒後\nここまで\nFを0.01秒後\n0.1秒待つ\nNを表示", "timer_release_nested.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := &Collector{}
+	m := New(prog, runtimeRegistry(), out, DefaultOptions())
+	if err := m.Run(); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.Log(); got != "2" {
+		t.Errorf("実行回数 = %q, want \"2\"", got)
+	}
+	if len(m.callbacks) != 0 || len(m.timerCallbacks) != 0 {
+		t.Errorf("実行中登録分も含めて残留: callbacks=%d timerCallbacks=%d", len(m.callbacks), len(m.timerCallbacks))
+	}
+}
+
 // 繰り返しタイマーは停止されるまで保持され、停止で解放される。
 func TestTimerReleaseOnRepeatStop(t *testing.T) {
 	m := newTimerReleaseVM(t)
