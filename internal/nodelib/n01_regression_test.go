@@ -152,3 +152,33 @@ func TestN01BrokenSymlinkDestReportsError(t *testing.T) {
 	}
 	assertSourceKept(t, src)
 }
+
+// TestN01MoveIntoAncestorSymlinkViaDotDotIsRejected は、移動先に「..」を含む
+// 場合の回帰テスト。alias は src/inner を指すため、alias/../new の実体は
+// src/new（移動元の内側）になる。文字列上で「..」を先に潰すと alias/.. が
+// 作業フォルダ直下と解釈され、内側移動を見逃して原本ごと削除してしまう。
+func TestN01MoveIntoAncestorSymlinkViaDotDotIsRejected(t *testing.T) {
+	for _, cmd := range []string{"ファイル移動", "ファイル上書移動"} {
+		t.Run(cmd, func(t *testing.T) {
+			dir, src := setupAliasIntoSource(t)
+			err := runExpectError(t, dir, `「src」を「alias/../new」に`+cmd)
+			if err == nil {
+				t.Fatalf("%s: 「..」を含むシンボリックリンク経由の内側移動がエラーになりませんでした", cmd)
+			}
+			if !strings.Contains(err.Error(), "移動先は移動元の内側です") {
+				t.Errorf("%s: エラー文面 = %q", cmd, err.Error())
+			}
+			if got, e := os.ReadFile(filepath.Join(src, "keep.txt")); e != nil || string(got) != "keep" {
+				t.Errorf("%s: 移動元の keep.txt が失われました: content=%q err=%v", cmd, got, e)
+			}
+			if got, e := os.ReadFile(filepath.Join(src, "inner", "deep.txt")); e != nil || string(got) != "deep" {
+				t.Errorf("%s: 移動元の inner/deep.txt が失われました: content=%q err=%v", cmd, got, e)
+			}
+			// 実体の移動先は src/new。コピーが作られていると os.RemoveAll(src) で
+			// 原本ごと消えるため、作られていないことを確かめる。
+			if _, e := os.Stat(filepath.Join(src, "new")); e == nil {
+				t.Errorf("%s: 移動先の実体が移動元の内側に作られました: src/new", cmd)
+			}
+		})
+	}
+}
