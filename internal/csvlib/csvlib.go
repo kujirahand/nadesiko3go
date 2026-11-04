@@ -4,6 +4,7 @@
 package csvlib
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,7 +72,10 @@ func (p *Plugin) csvGet(_ stdlib.Context, args []value.Value) (value.Value, erro
 		txt = value.ToString(args[0])
 	}
 	// 区切り文字は CSVオプション設定 の値（未設定なら既定のカンマ）を使う
-	res := p.parse(txt, p.options.Delimiter)
+	res, err := p.parse(txt, p.options.Delimiter)
+	if err != nil {
+		return value.Undefined(), err
+	}
 	return value.ArrayValue(res), nil
 }
 
@@ -81,7 +85,10 @@ func (p *Plugin) tsvGet(_ stdlib.Context, args []value.Value) (value.Value, erro
 		txt = value.ToString(args[0])
 	}
 	// TSVはタブ固定。設定値は書き換えない
-	res := p.parse(txt, "\t")
+	res, err := p.parse(txt, "\t")
+	if err != nil {
+		return value.Undefined(), err
+	}
 	return value.ArrayValue(res), nil
 }
 
@@ -103,12 +110,27 @@ func (p *Plugin) tsvStringify(_ stdlib.Context, args []value.Value) (value.Value
 	return value.String(s), nil
 }
 
+// csvSetOptions は CSV取得/CSV変換 の設定を受け取る。
+// 区切り文字は解析が1rune単位で進む前提なので、唯一の書き込み口であるここで
+// 1文字だけ受理する。空文字はどの入力でも必ず一致して停止不能になり、
+// 複数文字は解析の途中で1runeずつ取り出されて先行セルが欠落するため。
+// 改行は parse が行終端として先に処理するので、区切り文字としては受理しない。
 func (p *Plugin) csvSetOptions(_ stdlib.Context, args []value.Value) (value.Value, error) {
 	if len(args) == 0 {
 		return value.Undefined(), nil
 	}
 	v := args[0]
 	if dict, ok := v.Dict(); ok && dict != nil {
+		// 他の設定を書き換える前に区切り文字を検証し、失敗時に中途半端な設定を残さない
+		for _, key := range dict.Keys() {
+			if key != "delimiter" && key != "区切文字" {
+				continue
+			}
+			val, _ := dict.Get(key)
+			if err := checkDelimiter(value.ToString(val)); err != nil {
+				return value.Undefined(), err
+			}
+		}
 		for _, key := range dict.Keys() {
 			val, _ := dict.Get(key)
 			switch key {
@@ -124,15 +146,32 @@ func (p *Plugin) csvSetOptions(_ stdlib.Context, args []value.Value) (value.Valu
 	return value.Undefined(), nil
 }
 
+// checkDelimiter は区切り文字が解析の前提（UTF-8で1rune）を満たすか確かめる。
+func checkDelimiter(delimiter string) error {
+	if !utf8.ValidString(delimiter) {
+		return fmt.Errorf("CSVオプション設定: 区切り文字がUTF-8として不正です。")
+	}
+	// parse は入力中の CR/LF を LF に正規化し、LF を常に行終端として扱う。
+	// 改行を区切り文字にすると列区切りにならないため、設定時に拒否する。
+	if strings.ContainsAny(delimiter, "\r\n") {
+		return fmt.Errorf("CSVオプション設定: 区切り文字に改行は指定できません。")
+	}
+	if utf8.RuneCountInString(delimiter) != 1 {
+		return fmt.Errorf("CSVオプション設定: 区切り文字『%s』は1文字で指定してください。", delimiter)
+	}
+	return nil
+}
+
 var numericRe = regexp.MustCompile(`^-?\d+(\.\d+)?([eE][-+]?\d+)?$`)
 
 func isNumeric(s string) bool {
 	return numericRe.MatchString(s)
 }
 
-func (p *Plugin) parse(txt string, delimiter string) *value.Array {
-	if delimiter == "" {
-		delimiter = p.options.Delimiter
+func (p *Plugin) parse(txt string, delimiter string) (*value.Array, error) {
+	// 区切り文字が不正なら、停止不能や値の欠落を起こす前に言語エラーにする
+	if err := checkDelimiter(delimiter); err != nil {
+		return nil, err
 	}
 	txt = txt + "\n"
 	txt = strings.ReplaceAll(txt, "\r\n", "\n")
@@ -154,10 +193,8 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 	var res []value.Value
 	var cells []value.Value
 
+	// 検証済みなので、区切り文字は必ず1runeとして取り出せる
 	delimRune, _ := utf8.DecodeRuneInString(delimiter)
-	if delimiter == "" {
-		delimRune = 0
-	}
 	// runeAt は txt[i:] 先頭のruneとそのバイト長を返す（末尾なら 0, 0）
 	runeAt := func(txt string, i int) (rune, int) {
 		if i >= len(txt) {
@@ -295,7 +332,7 @@ func (p *Plugin) parse(txt string, delimiter string) *value.Array {
 	if len(cells) > 0 {
 		res = append(res, value.ArrayValue(value.NewArray(cells...)))
 	}
-	return value.NewArray(res...)
+	return value.NewArray(res...), nil
 }
 
 func (p *Plugin) stringify(v value.Value, delimiter, eol string) string {
