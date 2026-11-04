@@ -49,10 +49,10 @@ func mathImpls(m map[string]Impl) {
 	m["以下"] = compare(func(c int) bool { return c <= 0 })
 	m["未満"] = compare(func(c int) bool { return c < 0 })
 	m["超"] = compare(func(c int) bool { return c > 0 })
-	m["等"] = strictEqual(false)
-	m["一致"] = strictEqual(false)
-	m["等無"] = strictEqual(true)
-	m["不一致"] = strictEqual(true)
+	m["等"] = equal(false)
+	m["一致"] = matched(false)
+	m["等無"] = equal(true)
+	m["不一致"] = matched(true)
 	m["範囲内"] = func(_ Context, a []value.Value) (value.Value, error) {
 		low, ok1 := value.Compare(arg(a, 1), arg(a, 0))
 		high, ok2 := value.Compare(arg(a, 0), arg(a, 2))
@@ -102,17 +102,55 @@ func compare(test func(int) bool) Impl {
 	}
 }
 
-func strictEqual(negate bool) Impl {
+// equal は『等』『等無』の実装。本家の a === b / a !== b そのもので、
+// 配列・辞書・関数については参照が同じときだけ等しい (#346)。
+// 内容まで比べるのは『一致』『不一致』の役割で、ここへ混ぜない。
+func equal(negate bool) Impl {
 	return func(_ Context, a []value.Value) (value.Value, error) {
-		left, right := arg(a, 0), arg(a, 1)
-		eq := value.StrictEquals(left, right)
-		if left.Kind() == value.KindArray || left.Kind() == value.KindDict {
-			leftJSON, leftErr := encodeJSON(left)
-			rightJSON, rightErr := encodeJSON(right)
-			eq = leftErr == nil && rightErr == nil && leftJSON == rightJSON
+		eq := value.StrictEquals(arg(a, 0), arg(a, 1))
+		return value.Bool(eq != negate), nil
+	}
+}
+
+// matched は『一致』『不一致』の実装。本家と同じく、両辺が
+// JavaScript の typeof で "object" になる値のときだけ内容を比べ、
+// それ以外は厳密比較にする。
+func matched(negate bool) Impl {
+	return func(_ Context, a []value.Value) (value.Value, error) {
+		eq, err := matchEquals(arg(a, 0), arg(a, 1))
+		if err != nil {
+			return value.Undefined(), err
 		}
 		return value.Bool(eq != negate), nil
 	}
+}
+
+// jsObject は JavaScript の typeof v === "object" に当たる Kind かを返す。
+// null (『NULL』定数) も "object" だが、関数 (KindFunc) は "function" で別扱い。
+func jsObject(v value.Value) bool {
+	switch v.Kind() {
+	case value.KindNull, value.KindArray, value.KindDict:
+		return true
+	}
+	return false
+}
+
+func matchEquals(left, right value.Value) (bool, error) {
+	if !jsObject(left) || !jsObject(right) {
+		return value.StrictEquals(left, right), nil
+	}
+	// 内容の比較は JSON 表現の一致で決まる (本家の JSON.stringify 比較)。
+	// 循環参照は JSON.stringify が例外にするのと同じくエラーとして返し、
+	// 『不一致』だけが真になるようなごまかしはしない。
+	leftJSON, err := encodeJSON(left)
+	if err != nil {
+		return false, err
+	}
+	rightJSON, err := encodeJSON(right)
+	if err != nil {
+		return false, err
+	}
+	return leftJSON == rightJSON, nil
 }
 
 func sumValues(_ Context, a []value.Value) (value.Value, error) {
