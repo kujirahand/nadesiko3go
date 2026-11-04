@@ -147,6 +147,8 @@ func TestParseErrors(t *testing.T) {
 		name, in, want string
 	}{
 		{"閉じていない括弧", "[sec\nk=v\n", "括弧が閉じていません"},
+		{"セクション名に]を含む", "[a]b]\nk=v\n", "「]」は使えません"},
+		{"セクションの後に余分な文字", "[a] extra\n", "括弧が閉じていません"},
 		{"空のセクション名", "[]\nk=v\n", "セクション名が空"},
 		{"空白だけのセクション名", "[  ]\n", "セクション名が空"},
 		{"=の無い行", "k=v\nbroken\n", "「=」がありません"},
@@ -170,6 +172,33 @@ func TestParseErrors(t *testing.T) {
 				t.Errorf("エラー文面: %v", err)
 			}
 		})
+	}
+}
+
+// エラーメッセージには行番号（N行目）が含まれる。
+func TestParseErrorLineNumber(t *testing.T) {
+	if _, err := parseINI("k=v\n[sec\n"); err == nil || !strings.Contains(err.Error(), "2行目") {
+		t.Errorf("2行目のエラーを期待: %v", err)
+	}
+	if _, err := parseINI("a=1\nb=2\nbroken\n"); err == nil || !strings.Contains(err.Error(), "3行目") {
+		t.Errorf("3行目のエラーを期待: %v", err)
+	}
+}
+
+// セクション名は括弧で囲まれるため、先頭が ; や # でもコメントにはならず往復できる。
+// （裸で書くキー名とは扱いが違う。キー名の先頭記号は変換時にエラーになる。）
+func TestSectionNameLeadingSymbols(t *testing.T) {
+	m := mustParse(t, "[;sec]\nk=v\n[#sec]\nj=w\n")
+	if sec(m, ";sec")["k"] != "v" || sec(m, "#sec")["j"] != "w" {
+		t.Fatalf("取得: %v", m)
+	}
+	text, err := encodeINI(buildDict(";sec", buildDict("k", value.String("v")), "#sec", buildDict("j", value.String("w"))))
+	if err != nil {
+		t.Fatalf("変換: %v", err)
+	}
+	got := mustParse(t, text)
+	if sec(got, ";sec")["k"] != "v" || sec(got, "#sec")["j"] != "w" {
+		t.Errorf("往復: %q -> %v", text, got)
 	}
 }
 
@@ -222,8 +251,8 @@ func TestEncodeErrors(t *testing.T) {
 		v    value.Value
 		want string
 	}{
-		{"辞書以外", value.String("x"), "INI変換できるのは辞書のみです。"},
-		{"配列(最上位)", arr, "INI変換できるのは辞書のみです。"},
+		{"辞書以外", value.String("x"), "変換できるのは辞書のみです"},
+		{"配列(最上位)", arr, "変換できるのは辞書のみです"},
 		{"深い入れ子", buildDict("s", buildDict("t", buildDict("k", value.String("v")))), "2段より深い"},
 		{"配列の値(セクション内)", buildDict("s", buildDict("k", arr)), "配列"},
 		{"配列の値(最上位)", buildDict("k", arr), "配列"},
@@ -244,7 +273,7 @@ func TestEncodeErrors(t *testing.T) {
 			if !strings.Contains(err.Error(), tt.want) {
 				t.Errorf("エラー文面: %v", err)
 			}
-			if tt.want != "INI変換できるのは辞書のみです。" && !strings.HasPrefix(err.Error(), "INI変換に失敗しました。") {
+			if !strings.HasPrefix(err.Error(), "INI変換に失敗しました。") {
 				t.Errorf("エラーの接頭辞: %v", err)
 			}
 		})

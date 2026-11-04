@@ -70,6 +70,10 @@ func parseINI(s string) (value.Value, error) {
 			if name == "" {
 				return value.Undefined(), fmt.Errorf("INI取得に失敗しました。%d行目: セクション名が空です。", lineNo)
 			}
+			if strings.Contains(name, "]") {
+				// 変換側（checkSectionName）でも表せないため、取得側でも受理しない（往復を保つ）
+				return value.Undefined(), fmt.Errorf("INI取得に失敗しました。%d行目: セクション名に「]」は使えません。", lineNo)
+			}
 			if existing, ok := root.Get(name); ok {
 				d, isDict := existing.Dict()
 				if !isDict || d == nil {
@@ -114,7 +118,7 @@ func parseINI(s string) (value.Value, error) {
 func encodeINI(v value.Value) (string, error) {
 	root, ok := v.Dict()
 	if !ok || root == nil {
-		return "", errors.New("INI変換できるのは辞書のみです。")
+		return "", errors.New("INI変換に失敗しました。変換できるのは辞書のみです。")
 	}
 	var scalars, sections strings.Builder
 	for _, k := range root.Keys() {
