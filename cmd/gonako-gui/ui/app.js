@@ -2468,6 +2468,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (found) guiElements.set(key, found);
       return found;
     };
+    // text/html で中身を置き換える前に、旧子孫のキャッシュを捨てる(el自身は残す)。
+    // DOM内の子孫はdata-gonako-handleで、生成直後で未接続の子孫はcontainsで拾う。
+    const dropCachedDescendants = el => {
+      const stale = new Set();
+      el.querySelectorAll('[data-gonako-handle]').forEach(child => stale.add(child));
+      for (const [handle, candidate] of guiElements) {
+        if (candidate !== el && (stale.has(candidate) || el.contains(candidate))) guiElements.delete(handle);
+      }
+    };
     operations.forEach(op => {
       // ウィンドウのハンドル0はGo側のJSONでは省略される。
       if (op.type === 'listen' && Number(op.handle || 0) === 0 && op.event === 'drop') {
@@ -2544,9 +2553,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         el.remove();
       } else if (op.type === 'text') {
-        if (el.matches('input, textarea, select')) el.value = op.text || '';
-        else el.textContent = op.text || '';
+        if (el.matches('input, textarea, select')) {
+          el.value = op.text || '';
+        } else {
+          dropCachedDescendants(el);
+          el.textContent = op.text || '';
+        }
       } else if (op.type === 'html') {
+        dropCachedDescendants(el);
         el.innerHTML = op.html || '';
       } else if (op.type === 'styles') {
         Object.entries(op.styles || {}).forEach(([key, value]) => { el.style[key] = value; });
