@@ -22,7 +22,6 @@ func (m *VM) SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, er
 
 	m.nextCallback++
 	id := m.nextCallback
-	m.callbacks[id] = queuedCallback{fn: fn, isTimer: true, timerID: id}
 
 	at := m.loop.Now().Add(delay)
 	var timerID host.TimerID
@@ -31,6 +30,9 @@ func (m *VM) SetTimer(fn *value.Func, seconds float64, repeat bool) (float64, er
 	} else {
 		timerID = m.loop.Post(at, id)
 	}
+	// タイマーIDが確定してから登録する。解放は完了・停止の各経路で行う。
+	m.callbacks[id] = queuedCallback{fn: fn, isTimer: true, timerID: timerID, repeat: repeat}
+	m.timerCallbacks[timerID] = id
 	return float64(timerID), nil
 }
 
@@ -42,8 +44,9 @@ func (m *VM) PostFunc(fn *value.Func, args []value.Value) error {
 	}
 	m.nextCallback++
 	id := m.nextCallback
-	m.callbacks[id] = queuedCallback{fn: fn, args: append([]value.Value(nil), args...)}
-	m.loop.Post(m.loop.Now(), id)
+	timerID := m.loop.Post(m.loop.Now(), id)
+	m.callbacks[id] = queuedCallback{fn: fn, args: append([]value.Value(nil), args...), timerID: timerID}
+	m.timerCallbacks[timerID] = id
 	return nil
 }
 
@@ -52,11 +55,30 @@ func (m *VM) CancelTimer(id float64) bool {
 	if math.IsNaN(id) || id < 0 {
 		return false
 	}
-	return m.loop.Cancel(host.TimerID(id))
+	timerID := host.TimerID(id)
+	if !m.loop.Cancel(timerID) {
+		return false // 完了済み・停止済み（保持していたものは解放済み）
+	}
+	m.releaseTimer(timerID)
+	return true
 }
 
-// CancelAllTimers stops every timer.
-func (m *VM) CancelAllTimers() { m.loop.CancelAll() }
+// CancelAllTimers stops every timer and releases the callbacks they held.
+// 繰り返しコールバックの実行中に呼ばれても、実行中の CallFunc は
+// 自分の持つ値で最後まで動くので、map を空にして問題ない。
+func (m *VM) CancelAllTimers() {
+	m.loop.CancelAll()
+	clear(m.callbacks)
+	clear(m.timerCallbacks)
+}
+
+// releaseTimer はタイマーIDに対応するコールバックを解放する。
+func (m *VM) releaseTimer(timerID host.TimerID) {
+	if id, ok := m.timerCallbacks[timerID]; ok {
+		delete(m.callbacks, id)
+		delete(m.timerCallbacks, timerID)
+	}
+}
 
 // Wait moves the clock forward, running the callbacks that come due on the
 // way. When RealSleep is enabled, it pauses in real time.
@@ -82,6 +104,12 @@ func (m *VM) dispatch(id host.CallbackID) error {
 	callback, ok := m.callbacks[id]
 	if !ok {
 		return nil // 停止済みのタイマー
+	}
+	// 単発は実行前に解放する（エラー時も保持し続けない）。繰り返しは
+	// 停止されるまで保持する。
+	if !callback.repeat {
+		delete(m.callbacks, id)
+		delete(m.timerCallbacks, callback.timerID)
 	}
 	if callback.isTimer {
 		m.pendingTimerTarget = float64(callback.timerID)
