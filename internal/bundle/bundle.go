@@ -192,15 +192,6 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 		return fmt.Errorf("知らない種類のアプリです: %s", spec.Kind)
 	}
 
-	// ランタイムとペイロードを一度メモリへ載せず、一時ファイルへ逐次
-	// 書き出す。入力が大きくなっても、同時に確保するのは転送用の
-	// 小さなバッファだけで済む (A02)。
-	runtime, runtimeLen, err := openRuntime(runtimePath)
-	if err != nil {
-		return err
-	}
-	defer runtime.Close()
-
 	// 同じフォルダに書き出し、完成した場合だけ既存出力と置き換える。
 	oldInfo, err := os.Stat(outPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -221,8 +212,22 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 		_ = os.Remove(tempPath)
 	}()
 
+	// ランタイムとペイロードを一度メモリへ載せず、一時ファイルへ逐次
+	// 書き出す。入力が大きくなっても、同時に確保するのは転送用の
+	// 小さなバッファだけで済む (A02)。
+	runtime, runtimeLen, err := openRuntime(runtimePath)
+	if err != nil {
+		return err
+	}
 	if _, err := io.CopyN(out, runtime, runtimeLen); err != nil {
+		runtime.Close()
 		return fmt.Errorf("ランタイムを書き出せません: %w", err)
+	}
+	// 読み込みが済んだ時点で閉じる。outPath == runtimePath の再梱包では
+	// 開いたままのランタイムを Windows で os.Rename できないため、
+	// ペイロードを作る前 (= 出力の置換前) に閉じる (A02 のレビュー指摘)。
+	if err := runtime.Close(); err != nil {
+		return fmt.Errorf("ランタイム『%s』を閉じられません: %w", runtimePath, err)
 	}
 
 	// ペイロードの長さは書きながら数える。フッタは最後に書く。
@@ -290,9 +295,12 @@ func openRuntime(runtimePath string) (*os.File, int64, error) {
 			return nil, 0, fmt.Errorf("ランタイム『%s』を読み込めません: %w", runtimePath, err)
 		}
 		if string(footer[:len(magic)]) == magic {
-			payload := int64(binary.BigEndian.Uint64(footer[len(magic):]))
-			if payload <= size-int64(footerSize) {
-				size -= int64(footerSize) + payload
+			// 壊れたランタイムでは長さが int64 の範囲を超えることがある。
+			// int64 に直す前に uint64 のまま実ファイルの残りと比べ、
+			// 収まるときだけ切り詰める (A02 のレビュー指摘)。
+			payload := binary.BigEndian.Uint64(footer[len(magic):])
+			if remaining := uint64(size - int64(footerSize)); payload <= remaining {
+				size -= int64(footerSize) + int64(payload)
 			}
 		}
 	}
