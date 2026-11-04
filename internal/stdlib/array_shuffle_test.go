@@ -60,6 +60,37 @@ func TestShuffleArrayWithScriptedRand(t *testing.T) {
 	}
 }
 
+// #345: 3要素では intn の全組み合わせ（intn(3)×intn(2) の6通り）が
+// 6通りの異なる順列に対応すること（偏りや重複がないこと）を確かめる。
+// Sonnetレビューのテスト提案で追加。
+func TestShuffleArrayProducesAllPermutationsOfThree(t *testing.T) {
+	seen := map[string]bool{}
+	for j3 := 0; j3 < 3; j3++ {
+		for j2 := 0; j2 < 2; j2++ {
+			arr := value.NewArray(value.Number(1), value.Number(2), value.Number(3))
+			shuffleArray(arr, func(n int) int {
+				switch n {
+				case 3:
+					return j3
+				case 2:
+					return j2
+				}
+				t.Fatalf("想定外の n=%d で intn が呼ばれた", n)
+				return 0
+			})
+			key := ""
+			for i := 0; i < arr.Len(); i++ {
+				n, _ := arr.Get(i).Number()
+				key += string(rune('0' + int(n)))
+			}
+			seen[key] = true
+		}
+	}
+	if len(seen) != 6 {
+		t.Fatalf("得られた順列 = %v（%d通り）, want 6通りすべて", seen, len(seen))
+	}
+}
+
 // #345: 空配列と1要素では intn が呼ばれず、内容も変わらないことを確かめる。
 func TestShuffleArrayDoesNotCallIntNForShortArrays(t *testing.T) {
 	intn := func(n int) int {

@@ -111,10 +111,10 @@ func TestArrayShuffleCommandIsNotAlwaysReverse(t *testing.T) {
 		}
 		seen[arrayString(input)] = true
 	}
-	if len(seen) < 2 {
-		t.Fatalf("16回すべて同じ順序になった: %v", seen)
-	}
 	if len(seen) == 1 && seen["4,3,2,1"] {
 		t.Fatal("16回すべて逆順になった")
+	}
+	if len(seen) < 2 {
+		t.Fatalf("16回すべて同じ順序になった: %v", seen)
 	}
 }
