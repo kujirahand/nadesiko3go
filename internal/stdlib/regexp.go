@@ -26,7 +26,10 @@ func regexpImpls(m map[string]Impl) {
 
 		if pattern.Global {
 			// gが付くときは一致した全体の配列を返し、抽出文字列は空のまま
-			found := pattern.FindAll(str(a, 0))
+			found, err := pattern.FindAll(str(a, 0))
+			if err != nil {
+				return value.Undefined(), patternError(str(a, 1), err)
+			}
 			if found == nil {
 				return value.Null(), nil
 			}
@@ -50,7 +53,10 @@ func regexpImpls(m map[string]Impl) {
 			return value.Undefined(), err
 		}
 		clearMatched(ctx)
-		matches := pattern.FindAllMatches(str(a, 0))
+		matches, err := pattern.FindAllMatches(str(a, 0))
+		if err != nil {
+			return value.Undefined(), patternError(str(a, 1), err)
+		}
 		flat := make([]value.Value, 0)
 		rows := make([]value.Value, 0, len(matches))
 		names := pattern.SubexpNames()
@@ -98,7 +104,11 @@ func regexpImpls(m map[string]Impl) {
 		if err != nil {
 			return value.Undefined(), err
 		}
-		return value.String(pattern.Replace(str(a, 0), str(a, 2))), nil
+		replaced, err := pattern.Replace(str(a, 0), str(a, 2))
+		if err != nil {
+			return value.Undefined(), patternError(str(a, 1), err)
+		}
+		return value.String(replaced), nil
 	}
 
 	m["正規表現区切"] = func(_ Context, a []value.Value) (value.Value, error) {
@@ -125,31 +135,40 @@ func regexpImpls(m map[string]Impl) {
 // message that names the construct rather than the engine.
 func compilePattern(pattern string) (*re.Regexp, error) {
 	compiled, err := re.Compile(pattern)
+	if err != nil {
+		return nil, patternError(pattern, err)
+	}
+	return compiled, nil
+}
+
+// patternError converts an error from compiling or running a pattern into a
+// language error. The sticky context variant is built only when an operation
+// actually needs it, so a StickyVariantError can surface from FindAll and
+// friends, not only from Compile; both go through the same conversion so the
+// wording does not depend on when the failure is detected.
+func patternError(pattern string, err error) error {
 	if errors.Is(err, re.ErrUnsupported) {
-		return nil, errors.New("正規表現『" + pattern + "』の後方参照や先読みには対応していません。")
+		return errors.New("正規表現『" + pattern + "』の後方参照や先読みには対応していません。")
 	}
 	var flagErr *re.FlagError
 	if errors.As(err, &flagErr) {
 		if flagErr.Duplicate {
-			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』が重複しています。")
+			return errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』が重複しています。")
 		}
 		if flagErr.Conflict != 0 {
-			return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』と『" + string(flagErr.Conflict) + "』は同時に使えません。")
+			return errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』と『" + string(flagErr.Conflict) + "』は同時に使えません。")
 		}
-		return nil, errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
+		return errors.New("正規表現『" + pattern + "』のフラグ『" + string(flagErr.Flag) + "』は使えません。")
 	}
 	var variantErr *re.StickyVariantError
 	if errors.As(err, &variantErr) {
 		// 元のパターンは正しい。文脈を見る位置指定照合にだけ使えない。
 		if variantErr.Depth {
-			return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合には深すぎます。")
+			return errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合には深すぎます。")
 		}
-		return nil, errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合に使えません。")
+		return errors.New("正規表現『" + pattern + "』はyフラグの位置指定照合に使えません。")
 	}
-	if err != nil {
-		return nil, errors.New("正規表現『" + pattern + "』が正しくありません。")
-	}
-	return compiled, nil
+	return errors.New("正規表現『" + pattern + "』が正しくありません。")
 }
 
 // clearMatched empties 『抽出文字列』 before a match, so that a failed match

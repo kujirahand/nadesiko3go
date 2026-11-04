@@ -17,6 +17,36 @@ func mustCompile(t *testing.T, pattern string) *re.Regexp {
 	return r
 }
 
+// mustFindAll は、エラーが返るはずのない照合を失敗として扱うための補助。
+func mustFindAll(t *testing.T, r *re.Regexp, s string) []string {
+	t.Helper()
+	got, err := r.FindAll(s)
+	if err != nil {
+		t.Fatalf("FindAll(%q): %v", s, err)
+	}
+	return got
+}
+
+// mustFindAllMatches は mustFindAll の捕獲付き版。
+func mustFindAllMatches(t *testing.T, r *re.Regexp, s string) []re.Match {
+	t.Helper()
+	got, err := r.FindAllMatches(s)
+	if err != nil {
+		t.Fatalf("FindAllMatches(%q): %v", s, err)
+	}
+	return got
+}
+
+// mustReplace は mustFindAll の置換版。
+func mustReplace(t *testing.T, r *re.Regexp, s, template string) string {
+	t.Helper()
+	got, err := r.Replace(s, template)
+	if err != nil {
+		t.Fatalf("Replace(%q, %q): %v", s, template, err)
+	}
+	return got
+}
+
 func TestCompileFlags(t *testing.T) {
 	tests := []struct {
 		pattern string
@@ -37,11 +67,11 @@ func TestCompileFlags(t *testing.T) {
 }
 
 func TestFindAndReplace(t *testing.T) {
-	if got := mustCompile(t, "/[0-9]/g").FindAll("a1b2"); !reflect.DeepEqual(got, []string{"1", "2"}) {
+	if got := mustFindAll(t, mustCompile(t, "/[0-9]/g"), "a1b2"); !reflect.DeepEqual(got, []string{"1", "2"}) {
 		t.Errorf("FindAll = %v, want [1 2]", got)
 	}
 	// 空のパターンは各位置で一致する
-	if got := mustCompile(t, "").FindAll("abc"); len(got) != 4 {
+	if got := mustFindAll(t, mustCompile(t, ""), "abc"); len(got) != 4 {
 		t.Errorf("空パターンの一致数 = %d, want 4", len(got))
 	}
 	if got, ok := mustCompile(t, "/[0-9]+/").Find("abc123"); !ok || got.Text != "123" || len(got.Groups) != 0 {
@@ -84,7 +114,7 @@ func TestFindAndReplace(t *testing.T) {
 		{"/(a)/", "abc", "${1}", "${1}bc"},         // ${} はJSではリテラル
 	}
 	for _, tt := range tests {
-		if got := mustCompile(t, tt.pattern).Replace(tt.in, tt.template); got != tt.want {
+		if got := mustReplace(t, mustCompile(t, tt.pattern), tt.in, tt.template); got != tt.want {
 			t.Errorf("Replace(%q, %q, %q) = %q, want %q", tt.pattern, tt.in, tt.template, got, tt.want)
 		}
 	}
@@ -118,7 +148,7 @@ func TestUnsupported(t *testing.T) {
 // TestRuneBased pins the deliberate difference from JavaScript: the dot counts
 // a character outside the BMP as one, not two (AGENTS.md §5).
 func TestRuneBased(t *testing.T) {
-	if got := mustCompile(t, "/./g").Replace("𩸽", "X"); got != "X" {
+	if got := mustReplace(t, mustCompile(t, "/./g"), "𩸽", "X"); got != "X" {
 		t.Errorf(`Replace("𩸽") = %q, want "X" (JS版は "XX")`, got)
 	}
 }

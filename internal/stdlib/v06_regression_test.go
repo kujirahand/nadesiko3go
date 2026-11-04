@@ -296,6 +296,50 @@ func TestV06DeepContextLanguageError(t *testing.T) {
 	}
 }
 
+// TestV06DeepContextUnusedPathsSucceed は、深い文脈付きパターンでも、文脈を
+// 見る位置指定照合の派生パターンを使わない命令経路は成功することを固定する。
+// 区切はsticky自体を使わず、先頭だけを見るマッチ（gなし）と置換（gなし）も
+// 派生パターンを使わない。使う経路（抽出とg付き置換）は同じ言語エラーになる。
+func TestV06DeepContextUnusedPathsSucceed(t *testing.T) {
+	body := strings.Repeat("(", 997) + "a?$" + strings.Repeat(")", 997)
+	wantErr := "正規表現『/" + body + "/gy』はyフラグの位置指定照合には深すぎます。"
+
+	// 区切: 断片は前後の空文字と997組の捕獲
+	got, err := v06Call(t, "正規表現区切", value.String("a"), value.String("/"+body+"/gy"))
+	if err != nil {
+		t.Fatalf("正規表現区切: %v", err)
+	}
+	if items := v06Items(t, got); len(items) != 999 || items[0] != "" || items[1] != "a" || items[998] != "" {
+		t.Errorf("正規表現区切の件数・端 = %d, want 999件で端は空文字", len(items))
+	}
+
+	// gなしのマッチは先頭の一致だけを見る
+	got, err = v06Call(t, "正規表現マッチ", value.String("a"), value.String("/"+body+"/y"))
+	if err != nil {
+		t.Fatalf("gなしの正規表現マッチ: %v", err)
+	}
+	if text := value.ToString(got); text != "a" {
+		t.Errorf("gなしの正規表現マッチ = %q, want \"a\"", text)
+	}
+
+	// gなしの置換も先頭の一致だけが対象
+	got, err = v06Call(t, "正規表現置換", value.String("a"), value.String("/"+body+"/y"), value.String("<$1>"))
+	if err != nil {
+		t.Fatalf("gなしの正規表現置換: %v", err)
+	}
+	if text := value.ToString(got); text != "<a>" {
+		t.Errorf("gなしの正規表現置換 = %q, want \"<a>\"", text)
+	}
+
+	// 派生パターンを使う経路は、従来と同じ文面の言語エラーになる
+	if _, err := v06Call(t, "正規表現抽出", value.String("a"), value.String("/"+body+"/gy")); err == nil || err.Error() != wantErr {
+		t.Errorf("正規表現抽出のエラー = %v, want %q", err, wantErr)
+	}
+	if _, err := v06Call(t, "正規表現置換", value.String("a"), value.String("/"+body+"/gy"), value.String("X")); err == nil || err.Error() != wantErr {
+		t.Errorf("g付き正規表現置換のエラー = %v, want %q", err, wantErr)
+	}
+}
+
 // TestV06NonASCIIFlagLanguageError は、フラグ列にASCII英字以外が来たら、
 // それをパターンの一部として受理せず、問題の文字を添えた言語のエラーに
 // することを命令の入口から固定する。

@@ -39,6 +39,49 @@ func TestV06StickyFromTextsNilAfterFirstGap(t *testing.T) {
 	}
 }
 
+// stickyFromScan が全件連続のときに走査結果をそのまま使う（詰め直さない）
+// ことを、stickyFromTexts と同じく先頭要素の置き場所の同一性で確かめる。
+func TestV06StickyFromScanNoCopy(t *testing.T) {
+	matches := [][]int{{0, 1}, {1, 2}, {2, 3}}
+	got := stickyFromScan(matches)
+	if len(got) != 3 || got[0][0] != 0 || got[2][1] != 3 {
+		t.Fatalf("全件連続の結果 = %v, want [[0 1] [1 2] [2 3]]", got)
+	}
+	if &got[0] != &matches[0] {
+		t.Error("全件連続で先頭要素の置き場所が違う。走査結果を詰め直している")
+	}
+}
+
+// stickyFromScan が途中で途切れたときに、先頭の連続分だけを詰め直すことを
+// 確かめる。元の走査結果のbackingを引きずらないので容量は1件分になる。
+// 個々の位置の組は詰め直さず共有する。
+func TestV06StickyFromScanCopiesAfterGap(t *testing.T) {
+	matches := [][]int{{0, 1}, {2, 3}, {3, 4}}
+	got := stickyFromScan(matches)
+	if len(got) != 1 || got[0][0] != 0 || got[0][1] != 1 {
+		t.Fatalf("途中で途切れた結果 = %v, want [[0 1]]", got)
+	}
+	if cap(got) != 1 {
+		t.Errorf("途中で途切れた結果の容量 = %d, want 1", cap(got))
+	}
+	if &got[0] == &matches[0] {
+		t.Error("途中で途切れたのに元の走査結果と同じ置き場所を使っている。詰め直していない")
+	}
+	if &got[0][0] != &matches[0][0] {
+		t.Error("位置の組まで詰め直している。外側の並びだけを詰め直すべき")
+	}
+}
+
+// stickyFromScan が先頭で途切れたときにnilを返すことを確かめる。
+func TestV06StickyFromScanNilAfterFirstGap(t *testing.T) {
+	if got := stickyFromScan([][]int{{1, 2}}); got != nil {
+		t.Errorf("先頭で途切れた結果 = %v, want nil", got)
+	}
+	if got := stickyFromScan(nil); got != nil {
+		t.Errorf("一致なしの結果 = %v, want nil", got)
+	}
+}
+
 // TestV06StickyModeRouting は、stickyの照合経路が3状態のどれになるかを固定
 // する。位置指定の照合が要らないならscan、要るなら、本当に前後の文字を見る
 // アサーションの有無でsuffixとcontextに分かれる。文字列の走査で拾っただけの
@@ -83,6 +126,13 @@ func TestV06StickyModeRouting(t *testing.T) {
 		}
 		if r.textScan != tt.textScan {
 			t.Errorf("Compile(%q).textScan = %v, want %v", tt.pattern, r.textScan, tt.textScan)
+		}
+		// 派生パターンはCompileでは作らず、必要になった時点で作る
+		if r.tail != nil {
+			t.Errorf("Compile(%q): 派生パターンがCompileの時点で作られている", tt.pattern)
+		}
+		if err := r.ensureStickyTail(); err != nil {
+			t.Fatalf("Compile(%q) の派生パターンの生成: %v", tt.pattern, err)
 		}
 		if (r.mode == stickyContext) != (r.tail != nil) {
 			t.Errorf("Compile(%q): mode=%v tail=%v, 派生パターンはcontextのときだけ非nil", tt.pattern, r.mode, r.tail != nil)

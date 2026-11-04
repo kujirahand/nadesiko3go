@@ -17,6 +17,7 @@ import (
 	"regexp/syntax"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode/utf8"
 )
 
@@ -93,8 +94,13 @@ func (e *StickyVariantError) Unwrap() error { return e.Cause }
 type Regexp struct {
 	re *regexp.Regexp
 	// tail は文脈を見る位置指定照合用の派生パターン。stickyContextのときだけ
-	// 非nilで、Compileで作り切る。照合の途中でコンパイルしない。
-	tail *regexp.Regexp
+	// 意味を持ち、初めて必要になったときに tailOnce で一度だけ作る。Compile
+	// では作らないので、派生パターンを使わない経路（区切や先頭だけの照合）は、
+	// 元のパターンさえ通れば派生パターンの深さの都合で失敗しない。生成に
+	// 失敗したときは tailErr に残し、使う操作がエラーとして返す。
+	tail     *regexp.Regexp
+	tailOnce sync.Once
+	tailErr  error
 	// mode はstickyの照合経路。stickyでないパターンではstickyScanのまま。
 	mode stickyMode
 	// Global はJavaScriptの 『g』 フラグ。置換がすべての一致を対象にするか、
@@ -201,16 +207,12 @@ func Compile(pattern string) (*Regexp, error) {
 			break
 		}
 	}
-	mode, tail, context, err := stickySearch(compiled, sticky)
-	if err != nil {
-		return nil, err
-	}
+	mode, context := stickySearch(compiled, sticky)
 	textScan := sticky && mode == stickyScan && !context
 	return &Regexp{
 		re:       compiled,
 		Global:   global,
 		Sticky:   sticky,
-		tail:     tail,
 		mode:     mode,
 		hasNames: hasNames,
 		textScan: textScan,
@@ -219,24 +221,39 @@ func Compile(pattern string) (*Regexp, error) {
 
 // stickySearch はstickyの照合経路を決める。位置指定の照合が要らないなら
 // 走査のまま。要るなら、前後の文字を見るアサーションの有無で、元のパターンを
-// そのまま当てる経路と、派生パターンを当てる経路に分ける。派生パターンは
-// errorを返せるCompileの中で作る。
-func stickySearch(compiled *regexp.Regexp, sticky bool) (stickyMode, *regexp.Regexp, bool, error) {
+// そのまま当てる経路と、派生パターンを当てる経路に分ける。派生パターン自体は
+// ここでは作らない（ensureStickyTail が必要になった時点で作る）。
+func stickySearch(compiled *regexp.Regexp, sticky bool) (stickyMode, bool) {
 	if !sticky {
-		return stickyScan, nil, false, nil
+		return stickyScan, false
 	}
 	context := hasRealContextAssertion(compiled)
 	if !needsPositionalSearch(compiled) {
-		return stickyScan, nil, context, nil
+		return stickyScan, context
 	}
 	if !context {
-		return stickySuffix, nil, false, nil
+		return stickySuffix, false
 	}
-	tail, err := compileStickyTail(compiled)
-	if err != nil {
-		return stickyScan, nil, context, err
+	return stickyContext, context
+}
+
+// ensureStickyTail は、文脈を見る位置指定照合用の派生パターンを必要になった
+// 時点で一度だけ作る。stickyContext以外の経路では何もしない。作れなかった
+// ときは StickyVariantError を返し、使う操作の先頭で呼び出して失敗を伝える。
+// 途中の一致まで進めてから失敗しないよう、使う側は照合を始める前に呼ぶ。
+//
+// Compileで作り切らないのは、区切や先頭だけの照合のように派生パターンを
+// 使わない経路まで、派生パターンの都合で失敗させないため。派生パターンは
+// 文字列で前置する限り元のパターンより必ず深くなるので、入れ子の上限近く
+// では、使う経路でだけ失敗するのが残る制約になる。
+func (r *Regexp) ensureStickyTail() error {
+	if r.mode != stickyContext {
+		return nil
 	}
-	return stickyContext, tail, context, nil
+	r.tailOnce.Do(func() {
+		r.tail, r.tailErr = compileStickyTail(r.re)
+	})
+	return r.tailErr
 }
 
 // needsPositionalSearch は位置指定の照合が要るかを判定する。空一致し得る
@@ -377,30 +394,39 @@ var backreferenceRE = regexp.MustCompile(`(^|[^\\])(\\\\)*\\[1-9]`)
 
 // FindAll は一致全体をすべて返す。一致がなければnilを返し、命令側で 『空』 に
 // なる。stickyのパターンはJavaScriptが訪れる位置をたどるので、前の一致が
-// 終わった位置から始まる一致だけを数える。
-func (r *Regexp) FindAll(s string) []string {
+// 終わった位置から始まる一致だけを数える。文脈を見る位置指定照合の派生
+// パターンが作れなかったときは、そのエラーを返す。
+func (r *Regexp) FindAll(s string) ([]string, error) {
 	if !r.Sticky {
-		return r.re.FindAllString(s, -1)
+		return r.re.FindAllString(s, -1), nil
 	}
 	if r.textScan {
-		return stickyFromTexts(s, r.re.FindAllString(s, -1))
+		return stickyFromTexts(s, r.re.FindAllString(s, -1)), nil
 	}
-	indexes := r.stickyIndexes(s, false)
+	indexes, err := r.stickyIndexes(s, false)
+	if err != nil {
+		return nil, err
+	}
 	if len(indexes) == 0 {
-		return nil
+		return nil, nil
 	}
 	found := make([]string, len(indexes))
 	for i, m := range indexes {
 		found[i] = s[m[0]:m[1]]
 	}
-	return found
+	return found, nil
 }
 
-// FindAllMatches は一致とその捕獲をすべて返す。
-func (r *Regexp) FindAllMatches(s string) []Match {
+// FindAllMatches は一致とその捕獲をすべて返す。文脈を見る位置指定照合の
+// 派生パターンが作れなかったときは、そのエラーを返す。
+func (r *Regexp) FindAllMatches(s string) ([]Match, error) {
 	var indexes [][]int
+	var err error
 	if r.Sticky {
-		indexes = r.stickyIndexes(s, true)
+		indexes, err = r.stickyIndexes(s, true)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		indexes = r.re.FindAllStringSubmatchIndex(s, -1)
 	}
@@ -408,7 +434,7 @@ func (r *Regexp) FindAllMatches(s string) []Match {
 	for i, m := range indexes {
 		matches[i] = matchFromIndexes(s, m)
 	}
-	return matches
+	return matches, nil
 }
 
 // SubexpNames reports the name of each capture group. Index 0 is always empty.
@@ -583,22 +609,31 @@ func (r *Regexp) stickyWholeMatches(s string) [][]int {
 // ある。位置指定の照合が要るパターンは、派生パターンを持つかどうかではなく
 // 経路そのもので分ける。派生パターンを持たない後ろ向きの経路でも空一致は
 // 走査から落ちるので、位置を指定して1件ずつ確かめる。
-func (r *Regexp) stickyIndexes(s string, submatch bool) [][]int {
+func (r *Regexp) stickyIndexes(s string, submatch bool) ([][]int, error) {
 	if r.mode != stickyScan {
-		if submatch {
-			return r.stickySubmatches(s)
+		// 位置指定の照合を始める前に派生パターンを用意する。作れなければ
+		// 途中の一致まで進めずに、その場でエラーを返す。matchAt と
+		// matchWholeAt は、ここを通ったあとだけ呼ばれる前提で tail を使う。
+		if err := r.ensureStickyTail(); err != nil {
+			return nil, err
 		}
-		return r.stickyWholeMatches(s)
+		if submatch {
+			return r.stickySubmatches(s), nil
+		}
+		return r.stickyWholeMatches(s), nil
 	}
 	if submatch {
-		return stickyFromScan(r.re.FindAllStringSubmatchIndex(s, -1))
+		return stickyFromScan(r.re.FindAllStringSubmatchIndex(s, -1)), nil
 	}
-	return stickyFromScan(r.re.FindAllStringIndex(s, -1))
+	return stickyFromScan(r.re.FindAllStringIndex(s, -1)), nil
 }
 
 // stickyFromScan は先頭から途切れずに続く一致だけを残す。空一致し得ない
 // パターンにだけ使い、そのときGoの走査はsticky検索が到達し得る一致をすべて
-// 含んでいる。
+// 含んでいる。メモリの扱いは stickyFromTexts と揃える: 全件が連続していたら
+// 走査結果をそのまま使い、途中で途切れたときだけ先頭の連続分を詰め直して、
+// 走査結果の大きな backing 配列を保持し続けないようにする。詰め直すのは
+// 外側の並びだけで、個々の一致の位置の組は読み取り専用なので共有する。
 func stickyFromScan(matches [][]int) [][]int {
 	kept := matches[:0]
 	next := 0
@@ -609,7 +644,16 @@ func stickyFromScan(matches [][]int) [][]int {
 		kept = append(kept, m)
 		next = m[1]
 	}
-	return kept
+	switch {
+	case len(kept) == 0:
+		return nil
+	case len(kept) == len(matches):
+		// 全件が連続していたら走査結果をそのまま使う
+		return kept
+	}
+	out := make([][]int, len(kept))
+	copy(out, kept)
+	return out
 }
 
 // stickySubmatches は stickyWholeMatches の捕獲付き版。
@@ -627,12 +671,14 @@ func (r *Regexp) stickySubmatches(s string) [][]int {
 }
 
 // Replace substitutes matches with the template, honouring the 『g』 flag: only
-// the first match changes without it.
+// the first match changes without it. With sticky and global together it walks
+// the same positional search as FindAll, so it returns the same error when the
+// context variant of the pattern cannot be built.
 //
 // The template is written in JavaScript's style: 『$$』 is a literal dollar,
 // 『$&』 the match, 『$`』 and 『$'』 the parts before and after it, 『$n』
 // a capture group and 『$<name>』 a named one.
-func (r *Regexp) Replace(s, template string) string {
+func (r *Regexp) Replace(s, template string) (string, error) {
 	var matches [][]int
 	switch {
 	case !r.Sticky && !r.Global:
@@ -640,15 +686,20 @@ func (r *Regexp) Replace(s, template string) string {
 	case !r.Sticky:
 		matches = r.re.FindAllStringSubmatchIndex(s, -1)
 	case !r.Global:
-		// stickyの非globalは先頭で始まる一致だけが対象になる
+		// stickyの非globalは先頭で始まる一致だけが対象になる。派生パターンは
+		// 使わないので、その深さの都合では失敗しない。
 		if m := r.re.FindStringSubmatchIndex(s); m != nil && m[0] == 0 {
 			matches = [][]int{m}
 		}
 	default:
-		matches = r.stickyIndexes(s, true)
+		var err error
+		matches, err = r.stickyIndexes(s, true)
+		if err != nil {
+			return "", err
+		}
 	}
 	if len(matches) == 0 {
-		return s
+		return s, nil
 	}
 	var out strings.Builder
 	out.Grow(len(s) + len(template)*len(matches))
@@ -659,7 +710,7 @@ func (r *Regexp) Replace(s, template string) string {
 		last = m[1]
 	}
 	out.WriteString(s[last:])
-	return out.String()
+	return out.String(), nil
 }
 
 // expandTemplate expands a JavaScript replacement template for one match.
