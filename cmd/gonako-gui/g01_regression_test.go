@@ -822,6 +822,29 @@ func TestG01RefusesOutputEqualToSourceFolder(t *testing.T) {
 	}
 }
 
+// 梱包対象フォルダが出力先.appの内側にある場合も、ソースごと消えるので拒否する。
+func TestG01RefusesOutputContainingSourceFolder(t *testing.T) {
+	dir := t.TempDir()
+	useRuntime(t, dir)
+	out := filepath.Join(dir, "Outer.app")
+	writeFile(t, filepath.Join(out, "Contents", "Info.plist"), "<plist/>")
+	folder := filepath.Join(out, "Contents", "Resources", "src")
+	writeFile(t, filepath.Join(folder, "index.html"), "<h1>やあ</h1>")
+	before := appTreeSnapshot(t, out)
+
+	res := buildAppFromFolder(folder, filepath.Join(folder, "index.html"), out, "App")
+	if res.OK {
+		t.Fatal("梱包対象フォルダを含む出力先へ変換してしまった")
+	}
+	if !strings.Contains(res.Error, "含んでいます") {
+		t.Fatalf("包含関係の説明が変わっている: %s", res.Error)
+	}
+	assertAppUnchanged(t, out, before)
+	if leftovers := leftoverEntries(t, dir); len(leftovers) != 0 {
+		t.Fatalf("失敗後に一時成果物が残った: %v", leftovers)
+	}
+}
+
 // 出力先の親をsymlink経由で指定しても、実体側の既存.appを梱包しない。
 func TestG01SymlinkedOutputParentDoesNotPackExistingApp(t *testing.T) {
 	dir := t.TempDir()

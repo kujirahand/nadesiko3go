@@ -311,6 +311,11 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 	if outErr == nil && realOut == realFolder {
 		return BuildResult{Error: "出力先が変換するフォルダと同じ場所です。別のフォルダを指定してください"}
 	}
+	// 出力先(.app)の内側に梱包対象がある場合も、公開時に出力先ごと
+	// 入れ替わってソースが消えるため拒否する。
+	if outErr == nil && outputInside(realOut, realFolder) {
+		return BuildResult{Error: "出力先が変換するフォルダを含んでいます。別のフォルダを指定してください"}
+	}
 
 	self, err := runtimePathForBuild()
 	if err != nil {
