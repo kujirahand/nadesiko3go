@@ -43,6 +43,17 @@ func TestIdentity346FromSource(t *testing.T) {
 		{"NULLとNULLの一致", "(NULLとNULLが一致)を表示", "true"},
 		{"NULLと0の等無", "(NULLと0が等無)を表示", "true"},
 		{"NULLと辞書の一致", "A=NULL;B={};(AとBが一致)を表示", "false"},
+		// 否定の演算子も両辺オブジェクトで参照判定になる
+		{"別配列の≠", "A=[1];B=[1];(A≠B)を表示", "true"},
+		{"別配列の!==", "A=[1];B=[1];(A!==B)を表示", "true"},
+		{"同じ参照の≠", "A=[1];B=A;(A≠B)を表示", "false"},
+		// 非数と未定義の『一致』 (本家と同じ結果になること)
+		{"非数と非数の一致", "(非数と非数が一致)を表示", "false"},
+		{"[非数]どうしの一致", "A=[非数];B=[非数];(AとBが一致)を表示", "true"},
+		{"[非数]と[NULL]の一致", "A=[非数];B=[NULL];(AとBが一致)を表示", "true"},
+		{"未定義どうしの一致", "(未定義と未定義が一致)を表示", "true"},
+		// 片辺だけ循環していても、相手がプリミティブならエラーにならない
+		{"片辺循環と数値の一致", "A={};A[「自己」]=A;(Aと1が一致)を表示", "false"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -60,6 +71,19 @@ func TestIdentity346MatchedCyclicFromSource(t *testing.T) {
 	_, err := vm.RunSource(code, "main.nako3", nil)
 	if err == nil {
 		t.Fatal("循環辞書の『一致』はエラーになるべき")
+	}
+	if !strings.Contains(err.Error(), "循環") {
+		t.Fatalf("エラーの内容が想定外: %v", err)
+	}
+}
+
+// 片辺が循環参照でも、相手が NULL (typeof が "object") なら JSON 化に
+// 入るため、やはりエラーになる。
+func TestIdentity346MatchedCyclicVsNullFromSource(t *testing.T) {
+	code := "A={};A[「自己」]=A;(AとNULLが一致)を表示"
+	_, err := vm.RunSource(code, "main.nako3", nil)
+	if err == nil {
+		t.Fatal("循環辞書とNULLの『一致』はエラーになるべき")
 	}
 	if !strings.Contains(err.Error(), "循環") {
 		t.Fatalf("エラーの内容が想定外: %v", err)

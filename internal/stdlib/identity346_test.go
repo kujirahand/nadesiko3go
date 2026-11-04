@@ -1,6 +1,7 @@
 package stdlib_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -66,6 +67,16 @@ func TestIdentity346EqualIsReferenceOnly(t *testing.T) {
 		{"NULLとNULLの一致", "一致", value.Null(), value.Null(), true},
 		{"NULLと辞書の一致", "一致", value.Null(), dictA, false},
 		{"NULLと未定義の一致", "一致", value.Null(), value.Undefined(), false},
+		// NaN は厳密比較では自分とも等しくないが、配列の中では JSON で
+		// どちらも null になるため『一致』する (本家と同じ)
+		{"未定義と未定義の一致", "一致", value.Undefined(), value.Undefined(), true},
+		{"非数と非数の一致", "一致", value.Number(math.NaN()), value.Number(math.NaN()), false},
+		{"[非数]と[非数]の一致", "一致",
+			value.ArrayValue(value.NewArray(value.Number(math.NaN()))),
+			value.ArrayValue(value.NewArray(value.Number(math.NaN()))), true},
+		{"[非数]と[NULL]の一致", "一致",
+			value.ArrayValue(value.NewArray(value.Number(math.NaN()))),
+			value.ArrayValue(value.NewArray(value.Null())), true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -114,5 +125,32 @@ func TestIdentity346MatchedCyclicIsError(t *testing.T) {
 	same := cyclic()
 	if got := callCompare(t, "等", same, same); !got {
 		t.Errorf("同じ辞書の『等』 = %v, want true", got)
+	}
+	if got := callCompare(t, "等無", same, same); got {
+		t.Errorf("同じ循環辞書の『等無』 = %v, want false", got)
+	}
+}
+
+// 片辺だけが循環している『一致』: 相手がプリミティブなら本家と同じく
+// typeof 判定で先に分かれるのでエラーにならず偽になる。相手が NULL
+// (typeof は "object") なら JSON 化に入るのでエラーになる。
+func TestIdentity346MatchedOneSidedCyclic(t *testing.T) {
+	d := value.NewDict()
+	d.Set("self", value.DictValue(d))
+	cyc := value.DictValue(d)
+	r := stdlib.NewRegistry()
+	e, _ := r.Lookup("一致")
+	got, err := e.Fn(newContext(), []value.Value{cyc, value.Number(1)})
+	if err != nil {
+		t.Fatalf("循環辞書と数値の『一致』でエラー: %v", err)
+	}
+	if b, _ := got.Bool(); b {
+		t.Errorf("循環辞書と数値の『一致』 = %v, want false", b)
+	}
+	if _, err := e.Fn(newContext(), []value.Value{cyc, value.Null()}); err == nil {
+		t.Error("循環辞書とNULLの『一致』はエラーになるべき")
+	}
+	if _, err := e.Fn(newContext(), []value.Value{value.Null(), cyc}); err == nil {
+		t.Error("NULLと循環辞書の『一致』はエラーになるべき")
 	}
 }
