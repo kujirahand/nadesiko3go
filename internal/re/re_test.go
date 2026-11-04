@@ -145,6 +145,63 @@ func TestUnsupported(t *testing.T) {
 	}
 }
 
+// TestUnsupportedVSetOperations は、『v』フラグの集合演算を含むパターンを
+// 未対応として弾くことを固定する（#401）。受理したままGoの構文で解釈すると、
+// JavaScriptと違う結果を黙って返すためである。集合演算でないもの、クラス外
+// の記法、『v』なしのパターンは従来どおり通す。
+func TestUnsupportedVSetOperations(t *testing.T) {
+	for _, pattern := range []string{
+		`/[\w&&\d]/v`, // 積集合（JSでは数字だけ、Goでは "a" にも一致する）
+		`/[\w--a]/v`,  // 差集合（JSでは "a" と "-" に一致しない）
+		`/[\q{ab}]/v`, // 文字列リテラル
+		`/[--]/v`,     // JSのvでは構文エラーになる形も未対応に倒す
+		`/[a--]/v`,
+		`/[[a]&&[b]]/v`,       // 入れ子の積集合
+		`/[[a-z]--[aeiou]]/v`, // 入れ子の差集合
+		`/[^\w&&\d]/v`,        // 否定の直後の集合演算
+		`/[\w&&\d]/yv`,        // フラグの順序が違っても検出する
+		`/[\w&&\d]/vy`,        // フラグの順序が違っても検出する
+	} {
+		_, err := re.Compile(pattern)
+		if !errors.Is(err, re.ErrUnsupported) {
+			t.Errorf("Compile(%q) = %v, want ErrUnsupported", pattern, err)
+		}
+		var vSetErr *re.UnsupportedVSetError
+		if !errors.As(err, &vSetErr) {
+			t.Errorf("Compile(%q) = %v, want UnsupportedVSetError", pattern, err)
+		}
+	}
+	for _, pattern := range []string{
+		`/a/v`,              // v単独は受理のまま
+		`/a&&b/v`,           // クラス外はリテラル
+		`/a--b/v`,           // クラス外はリテラル
+		`/[\&&]/v`,          // エスケープした & は演算子ではない
+		`/[\]]/v`,           // エスケープした ] はクラスを閉じない
+		`/[[:alpha:]]/v`,    // POSIXクラスの括弧は入れ子にしない
+		`/[^]]/v`,           // 否定直後の ] はリテラル（RE2の解釈）
+		`/[\w&&\d]/`,        // vがなければ対象外（従来のGoの解釈のまま）
+		`/[^^]a&&b/v`,       // [^^] で閉じるので、後ろの && はリテラル
+		`/[a-]/v`,           // 単独のハイフン
+		`/[-a]/v`,           // 単独のハイフン
+		`/[a-z]/v`,          // 範囲
+		`/[\\q{ab}]/v`,      // エスケープした円記号の後の q{ は通常の文字
+		`/[[a][b]]/v`,       // 入れ子だけなら通る
+		`/[[a]]&&b/v`,       // 外側が閉じた後の && はリテラル
+		`/[\u0026\u0026]/v`, // Unicodeエスケープは \x{26} に正規化され演算子に見えない
+		`[\w&&\d]`,          // スラッシュ形式でなければフラグが付かず従来どおり
+	} {
+		if _, err := re.Compile(pattern); err != nil {
+			t.Errorf("Compile(%q) = %v, want no error", pattern, err)
+		}
+	}
+	// u と v の競合はフラグ検証で先に弾かれ、集合演算の未対応にはならない。
+	_, err := re.Compile(`/[\w&&\d]/uv`)
+	var flagErr *re.FlagError
+	if !errors.As(err, &flagErr) {
+		t.Errorf("Compile(/[\\w&&\\d]/uv) = %v, want *FlagError", err)
+	}
+}
+
 // TestRuneBased pins the deliberate difference from JavaScript: the dot counts
 // a character outside the BMP as one, not two (AGENTS.md §5).
 func TestRuneBased(t *testing.T) {

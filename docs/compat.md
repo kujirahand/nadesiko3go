@@ -293,3 +293,5 @@ SJIS・EUC-JP・UTF-8のいずれで復号しても、不正なバイト列は�
 
 - `internal/re/v06_regression_test.go` の `TestV06NonASCIIFlagRejected`
 - `internal/stdlib/v06_regression_test.go` の `TestV06NonASCIIFlagLanguageError`
+
+なお `v` フラグ自体は受理するが、UnicodeSets の集合演算（文字クラス内の `&&`・`--`・`\q{...}`）は未対応である（Issue #401）。該当するパターンは、Go の RE2 による異なる解釈の結果を黙って返さず、未対応の言語エラーになる（例: 「正規表現『/[\w&&\d]/v』のvフラグの集合演算には対応していません。」）。クラス外の `&&`・`--` は JavaScript でもリテラルなので対象外で、`v` の付かないパターンも従来どおりである。この挙動は `internal/re/re_test.go` の `TestUnsupportedVSetOperations` と `internal/stdlib/v06_regression_test.go` の `TestV06VSetOperationLanguageError` で固定している。なお `v` の文字クラス構文そのものの検証（JavaScript では SyntaxError になる二重記号など）は行っておらず、それらは従来どおり Go の解釈で通る。

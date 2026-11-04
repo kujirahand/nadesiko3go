@@ -25,6 +25,17 @@ import (
 // backreferences and lookaround by design.
 var ErrUnsupported = errors.New("この正規表現はまだ対応していません")
 
+// UnsupportedVSetError は、『v』フラグのUnicodeSetsの集合演算（文字クラス
+// 内の『&&』『--』『\q{...}』）が未実装であることを表す。受理したまま
+// Goの構文として解釈するとJavaScriptと違う結果を黙って返すため、コンパイル
+// の時点で未対応として弾く。ErrUnsupported を包むので、errors.Is では従来の
+// 未対応とまとめて判定でき、errors.As でこちらだけを区別できる。
+type UnsupportedVSetError struct{}
+
+func (e *UnsupportedVSetError) Error() string { return ErrUnsupported.Error() }
+
+func (e *UnsupportedVSetError) Unwrap() error { return ErrUnsupported }
+
 // FlagError は 『/pattern/flags』 の形でJavaScriptが拒むフラグを表す。知らない
 // 文字、すでに現れた文字、同時に書けない組み合わせのいずれか。JavaScriptでは
 // どれもSyntaxErrorなので、ここでも言語のエラーにする。
@@ -49,8 +60,9 @@ func (e *FlagError) Error() string {
 }
 
 // validFlags はJavaScriptが 『/pattern/flags』 として受け付ける文字。『d』
-// (一致位置) と 『u』 はGoでパターンの意味を変えない。『v』は文字として受理
-// するだけで、UnicodeSetsの集合演算は未実装で、Goの構文解釈になりJSのvと等価でない。
+// (一致位置) と 『u』 はGoでパターンの意味を変えない。『v』も文字としては
+// 受理するが、UnicodeSetsの集合演算は未実装なので、それを含むものは
+// UnsupportedVSetError で弾く（黙ってGoの構文解釈で動かさないため）。
 const validFlags = "dgimsuvy"
 
 // stickyMode は sticky の照合がどの経路を使うかを表す。位置指定の照合が
@@ -171,6 +183,9 @@ func Compile(pattern string) (*Regexp, error) {
 	body = normalizeJSUnicodeEscapes(body)
 	if err := validateFlags(flags); err != nil {
 		return nil, err
+	}
+	if strings.Contains(flags, "v") && hasVSetOperation(body) {
+		return nil, &UnsupportedVSetError{}
 	}
 
 	var prefix strings.Builder
@@ -379,6 +394,72 @@ func normalizeJSUnicodeEscapes(pattern string) string {
 		}
 		return `\x{` + strings.ToUpper(escape[2:]) + `}`
 	})
+}
+
+// hasVSetOperation は、『v』フラグのUnicodeSetsの集合演算の記法が文字
+// クラスの中に現れるかを返す。対象は積集合の『&&』、差集合の『--』、
+// 文字列リテラルの『\q{』。クラス外の『&&』『--』はJavaScriptでもただの
+// リテラルなので対象にしない。エスケープされた文字は演算子にもクラスの
+// 終端にもならない。
+//
+// クラスの入れ子は深さで数える。『v』ではクラスの中にクラスを書けるため、
+// 内側の『]』で外側が閉じたことにしない。POSIXクラス『[:alpha:]』の括弧も
+// 同じ数え方で外側まで正しく閉じられる。クラスの先頭の『]』がリテラルに
+// なるのは、RE2の規則に合わせて『[』の直後か、先頭の否定『^』の直後だけ
+// である。『[^^]』のように『^』が続く場合、2つ目の『^』は通常の文字になる。
+func hasVSetOperation(pattern string) bool {
+	depth := 0
+	leading := false // クラスを開いた直後で、次の『]』はリテラルになる状態
+	caret := false   // クラスを開いた直後で、否定の『^』をまだ受け取れる状態
+	for i := 0; i < len(pattern); i++ {
+		switch pattern[i] {
+		case '\\':
+			if depth > 0 && i+2 < len(pattern) && pattern[i+1] == 'q' && pattern[i+2] == '{' {
+				return true
+			}
+			i++ // エスケープされた文字を飛ばす
+			leading = false
+			caret = false
+		case '[':
+			depth++
+			leading = true
+			caret = true
+		case ']':
+			caret = false
+			if depth == 0 {
+				continue
+			}
+			if leading {
+				leading = false
+				continue
+			}
+			depth--
+		case '^':
+			if caret {
+				// 先頭の否定の印。直後の『]』はリテラルのままなので
+				// leading は維持し、否定の印はこの1回だけ受け取る。
+				caret = false
+			} else {
+				leading = false
+			}
+		case '&':
+			if depth > 0 && i+1 < len(pattern) && pattern[i+1] == '&' {
+				return true
+			}
+			leading = false
+			caret = false
+		case '-':
+			if depth > 0 && i+1 < len(pattern) && pattern[i+1] == '-' {
+				return true
+			}
+			leading = false
+			caret = false
+		default:
+			leading = false
+			caret = false
+		}
+	}
+	return false
 }
 
 // unsupportedByRE2 reports whether a pattern uses a construct RE2 leaves out
