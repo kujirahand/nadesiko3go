@@ -183,10 +183,16 @@ func (p *Plugin) parse(txt string, delimiter string) (*value.Array, error) {
 	if err := checkDelimiter(delimiter); err != nil {
 		return nil, err
 	}
+	// 検証済みなので、区切り文字は必ず1runeとして取り出せる
+	delimRune, _ := utf8.DecodeRuneInString(delimiter)
 	txt = txt + "\n"
 	txt = strings.ReplaceAll(txt, "\r\n", "\n")
 	txt = strings.ReplaceAll(txt, "\r", "\n")
-	txt = strings.TrimRight(txt, " \t\v\f\r\n") + "\n"
+	// 末尾の区切り文字は空セルを表すため、本家 nako_csv.mts と同様に
+	// 末尾トリムの対象から区切り文字を除外する（#373）。
+	// 除外しないと TSV の末尾タブなどが削られ、末尾の空セルが黙って落ちる。
+	trimCutset := strings.ReplaceAll(" \t\v\f\r\n", string(delimRune), "")
+	txt = strings.TrimRight(txt, trimCutset) + "\n"
 
 	convType := func(v string) value.Value {
 		if p.options.AutoConvertNumber && isNumeric(v) {
@@ -203,8 +209,6 @@ func (p *Plugin) parse(txt string, delimiter string) (*value.Array, error) {
 	var res []value.Value
 	var cells []value.Value
 
-	// 検証済みなので、区切り文字は必ず1runeとして取り出せる
-	delimRune, _ := utf8.DecodeRuneInString(delimiter)
 	// runeAt は txt[i:] 先頭のruneとそのバイト長を返す（末尾なら 0, 0）
 	runeAt := func(txt string, i int) (rune, int) {
 		if i >= len(txt) {
