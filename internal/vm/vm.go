@@ -88,8 +88,6 @@ type VM struct {
 	// 入れ子の数。0 のときに CallFunc が呼ばれたら、それは実行の外からの
 	// 直接呼び出しである (#337)。
 	entry int
-	// exited は『終了』が実行されたことの VM 内部の記録。
-	exited bool
 
 	// natives holds a Go-compiled stand-in for Funcs[index], for the gogen
 	// backend (AGENTS.md §12). callClosure calls it instead of interpreting

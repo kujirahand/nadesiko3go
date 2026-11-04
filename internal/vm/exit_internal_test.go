@@ -24,9 +24,6 @@ func TestInvokeCommandExit(t *testing.T) {
 	if !host.Exited {
 		t.Error("Host に終了が記録されていない")
 	}
-	if !m.exited {
-		t.Error("VM に終了が記録されていない")
-	}
 	if m.entry != 0 {
 		t.Errorf("entry = %d, want 0", m.entry)
 	}
@@ -56,5 +53,33 @@ func TestCallFuncExitAfterRun(t *testing.T) {
 	}
 	if m.entry != 0 {
 		t.Errorf("entry = %d, want 0", m.entry)
+	}
+}
+
+// 命令実行上限のエラーは『終了』と違い nakoPanic のままなので、エラー監視に
+// 捕捉される（protect がハンドラへ再開する）ことを確かめる (#337 レビュー対応)。
+// 捕捉されれば、最終的に返るエラーはハンドラ内の命令（7行目）から出た上限
+// エラーになる。捕捉されなければループ内（4行目）から出る。
+// なお上限を使い切った後のハンドラは命令を実行できないため、最終結果が
+// エラーになる点は従来どおり（master でも同一の結果になることを確認済み）。
+func TestInstructionLimitStaysCatchable(t *testing.T) {
+	code := "エラー監視\n  カウンタX=0\n  10000回\n    カウンタX=カウンタX+1\n  ここまで\nエラーならば\n  「捕捉した」を表示\nここまで\n「終わり」を表示\n"
+	prog, err := CompileProgram(code, "limit.nako3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := NewCUIHost(io.Discard, strings.NewReader(""), nil)
+	opts := DefaultOptions()
+	opts.MaxInstructions = 100
+	m := New(prog, runtimeRegistry(), host, opts)
+	err = m.Run()
+	if err == nil {
+		t.Fatal("上限エラーが返らなかった")
+	}
+	if !strings.Contains(err.Error(), "実行した命令が多すぎます") {
+		t.Fatalf("上限エラーではない: %v", err)
+	}
+	if !strings.Contains(err.Error(), "(7行目)") {
+		t.Fatalf("エラー監視に捕捉されていない（ハンドラへ再開していない）: %v", err)
 	}
 }

@@ -846,7 +846,6 @@ func (m *VM) ReadResource(name string) ([]byte, bool) { return m.host.ReadResour
 // process, the compat runner just stops the program.
 func (m *VM) Exit(code int) {
 	m.host.Exit(code)
-	m.exited = true
 	panic(exitPanic{code})
 }
 
