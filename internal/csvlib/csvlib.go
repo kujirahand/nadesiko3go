@@ -121,42 +121,52 @@ func (p *Plugin) csvSetOptions(_ stdlib.Context, args []value.Value) (value.Valu
 	}
 	v := args[0]
 	if dict, ok := v.Dict(); ok && dict != nil {
-		// 他の設定を書き換える前に区切り文字を検証し、失敗時に中途半端な設定を残さない
-		for _, key := range dict.Keys() {
-			if key != "delimiter" && key != "区切文字" {
-				continue
-			}
-			val, _ := dict.Get(key)
-			if err := checkDelimiter(value.ToString(val)); err != nil {
-				return value.Undefined(), err
-			}
-		}
+		// コピーへ検証しながら反映し、成功したときだけ一括で差し替える。
+		// 検証エラー時は実際の設定を一切書き換えず、中途半端な設定を残さない
+		next := p.options
 		for _, key := range dict.Keys() {
 			val, _ := dict.Get(key)
 			switch key {
 			case "delimiter", "区切文字":
-				p.options.Delimiter = value.ToString(val)
+				delimiter := value.ToString(val)
+				if err := checkDelimiter(delimiter); err != nil {
+					return value.Undefined(), err
+				}
+				next.Delimiter = delimiter
 			case "eol":
-				p.options.EOL = value.ToString(val)
+				next.EOL = value.ToString(val)
 			case "auto_convert_number":
-				p.options.AutoConvertNumber = value.ToBool(val)
+				next.AutoConvertNumber = value.ToBool(val)
 			}
 		}
+		p.options = next
 	}
 	return value.Undefined(), nil
 }
 
 // checkDelimiter は区切り文字が解析の前提（UTF-8で1rune）を満たすか確かめる。
+// 1回の走査で UTF-8 妥当性・改行・rune数を同時に調べる。エラーの優先順位は
+// 「UTF-8として不正 → 改行 → 1文字で指定」の順（従来どおり）。
+// parse は入力中の CR/LF を LF に正規化し、LF を常に行終端として扱うため、
+// 改行を区切り文字にすると列区切りにならない。設定時に拒否する。
 func checkDelimiter(delimiter string) error {
-	if !utf8.ValidString(delimiter) {
-		return fmt.Errorf("CSVオプション設定: 区切り文字がUTF-8として不正です。")
+	runeCount := 0
+	hasNewline := false
+	for rest := delimiter; len(rest) > 0; {
+		r, size := utf8.DecodeRuneInString(rest)
+		if r == utf8.RuneError && size == 1 {
+			return fmt.Errorf("CSVオプション設定: 区切り文字がUTF-8として不正です。")
+		}
+		if r == '\r' || r == '\n' {
+			hasNewline = true
+		}
+		runeCount++
+		rest = rest[size:]
 	}
-	// parse は入力中の CR/LF を LF に正規化し、LF を常に行終端として扱う。
-	// 改行を区切り文字にすると列区切りにならないため、設定時に拒否する。
-	if strings.ContainsAny(delimiter, "\r\n") {
+	if hasNewline {
 		return fmt.Errorf("CSVオプション設定: 区切り文字に改行は指定できません。")
 	}
-	if utf8.RuneCountInString(delimiter) != 1 {
+	if runeCount != 1 {
 		return fmt.Errorf("CSVオプション設定: 区切り文字『%s』は1文字で指定してください。", delimiter)
 	}
 	return nil
