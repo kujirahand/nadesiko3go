@@ -281,7 +281,8 @@ func (p *Protected) TrustOrigin() string { return p.spec.Origin }
 
 // NativeTrustHandle は native trust の状態照会に使う不透明ハンドルを返す。
 // app側の追加listenerが、失効後のメッセージで特権データを返さないために使う。
-// 返した値を webview_trust_installed 以外へ渡さないこと。
+// 返すハンドルは webview の Destroy まで有効で、listener は view と同じ寿命に
+// すること。返した値を webview_trust_installed 以外へ渡さないこと。
 func (p *Protected) NativeTrustHandle() unsafe.Pointer {
 	if p == nil || p.raw == nil {
 		return nil

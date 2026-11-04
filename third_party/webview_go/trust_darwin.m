@@ -55,8 +55,12 @@ extern int gonakoNativeTrustAllowsURL(void *engine, const char *url);
     // - このdelegateはmain frameとsub frameの両方のnavigation actionに来る。
     //   ここではtargetFrameの別を見ず、要求URLのoriginだけで判定する。したがって
     //   外部originのsub frame（動画埋め込み等のiframe）は読み込めない。
-    //   about:blank / about:srcdoc / data: / blob: のchildも、要求URLがtrusted
-    //   originのtuple（scheme/host/port、portは必須）に一致しないため拒否される。
+    //   about:blank / about:srcdoc / data: / blob: のchildの扱いはCocoa実機での
+    //   確認待ちである。ブリッジのメッセージ判定はURLではなく
+    //   WKFrameInfo.securityOriginのtuple照合なので、HTML仕様上 about:blank や
+    //   trustedページが生成した blob: が親originを継承し、securityOriginが
+    //   trusted tupleを報告すれば許可されうる。継承originは親と同じ権限なので、
+    //   権限昇格にはならず、セキュリティ上の穴ではない。
     // - new-window（targetFrame == nil、target=_blank / window.open / mailto: 等）は
     //   常にcancelする。別ウィンドウに特権Bindを渡さないための措置で、外部ブラウザへ
     //   委ねる経路はこのguardには持たせていない。Go側のopenExternalURL

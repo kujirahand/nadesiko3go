@@ -122,7 +122,11 @@ N=「文字数」を[「あいう」]でGONAKO関数実行
   載せる保護ウィンドウは、自前HTTPサーバーの厳密なorigin（scheme/host/portの完全一致）以外への
   遷移を拒否する。判定はmain frameとsub frameを区別しないため、外部originのiframe
   （動画埋め込み等）は読み込めない。`about:blank` / `about:srcdoc` / `data:` / `blob:` の
-  サブフレームはopaque originとして拒否する。`target=_blank` / `window.open` / `mailto:` などの
+  サブフレームの扱いはCocoa実機での確認待ちである。ブリッジのメッセージ判定はURLではなく
+  `WKFrameInfo.securityOrigin` のtuple照合なので、HTML仕様上 about:blank や trustedページが
+  生成した blob: が親originを継承し、securityOriginがtrusted tupleを報告すれば許可されうる。
+  継承originは親と同じ権限であり、権限昇格ではなくセキュリティ上の穴ではない。
+  `target=_blank` / `window.open` / `mailto:` などの
   新規ウィンドウ要求も常に拒否する（cancel）。外部ブラウザで開きたい場合は、HTMLのJSからGo側の
   `openExternalURL`（http/httpsのみ許可、`cmd/gonako-gui/main.go`）を呼ぶ。`mailto:` はこの経路
   でも開けない。いずれも「保護ウィンドウに別originのdocumentや別ウィンドウを与えない」ための
