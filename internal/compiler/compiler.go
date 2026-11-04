@@ -91,8 +91,8 @@ type Compiler struct {
 	// constGlobalValues holds the value of the module 『定数』 declared on the
 	// straight line of main. → fold.go
 	constGlobalValues map[int]value.Value
-	// foldRefusals holds the nodes whose fold already gave up on
-	// maxFoldedString. → fold.go
+	// foldRefusals は、maxFoldedString の上限で畳み込みを断念した節点を
+	// 覚えておく。→ fold.go
 	foldRefusals map[foldRefusal]struct{}
 	// branchDepth counts the conditionals and loops enclosing the statement
 	// being compiled. A 『定数』 declared inside one may never run, so only a
