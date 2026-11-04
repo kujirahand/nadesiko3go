@@ -6,6 +6,7 @@ package compiler_test
 // ほぼ三乗に増えるのを止めた。出力の意味は変えない。
 
 import (
+	"math"
 	"runtime"
 	"strings"
 	"testing"
@@ -148,6 +149,134 @@ func TestP01ConcatAllocationStaysBounded(t *testing.T) {
 	if large > 8<<20 {
 		t.Errorf("800項のコンパイルで %d bytes を割り当てた (上限 8MiB)", large)
 	}
+}
+
+// p01Concat builds the 『&』 node the parser makes for `a&b`.
+func p01Concat(a, b *ast.Node) *ast.Node {
+	return &ast.Node{Type: ast.Op, Operator: "&", Blocks: []*ast.Node{a, b}}
+}
+
+// p01Rendered returns the string the runtime puts on the right of a 『&』 when
+// its right operand is expr. The empty left operand isolates the rendering.
+func p01Rendered(t *testing.T, expr *ast.Node) string {
+	t.Helper()
+	got, _ := p01Run(t, p01Program(p01Concat(&ast.Node{Type: ast.String, Value: ""}, expr)))
+	return got
+}
+
+// p01AllocPerCompile compiles tree runs times with a fresh registry each time,
+// as RunSource does, and returns the allocation per compile.
+func p01AllocPerCompile(tb testing.TB, tree *ast.Node, runs int) uint64 {
+	tb.Helper()
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for i := 0; i < runs; i++ {
+		p01Compile(tb, tree)
+	}
+	runtime.ReadMemStats(&after)
+	return (after.TotalAlloc - before.TotalAlloc) / uint64(runs)
+}
+
+// p01BinaryCount returns how many binary ops the compiled main function still
+// runs, i.e. how much the fold left to the runtime.
+func p01BinaryCount(t *testing.T, tree *ast.Node) int {
+	t.Helper()
+	prog, _ := p01Compile(t, tree)
+	n := 0
+	for _, inst := range prog.Funcs[prog.Main].Code {
+		if inst.Op == ir.OpBinary || inst.Op == ir.OpBinaryAt {
+			n++
+		}
+	}
+	return n
+}
+
+// TestP01ConcatBoundCountsNonStringOperands covers an operand that is not a
+// string yet still pushes the concatenation past the limit. 『&』 renders both
+// operands with the same stringification the runtime uses, so a number, a
+// boolean or null contributes its rendered length. Counting that as 0 let the
+// fold build a 4096+ byte string and only then have constantOf throw it away,
+// which is exactly the allocation the pre-concat bound exists to avoid.
+func TestP01ConcatBoundCountsNonStringOperands(t *testing.T) {
+	const maxFolded = 4096 // compiler の maxFoldedString と同じ値 (非公開)
+	number := func(f float64) *ast.Node { return &ast.Node{Type: ast.Number, Value: f} }
+	divide := func(a, b float64) *ast.Node {
+		return &ast.Node{Type: ast.Op, Operator: "/", Blocks: []*ast.Node{number(a), number(b)}}
+	}
+	cases := []struct {
+		name    string
+		operand *ast.Node
+	}{
+		{"最大の浮動小数", number(math.MaxFloat64)},
+		{"NaN", divide(0, 0)},
+		{"Infinity", divide(1, 0)},
+		{"真偽値", &ast.Node{Type: ast.Bool, Value: true}},
+		{"null", &ast.Node{Type: ast.Null}},
+	}
+	const runs = 64
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// 実行時と同じ文字列化の長さ。ここが 0 と見積もられていた。
+			rendered := p01Rendered(t, tc.operand)
+			if len(rendered) == 0 {
+				t.Fatal("文字列化した長さが 0 になった")
+			}
+			// 文字列化後がちょうど上限+1バイトになる左辺。
+			big := strings.Repeat("a", maxFolded+1-len(rendered))
+			withNonString := p01Program(p01Concat(&ast.Node{Type: ast.String, Value: big}, tc.operand))
+			// 同じ長さの文字列オペランド。上限判定は文字列の長さを数えるので、
+			// こちらは修正前から連結せずに断念する。確保量の基準にする。
+			withString := p01Program(p01Concat(&ast.Node{Type: ast.String, Value: big},
+				&ast.Node{Type: ast.String, Value: rendered}))
+
+			// 出力の意味は変えない: 実行時に連結し、オペランドは実行時と同じ
+			// 文字列になる。
+			got, prog := p01Run(t, withNonString)
+			if want := big + rendered; got != want {
+				t.Fatalf("表示 = %d バイト, want %d バイト", len(got), len(want))
+			}
+			binary := 0
+			for _, inst := range prog.Funcs[prog.Main].Code {
+				if inst.Op == ir.OpBinary || inst.Op == ir.OpBinaryAt {
+					binary++
+				}
+			}
+			// オペランド自身が実行時に残す演算 (0/0 など) のぶんを足して、
+			// 連結そのものが折り畳まれずに残っていることを見る。
+			if want := p01BinaryCount(t, p01Program(tc.operand)) + 1; binary != want {
+				t.Errorf("OpBinary = %d, want %d (連結は実行時に任せる)", binary, want)
+			}
+
+			// 連結を作らずに断念しているか。文字列オペランドとの差で見るので、
+			// レジストリ生成など両方に共通の確保は打ち消える。
+			stringAlloc := p01AllocPerCompile(t, withString, runs)
+			nonStringAlloc := p01AllocPerCompile(t, withNonString, runs)
+			t.Logf("1回あたりの確保: 文字列オペランド %d bytes, 非文字列オペランド %d bytes",
+				stringAlloc, nonStringAlloc)
+			// 非文字列側は文字列化のための小さな文字列だけを余計に確保する。
+			// 連結を作っていれば 4097 バイトが上乗せされる。
+			if nonStringAlloc > stringAlloc+1024 {
+				t.Errorf("非文字列オペランド側が1回あたり %d bytes 余計に確保した"+
+					" (文字列オペランド側 %d bytes)。連結を作ってから捨てている",
+					nonStringAlloc, stringAlloc)
+			}
+		})
+	}
+	// 上限ちょうどは今までどおり畳み込む。見積もりを過大にして、実行時に
+	// 任せれば済む式まで断念していないことを確かめる。
+	t.Run("上限ちょうどは畳み込む", func(t *testing.T) {
+		rendered := p01Rendered(t, number(math.MaxFloat64))
+		big := strings.Repeat("a", maxFolded-len(rendered))
+		tree := p01Program(p01Concat(&ast.Node{Type: ast.String, Value: big}, number(math.MaxFloat64)))
+		got, _ := p01Run(t, tree)
+		if want := big + rendered; got != want {
+			t.Fatalf("表示 = %d バイト, want %d バイト", len(got), len(want))
+		}
+		if n := p01BinaryCount(t, tree); n != 0 {
+			t.Errorf("OpBinary = %d, want 0 (上限ちょうどは畳み込む)", n)
+		}
+	})
 }
 
 // TestP01ShortCircuitAndPropagation keeps the meanings the fold must not

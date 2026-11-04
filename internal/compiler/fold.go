@@ -127,7 +127,7 @@ func (c *Compiler) foldOp(n *ast.Node) (value.Value, bool) {
 		return value.Undefined(), false
 	}
 	// 連結してから上限を判定すると、上限を超える文字列を毎回作り捨てることに
-	// なる。連結の前に下限で判定する (P01)。
+	// なる。連結の前に、実行時と同じ文字列化後の長さで判定する (P01)。
 	if op == ir.BinConcat && concatLenBound(a)+concatLenBound(b) > maxFoldedString {
 		c.refuseFold(n)
 		return value.Undefined(), false
@@ -155,15 +155,20 @@ func (c *Compiler) refuseFoldWithRefusedChild(n, child *ast.Node) {
 	}
 }
 
-// concatLenBound は『&』で連結したときに v が寄与する長さの下限を返す。
-// 長さが効くのは文字列だけなので、それ以外は 0 で足りる。下限だけで上限を
-// 超えたときだけ断念するので、実際には収まる式を実行時へ回すことはない。
+// concatLenBound は『&』で連結したときに v が寄与する長さを返す。
+//
+// 『&』の実行時の実装は両辺を value.ToString で文字列化してから連結する
+// (ops.Binary → value.Concat) ので、数値・真偽値・null も文字列として長さに
+// 効く。文字列だけを数えて他を 0 にすると、例えば4091バイトの文字列と
+// math.MaxFloat64 の連結が上限判定をすり抜け、4096バイトを超える一時文字列を
+// 作ってから constantOf に捨てられる。実行時と同じ関数で見積もれば、
+// この取りこぼしが無くなる。
+//
+// 文字列に対しては value.ToString が同じ文字列をそのまま返す (コピーしない)
+// ので、見積もり自体は確保を伴わない。連結の結果は
+// ToString(a)+ToString(b) なので、この和は下限ではなく実長と一致する。
 func concatLenBound(v value.Value) int {
-	s, ok := v.String()
-	if !ok {
-		return 0
-	}
-	return len(s)
+	return len(value.ToString(v))
 }
 
 // constantOf turns a folded value into a constant pool entry. It reports
