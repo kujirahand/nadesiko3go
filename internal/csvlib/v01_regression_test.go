@@ -200,3 +200,51 @@ func TestV01TSVKeepsTabDelimiter(t *testing.T) {
 		t.Fatalf("CSV取得 = %q, want %q", got, "a|b")
 	}
 }
+
+// V01: 改行を区切り文字に指定しても列区切りにならない。
+//
+// parse は入力中の CR/LF を LF に正規化し、LF を常に行終端として先に処理する。
+// そのため "\n" や "\r" を区切り文字にすると、区切りとして機能しないまま
+// 行だけが増える（例: "a\nb" が2行になる）。設定境界で拒否して固定する。
+func TestV01NewlineDelimiterIsRejected(t *testing.T) {
+	tests := []struct {
+		name      string
+		delimiter string
+	}{
+		{"LF", "\n"},
+		{"CR", "\r"},
+		{"CRLF", "\r\n"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := New()
+			err := v01SetDelimiter(t, p, tt.delimiter)
+			if err == nil {
+				t.Fatalf("改行の区切り文字 %q が設定できてしまいました", tt.delimiter)
+			}
+			if !strings.Contains(err.Error(), "改行") {
+				t.Fatalf("エラーが改行の拒否を説明していません: %v", err)
+			}
+			// 拒否した設定は残らず、改行は行終端のまま
+			if got := v01Fetch(t, p, "CSV取得", "a\nb"); got != "a/b" {
+				t.Fatalf("拒否後のCSV取得 = %q, want %q", got, "a/b")
+			}
+			if got := v01Stringify(t, p, "a", "b"); got != "a,b\r\n" {
+				t.Fatalf("拒否後のCSV変換 = %q, want %q", got, "a,b\r\n")
+			}
+		})
+	}
+}
+
+// 設定境界を通らない呼び出しでも、改行の区切り文字は言語エラーになる。
+func TestV01ParseRejectsNewlineDelimiter(t *testing.T) {
+	for _, delimiter := range []string{"\n", "\r", "\r\n"} {
+		t.Run(delimiter, func(t *testing.T) {
+			p := New()
+			arr, err := p.parse("a", delimiter)
+			if err == nil || arr != nil {
+				t.Fatalf("parse(%q) = (%v, %v), want (nil, error)", delimiter, arr, err)
+			}
+		})
+	}
+}

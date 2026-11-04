@@ -114,6 +114,7 @@ func (p *Plugin) tsvStringify(_ stdlib.Context, args []value.Value) (value.Value
 // 区切り文字は解析が1rune単位で進む前提なので、唯一の書き込み口であるここで
 // 1文字だけ受理する。空文字はどの入力でも必ず一致して停止不能になり、
 // 複数文字は解析の途中で1runeずつ取り出されて先行セルが欠落するため。
+// 改行は parse が行終端として先に処理するので、区切り文字としては受理しない。
 func (p *Plugin) csvSetOptions(_ stdlib.Context, args []value.Value) (value.Value, error) {
 	if len(args) == 0 {
 		return value.Undefined(), nil
@@ -149,6 +150,11 @@ func (p *Plugin) csvSetOptions(_ stdlib.Context, args []value.Value) (value.Valu
 func checkDelimiter(delimiter string) error {
 	if !utf8.ValidString(delimiter) {
 		return fmt.Errorf("CSVオプション設定: 区切り文字がUTF-8として不正です。")
+	}
+	// parse は入力中の CR/LF を LF に正規化し、LF を常に行終端として扱う。
+	// 改行を区切り文字にすると列区切りにならないため、設定時に拒否する。
+	if strings.ContainsAny(delimiter, "\r\n") {
+		return fmt.Errorf("CSVオプション設定: 区切り文字に改行は指定できません。")
 	}
 	if utf8.RuneCountInString(delimiter) != 1 {
 		return fmt.Errorf("CSVオプション設定: 区切り文字『%s』は1文字で指定してください。", delimiter)
