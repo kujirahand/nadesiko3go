@@ -138,7 +138,8 @@ N=「文字数」を[「あいう」]でGONAKO関数実行
   main/subframe/subresourceを問わず同じ規則を使う）。一方、WebView2はframe navigation用の
   hookを持たず、`NavigationStarting`（main frame）と `NewWindowRequested` だけを登録する
   ため、外部iframeは**従来どおり表示される**。特権RPCはtop-levelの `WebMessageReceived`
-  だけが受け付け、iframe用のreceiverは登録しないので、iframeからGo側のBindへは届かない。
+  だけが受け付ける（iframe用のreceiverは登録しない）。iframeからのメッセージが届くか
+  どうかはWindows実機での確認待ちだが、届いた場合も送信元originの照合で拒否される。
   ただしsame-originのchildはparent DOM経由でtop-levelのrelayに届く（親と同じ権限）
 - **互換性の変化**: 保護ウィンドウは「main frameとsub frameを区別せずoriginで判定する」
   方針へ変わったため、既存の`-dir`アプリが外部originのiframeを使っている場合、

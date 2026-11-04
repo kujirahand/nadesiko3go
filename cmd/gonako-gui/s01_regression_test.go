@@ -182,8 +182,11 @@ func TestS01CocoaGuardDetachesBeforeEngineDies(t *testing.T) {
 		t.Fatal("engineの破棄時にguardを外していません")
 	}
 	detachIdx := strings.Index(header, "gonakoDetachNavigationGuard((void *)m_webview)")
+	if detachIdx < 0 {
+		t.Fatal("engineの破棄時にguardを外していません")
+	}
 	releaseIdx := strings.Index(header[detachIdx:], `objc::msg_send<void>(m_webview, "release"_sel)`)
-	if detachIdx < 0 || releaseIdx < 0 {
+	if releaseIdx < 0 {
 		t.Fatal("viewのrelease前にguardを外す順序が見つかりません")
 	}
 	// Low: コメントのファイル名が旧名（drop_darwin.m）のままになっていない。
