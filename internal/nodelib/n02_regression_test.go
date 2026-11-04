@@ -425,3 +425,98 @@ func buildMoveTree(src string) error {
 	}
 	return nil
 }
+
+// TestN02MoveDotDotAfterSymlinkKeepsUnrelatedEntries は、移動元が
+// 「symlink の後ろに .. を付けた表記」の場合を固定する。
+// コピー側は OS のパス解決で alias/.. = リンク先の親を指す一方、
+// 削除側が filepath.Clean で字句的に畳み込むと "." や "x" になり、
+// カレントディレクトリやその無関係なエントリーを削除してしまう。
+// コピーした実体（リンク先の親側）だけが削除され、カレントディレクトリ
+// 側が無傷であることを確認する。
+func TestN02MoveDotDotAfterSymlinkKeepsUnrelatedEntries(t *testing.T) {
+	t.Run("alias/..", func(t *testing.T) {
+		root := t.TempDir()
+		work := filepath.Join(root, "work")
+		other := filepath.Join(root, "other")
+		sub := filepath.Join(other, "sub")
+		if err := os.MkdirAll(work, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(work, "keep.txt"), []byte("keep"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(other, "data.txt"), []byte("data"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		alias := filepath.Join(work, "alias")
+		if err := os.Symlink(sub, alias); err != nil {
+			t.Skipf("シンボリックリンクを作れません: %v", err)
+		}
+		dst := filepath.Join(root, "dst")
+
+		code := fmt.Sprintf(`「alias/..」を「%s」にファイル移動`, filepath.ToSlash(dst))
+		if err := runExpectError(t, work, code); err != nil {
+			t.Fatalf("移動がエラーになりました: %v", err)
+		}
+		if got, err := os.ReadFile(filepath.Join(dst, "data.txt")); err != nil || string(got) != "data" {
+			t.Errorf("移動先の data.txt が壊れています: content=%q err=%v", got, err)
+		}
+		if _, err := os.Stat(filepath.Join(work, "keep.txt")); err != nil {
+			t.Errorf("カレントディレクトリの keep.txt が失われました: %v", err)
+		}
+		if _, err := os.Lstat(alias); err != nil {
+			t.Errorf("カレントディレクトリの alias が失われました: %v", err)
+		}
+		if _, err := os.Stat(other); !os.IsNotExist(err) {
+			t.Errorf("コピー元の other が削除されていません: err=%v", err)
+		}
+	})
+
+	t.Run("alias/../x", func(t *testing.T) {
+		root := t.TempDir()
+		work := filepath.Join(root, "work")
+		other := filepath.Join(root, "other")
+		sub := filepath.Join(other, "sub")
+		otherX := filepath.Join(other, "x")
+		if err := os.MkdirAll(filepath.Join(work, "x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(sub, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(otherX, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(work, "x", "keepx.txt"), []byte("keepx"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(otherX, "moved.txt"), []byte("moved"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		alias := filepath.Join(work, "alias")
+		if err := os.Symlink(sub, alias); err != nil {
+			t.Skipf("シンボリックリンクを作れません: %v", err)
+		}
+		dst := filepath.Join(root, "dst")
+
+		code := fmt.Sprintf(`「alias/../x」を「%s」にファイル移動`, filepath.ToSlash(dst))
+		if err := runExpectError(t, work, code); err != nil {
+			t.Fatalf("移動がエラーになりました: %v", err)
+		}
+		if got, err := os.ReadFile(filepath.Join(dst, "moved.txt")); err != nil || string(got) != "moved" {
+			t.Errorf("移動先の moved.txt が壊れています: content=%q err=%v", got, err)
+		}
+		if _, err := os.Stat(filepath.Join(work, "x", "keepx.txt")); err != nil {
+			t.Errorf("カレントディレクトリ側の x/keepx.txt が失われました: %v", err)
+		}
+		if _, err := os.Lstat(alias); err != nil {
+			t.Errorf("カレントディレクトリの alias が失われました: %v", err)
+		}
+		if _, err := os.Stat(otherX); !os.IsNotExist(err) {
+			t.Errorf("コピー元の other/x が削除されていません: err=%v", err)
+		}
+	})
+}

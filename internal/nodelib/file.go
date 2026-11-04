@@ -418,33 +418,54 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 // この特例に入れない。os.Stat はリンクを解決するため「カレントディレクトリを
 // 指すリンク」(alias -> .) も同一実体と判定され、リンク先である
 // カレントディレクトリの中身を削除してしまう。symlink はリンクとして
-// 削除し、リンク先には触れない。
+// 削除し、リンク先には触れない。末尾の区切り文字が付いた "alias/" も、
+// 区切りを取り除いてから判定することで "alias" と同じリンクとして扱う。
 //
-// 判定の前には filepath.Clean で表記を正規化する。末尾スラッシュ付きの
-// "alias/" は os.Lstat でもリンク先のディレクトリへ解決されるため、上の
-// symlink ガードをすり抜けてリンク先の中身を削除してしまう。Clean は末尾の
-// 区切りを落とし、symlink 自体を指す表記にしてから判定させる。
-// カレントディレクトリ自身を指す "." や "./" は Clean しても "." のままで、
-// 特例の対象は変わらない。
+// filepath.Clean は使わない。シンボリックリンクの後ろにある ".." は字句的
+// には畳み込めない（"alias/.." は alias のリンク先の親を指す）ため、
+// Clean するとコピー側が OS のパス解決で参照した実体とは別のパスを削除
+// してしまう。最終要素がリンクでない場合は filepath.EvalSymlinks で
+// 実体を確定し、解決済みのパスをカレントディレクトリ判定と削除の両方に
+// 使うことで、コピーした実体と削除する実体を常に一致させる。
 //
 // それ以外の削除失敗は呼び出し元へ返し、移動の成功扱いにしない。
 func removeSource(src string) error {
-	src = filepath.Clean(src)
-	if srcInfo, err := os.Lstat(src); err == nil && srcInfo.Mode()&os.ModeSymlink == 0 {
-		if cwdInfo, cwdErr := os.Stat("."); cwdErr == nil && os.SameFile(srcInfo, cwdInfo) {
-			entries, err := os.ReadDir(src)
-			if err != nil {
+	// 最終要素の symlink を os.Lstat で判定できるよう、末尾の区切り文字
+	// だけを取り除く。ルートを表す区切り文字は残す。
+	volumeLen := len(filepath.VolumeName(src))
+	for len(src) > volumeLen+1 && os.IsPathSeparator(src[len(src)-1]) {
+		src = src[:len(src)-1]
+	}
+
+	srcInfo, err := os.Lstat(src)
+	if err != nil {
+		return err
+	}
+	if srcInfo.Mode()&os.ModeSymlink != 0 {
+		return os.RemoveAll(src)
+	}
+
+	resolvedSrc, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+	resolvedInfo, err := os.Stat(resolvedSrc)
+	if err != nil {
+		return err
+	}
+	if cwdInfo, cwdErr := os.Stat("."); cwdErr == nil && os.SameFile(resolvedInfo, cwdInfo) {
+		entries, err := os.ReadDir(resolvedSrc)
+		if err != nil {
+			return err
+		}
+		for _, e := range entries {
+			if err := os.RemoveAll(filepath.Join(resolvedSrc, e.Name())); err != nil {
 				return err
 			}
-			for _, e := range entries {
-				if err := os.RemoveAll(filepath.Join(src, e.Name())); err != nil {
-					return err
-				}
-			}
-			return nil
 		}
+		return nil
 	}
-	return os.RemoveAll(src)
+	return os.RemoveAll(resolvedSrc)
 }
 
 // checkMoveTarget は、移動元 src と移動先 dest の関係を調べ、移動先が
