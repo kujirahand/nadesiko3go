@@ -584,8 +584,8 @@ func prepareMacAppBundle(appPath, title string) (execPath string, err error) {
 
 // 変換の途中で失敗を注入できるように、テストが差し替える口を用意する。
 var (
-	chmodBuiltApp  = os.Chmod
-	renameBuiltApp = os.Rename
+	chmodBuiltApp     = os.Chmod
+	renameBuiltApp    = os.Rename
 )
 
 // checkMacAppOutput refuses to replace anything that is not a macOS app, so a

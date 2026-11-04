@@ -6,7 +6,7 @@ package main
 #cgo CXXFLAGS: -std=c++14 -I${SRCDIR}/../../third_party/webview_go/libs/mswebview2/include
 #cgo LDFLAGS: -luuid
 #include <stdlib.h>
-long gonakoInstallFileDropListener(void *controller, const char *origin);
+long gonakoInstallFileDropListener(void *controller, const char *origin, void *trustHandle);
 */
 import "C"
 
@@ -25,7 +25,9 @@ func platformInstallFileDrop(w *webview.Protected) error {
 	}
 	origin := C.CString(w.TrustOrigin())
 	defer C.free(unsafe.Pointer(origin))
-	result := C.gonakoInstallFileDropListener(controller, origin)
+	// trustが失効した後にlistenerがローカルパスを返さないよう、native trustの
+	// 照会ハンドルも渡す。
+	result := C.gonakoInstallFileDropListener(controller, origin, w.NativeTrustHandle())
 	if result < 0 {
 		return fmt.Errorf("ファイルドロップ受付の登録に失敗しました (HRESULT=0x%08X)", uint32(result))
 	}

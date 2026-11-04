@@ -1,13 +1,15 @@
 package main
 
-// S01: 静的な回帰検査。native/WebViewを起動せず、sourceの構造だけを確認する。
-// 実行はsandbox条件が揃うまでENV_PENDING（go testは未実行）。
+// S01: 回帰検査。native/WebViewを起動せず、sourceの構造と、GUIを要しない
+// 純粋なGo部分（所有serverの失効、.appの置換）だけを確認する。
 
 import (
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 func readS01(t *testing.T, path string) string {
@@ -226,3 +228,101 @@ func TestS01ThemeBindOnlyForProtected(t *testing.T) {
 		t.Fatal("plain windowにtheme Bindを登録しています")
 	}
 }
+
+// 指摘1: WebView2のdrop listenerはoriginだけでなくnative trustの現在値も見る。
+// 失効後は、同じoriginをsourceとするキュー済みメッセージでもパスを返さない。
+func TestS01WindowsDropListenerHonorsRevokedTrust(t *testing.T) {
+	windows := readS01(t, "drop_windows.cc")
+	for _, required := range []string{
+		"webview_trust_installed",
+		"trustHandle",
+	} {
+		if !strings.Contains(windows, required) {
+			t.Fatalf("drop_windows.cc に %q がありません", required)
+		}
+	}
+	// trustの確認はorigin判定より前に行う。失効後はoriginが一致してもdenyする。
+	trustIdx := strings.Index(windows, "webview_trust_installed(trustHandle)")
+	originIdx := strings.Index(windows, "gonakoOriginAllows(origin, senderText)")
+	if trustIdx < 0 || originIdx < 0 || trustIdx > originIdx {
+		t.Fatal("drop listener が origin 判定より前に trust を確認していません")
+	}
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	if !strings.Contains(header, "webview_trust_installed") {
+		t.Fatal("webview.h に webview_trust_installed がありません")
+	}
+	if !strings.Contains(readS01(t, "../../third_party/webview_go/webview.go"), "func (p *Protected) NativeTrustHandle()") {
+		t.Fatal("Protected.NativeTrustHandle がありません")
+	}
+	if !strings.Contains(readS01(t, "drop_windows.go"), "w.NativeTrustHandle()") {
+		t.Fatal("drop_windows.go が trust handle を listener へ渡していません")
+	}
+}
+
+// 指摘2: Serveの異常終了でも、listenerのcloseより前にnative trustを失効させる。
+// wrapperではなく下のlistenerを閉じ、Serve自身のdeferred Closeだけを経路にする。
+func TestS01ServeFailureRevokesTrust(t *testing.T) {
+	revoked := make(chan struct{}, 1)
+	s, err := startOwnedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	if err != nil {
+		t.Fatalf("server を起動できません: %v", err)
+	}
+	defer s.Close()
+	s.SetRevoker(func() {
+		select {
+		case revoked <- struct{}{}:
+		default:
+		}
+	})
+	raw := s.listener.(*trustRevokingListener).Listener
+	if err := raw.Close(); err != nil {
+		t.Fatalf("listener を閉じられません: %v", err)
+	}
+	select {
+	case <-revoked:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Serve の異常終了で native trust が失効しませんでした")
+	}
+	if s.LeaseValid() {
+		t.Fatal("失効後も lease が有効です")
+	}
+}
+
+// 指摘3: guard hookの既定実装はfalse。3 backendだけが明示的に実装する。
+func TestS01UnimplementedTrustGuardFailsClosed(t *testing.T) {
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	re := regexp.MustCompile(`virtual bool install_trust_guard_impl\(\) \{ return (true|false); \}`)
+	m := re.FindStringSubmatch(header)
+	if m == nil {
+		t.Fatal("install_trust_guard_impl の既定実装が見つかりません")
+	}
+	if m[1] != "false" {
+		t.Fatal("install_trust_guard_impl の既定実装が false ではありません")
+	}
+	if got := strings.Count(header, "bool install_trust_guard_impl() override"); got != 3 {
+		t.Fatalf("guard を実装した backend が3つではありません: %d", got)
+	}
+}
+
+// 指摘4: WebKitGTKのC APIは (manager, name, world_name) の3引数で、GErrorは取らない。
+// Linux実機でコンパイルできないため、呼び出しの引数個数だけを静的に固定する。
+func TestS01GtkRegisterHandlerCallArity(t *testing.T) {
+	header := readS01(t, "../../third_party/webview_go/libs/webview/include/webview.h")
+	start := strings.Index(header, "webkit_user_content_manager_register_script_message_handler_in_world(")
+	if start < 0 {
+		t.Fatal("GTK の handler 登録呼び出しがありません")
+	}
+	rest := header[start:]
+	end := strings.Index(rest, "))")
+	if end < 0 {
+		t.Fatal("呼び出しの終端が見つかりません")
+	}
+	call := rest[:end]
+	if got := strings.Count(call, ","); got != 2 {
+		t.Fatalf("GTK handler 登録の引数が3個ではありません: カンマ%d個", got)
+	}
+	if strings.Contains(call, "nullptr") {
+		t.Fatal("GTK handler 登録に不要な第4引数があります")
+	}
+}
+

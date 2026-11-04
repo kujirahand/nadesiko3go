@@ -7,6 +7,10 @@
 #include <new>
 #include <string>
 
+// S01: native trustの現在値を照会する。失効後は同じoriginのメッセージでも
+// ローカルパスを返さないため、drop listenerもこの値を見る。
+extern "C" int webview_trust_installed(void *w);
+
 // COMの取得した参照は、成功・失敗のどちらの経路でも必ず解放する。
 template <class T> struct GonakoComPtr {
   T *value = nullptr;
@@ -122,10 +126,11 @@ class GonakoFileDropListener final
     : public ICoreWebView2WebMessageReceivedEventHandler {
   LONG refs = 1;
   GonakoOrigin origin;
+  void *trustHandle = nullptr;
 
 public:
-  explicit GonakoFileDropListener(const GonakoOrigin &origin)
-      : origin(origin) {}
+  GonakoFileDropListener(const GonakoOrigin &origin, void *trustHandle)
+      : origin(origin), trustHandle(trustHandle) {}
   HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **out) override {
     if (!out) return E_POINTER;
     *out = nullptr;
@@ -152,6 +157,10 @@ public:
       ICoreWebView2 *sender,
       ICoreWebView2WebMessageReceivedEventArgs *args) override {
     try {
+      // S01: trustが失効した後は、キュー済みのメッセージでもローカルパスを
+      // 返さない。originだけでは、失効後に同じURLをsourceとするメッセージを
+      // 区別できないため、native trustの現在値を先に確認する。
+      if (!trustHandle || !webview_trust_installed(trustHandle)) return S_OK;
       LPWSTR source = nullptr;
       if (FAILED(args->get_Source(&source)) || !source) {
         CoTaskMemFree(source);
@@ -211,8 +220,10 @@ public:
 };
 
 // UIスレッドから呼ぶ。コントローラーは借用し、取得したWebView参照は解放する。
+// trustHandleはnative trustの照会にだけ使う不透明ハンドルである。
 extern "C" long gonakoInstallFileDropListener(void *controller,
-                                              const char *originText) {
+                                              const char *originText,
+                                              void *trustHandle) {
   if (!controller) return E_POINTER;
   GonakoOrigin origin;
   if (!gonakoParseOrigin(originText, origin)) return E_INVALIDARG;
@@ -221,7 +232,7 @@ extern "C" long gonakoInstallFileDropListener(void *controller,
                        ->get_CoreWebView2(&view.value);
   if (FAILED(result)) return result;
   if (!view.value) return E_POINTER;
-  auto *listener = new (std::nothrow) GonakoFileDropListener(origin);
+  auto *listener = new (std::nothrow) GonakoFileDropListener(origin, trustHandle);
   if (!listener) return E_OUTOFMEMORY;
   EventRegistrationToken token{};
   result = view.value->add_WebMessageReceived(listener, &token);

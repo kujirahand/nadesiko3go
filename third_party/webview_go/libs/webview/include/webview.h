@@ -215,6 +215,19 @@ WEBVIEW_API int webview_set_trust_origin(webview_t w, const char *origin);
 WEBVIEW_API void webview_revoke_trust(webview_t w);
 
 /**
+ * Reports whether a webview's trust is currently installed.
+ *
+ * The value is an atomic flag read. It becomes zero after
+ * webview_revoke_trust and stays zero. Additional native listeners that can
+ * expose privileged data must consult this before acting, so a revoked window
+ * cannot answer queued messages.
+ *
+ * @param w The webview instance.
+ * @return Non-zero while trust is installed, zero otherwise.
+ */
+WEBVIEW_API int webview_trust_installed(webview_t w);
+
+/**
  * The purpose of an origin check inside the native guard.
  *
  * WEBVIEW_TRUST_TOP_DOCUMENT is used by the message guard; the navigation
@@ -1225,7 +1238,8 @@ protected:
 
   // S01: navigation/message guardを設定するplatform hook。falseを返すと
   // set_trust_originが中止し、guardが不完全な保護windowは起動しない。
-  virtual bool install_trust_guard_impl() { return true; }
+  // 既定はfalse。guardを実装したbackendだけが明示的にtrueを返す。
+  virtual bool install_trust_guard_impl() { return false; }
   virtual bool allow_top_document() const { return true; }
 
   virtual void on_message(const std::string &msg) {
@@ -4092,6 +4106,13 @@ WEBVIEW_API void webview_revoke_trust(webview_t w) {
     return;
   }
   static_cast<webview::webview *>(w)->revoke_trust();
+}
+
+WEBVIEW_API int webview_trust_installed(webview_t w) {
+  if (!w) {
+    return 0;
+  }
+  return static_cast<webview::webview *>(w)->trust_installed() ? 1 : 0;
 }
 
 WEBVIEW_API void webview_destroy(webview_t w) {

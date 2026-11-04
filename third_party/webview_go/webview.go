@@ -273,6 +273,16 @@ func (p *Protected) RevokeTrust() {
 // TrustOrigin は保護windowの exact origin を返す。
 func (p *Protected) TrustOrigin() string { return p.spec.Origin }
 
+// NativeTrustHandle は native trust の状態照会に使う不透明ハンドルを返す。
+// app側の追加listenerが、失効後のメッセージで特権データを返さないために使う。
+// 返した値を webview_trust_installed 以外へ渡さないこと。
+func (p *Protected) NativeTrustHandle() unsafe.Pointer {
+	if p == nil || p.raw == nil {
+		return nil
+	}
+	return unsafe.Pointer(p.raw.w)
+}
+
 // BindErr は保護windowで最初に失敗したBindを返す。
 func (p *Protected) BindErr() error {
 	p.mu.Lock()
