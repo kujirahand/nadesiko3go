@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 )
 
 // ひな形の「には」構文から登録し、ドロップのたびに同じVMで処理する。
@@ -23,16 +25,13 @@ func TestFileDropSampleAndBrowserBridge(t *testing.T) {
 	if len(initial.Operations) != 1 || initial.Operations[0].Type != "listen" || initial.Operations[0].Event != "drop" {
 		t.Fatalf("イベント登録: %#v", initial.Operations)
 	}
-	for _, files := range []string{`["最初.txt","画像.png"]`, `["次の.csv"]`} {
-		result := dispatchEvent(t, session, initial.RunID, 0, "drop", map[string]string{"__gonako_drop_files": files})
+	for _, names := range [][]string{{"最初.txt", "画像.png"}, {"次の.csv"}} {
+		// ファイルは入力欄の値ではなく、payloadの専用フィールドで届く。
+		result := dispatchEvent(t, session, initial.RunID, 0, "drop", guilib.EventPayload{DropFiles: names})
 		if !result.OK {
 			t.Fatalf("ドロップ結果: %#v", result)
 		}
 		// 配列表示の書式には依存せず、各ファイル名を確認する。
-		var names []string
-		if err := json.Unmarshal([]byte(files), &names); err != nil {
-			t.Fatal(err)
-		}
 		for _, name := range names {
 			if !strings.Contains(result.Output, name) {
 				t.Fatalf("ドロップ結果: %#v", result)

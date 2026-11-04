@@ -840,8 +840,8 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	// Go ↔ JavaScript バインディング: 画面部品イベントを実行中のVMへ返す
 	// イベント処理も通常実行と同じく非同期。ハンドラ内のダイアログに
 	// 画面が応答できるようにするため（#59）、戻り値はポーリング用のIDだけ。
-	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
-		started := guiRuntime.startEvent(runID, handle, event, values)
+	_ = w.Bind("startNakoEvent", func(runID uint64, handle int, event string, payload guilib.EventPayload) string {
+		started := guiRuntime.startEvent(runID, handle, event, payload)
 		b, _ := json.Marshal(started)
 		return string(b)
 	})

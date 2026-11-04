@@ -14,6 +14,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 )
 
 // NewWindowRunResult is what runNakoInNewWindow reports back to the editor.
@@ -115,8 +117,8 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 	}
 	defer tw.Close()
 	session.window = newNativeWindowController(tw.Window)
-	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, values map[string]string) string {
-		b, _ := json.Marshal(session.startEvent(runID, handle, event, values))
+	_ = tw.Window.Bind("startNakoEvent", func(runID uint64, handle int, event string, payload guilib.EventPayload) string {
+		b, _ := json.Marshal(session.startEvent(runID, handle, event, payload))
 		return string(b)
 	})
 	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {

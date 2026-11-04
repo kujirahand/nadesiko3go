@@ -66,6 +66,44 @@ func TestGUIEventBridgeIsWired(t *testing.T) {
 	}
 }
 
+// イベントのpayloadは { values: {ハンドル: {value, checked?}}, dropFiles } の形で送る (#355)。
+// checkbox・radioの選択状態を送ること、dropのファイルを専用フィールドで渡すこと、
+// Goから届くcheckedの操作を画面へ反映することを、エディタと梱包アプリの両方で確かめる。
+func TestGUIEventPayloadCarriesCheckedAndDropFiles(t *testing.T) {
+	for _, asset := range []string{"app.js", "bundled/app.js"} {
+		source := readUIAsset(t, asset)
+		for _, required := range []string{
+			"{ value: ",
+			`input[type="checkbox"], input[type="radio"]`,
+			".checked = ",
+			"values: ",
+			"dropFiles:",
+			"'checked'",
+		} {
+			if !strings.Contains(source, required) {
+				t.Fatalf("%s is missing event payload contract %q", asset, required)
+			}
+		}
+		if strings.Contains(source, "__gonako_drop_files") {
+			t.Fatalf("%s still uses the retired __gonako_drop_files key", asset)
+		}
+	}
+}
+
+// TestGUIValuesRegressionRunsInNode は、文字列の有無ではなく実物の収集・反映
+// 関数を Node で実行して確かめる (Issue #355 の受け入れ条件: エディタと
+// 梱包アプリの両方で checked が伝わること)。
+func TestGUIValuesRegressionRunsInNode(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("JavaScriptの確認にはNode.jsが必要です")
+	}
+	cmd := exec.Command(node, "testdata/gui-values-regression.cjs")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("GUIの値収集と checked 反映: %v\n%s", err, output)
+	}
+}
+
 func TestGUIOperationBridgeSupportsPartAttributesAndSelectReplacement(t *testing.T) {
 	for _, asset := range []string{"app.js", "bundled/app.js"} {
 		source := readUIAsset(t, asset)

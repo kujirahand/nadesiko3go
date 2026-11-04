@@ -4294,6 +4294,48 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF%E3%83%9C%E3%83%83%E3%82%AF%E3%82%B9%E4%BD%9C%E6%88%90"
   },
   {
+    "name": "チェック取得",
+    "type": "func",
+    "josi": [
+      [
+        "の",
+        "から"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "DOM操作",
+    "desc": "checkbox・radioの選択状態を真偽で返す",
+    "template": "【S】のチェック取得",
+    "yomi": "ちぇっくしゅとく",
+    "file": "internal/guilib/guilib.go",
+    "line": 286,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L286",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF%E5%8F%96%E5%BE%97"
+  },
+  {
+    "name": "チェック設定",
+    "type": "func",
+    "josi": [
+      [
+        "に",
+        "の",
+        "へ"
+      ],
+      [
+        "を"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "DOM操作",
+    "desc": "checkbox・radioの選択状態を真偽で設定する。radioを選ぶと同じform内の同名radioは外れる",
+    "template": "【A】に【B】をチェック設定",
+    "yomi": "ちぇっくせってい",
+    "file": "internal/guilib/guilib.go",
+    "line": 281,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L281",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF%E8%A8%AD%E5%AE%9A"
+  },
+  {
     "name": "テキストエリア作成",
     "type": "func",
     "josi": [

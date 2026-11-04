@@ -1,9 +1,9 @@
 package guilib
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,6 +30,26 @@ type Operation struct {
 	Styles     map[string]string `json:"styles,omitempty"`
 	Attributes map[string]string `json:"attributes,omitempty"`
 	Detached   bool              `json:"detached,omitempty"`
+	// Checked はcheckbox・radioの選択状態。falseも意味を持つ(「外す」操作)ので
+	// ポインタにして、省略(nil)と区別する。
+	Checked *bool `json:"checked,omitempty"`
+}
+
+// EventField は画面から届く入力部品1つ分の状態。
+// Checked はcheckbox・radioのときだけ入り、それ以外(text・select等)ではnilになる。
+// 「選択されていない(false)」と「選択という概念がない(nil)」を型で区別するため、
+// boolではなくポインタにしている。
+type EventField struct {
+	Value   string `json:"value"`
+	Checked *bool  `json:"checked,omitempty"`
+}
+
+// EventPayload は画面部品のイベントとともにGo側へ渡す状態一式。
+// Values のキーは画面部品のハンドル(10進文字列)。DropFiles は drop イベントで
+// ドロップされたファイルの配列で、入力部品の値とは別の専用フィールドにしてある。
+type EventPayload struct {
+	Values    map[string]EventField `json:"values,omitempty"`
+	DropFiles []string              `json:"dropFiles,omitempty"`
 }
 
 type screenNode struct {
@@ -41,6 +61,7 @@ type screenNode struct {
 	text        string
 	html        string
 	name        string
+	checked     bool
 	parent      int
 	styles      map[string]string
 	attributes  map[string]string
@@ -95,10 +116,20 @@ func (s *Screen) createNode(tag, text, html, name string, parent int, attrs map[
 	for key, item := range attrs {
 		s.nodes[h].attributes[key] = item
 	}
-	s.operations = append(s.operations, Operation{
+	// HTMLと同じく、checked属性があれば(値が何であれ)選択済みで始める。
+	_, checked := attrs["checked"]
+	s.nodes[h].checked = checked
+	if checked {
+		s.clearRadioGroup(s.nodes[h])
+	}
+	op := Operation{
 		Type: "create", Handle: h, Parent: parent, Tag: tag, Text: text, HTML: html, Name: name,
 		Attributes: attrs, Detached: detached,
-	})
+	}
+	if checked {
+		op.Checked = &checked
+	}
+	s.operations = append(s.operations, op)
 	return h
 }
 
@@ -176,9 +207,14 @@ func (s *Screen) DisplayHTML(markup string) int {
 					filtered = append(filtered, attr)
 				}
 				dom.Attr = append(filtered, html.Attribute{Key: "data-gonako-handle", Val: strconv.Itoa(handle)})
+				_, checked := attrs["checked"]
 				s.nodes[handle] = &screenNode{
 					handle: handle, tag: dom.Data, name: attrs["name"], parent: parent,
-					text: attrs["value"], styles: map[string]string{}, attributes: attrs,
+					text: attrs["value"], checked: checked, styles: map[string]string{}, attributes: attrs,
+				}
+				if checked {
+					// ブラウザは同名radioのうち最後のcheckedだけを残す。モデルもそろえる。
+					s.clearRadioGroup(s.nodes[handle])
 				}
 				nodeRefs[handle] = dom
 				nextParent = handle
@@ -362,6 +398,84 @@ func (s *Screen) text(handle int) (string, error) {
 		return n.html, nil
 	}
 	return n.text, nil
+}
+
+// checkable はcheckboxまたはradioのinput要素か。選択状態を持つのはこの2種だけ。
+func (n *screenNode) checkable() bool {
+	if n.tag != "input" {
+		return false
+	}
+	switch strings.ToLower(n.attributes["type"]) {
+	case "checkbox", "radio":
+		return true
+	}
+	return false
+}
+
+// formScope はnodeが属するform要素のハンドルを返す(無ければ0)。
+// radioの排他はブラウザと同じく、同じformの同名の中でだけ働かせる。
+func (s *Screen) formScope(n *screenNode) int {
+	for h := n.parent; h > 0; {
+		p := s.nodes[h]
+		if p == nil {
+			break
+		}
+		if p.tag == "form" {
+			return h
+		}
+		h = p.parent
+	}
+	return 0
+}
+
+// clearRadioGroup は、選択状態になった radio と同じform内の同名 radio を外す。
+// 画面側のDOMはブラウザの標準動作で外れるので、操作は送らずモデルだけをそろえる。
+// 呼び出し側で s.mu を取っていること。
+func (s *Screen) clearRadioGroup(n *screenNode) {
+	if n == nil || !n.checkable() || !strings.EqualFold(n.attributes["type"], "radio") || n.name == "" {
+		return
+	}
+	scope := s.formScope(n)
+	for h, other := range s.nodes {
+		if h != n.handle && other.checked && other.checkable() &&
+			strings.EqualFold(other.attributes["type"], "radio") &&
+			other.name == n.name && s.formScope(other) == scope {
+			other.checked = false
+		}
+	}
+}
+
+// setChecked は選択状態を変える。radioを選ぶと、同じform内の同名のradioは外れる
+// (画面側のDOMも同じ動きをするので、Go側のモデルをそろえるだけで操作は1つ送る)。
+func (s *Screen) setChecked(handle int, on bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n, err := s.node(handle, "チェック設定")
+	if err != nil {
+		return err
+	}
+	if !n.checkable() {
+		return errors.New("『チェック設定』にはcheckboxまたはradioの部品を指定してください。")
+	}
+	n.checked = on
+	if on {
+		s.clearRadioGroup(n)
+	}
+	s.operations = append(s.operations, Operation{Type: "checked", Handle: handle, Checked: &on})
+	return nil
+}
+
+func (s *Screen) isChecked(handle int) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n, err := s.node(handle, "チェック取得")
+	if err != nil {
+		return false, err
+	}
+	if !n.checkable() {
+		return false, errors.New("『チェック取得』にはcheckboxまたはradioの部品を指定してください。")
+	}
+	return n.checked, nil
 }
 
 func (s *Screen) setHTML(handle int, html string) error {
@@ -556,6 +670,13 @@ func (s *Screen) setAttributes(handle int, attrs map[string]string) error {
 		if k == "name" {
 			n.name = v
 		}
+		if k == "checked" {
+			// checked属性の指定は選択済みにする(HTMLの属性の意味に合わせる)。
+			n.checked = true
+		}
+	}
+	if _, ok := attrs["checked"]; ok {
+		s.clearRadioGroup(n)
 	}
 	s.operations = append(s.operations, Operation{Type: "attributes", Handle: handle, Attributes: attrs})
 	return nil
@@ -581,18 +702,36 @@ func (s *Screen) bind(handle int, event string, binding eventBinding) error {
 
 // DispatchEvent updates the Go-side input snapshot, then runs the registered
 // nadesiko callback. Calls are serialized because a VM is single-threaded.
-func (s *Screen) DispatchEvent(handle int, event string, values map[string]string) error {
+//
+// checkbox・radioの契約(Issue #355):
+//   - 『フォーム値』は従来どおり文字列の辞書(キーはハンドルと name)。
+//     checkbox・radioは選択中のものだけ載せ、未選択は載せない。HTMLのフォーム送信と
+//     同じ慣習で、click/change/submit のどのイベントでも同じ規則にする。
+//     radioは同名のうち選択中の1つの値が name に入る(反復順に依存しない)。
+//   - 『フォームチェック』は checkbox・radio の選択状態(真偽)の辞書で、未選択も
+//     偽として必ず載る。キーはハンドルと name(同名が複数あれば1つでも選択中なら真)。
+//   - イベント外では『チェック取得』『チェック設定』で同じ状態を読み書きできる。
+func (s *Screen) DispatchEvent(handle int, event string, payload EventPayload) error {
 	s.dispatchMu.Lock()
 	defer s.dispatchMu.Unlock()
 
-	s.mu.Lock()
-	for key, text := range values {
-		h, err := strconv.Atoi(key)
-		if err != nil {
-			continue
+	// 結果を決定的にするため、ハンドルの昇順で処理する。
+	keys := make([]int, 0, len(payload.Values))
+	for key := range payload.Values {
+		if h, err := strconv.Atoi(key); err == nil {
+			keys = append(keys, h)
 		}
+	}
+	sort.Ints(keys)
+
+	s.mu.Lock()
+	for _, h := range keys {
+		field := payload.Values[strconv.Itoa(h)]
 		if n := s.nodes[h]; n != nil {
-			n.text = text
+			n.text = field.Value
+			if field.Checked != nil && n.checkable() {
+				n.checked = *field.Checked
+			}
 		}
 	}
 	binding, ok := s.events[handle][event]
@@ -601,11 +740,29 @@ func (s *Screen) DispatchEvent(handle int, event string, values map[string]strin
 		return fmt.Errorf("画面部品『%d』に%sイベントは登録されていません。", handle, event)
 	}
 	formValues := value.NewDict()
-	for key, text := range values {
-		formValues.Set(key, value.String(text))
-		if h, err := strconv.Atoi(key); err == nil {
-			if n := s.nodes[h]; n != nil && n.name != "" {
+	formChecks := value.NewDict()
+	for _, h := range keys {
+		key := strconv.Itoa(h)
+		text := payload.Values[key].Value
+		n := s.nodes[h]
+		if n == nil || !n.checkable() {
+			formValues.Set(key, value.String(text))
+			if n != nil && n.name != "" {
 				formValues.Set(n.name, value.String(text))
+			}
+			continue
+		}
+		formChecks.Set(key, value.Bool(n.checked))
+		if n.checked {
+			formValues.Set(key, value.String(text))
+			if n.name != "" {
+				formValues.Set(n.name, value.String(text))
+				formChecks.Set(n.name, value.Bool(true))
+			}
+		} else if n.name != "" {
+			// 同名で選択中のものが先にあれば、真のままにする。
+			if _, exists := formChecks.Get(n.name); !exists {
+				formChecks.Set(n.name, value.Bool(false))
 			}
 		}
 	}
@@ -613,15 +770,13 @@ func (s *Screen) DispatchEvent(handle int, event string, values map[string]strin
 
 	binding.ctx.SetSysVar("対象", value.Number(float64(handle)))
 	binding.ctx.SetSysVar("フォーム値", value.DictValue(formValues))
+	binding.ctx.SetSysVar("フォームチェック", value.DictValue(formChecks))
 	if event == "drop" {
-		var paths []string
-		if err := json.Unmarshal([]byte(values["__gonako_drop_files"]), &paths); err == nil {
-			items := make([]value.Value, len(paths))
-			for i, path := range paths {
-				items[i] = value.String(path)
-			}
-			binding.ctx.SetSysVar("ドロップファイル", value.ArrayValue(value.NewArray(items...)))
+		items := make([]value.Value, len(payload.DropFiles))
+		for i, path := range payload.DropFiles {
+			items[i] = value.String(path)
 		}
+		binding.ctx.SetSysVar("ドロップファイル", value.ArrayValue(value.NewArray(items...)))
 	}
 	_, err := binding.ctx.CallFunc(binding.fn, nil)
 	return err

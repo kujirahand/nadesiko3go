@@ -182,7 +182,7 @@ func TestCanvasImageSaveInEvent(t *testing.T) {
 	if !initial.OK {
 		t.Fatal(initial.Error)
 	}
-	event := session.startEvent(initial.RunID, 2, "click", nil)
+	event := session.startEvent(initial.RunID, 2, "click", noEvent)
 	if event.Error != "" {
 		t.Fatal(event.Error)
 	}

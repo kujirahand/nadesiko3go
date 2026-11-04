@@ -28,7 +28,7 @@ func TestCanvasSampleAndBrowserBridge(t *testing.T) {
 	if button == 0 {
 		t.Fatal("消去ボタンがありません")
 	}
-	cleared := dispatchEvent(t, session, initial.RunID, button, "click", nil)
+	cleared := dispatchEvent(t, session, initial.RunID, button, "click", noEvent)
 	if !cleared.OK {
 		t.Fatalf("消去: %s", cleared.Error)
 	}

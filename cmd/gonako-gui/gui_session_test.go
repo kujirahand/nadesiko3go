@@ -24,8 +24,8 @@ func TestGUISessionRetainsVMForBrowserEvents(t *testing.T) {
 		t.Fatalf("initial operations = %#v", initial.Operations)
 	}
 
-	first := dispatchEvent(t, session, initial.RunID, 1, "click", nil)
-	second := dispatchEvent(t, session, initial.RunID, 1, "click", nil)
+	first := dispatchEvent(t, session, initial.RunID, 1, "click", noEvent)
+	second := dispatchEvent(t, session, initial.RunID, 1, "click", noEvent)
 	if !first.OK || strings.TrimSpace(first.Output) != "1回" {
 		t.Fatalf("first click = %#v", first)
 	}
@@ -44,7 +44,7 @@ func TestGUISessionRejectsStaleEvents(t *testing.T) {
 	if first.RunID == second.RunID {
 		t.Fatal("run ids must change")
 	}
-	got := session.startEvent(first.RunID, 1, "click", nil)
+	got := session.startEvent(first.RunID, 1, "click", noEvent)
 	if !strings.Contains(got.Error, "古い実行結果") {
 		t.Fatalf("stale event result = %#v", got)
 	}
@@ -134,7 +134,7 @@ func TestDispatchDuringRunDoesNotBlock(t *testing.T) {
 	}
 
 	start := time.Now()
-	got := session.startEvent(runID, 1, "click", nil)
+	got := session.startEvent(runID, 1, "click", noEvent)
 	elapsed := time.Since(start)
 	if elapsed > time.Second {
 		t.Fatalf("実行終了まで待たされた: %v", elapsed)
@@ -212,7 +212,7 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 		t.Fatalf("自動改行 operation = %#v", op)
 	}
 
-	clicked := dispatchEvent(t, session, result.RunID, 6, "click", map[string]string{"5": "花子"})
+	clicked := dispatchEvent(t, session, result.RunID, 6, "click", textPayload(map[string]string{"5": "花子"}))
 	if !clicked.OK {
 		t.Fatalf("click failed: %s", clicked.Error)
 	}
@@ -282,9 +282,9 @@ func TestAdditionalDOMPartsSampleCompilesAndHandlesChange(t *testing.T) {
 		t.Fatalf("input attributes: checkbox=%#v range=%#v", attributes[7], attributes[13])
 	}
 
-	changed := dispatchEvent(t, session, result.RunID, 9, "change", map[string]string{
+	changed := dispatchEvent(t, session, result.RunID, 9, "change", textPayload(map[string]string{
 		"5": "更新したメモ", "7": "on", "9": "青", "13": "60",
-	})
+	}))
 	if !changed.OK {
 		t.Fatalf("change failed: %s", changed.Error)
 	}
@@ -450,7 +450,7 @@ func TestEventHandlerDialogDoesNotDeadlock(t *testing.T) {
 		t.Fatalf("initial result = %#v", initial)
 	}
 
-	started := session.startEvent(initial.RunID, 1, "click", nil)
+	started := session.startEvent(initial.RunID, 1, "click", noEvent)
 	if started.Error != "" || started.RunID == 0 {
 		t.Fatalf("startEvent = %#v", started)
 	}
@@ -467,7 +467,7 @@ func TestEventHandlerDialogDoesNotDeadlock(t *testing.T) {
 	}
 
 	// 応答を返せば次のイベントも普通に動く＝execMuが解放されている。
-	if again := session.startEvent(initial.RunID, 1, "click", nil); again.Error != "" {
+	if again := session.startEvent(initial.RunID, 1, "click", noEvent); again.Error != "" {
 		t.Fatalf("ダイアログ応答後にイベントが動かない: %#v", again)
 	}
 }
@@ -485,7 +485,7 @@ func TestEventRejectedWhenRunSwitchesWhileWaitingForLock(t *testing.T) {
 	// 実行中に相当する状態を作り、イベントをロック待ちに入らせる。
 	session.execMu.Lock()
 	started := make(chan EventStart, 1)
-	go func() { started <- session.startEvent(first.RunID, 1, "click", nil) }()
+	go func() { started <- session.startEvent(first.RunID, 1, "click", noEvent) }()
 
 	// 待っている間に、別の実行が始まったことにして実行対象を差し替える。
 	time.Sleep(5 * time.Millisecond)
@@ -505,11 +505,23 @@ func TestEventRejectedWhenRunSwitchesWhileWaitingForLock(t *testing.T) {
 	session.execMu.Unlock()
 }
 
+// noEvent は入力欄を持たないイベント(クリックなど)に渡す空のpayload。
+var noEvent = guilib.EventPayload{}
+
+// textPayload は文字列だけの入力欄(ハンドル→値)をpayloadにする。
+func textPayload(values map[string]string) guilib.EventPayload {
+	fields := make(map[string]guilib.EventField, len(values))
+	for handle, text := range values {
+		fields[handle] = guilib.EventField{Value: text}
+	}
+	return guilib.EventPayload{Values: fields}
+}
+
 // dispatchEvent は画面と同じ手順でイベントを最後まで進め、届いた出力と
 // 画面操作をまとめて返す。非同期実行なので、ポーリングでしか受け取れない。
-func dispatchEvent(t *testing.T, session *guiSession, runID uint64, handle int, event string, values map[string]string) RunResult {
+func dispatchEvent(t *testing.T, session *guiSession, runID uint64, handle int, event string, payload guilib.EventPayload) RunResult {
 	t.Helper()
-	started := session.startEvent(runID, handle, event, values)
+	started := session.startEvent(runID, handle, event, payload)
 	if started.Error != "" {
 		return RunResult{RunID: runID, Error: started.Error}
 	}

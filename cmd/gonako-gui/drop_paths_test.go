@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/guilib"
 )
 
 func TestSplitDroppedPaths(t *testing.T) {
@@ -18,16 +19,15 @@ func TestSplitDroppedPaths(t *testing.T) {
 }
 
 func TestWithDroppedFilesKeepsOtherEvents(t *testing.T) {
-	values := map[string]string{"1": "x"}
-	got := withDroppedFiles("click", values)
-	if !reflect.DeepEqual(got, values) {
+	payload := guilib.EventPayload{Values: map[string]guilib.EventField{"1": {Value: "x"}}}
+	got := withDroppedFiles("click", payload)
+	if !reflect.DeepEqual(got, payload) {
 		t.Fatalf("click: %#v", got)
 	}
 	// ネイティブ側に記録が無ければ、JavaScriptが渡したファイル名のまま。
-	drop := map[string]string{"__gonako_drop_files": `["a.txt"]`}
+	drop := guilib.EventPayload{DropFiles: []string{"a.txt"}}
 	got = withDroppedFiles("drop", drop)
-	var names []string
-	if err := json.Unmarshal([]byte(got["__gonako_drop_files"]), &names); err != nil || len(names) != 1 || names[0] != "a.txt" {
-		t.Fatalf("drop: %#v %v", got, err)
+	if !reflect.DeepEqual(got.DropFiles, []string{"a.txt"}) {
+		t.Fatalf("drop: %#v", got)
 	}
 }
