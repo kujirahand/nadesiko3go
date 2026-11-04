@@ -215,18 +215,42 @@ func (c *Compiler) compileLetProp(n *ast.Node) {
 func (c *Compiler) compileInc(n *ast.Node) {
 	c.checkWritable(n.Name, "は既に定義済みなので、値を増減することはできません。", n)
 	if len(n.Index) > 0 {
-		// 添字付きの対象。読んで足して書き戻す。
-		c.loadVar(n.Name, n)
-		for _, idx := range n.Index {
-			c.compileExpr(idx)
+		// 添字付きの対象。対象と各添字は一度だけ評価して一時スロットへ
+		// 保持し、読み出しと書き戻しで同じ値を使う (#336)。添字式を
+		// 2回評価すると、副作用で別の要素を読んで壊してしまう。
+		target := c.slot(c.tempName("増減対象"))
+		indexes := make([]int, len(n.Index))
+		for i := range n.Index {
+			indexes[i] = c.slot(c.tempName("増減添字"))
 		}
+		result := c.slot(c.tempName("増減結果"))
+
+		// 対象、添字の順に一度だけ評価する。対象を先に保持するのは、
+		// 添字式の副作用で対象変数が別の値へ代入されても、読み出しと
+		// 書き戻しが同じ対象を指すようにするため。
 		c.loadVar(n.Name, n)
-		for _, idx := range n.Index {
+		c.emit(ir.OpStoreLocal, target, 0, n)
+		for i, idx := range n.Index {
 			c.compileExpr(idx)
+			c.emit(ir.OpStoreLocal, indexes[i], 0, n)
+		}
+
+		// 保持した対象と添字で現在値を読み、増減した結果も保持する。
+		c.emit(ir.OpLoadLocal, target, 0, n)
+		for _, index := range indexes {
+			c.emit(ir.OpLoadLocal, index, 0, n)
 		}
 		c.emit(ir.OpIndexGet, 0, len(n.Index), n)
 		c.compileExpr(n.Block(0))
 		c.emit(ir.OpBinary, int(ir.BinAdd), 0, n)
+		c.emit(ir.OpStoreLocal, result, 0, n)
+
+		// OpIndexSet の入力順 [対象, 添字..., 値] に積み直して書き戻す。
+		c.emit(ir.OpLoadLocal, target, 0, n)
+		for _, index := range indexes {
+			c.emit(ir.OpLoadLocal, index, 0, n)
+		}
+		c.emit(ir.OpLoadLocal, result, 0, n)
 		c.emit(ir.OpIndexSet, 0, len(n.Index), n)
 		c.storeVar(n.Name, n)
 		return

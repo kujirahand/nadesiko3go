@@ -142,6 +142,38 @@ D["c"]=3
 D["c"]を表示
 `)
 
+	// #336: 添字付き増減は対象と添字を一度だけ評価する (VMと同じ結果)
+	assertMatchesVM(t, "indexed_inc_single_eval", `
+件数=0
+●次番とは
+件数=件数+1
+件数-1で戻る
+ここまで
+A=[10,20,30]
+A[次番()]を1だけ増やす
+AをJSONエンコードして表示
+件数を表示
+A[次番()]を1だけ減らす
+AをJSONエンコードして表示
+件数を表示
+`)
+
+	assertMatchesVM(t, "indexed_inc_multi_index", `
+件数=0
+●外番とは
+件数=件数+1
+0で戻る
+ここまで
+●内番とは
+件数=件数+1
+1で戻る
+ここまで
+A=[[10,20],[30,40]]
+A[外番()][内番()]を1だけ増やす
+AをJSONエンコードして表示
+件数を表示
+`)
+
 	assertMatchesVM(t, "multiple_declaration_with_non_array", `
 変数[A,B]=1
 Aを表示
