@@ -410,7 +410,27 @@ func checkMoveTarget(src, dest string) error {
 	// 実在する最長の先祖のシンボリックリンクを解決し、未作成の末尾を連結する
 	// (zip.go。圧縮先が圧縮元の内側かの判定と同じ実体パスの求め方)。
 	realDest := resolveExisting(dest)
-	for cur, first := realDest, true; ; first = false {
+	if err := checkMoveAncestors(srcInfo, realDest, src, dest); err != nil {
+		return err
+	}
+	// 実体解決だけでは足りない。コピーは filepath.Join(dest, rel) で書き込み先を
+	// 作るため、「src/lnk/../x」のように symlink の後ろに「..」が続くと、Join が
+	// 文字列上で畳んだ「src/x」(移動元の内側)に書かれる。一方、実体解決では
+	// symlink の先の親になり移動元の外と判定されて、原本ごと削除してしまう。
+	// 文字列で畳んだ絶対パスも同じ走査にかけ、どちらかが内側なら拒否する。
+	if absDest, err := filepath.Abs(dest); err == nil {
+		if err := checkMoveAncestors(srcInfo, absDest, src, dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkMoveAncestors は target から祖先を順に辿り、移動元 srcInfo と同一の
+// 実体にぶつかったらエラーを返す。target 自身が同一なら「同じです」、
+// 祖先が同一なら「内側です」とする。
+func checkMoveAncestors(srcInfo os.FileInfo, target, src, dest string) error {
+	for cur, first := target, true; ; first = false {
 		if info, err := os.Stat(cur); err == nil && os.SameFile(srcInfo, info) {
 			if first {
 				return fmt.Errorf("ファイル移動元と移動先が同じです: %s → %s", src, dest)

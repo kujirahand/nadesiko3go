@@ -216,3 +216,41 @@ func TestN01MoveIntoAncestorSymlinkViaDotDotIsRejected(t *testing.T) {
 		})
 	}
 }
+
+// TestN01MoveIntoOuterSymlinkThenDotDotIsRejected は、移動元の内側にある
+// symlink が外のフォルダを指し、移動先が「src/lnk/../x」の場合の回帰テスト。
+// 実体解決では other/x（移動元の外）になるが、コピーは filepath.Join が畳んだ
+// src/x（移動元の内側）に書き込むため、検査を通すと原本ごと削除してしまう。
+func TestN01MoveIntoOuterSymlinkThenDotDotIsRejected(t *testing.T) {
+	for _, cmd := range []string{"ファイル移動", "ファイル上書移動"} {
+		t.Run(cmd, func(t *testing.T) {
+			dir := t.TempDir()
+			src := filepath.Join(dir, "src")
+			sub := filepath.Join(dir, "other", "sub")
+			for _, d := range []string{src, sub} {
+				if err := os.MkdirAll(d, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(filepath.Join(src, "keep.txt"), []byte("keep"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(sub, filepath.Join(src, "lnk")); err != nil {
+				t.Skipf("シンボリックリンクを作れません: %v", err)
+			}
+			err := runExpectError(t, dir, `「src」を「src/lnk/../x」に`+cmd)
+			if err == nil {
+				t.Fatalf("%s: 外を指すsymlink経由の内側移動がエラーになりませんでした", cmd)
+			}
+			if !strings.Contains(err.Error(), "移動先は移動元の内側です") {
+				t.Errorf("%s: エラー文面 = %q", cmd, err.Error())
+			}
+			if got, e := os.ReadFile(filepath.Join(src, "keep.txt")); e != nil || string(got) != "keep" {
+				t.Errorf("%s: 移動元の keep.txt が失われました: content=%q err=%v", cmd, got, e)
+			}
+			if _, e := os.Stat(filepath.Join(src, "x")); e == nil {
+				t.Errorf("%s: 移動先の実体が移動元の内側に作られました: src/x", cmd)
+			}
+		})
+	}
+}
