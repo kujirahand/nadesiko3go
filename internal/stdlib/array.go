@@ -87,11 +87,25 @@ func arrayImpls(m map[string]Impl) {
 		if !ok || !srcOK {
 			return value.Undefined(), errors.New("『配列一括挿入』で配列以外の要素への挿入。")
 		}
-		at := int(value.ToNumber(arg(a, 1)))
-		// 挿入元を固定し、同じ配列への挿入でも処理が終わるようにする。
-		for i, item := range src.Values() {
-			dst.Insert(at+i, item)
+		// 公式実装と同じく、数値に変換できない位置 (NaN) は先頭として扱う。
+		// int(NaN) や int(±Inf) の変換結果は処理系依存のため、明示的に寄せる:
+		// +Inf は splice では末尾、-Inf は逐次再評価で先頭への逆順挿入になる。
+		number := value.ToNumber(arg(a, 1))
+		at := 0
+		switch {
+		case math.IsNaN(number):
+			at = 0
+		case math.IsInf(number, 1):
+			at = dst.Len()
+		case math.IsInf(number, -1):
+			at = math.MinInt
+		default:
+			at = int(number)
 		}
+		// 挿入元を固定し、同じ配列への挿入でも処理が終わるようにする。
+		// 非負位置は InsertAll が一括確保と copy で O(n+m) に処理し、
+		// 負位置は逐次再評価の意味を保つ (#344)。
+		dst.InsertAll(at, src.Values())
 		return arg(a, 0), nil
 	}
 

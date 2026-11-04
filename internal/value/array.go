@@ -103,6 +103,37 @@ func (a *Array) Insert(index int, v Value) {
 	a.items[index] = v
 }
 
+// InsertAll は values の要素を index から順に一括挿入する。
+//
+// 非負の index では末尾を一度だけ伸ばし、後続要素を copy で一度だけ
+// ずらすため、全体の移動量は O(len(a.items)+len(values)) で済む (#344)。
+// 負の index では公式実装 (plugin_system_array) と同じく、splice ごとに
+// 添字を再評価する意味を保つため、従来どおり要素ごとの Insert に委ねる。
+// 挿入元が自分自身の要素列を参照していても結果が変わらないよう、
+// 値列は最初に固定 (snapshot) する。
+func (a *Array) InsertAll(index int, values []Value) {
+	if len(values) == 0 {
+		return
+	}
+	// 挿入元を固定し、自己挿入でも処理が終わるようにする。
+	src := append([]Value(nil), values...)
+	if index < 0 {
+		for i, item := range src {
+			a.Insert(index+i, item)
+		}
+		return
+	}
+	if index > len(a.items) {
+		index = len(a.items)
+	}
+	oldLen := len(a.items)
+	count := len(src)
+	a.items = append(a.items, make([]Value, count)...)
+	// 右側の既存要素を一度だけ移動する。copy は領域の重なりを安全に処理する。
+	copy(a.items[index+count:], a.items[index:oldLen])
+	copy(a.items[index:index+count], src)
+}
+
 // Remove takes count elements away starting at index and returns them, with
 // the same clamping rules as splice.
 func (a *Array) Remove(index, count int) []Value {
