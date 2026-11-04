@@ -10,7 +10,6 @@ package bundle
 
 import (
 	"archive/zip"
-	"bytes"
 	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
@@ -193,17 +192,6 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 		return fmt.Errorf("知らない種類のアプリです: %s", spec.Kind)
 	}
 
-	runtime, err := readRuntime(runtimePath)
-	if err != nil {
-		return err
-	}
-
-	// 一時ファイルがリソースに混入しないよう、先にペイロードを完成させる。
-	payload, err := buildPayload(spec)
-	if err != nil {
-		return err
-	}
-
 	// 同じフォルダに書き出し、完成した場合だけ既存出力と置き換える。
 	oldInfo, err := os.Stat(outPath)
 	if err != nil && !os.IsNotExist(err) {
@@ -224,17 +212,33 @@ func BuildSpec(outPath, runtimePath string, spec Spec) error {
 		_ = os.Remove(tempPath)
 	}()
 
-	if _, err := out.Write(runtime); err != nil {
+	// ランタイムとペイロードを一度メモリへ載せず、一時ファイルへ逐次
+	// 書き出す。入力が大きくなっても、同時に確保するのは転送用の
+	// 小さなバッファだけで済む (A02)。
+	runtime, runtimeLen, err := openRuntime(runtimePath)
+	if err != nil {
+		return err
+	}
+	if _, err := io.CopyN(out, runtime, runtimeLen); err != nil {
+		runtime.Close()
 		return fmt.Errorf("ランタイムを書き出せません: %w", err)
 	}
+	// 読み込みが済んだ時点で閉じる。outPath == runtimePath の再梱包では
+	// 開いたままのランタイムを Windows で os.Rename できないため、
+	// ペイロードを作る前 (= 出力の置換前) に閉じる (A02 のレビュー指摘)。
+	if err := runtime.Close(); err != nil {
+		return fmt.Errorf("ランタイム『%s』を閉じられません: %w", runtimePath, err)
+	}
 
-	if _, err := out.Write(payload); err != nil {
-		return fmt.Errorf("ペイロードを書き出せません: %w", err)
+	// ペイロードの長さは書きながら数える。フッタは最後に書く。
+	payload := &countingWriter{w: out}
+	if err := buildPayload(payload, spec); err != nil {
+		return err
 	}
 
 	footer := make([]byte, footerSize)
 	copy(footer, magic)
-	binary.BigEndian.PutUint64(footer[len(magic):], uint64(len(payload)))
+	binary.BigEndian.PutUint64(footer[len(magic):], uint64(payload.n))
 	if _, err := out.Write(footer); err != nil {
 		return fmt.Errorf("フッタを書き出せません: %w", err)
 	}
@@ -269,52 +273,69 @@ func createOutputTemp(dir string, mode os.FileMode) (*os.File, error) {
 	return nil, errors.New("一時ファイル名が重複しました")
 }
 
-// readRuntime reads a runtime executable, dropping any payload it already
-// carries so that building twice does not stack them up.
-func readRuntime(runtimePath string) ([]byte, error) {
-	data, err := os.ReadFile(runtimePath)
+// openRuntime opens a runtime executable and reports how many bytes of it
+// belong to the runtime itself, dropping any payload it already carries so
+// that building twice does not stack them up. The bytes stay on disk; the
+// caller copies them out.
+func openRuntime(runtimePath string) (*os.File, int64, error) {
+	f, err := os.Open(runtimePath)
 	if err != nil {
-		return nil, fmt.Errorf("ランタイム『%s』を読み込めません: %w", runtimePath, err)
+		return nil, 0, fmt.Errorf("ランタイム『%s』を読み込めません: %w", runtimePath, err)
 	}
-	if size, ok := payloadSize(data); ok {
-		return data[:len(data)-footerSize-int(size)], nil
+	info, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, 0, fmt.Errorf("ランタイム『%s』を読み込めません: %w", runtimePath, err)
 	}
-	return data, nil
+	size := info.Size()
+	if size >= int64(footerSize) {
+		footer := make([]byte, footerSize)
+		if _, err := f.ReadAt(footer, size-int64(footerSize)); err != nil {
+			f.Close()
+			return nil, 0, fmt.Errorf("ランタイム『%s』を読み込めません: %w", runtimePath, err)
+		}
+		if string(footer[:len(magic)]) == magic {
+			// 壊れたランタイムでは長さが int64 の範囲を超えることがある。
+			// int64 に直す前に uint64 のまま実ファイルの残りと比べ、
+			// 収まるときだけ切り詰める (A02 のレビュー指摘)。
+			payload := binary.BigEndian.Uint64(footer[len(magic):])
+			if remaining := uint64(size - int64(footerSize)); payload <= remaining {
+				size -= int64(footerSize) + int64(payload)
+			}
+		}
+	}
+	return f, size, nil
 }
 
-// payloadSize reads the footer, reporting how long the payload is.
-func payloadSize(data []byte) (uint64, bool) {
-	if len(data) < footerSize {
-		return 0, false
-	}
-	footer := data[len(data)-footerSize:]
-	if string(footer[:len(magic)]) != magic {
-		return 0, false
-	}
-	size := binary.BigEndian.Uint64(footer[len(magic):])
-	if size > uint64(len(data)-footerSize) {
-		return 0, false
-	}
-	return size, true
+// countingWriter は書き出したバイト数を数える。フッタに載せるペイロードの
+// 長さを、バッファに溜めずに得るために使う。
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	n, err := c.w.Write(p)
+	c.n += int64(n)
+	return n, err
 }
 
 // buildPayload zips the manifest and the program together with the resource
-// folder.
-func buildPayload(spec Spec) ([]byte, error) {
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
+// folder, writing it straight to w.
+func buildPayload(w io.Writer, spec Spec) error {
+	zw := zip.NewWriter(w)
 
 	if err := addJSON(zw, manifestEntry, manifest{
 		Kind:  spec.Kind,
 		Entry: spec.Entry,
 		Title: spec.Title,
 	}); err != nil {
-		return nil, fmt.Errorf("マニフェストを書き出せません: %w", err)
+		return fmt.Errorf("マニフェストを書き出せません: %w", err)
 	}
 
 	if spec.Program != nil {
 		if err := addJSON(zw, programEntry, bundledProgram{Name: spec.Name, Program: spec.Program}); err != nil {
-			return nil, fmt.Errorf("IRを書き出せません: %w", err)
+			return fmt.Errorf("IRを書き出せません: %w", err)
 		}
 	}
 
@@ -324,13 +345,10 @@ func buildPayload(spec Spec) ([]byte, error) {
 			warn = func(string, ...any) {}
 		}
 		if err := addResources(zw, spec.ResourceDir, spec.Flat, spec.Skip, spec.IncludeSymlink, warn); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return zw.Close()
 }
 
 // addJSON writes one JSON entry into the payload.
@@ -600,17 +618,18 @@ func hiddenTarget(realTarget string) bool {
 }
 
 // writeFileEntry は p の中身を、ペイロード内の name というエントリへ
-// 書き込む。
+// 書き込む。中身はメモリへ読み切らずに転送する (A02)。
 func writeFileEntry(zw *zip.Writer, name, p string) error {
 	w, err := zw.Create(name)
 	if err != nil {
 		return err
 	}
-	data, err := os.ReadFile(p)
+	f, err := os.Open(p)
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(data)
+	defer f.Close()
+	_, err = io.Copy(w, f)
 	return err
 }
 
