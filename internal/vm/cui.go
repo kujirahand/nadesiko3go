@@ -152,7 +152,14 @@ func RuntimeFuncList() lexer.FuncList {
 func RunCompiled(prog *ir.Program, h *CUIHost) error {
 	opts := DefaultOptions()
 	opts.RealSleep = true
-	return New(prog, runtimeRegistry(), h, opts).Run()
+	machine := New(prog, runtimeRegistry(), h, opts)
+	runErr := machine.Run()
+	// 一回限りの実行なので、正常・異常どちらの終了でも環境を退役させ、
+	// 閉じ忘れた接続などを解放する（#363）。実行エラーがあればそちらを優先する。
+	if closeErr := machine.Close(); runErr == nil {
+		runErr = closeErr
+	}
+	return runErr
 }
 
 // RunWithHost compiles and runs a program against any host, which the doctest
@@ -171,7 +178,13 @@ func RunWithHost(code, filename string, h Host) error {
 	// 本家のcnako DocTestは同期実行の終了時点で比較し、予約した
 	// setTimeoutの完了までは待たない。同じ境界で表示ログを比較する。
 	options.DrainPendingCallbacks = false
-	return New(prog, registry, h, options).Run()
+	machine := New(prog, registry, h, options)
+	runErr := machine.Run()
+	// 一回限りの実行なので、終了時に環境を退役させる（#363）。
+	if closeErr := machine.Close(); runErr == nil {
+		runErr = closeErr
+	}
+	return runErr
 }
 
 var defaultPlugins = []stdlib.Plugin{

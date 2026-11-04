@@ -144,4 +144,6 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 		return
 	}
 	tw.Window.Run()
+	// ウィンドウを閉じたら、保持していた実行を退役させる（#363）。
+	session.close()
 }

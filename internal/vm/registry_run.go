@@ -18,7 +18,15 @@ func RunWithHostAndRegistry(code, filename string, registry *stdlib.Registry, h 
 	}
 	options := DefaultOptions()
 	options.RealSleep = true
-	return New(prog, registry, h, options).Run()
+	machine := New(prog, registry, h, options)
+	runErr := machine.Run()
+	// 一回限りの実行なので、終了時に環境を退役させ、閉じ忘れた接続などを
+	// 解放する（#363）。プラグインの状態（開いた接続など）を実行をまたいで
+	// 保持したい場合は、この入口ではなく VM を保持する実行形態を使うこと。
+	if closeErr := machine.Close(); runErr == nil {
+		runErr = closeErr
+	}
+	return runErr
 }
 
 // CompileWithRegistry compiles source with an explicitly supplied command

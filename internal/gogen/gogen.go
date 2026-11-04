@@ -162,10 +162,15 @@ func registerNatives(m *rt.Machine) {
 	out.WriteString("}\n\n")
 	fmt.Fprintf(&out, `// Run executes program against host, exactly as the VM backend's Run does —
 // registerNatives is the only difference from an ordinary vm.New(...).Run().
+// 実行後はVMを退役させ、閉じ忘れた接続などを解放する (なでしこ3go #363)。
 func Run(host rt.Host) error {
 	m := rt.NewMachine(program, %s, host, rt.DefaultOptions())
 	registerNatives(m)
-	return m.Run()
+	err := m.Run()
+	if closeErr := m.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }
 `, registryCall)
 	if pkg == "main" {

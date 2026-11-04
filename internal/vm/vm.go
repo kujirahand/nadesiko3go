@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/errs"
@@ -92,6 +93,10 @@ type VM struct {
 
 	// runeCache は文字列の添字アクセスで使った長い文字列のrune配列 (#2590)
 	runeCache [runeCacheSize]runeCacheEntry
+
+	// closeOnce と closeErr は Close（退役）の冪等化に使う。
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // NativeFunc is a function body the gogen backend compiled to Go, standing in
@@ -280,6 +285,29 @@ func (m *VM) Run() (err error) {
 		return nil
 	}
 	return m.runPendingCallbacks()
+}
+
+// Close はこのVM（実行環境）を退役させ、プラグインが所有するリソース
+// （SQLite接続など）を解放する。二重に呼んでも安全。
+//
+// Run 自体は Close しない。GUIのように main 終了後もVMを保持して
+// 画面イベント（コールバック）で命令を使い続ける実行形態があり、
+// 有効なコールバックが残る実行を main の終了だけで破棄してはいけない
+// （#363）。一回限りの実行入口と、GUIの再実行・終了時の退役経路が、
+// 実行を手放す時点で Close を呼ぶ。
+func (m *VM) Close() error {
+	m.closeOnce.Do(func() {
+		// 保留中のタイマーとコールバックを止め、保持している関数や
+		// 引数を解放する。
+		m.loop.CancelAll()
+		m.callbacks = map[host.CallbackID]queuedCallback{}
+		m.loop.CloseExternal()
+		m.hasExternal = false
+		if m.registry != nil {
+			m.closeErr = m.registry.Close()
+		}
+	})
+	return m.closeErr
 }
 
 // frame is one function activation.

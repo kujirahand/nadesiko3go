@@ -318,8 +318,18 @@ func (s *guiSession) runCompiledNow(prog *ir.Program, registry *stdlib.Registry,
 	workDir, _ := os.Getwd()
 	exec := &guiExecution{id: result.RunID, screen: screen, host: host, machine: machine, workDir: workDir}
 	s.mu.Lock()
+	previous := s.active
 	s.active = exec
 	s.mu.Unlock()
+
+	// 再実行では、以前の実行をここで退役させ、その実行が開いたままの
+	// 接続（SQLiteなど）を解放する（#363）。差し替え後の画面イベントは
+	// 古い実行IDを既に拒否するので、以前の実行のコールバックが使われる
+	// ことはない。実行とイベント処理は execMu で直列化されており、
+	// 有効なコールバックの実行中に退役が割り込むこともない。
+	if previous != nil && previous.machine != nil {
+		_ = previous.machine.Close()
+	}
 
 	err := machine.Run()
 	result.OK = err == nil
@@ -329,6 +339,27 @@ func (s *guiSession) runCompiledNow(prog *ir.Program, registry *stdlib.Registry,
 		result.Error = err.Error()
 	}
 	return result
+}
+
+// close はセッションの終了（ウィンドウを閉じるなど）時に、保持している
+// 実行を退役させ、その接続を解放する（#363）。
+func (s *guiSession) close() {
+	// 実行中・イベント処理中の退役にならないよう、実行と同じロックを取る。
+	// ただし終了経路で長く待つわけにはいかない（終わらないプログラムを
+	// 抱えたままウィンドウを閉じた場合に、アプリ終了まで固まってしまう）。
+	// ロックを取れなければ退役を諦める。その場合はプロセスの終了時に
+	// OSが接続ごと回収する。
+	if !s.lockExecWithin(dispatchLockGrace) {
+		return
+	}
+	defer s.execMu.Unlock()
+	s.mu.Lock()
+	active := s.active
+	s.active = nil
+	s.mu.Unlock()
+	if active != nil && active.machine != nil {
+		_ = active.machine.Close()
+	}
 }
 
 func (s *guiSession) start(code, filename string, windowMode bool, args []string, packed *bundle.Bundle) uint64 {

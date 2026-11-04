@@ -83,6 +83,26 @@ func (b *commandBridge) prepare() {
 	b.machine, b.host = machine, host
 }
 
+// close は常駐VMを退役させ、命令呼び出しをまたいで開かれたままの接続
+// （SQLiteなど）を解放する（#363）。ウィンドウを閉じるときに呼ぶ。
+// 常駐VMがまだ作られていなければ何もしない。
+func (b *commandBridge) close() {
+	// 実行中の命令（ダイアログ待ちなど）が b.mu を握っている間は待たない。
+	// 終了経路で固まらないよう、短い猶予で取れなければ退役を諦める。
+	// その場合はプロセスの終了時にOSが接続ごと回収する。
+	deadline := time.Now().Add(dispatchLockGrace)
+	for !b.mu.TryLock() {
+		if time.Now().After(deadline) {
+			return
+		}
+		time.Sleep(time.Millisecond)
+	}
+	defer b.mu.Unlock()
+	if b.machine != nil {
+		_ = b.machine.Close()
+	}
+}
+
 // call は命令を同期的に実行する。引数はJSON配列の文字列で受け取る。
 func (b *commandBridge) call(name, argsJSON string) BridgeResult {
 	b.mu.Lock()

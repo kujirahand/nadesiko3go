@@ -4,7 +4,9 @@
 package stdlib
 
 import (
+	"errors"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
@@ -99,6 +101,38 @@ type Registry struct {
 	byName  map[string]*Entry
 	consts  map[string]value.Value
 	list    lexer.FuncList
+
+	// plugins は Close で解放するために保持するプラグイン実体。
+	plugins []Plugin
+	closeMu sync.Mutex
+}
+
+// closeablePlugin は実行環境の退役時に解放できるプラグインの任意インターフェース。
+// Close は二重に呼んでも安全で、呼んだ後もプラグインを再利用できることが前提。
+type closeablePlugin interface {
+	Close() error
+}
+
+// Close は、Close() error を持つプラグインすべてのリソースを解放する。
+// 実行環境（VM）の破棄・終了・置換のときに呼ばれる。
+// レジストリを使い捨てにはしない: 同じレジストリで再び実行し、その環境を
+// 退役させるときにもう一度呼べば、その実行で開かれた分も解放される。
+// 実際の退役は VM.Close が一度きりに制限するので、通常は実行ごとに1回呼ばれる。
+func (r *Registry) Close() error {
+	r.closeMu.Lock()
+	defer r.closeMu.Unlock()
+
+	var errs []error
+	for _, plugin := range r.plugins {
+		closer, ok := plugin.(closeablePlugin)
+		if !ok {
+			continue
+		}
+		if err := closer.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Plugin adds commands beyond plugin_system. Only plugin_system is covered by
@@ -132,8 +166,9 @@ func NewRegistry(plugins ...Plugin) *Registry {
 		}
 	}
 	r := &Registry{
-		byName: make(map[string]*Entry, len(list)),
-		consts: map[string]value.Value{},
+		byName:  make(map[string]*Entry, len(list)),
+		consts:  map[string]value.Value{},
+		plugins: append([]Plugin(nil), plugins...),
 	}
 
 	names := make([]string, 0, len(list))
