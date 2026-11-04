@@ -112,6 +112,7 @@ winget install MSYS2.MSYS2
 ```bash
 pacman -Syu
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc
+pacman -S --needed mingw-w64-ucrt-x86_64-toolchain
 ```
 
 `pacman -Syu`でMSYS2本体の更新後にターミナルを閉じるよう案内された場合は、UCRT64を開き直してからGCCのインストールを実行してください。
