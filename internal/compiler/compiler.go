@@ -84,6 +84,8 @@ type Compiler struct {
 	// constIndex dedupes the constant pool.
 	constIndex map[ir.Const]int
 	posIndex   map[ir.SourcePos]int
+	// sourceIndex はファイル名から prog.Sources の添字を引く。0 はメインファイル。
+	sourceIndex map[string]int
 	// globalIndex maps a global's name to its slot, and constGlobals marks
 	// the ones that hold a constant.
 	globalIndex  map[string]int
@@ -111,6 +113,7 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 		userFuncs:         map[string]int{},
 		constIndex:        map[ir.Const]int{},
 		posIndex:          map[ir.SourcePos]int{},
+		sourceIndex:       map[string]int{filename: 0},
 		globalIndex:       map[string]int{},
 		constGlobals:      map[int]bool{},
 		constGlobalValues: map[int]value.Value{},
@@ -193,9 +196,22 @@ func (c *Compiler) emit(op ir.Op, a, b int, n *ast.Node) int {
 	return len(c.fn.code) - 1
 }
 
+// sourceID は節点が属するファイルの prog.Sources の添字を返す。
+// 取り込んだファイルは初出順に Sources の末尾へ登録する (0 はメインのみ固定)。
+func (c *Compiler) sourceID(n *ast.Node) int {
+	file := c.fileOf(n)
+	if id, ok := c.sourceIndex[file]; ok {
+		return id
+	}
+	id := len(c.prog.Sources)
+	c.prog.Sources = append(c.prog.Sources, ir.SourceFile{Name: file})
+	c.sourceIndex[file] = id
+	return id
+}
+
 // pos interns a source position so instructions can reference it by index.
 func (c *Compiler) pos(n *ast.Node) int {
-	p := ir.SourcePos{Source: 0}
+	p := ir.SourcePos{Source: c.sourceID(n)}
 	if n != nil {
 		p.Line, p.Column, p.Offset = n.Line, n.Column, n.Offset
 	}
