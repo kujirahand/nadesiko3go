@@ -537,8 +537,13 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 	}
 
 	if !overwrite {
-		if _, err := os.Stat(dest); err == nil {
+		// 壊れたsymlinkもコピー先のエントリーとして存在するものとして扱う。
+		// os.Stat ではリンク先が無いと存在しないことになり、書き込みが
+		// リンクを辿ってリンク先を新規作成してしまう (#405)。
+		if _, err := os.Lstat(dest); err == nil {
 			return errors.New("ファイルコピー先に同名のファイルまたはフォルダが存在します: " + dest)
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fileError("読み込め", dest, err)
 		}
 	}
 
@@ -555,6 +560,11 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 		data, err := os.ReadFile(src)
 		if err != nil {
 			return fileError("読み込め", src, err)
+		}
+		// 指定されたコピー先そのものがsymlinkなら置換する。
+		// 親ディレクトリは利用者が指定したパスとして従来どおり辿る (#405)。
+		if err := replaceDestSymlink(dest, overwrite); err != nil {
+			return fileError("作成でき", dest, err)
 		}
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return fileError("作成でき", filepath.Dir(dest), err)
@@ -597,8 +607,18 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 			break
 		}
 		destFile := filepath.Join(dest, e.rel)
+		// dest配下の中間要素はsymlinkを辿らない。リンク先であるツリー外へ
+		// 書き込んでしまうのを防ぐ (#405)。
+		if err := ensureDestParents(dest, e.rel, overwrite); err != nil {
+			return err
+		}
 		switch {
 		case e.mode.IsDir():
+			// ディレクトリ位置のsymlinkは実ディレクトリへ置換する。
+			// 辿ったままにすると配下のファイルがリンク先へ書かれる (#405)。
+			if err := replaceDestSymlink(destFile, overwrite); err != nil {
+				return fileError("作成でき", destFile, err)
+			}
 			if err := os.MkdirAll(destFile, 0o755); err != nil {
 				return fileError("作成でき", destFile, err)
 			}
@@ -606,18 +626,18 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 		case e.mode&os.ModeSymlink != 0:
 			// symlinkはリンク先を辿らず、同じリンク先を持つsymlinkとして作る。
 			// リンク先が存在しない壊れたsymlinkもこの経路で保存される。
+			// 親ディレクトリは ensureDestParents が実ディレクトリとして準備済み。
 			target, err := os.Readlink(e.src)
 			if err != nil {
 				return fileError("読み込め", e.src, err)
-			}
-			if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
-				return fileError("作成でき", filepath.Dir(destFile), err)
 			}
 			if overwrite {
 				if _, err := os.Lstat(destFile); err == nil {
 					if err := os.Remove(destFile); err != nil {
 						return fileError("作成でき", destFile, err)
 					}
+				} else if !errors.Is(err, os.ErrNotExist) {
+					return fileError("読み込め", destFile, err)
 				}
 			}
 			if err := os.Symlink(target, destFile); err != nil {
@@ -633,8 +653,11 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 			if err != nil {
 				return fileError("読み込め", e.src, err)
 			}
-			if err := os.MkdirAll(filepath.Dir(destFile), 0o755); err != nil {
-				return fileError("作成でき", filepath.Dir(destFile), err)
+			// 通常ファイルの上書きでも、既存symlinkはリンク先ではなく
+			// コピー先エントリー自体を置換する (#405)。親ディレクトリは
+			// ensureDestParents が実ディレクトリとして準備済み。
+			if err := replaceDestSymlink(destFile, overwrite); err != nil {
+				return fileError("作成でき", destFile, err)
 			}
 			if err := os.WriteFile(destFile, data, 0o644); err != nil {
 				return fileError("書き込め", destFile, err)
@@ -649,6 +672,84 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 			progress := value.DictValue(d)
 			ctx.SetSysVar("対象", progress)
 			_, _ = ctx.CallFunc(cbFn, []value.Value{progress})
+		}
+	}
+	return nil
+}
+
+// replaceDestSymlink は、上書き時にコピー先leafのsymlinkを削除する。
+// symlink以外のエントリーは従来の各呼び出し元の処理に委ねる。
+// 上書きでないときにsymlinkが存在するのは、コピー先の衝突としてエラーにする。
+func replaceDestSymlink(dest string, overwrite bool) error {
+	info, err := os.Lstat(dest)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		return nil
+	}
+	if !overwrite {
+		return errors.New("ファイルコピー先に同名のファイルまたはフォルダが存在します: " + dest)
+	}
+	return os.Remove(dest)
+}
+
+// ensureDestParents は、dest自体を除く中間ディレクトリを安全に準備する。
+// コピー先ツリー内のsymlinkは上書き時に実ディレクトリへ置換し、
+// リンク先であるツリー外へ書き込まないようにする (#405)。
+// dest自体は利用者が明示したコピー先なので、symlinkであっても辿る。
+func ensureDestParents(dest, rel string, overwrite bool) error {
+	rel = filepath.Clean(rel)
+	if rel == "." {
+		return nil
+	}
+	if filepath.IsAbs(rel) ||
+		rel == ".." ||
+		strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("不正なコピー先相対パスです: %s", rel)
+	}
+
+	parent := filepath.Dir(rel)
+	if parent == "." {
+		return nil
+	}
+
+	current := dest
+	for _, name := range strings.Split(parent, string(filepath.Separator)) {
+		if name == "" || name == "." {
+			continue
+		}
+		current = filepath.Join(current, name)
+
+		info, err := os.Lstat(current)
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.Mkdir(current, 0o755); err != nil {
+				return fileError("作成でき", current, err)
+			}
+			continue
+		}
+		if err != nil {
+			return fileError("読み込め", current, err)
+		}
+
+		if info.Mode()&os.ModeSymlink != 0 {
+			if !overwrite {
+				return errors.New("ファイルコピー先に同名のファイルまたはフォルダが存在します: " + current)
+			}
+			if err := os.Remove(current); err != nil {
+				return fileError("作成でき", current, err)
+			}
+			if err := os.Mkdir(current, 0o755); err != nil {
+				return fileError("作成でき", current, err)
+			}
+			continue
+		}
+
+		if !info.IsDir() {
+			return fmt.Errorf("コピー先の中間パスがディレクトリではありません: %s", current)
 		}
 	}
 	return nil

@@ -303,3 +303,300 @@ func TestCompressToolDefaultIs7z(t *testing.T) {
 		t.Errorf("圧縮解凍ツールパス = %q, want %q", got, "7z")
 	}
 }
+
+// TestFileOverwriteCopyReplacesDestinationSymlink は #405 の回帰テスト。
+// 上書きコピーでコピー先の既存symlinkを辿ってリンク先を書き換えるのではなく、
+// リンク自体を通常ファイルへ置き換えること。
+func TestFileOverwriteCopyReplacesDestinationSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "src.txt"), []byte("NEW"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "outside.txt"), []byte("ORIGINAL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("outside.txt", filepath.Join(dir, "dst.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src.txt」を「dst.txt」にファイル上書コピー`)
+
+	data, err := os.ReadFile(filepath.Join(dir, "outside.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "ORIGINAL" {
+		t.Fatalf("outside.txt = %q, want ORIGINAL", got)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("dst.txt が symlink のままです")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW" {
+		t.Fatalf("dst.txt = %q, want NEW", got)
+	}
+}
+
+// TestFileOverwriteMoveReplacesDestinationSymlink は #405 の回帰テスト。
+// 上書き移動でもコピー先symlinkを置き換え、移動元が削除されること。
+func TestFileOverwriteMoveReplacesDestinationSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "src.txt"), []byte("NEW"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "outside.txt"), []byte("ORIGINAL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("outside.txt", filepath.Join(dir, "dst.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src.txt」を「dst.txt」にファイル上書移動`)
+
+	data, err := os.ReadFile(filepath.Join(dir, "outside.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "ORIGINAL" {
+		t.Fatalf("outside.txt = %q, want ORIGINAL", got)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("dst.txt が symlink のままです")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW" {
+		t.Fatalf("dst.txt = %q, want NEW", got)
+	}
+
+	if _, err := os.Lstat(filepath.Join(dir, "src.txt")); !os.IsNotExist(err) {
+		t.Fatalf("移動元 src.txt が残っています: %v", err)
+	}
+}
+
+// TestDirectoryOverwriteMoveReplacesDestinationFileSymlink は #405 の
+// Issue 再現そのままの回帰テスト。ディレクトリの上書き移動で、
+// コピー先ファイルのsymlinkを置き換えてリンク先を守ること。
+func TestDirectoryOverwriteMoveReplacesDestinationFileSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.Mkdir(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src", "file.txt"), []byte("NEW"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "dst"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "outside.txt"), []byte("ORIGINAL"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outside.txt", filepath.Join(dir, "dst", "file.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src」を「dst」にファイル上書移動`)
+
+	data, err := os.ReadFile(filepath.Join(dir, "outside.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "ORIGINAL" {
+		t.Fatalf("outside.txt = %q, want ORIGINAL", got)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst", "file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("dst/file.txt が symlink のままです")
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, "dst", "file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW" {
+		t.Fatalf("dst/file.txt = %q, want NEW", got)
+	}
+
+	if _, err := os.Lstat(filepath.Join(dir, "src")); !os.IsNotExist(err) {
+		t.Fatalf("移動元 src が残っています: %v", err)
+	}
+}
+
+// TestDirectoryOverwriteCopyReplacesIntermediateSymlink は #405 の回帰テスト。
+// コピー先の中間ディレクトリがsymlinkのとき、リンク先（ツリー外）へ
+// 書かずに実ディレクトリへ置き換えること。
+func TestDirectoryOverwriteCopyReplacesIntermediateSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.MkdirAll(filepath.Join(dir, "src", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src", "sub", "file.txt"), []byte("NEW"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "dst"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(dir, "outsideDir"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("../outsideDir", filepath.Join(dir, "dst", "sub")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src」を「dst」にファイル上書コピー`)
+
+	if _, err := os.Lstat(filepath.Join(dir, "outsideDir", "file.txt")); !os.IsNotExist(err) {
+		t.Fatalf("outsideDir/file.txt が作成されています: %v", err)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst", "sub"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.IsDir() {
+		t.Fatal("dst/sub が実ディレクトリになっていません")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "dst", "sub", "file.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW" {
+		t.Fatalf("dst/sub/file.txt = %q, want NEW", got)
+	}
+}
+
+// TestFileCopyRejectsBrokenDestinationSymlink は #405 の回帰テスト。
+// 非上書きコピーでは、壊れたsymlinkもコピー先に存在するものとして
+// エラーにし、リンク先を新規作成しないこと。
+func TestFileCopyRejectsBrokenDestinationSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "src.txt"), []byte("NEW3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("missing-target.txt", filepath.Join(dir, "dst.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	err := runExpectError(t, dir, `「src.txt」を「dst.txt」にファイルコピー`)
+	if err == nil {
+		t.Fatal("壊れた symlink があるコピー先でエラーになりませんでした")
+	}
+
+	if _, err := os.Lstat(filepath.Join(dir, "missing-target.txt")); !os.IsNotExist(err) {
+		t.Fatalf("missing-target.txt が作成されています: %v", err)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("dst.txt の symlink が置換されています")
+	}
+}
+
+// TestFileOverwriteCopyReplacesBrokenDestinationSymlink は #405 の回帰テスト。
+// 壊れたsymlinkへの上書きコピーは、リンク先を作らずリンク自体を置き換えること。
+func TestFileOverwriteCopyReplacesBrokenDestinationSymlink(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "src.txt"), []byte("NEW3"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("missing-target.txt", filepath.Join(dir, "dst.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src.txt」を「dst.txt」にファイル上書コピー`)
+
+	if _, err := os.Lstat(filepath.Join(dir, "missing-target.txt")); !os.IsNotExist(err) {
+		t.Fatalf("missing-target.txt が作成されています: %v", err)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("dst.txt が symlink のままです")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW3" {
+		t.Fatalf("dst.txt = %q, want NEW3", got)
+	}
+}
+
+// TestFileOverwriteCopyReplacesDirSymlinkDestination は #405 の回帰テスト。
+// コピー先leafがディレクトリへのsymlinkの場合も、上書きではリンク先へ
+// 書き込まず（従来は is a directory エラー）、リンク自体を通常ファイルへ
+// 置き換えること。リンク先ディレクトリの中身には触れない。
+func TestFileOverwriteCopyReplacesDirSymlinkDestination(t *testing.T) {
+	dir := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(dir, "src.txt"), []byte("NEW4"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	realDir := filepath.Join(dir, "realdir")
+	if err := os.Mkdir(realDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("realdir", filepath.Join(dir, "dst.txt")); err != nil {
+		t.Skipf("シンボリックリンクを作れません: %v", err)
+	}
+
+	runIn(t, dir, `「src.txt」を「dst.txt」にファイル上書コピー`)
+
+	entries, err := os.ReadDir(realDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("リンク先ディレクトリにファイルが作られています: %v", entries)
+	}
+
+	info, err := os.Lstat(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		t.Fatalf("dst.txt が通常ファイルになっていません: %v", info.Mode())
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "dst.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(data); got != "NEW4" {
+		t.Fatalf("dst.txt = %q, want NEW4", got)
+	}
+}
