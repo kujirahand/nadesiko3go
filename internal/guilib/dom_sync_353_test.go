@@ -21,6 +21,8 @@ func TestIssue353HTMLReplaceSyncsModel(t *testing.T) {
 	if err := screen.bind(old, "click", eventBinding{}); err != nil {
 		t.Fatal(err)
 	}
+	// old を DOM親要素にしておく（置換で消えたら親指定も解除されること）
+	screen.setParent(old)
 	screen.DrainOperations()
 
 	if err := screen.setHTML(parent, `<button id="new">new</button>`); err != nil {
@@ -45,6 +47,9 @@ func TestIssue353HTMLReplaceSyncsModel(t *testing.T) {
 	}
 	if _, ok := screen.events[old]; ok {
 		t.Error("old event binding should be removed after HTML replace")
+	}
+	if got := screen.parent(); got != 0 {
+		t.Errorf("domParent = %d, want 0 after the parent element was replaced away", got)
 	}
 	// HTML取得は、ハンドル注入済みの描画結果ではなく指定した文字列を返す
 	if got, err := screen.html(parent); err != nil || got != `<button id="new">new</button>` {
@@ -76,6 +81,24 @@ func TestIssue353HTMLReplaceSyncsModel(t *testing.T) {
 	}
 	if text, err := screen.text(parent); err != nil || text != "hello" {
 		t.Errorf("parent text = %q, err = %v, want hello", text, err)
+	}
+}
+
+// setText は select の子 option を消さない（値の設定で子要素は変わらないため）。
+func TestIssue353SetTextKeepsSelectOptions(t *testing.T) {
+	screen := NewScreen()
+	screen.DisplayHTML(`<select id="sel"><option id="opt1" value="a">A</option><option id="opt2" value="b">B</option></select>`)
+	sel, ok := screen.queryByID("sel")
+	if !ok {
+		t.Fatal("select not found")
+	}
+	if err := screen.setText(sel, "b"); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"opt1", "opt2"} {
+		if _, ok := screen.queryByID(id); !ok {
+			t.Errorf("%s should remain after setText on select", id)
+		}
 	}
 }
 
