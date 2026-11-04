@@ -7,19 +7,64 @@ package vm_test
 // 出力文字列を直接比べず、デコードし直して値で比べる。
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
+
+	"golang.org/x/text/encoding"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 )
 
+// encodeForTest は参照用エンコーダで期待バイト列を作る。
+// 命令で保存したファイルの実バイトと比較することで、保存と読み取りの
+// 両方が同じ誤りをして往復だけ通るケースを検出する。
+func encodeForTest(t *testing.T, enc encoding.Encoding, s string) []byte {
+	t.Helper()
+	b, err := io.ReadAll(transform.NewReader(strings.NewReader(s), enc.NewEncoder()))
+	if err != nil {
+		t.Fatalf("encodeForTest: %v", err)
+	}
+	return b
+}
+
 func TestDataConvSJISFileCSV(t *testing.T) {
-	path := fmt.Sprintf("%s/input.csv", t.TempDir())
-	code := fmt.Sprintf("P=「%s」\n「氏名,住所\n山田,東京都\n」をPにSJISファイル保存\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path)
+	dir := t.TempDir()
+	content := "氏名,住所\n山田,東京都\n"
+	want := `[["氏名","住所"],["山田","東京都"]]`
+	wantBytes := encodeForTest(t, japanese.ShiftJIS, content)
+
+	// 命令で保存したファイルが、実際に Shift_JIS のバイト列であること
+	path := fmt.Sprintf("%s/input.csv", dir)
+	code := fmt.Sprintf("P=「%s」\n「%s」をPにSJISファイル保存\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path, content)
 	got, err := runCUICommands(t, code)
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	if want := `[["氏名","住所"],["山田","東京都"]]`; got != want {
+	if got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if !bytes.Equal(saved, wantBytes) {
+		t.Errorf("保存されたバイト列が Shift_JIS ではありません: got=% X want=% X", saved, wantBytes)
+	}
+
+	// 外部で作られた Shift_JIS のバイト列（ファイル）を正しく読めること
+	path2 := fmt.Sprintf("%s/external.csv", dir)
+	if err := os.WriteFile(path2, wantBytes, 0o644); err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	got, err = runCUICommands(t, fmt.Sprintf("P=「%s」\nS=PをSJISファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path2))
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if got != want {
 		t.Errorf("got=%q want=%q", got, want)
 	}
 }
@@ -62,13 +107,49 @@ func TestDataConvSJISCharsCSV(t *testing.T) {
 }
 
 func TestDataConvEUCFileCSV(t *testing.T) {
-	path := fmt.Sprintf("%s/input.csv", t.TempDir())
-	code := fmt.Sprintf("P=「%s」\n「名前,値\n桜,1\n」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path)
+	dir := t.TempDir()
+	content := "名前,値\n桜,1\n"
+	want := `[["名前","値"],["桜",1]]`
+	wantBytes := encodeForTest(t, japanese.EUCJP, content)
+
+	path := fmt.Sprintf("%s/input.csv", dir)
+	code := fmt.Sprintf("P=「%s」\n「%s」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path, content)
 	got, err := runCUICommands(t, code)
 	if err != nil {
 		t.Fatalf("err=%v", err)
 	}
-	if want := `[["名前","値"],["桜",1]]`; got != want {
+	if got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+	saved, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if !bytes.Equal(saved, wantBytes) {
+		t.Errorf("保存されたバイト列が EUC-JP ではありません: got=% X want=% X", saved, wantBytes)
+	}
+
+	// 外部で作られた EUC-JP のバイト列（ファイル）を正しく読めること
+	path2 := fmt.Sprintf("%s/external.csv", dir)
+	if err := os.WriteFile(path2, wantBytes, 0o644); err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	got, err = runCUICommands(t, fmt.Sprintf("P=「%s」\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path2))
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if got != want {
+		t.Errorf("got=%q want=%q", got, want)
+	}
+
+	// JIS X 0212 の補助漢字（鷗 U+9DD7）を含む行の往復
+	path3 := fmt.Sprintf("%s/x0212.csv", dir)
+	code = fmt.Sprintf("P=「%s」\n「鳥,鷗\n」をPにEUCファイル保存\nS=PをEUCファイル読\nT=SをCSV取得\nTをJSONエンコードして表示", path3)
+	got, err = runCUICommands(t, code)
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	if want := `[["鳥","鷗"]]`; got != want {
 		t.Errorf("got=%q want=%q", got, want)
 	}
 }
@@ -141,9 +222,16 @@ func TestDataConvJSONEncode(t *testing.T) {
 }
 
 func TestDataConvJSONErrors(t *testing.T) {
-	for _, input := range []string{`{"a":1,}`, `{'a':1}`, `[1,2`, ``, `1e400`} {
-		t.Run(fmt.Sprintf("%q", input), func(t *testing.T) {
-			got, err := runCUICommands(t, fmt.Sprintf("『%s』をJSONデコードして表示", input))
+	tests := []struct{ name, input string }{
+		{"末尾カンマ", `{"a":1,}`},
+		{"シングルクォート", `{'a':1}`},
+		{"閉じていない配列", `[1,2`},
+		{"空文字列", ``},
+		{"範囲外の指数", `1e400`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := runCUICommands(t, fmt.Sprintf("『%s』をJSONデコードして表示", tt.input))
 			if err == nil {
 				t.Fatalf("エラーになるはずが got=%q", got)
 			}
