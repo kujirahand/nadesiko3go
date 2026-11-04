@@ -589,7 +589,8 @@ func advanceMatch(s string, m []int) int {
 }
 
 // stickyWholeMatches はグローバルなsticky検索が訪れる一致全体の位置を、
-// JavaScriptと同じ順に返す。
+// JavaScriptと同じ順に返す。stickyIndexes を通って派生パターンが用意された
+// あとにだけ呼ばれる前提で、matchWholeAt が tail を使う。
 func (r *Regexp) stickyWholeMatches(s string) [][]int {
 	var out [][]int
 	for pos := 0; pos <= len(s); {
@@ -656,7 +657,8 @@ func stickyFromScan(matches [][]int) [][]int {
 	return out
 }
 
-// stickySubmatches は stickyWholeMatches の捕獲付き版。
+// stickySubmatches は stickyWholeMatches の捕獲付き版。こちらも
+// stickyIndexes を通ったあとにだけ呼ばれる前提で、matchAt が tail を使う。
 func (r *Regexp) stickySubmatches(s string) [][]int {
 	var out [][]int
 	for pos := 0; pos <= len(s); {

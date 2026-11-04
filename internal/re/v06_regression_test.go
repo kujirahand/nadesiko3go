@@ -689,7 +689,9 @@ func TestV06NonASCIIFlagRejected(t *testing.T) {
 // TestV06StickyScanRetention は、走査経路（stickyFromScan）で途中に途切れが
 // あるとき、走査結果の大きなbackingを返り値が保持しないことを固定する。
 // 文脈を見るアサーションを含むので textScan には入らず、位置指定も要らない
-// 走査経路を通るパターンで確かめる。
+// 走査経路を通るパターンで確かめる。その経路選択自体は、内部テストの
+// TestV06StickyModeRouting が同じ `/a\B/gy` で stickyScan・textScan=false と
+// 固定している。
 func TestV06StickyScanRetention(t *testing.T) {
 	r := mustCompile(t, `/a\B/gy`)
 	got := mustFindAll(t, r, "aaX"+strings.Repeat("a", 65536))
