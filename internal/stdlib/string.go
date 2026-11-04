@@ -124,7 +124,7 @@ func stringImpls(m map[string]Impl) {
 		// strings.Count は重ならない一致を数えるため、split(a).length - 1 と等価で、
 		// 個数だけのために断片の配列を作らずに済む。
 		// 検索語が空文字列のときは0回とする
-		// (strings.Count では文字数+1を返すため。TS版 #2482 に合わせる)。
+		// (strings.Count(s, "") は rune数+1 を返すため。TS版 #2482 に合わせる)。
 		search := str(a, 1)
 		if search == "" {
 			return value.Number(0), nil
