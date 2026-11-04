@@ -302,7 +302,7 @@ func BenchmarkA01Drain(b *testing.B) {
 	}
 }
 
-// sizeName converts a count to the 8k/16k/32k sub-benchmark name.
+// sizeName は件数を 8k/16k/32k のサブベンチマーク名に変換する。
 func sizeName(n int) string {
 	return map[int]string{8192: "8k", 16384: "16k", 32768: "32k"}[n]
 }

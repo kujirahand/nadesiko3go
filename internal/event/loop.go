@@ -75,10 +75,9 @@ func (h *timerHeap) Pop() any {
 type Loop struct {
 	now time.Time
 
-	// all holds every timer and oneShots only the one-shot ones, both in the
-	// same time-then-seq order. RunUntil drains all, RunUntilIdle pops oneShots
-	// so that a repeating timer at the head never needs a linear scan.
-	// byID makes Cancel independent of the queue size.
+	// all は全タイマー、oneShots は単発のみを、どちらも時刻→連番の同じ順序で持つ。
+	// RunUntil は all を、RunUntilIdle は oneShots を取り出すので、先頭に繰り返し
+	// タイマーがあっても線形探索が要らない。byID は Cancel を件数に依存させない。
 	all      timerHeap
 	oneShots timerHeap
 	byID     map[host.TimerID]*timer
@@ -193,7 +192,7 @@ func (l *Loop) schedule(at time.Time, interval time.Duration, callback host.Call
 	return t.id
 }
 
-// remove takes one timer out of both heaps and the index.
+// remove はタイマーを両方のヒープと索引から外す。
 func (l *Loop) remove(t *timer) {
 	heap.Remove(&l.all, t.inAll)
 	if t.inOnce >= 0 {
