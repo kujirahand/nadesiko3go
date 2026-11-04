@@ -187,62 +187,110 @@ func (s *Screen) DisplayHTML(markup string) int {
 	}
 	s.nodes[wrapperHandle] = wrapper
 
-	context := &html.Node{Type: html.ElementNode, Data: "div", DataAtom: atom.Div}
-	fragments, err := html.ParseFragment(strings.NewReader(markup), context)
-	if err == nil {
-		nodeRefs := map[int]*html.Node{}
-		var register func(*html.Node, int)
-		register = func(dom *html.Node, parent int) {
-			nextParent := parent
-			if dom.Type == html.ElementNode {
-				s.nextHandle++
-				handle := s.nextHandle
-				attrs := map[string]string{}
-				filtered := dom.Attr[:0]
-				for _, attr := range dom.Attr {
-					if attr.Key == "data-gonako-handle" {
-						continue
-					}
-					attrs[attr.Key] = attr.Val
-					filtered = append(filtered, attr)
-				}
-				dom.Attr = append(filtered, html.Attribute{Key: "data-gonako-handle", Val: strconv.Itoa(handle)})
-				_, checked := attrs["checked"]
-				s.nodes[handle] = &screenNode{
-					handle: handle, tag: dom.Data, name: attrs["name"], parent: parent,
-					text: attrs["value"], checked: checked, styles: map[string]string{}, attributes: attrs,
-				}
-				if checked {
-					// ブラウザは同名radioのうち最後のcheckedだけを残す。モデルもそろえる。
-					s.clearRadioGroup(s.nodes[handle])
-				}
-				nodeRefs[handle] = dom
-				nextParent = handle
-			}
-			for child := dom.FirstChild; child != nil; child = child.NextSibling {
-				register(child, nextParent)
-			}
-		}
-		for _, fragment := range fragments {
-			register(fragment, wrapperHandle)
-		}
-		for handle, dom := range nodeRefs {
-			s.nodes[handle].html = renderChildren(dom)
-			if s.nodes[handle].tag == "textarea" && s.nodes[handle].text == "" {
-				s.nodes[handle].text = textContent(dom)
-			}
-		}
-		var rendered strings.Builder
-		for _, fragment := range fragments {
-			_ = html.Render(&rendered, fragment)
-		}
-		wrapper.html = rendered.String()
-	}
+	wrapper.html = s.registerFragments(markup, wrapperHandle)
 
 	s.operations = append(s.operations, Operation{
 		Type: "create", Handle: wrapperHandle, Tag: "div", HTML: wrapper.html,
 	})
 	return wrapperHandle
+}
+
+// registerFragments はHTML断片を解析し、各要素へ新しいハンドルを割り当てて
+// nodes に登録する。返すのは data-gonako-handle を注入した描画済みHTML。
+// 解析に失敗したときは元のHTMLをそのまま返す。呼び出し側で s.mu を取っていること。
+// 解析の文脈要素には親要素自身のタグを使う(tr は tbody、option は select の
+// 文脈でないと断片解析で落ちるため)。親が無い・タグが空なら div にする。
+func (s *Screen) registerFragments(markup string, wrapperHandle int) string {
+	contextTag := "div"
+	if parentNode := s.nodes[wrapperHandle]; parentNode != nil && parentNode.tag != "" {
+		contextTag = parentNode.tag
+	}
+	context := &html.Node{Type: html.ElementNode, Data: contextTag, DataAtom: atom.Lookup([]byte(contextTag))}
+	fragments, err := html.ParseFragment(strings.NewReader(markup), context)
+	if err != nil {
+		return markup
+	}
+	nodeRefs := map[int]*html.Node{}
+	var register func(*html.Node, int)
+	register = func(dom *html.Node, parent int) {
+		nextParent := parent
+		if dom.Type == html.ElementNode {
+			s.nextHandle++
+			handle := s.nextHandle
+			attrs := map[string]string{}
+			filtered := dom.Attr[:0]
+			for _, attr := range dom.Attr {
+				if attr.Key == "data-gonako-handle" {
+					continue
+				}
+				attrs[attr.Key] = attr.Val
+				filtered = append(filtered, attr)
+			}
+			dom.Attr = append(filtered, html.Attribute{Key: "data-gonako-handle", Val: strconv.Itoa(handle)})
+			_, checked := attrs["checked"]
+			s.nodes[handle] = &screenNode{
+				handle: handle, tag: dom.Data, name: attrs["name"], parent: parent,
+				text: attrs["value"], checked: checked, styles: map[string]string{}, attributes: attrs,
+			}
+			if checked {
+				// ブラウザは同名radioのうち最後のcheckedだけを残す。モデルもそろえる。
+				s.clearRadioGroup(s.nodes[handle])
+			}
+			nodeRefs[handle] = dom
+			nextParent = handle
+		}
+		for child := dom.FirstChild; child != nil; child = child.NextSibling {
+			register(child, nextParent)
+		}
+	}
+	for _, fragment := range fragments {
+		register(fragment, wrapperHandle)
+	}
+	for handle, dom := range nodeRefs {
+		s.nodes[handle].html = renderChildren(dom)
+		if s.nodes[handle].tag == "textarea" && s.nodes[handle].text == "" {
+			s.nodes[handle].text = textContent(dom)
+		}
+	}
+	var rendered strings.Builder
+	for _, fragment := range fragments {
+		_ = html.Render(&rendered, fragment)
+	}
+	return rendered.String()
+}
+
+// collectSubtree は handle とその子孫(孫以降を含む)のハンドルを集める。
+// 呼び出し側で s.mu を取っていること。
+func (s *Screen) collectSubtree(handle int) map[int]struct{} {
+	subtree := map[int]struct{}{handle: {}}
+	for changed := true; changed; {
+		changed = false
+		for child, n := range s.nodes {
+			if _, ok := subtree[child]; ok {
+				continue
+			}
+			if _, ok := subtree[n.parent]; ok {
+				subtree[child] = struct{}{}
+				changed = true
+			}
+		}
+	}
+	return subtree
+}
+
+// dropDescendants は handle の子孫を nodes と events から取り除く(handle 自身は残す)。
+// 呼び出し側で s.mu を取っていること。
+func (s *Screen) dropDescendants(handle int) {
+	for h := range s.collectSubtree(handle) {
+		if h == handle {
+			continue
+		}
+		delete(s.nodes, h)
+		delete(s.events, h)
+		if s.domParent == h {
+			s.domParent = 0
+		}
+	}
 }
 
 func renderChildren(node *html.Node) string {
@@ -351,19 +399,7 @@ func (s *Screen) remove(handle int, command string) (map[int]struct{}, error) {
 	if _, err := s.node(handle, command); err != nil {
 		return nil, err
 	}
-	removed := map[int]struct{}{handle: {}}
-	for changed := true; changed; {
-		changed = false
-		for child, n := range s.nodes {
-			if _, ok := removed[child]; ok {
-				continue
-			}
-			if _, ok := removed[n.parent]; ok {
-				removed[child] = struct{}{}
-				changed = true
-			}
-		}
-	}
+	removed := s.collectSubtree(handle)
 	for removedHandle := range removed {
 		delete(s.nodes, removedHandle)
 		delete(s.events, removedHandle)
@@ -381,6 +417,10 @@ func (s *Screen) setText(handle int, text string) error {
 	n, err := s.node(handle, "テキスト設定")
 	if err != nil {
 		return err
+	}
+	// 入力部品のtextはvalueの設定で、子要素(selectのoption等)は変わらない。
+	if n.tag != "input" && n.tag != "textarea" && n.tag != "select" {
+		s.dropDescendants(handle)
 	}
 	n.text, n.html = text, ""
 	s.operations = append(s.operations, Operation{Type: "text", Handle: handle, Text: text})
@@ -485,8 +525,13 @@ func (s *Screen) setHTML(handle int, html string) error {
 	if err != nil {
 		return err
 	}
+	s.dropDescendants(handle)
+	rendered := s.registerFragments(html, handle)
+	// 保持する値は、HTML取得やテキスト取得が指定どおりの文字列を返せるよう
+	// 元のHTMLのままにする。画面へ送る操作だけ、新しい要素を検索できるよう
+	// data-gonako-handle を注入した描画済みHTMLを使う。
 	n.html, n.text = html, ""
-	s.operations = append(s.operations, Operation{Type: "html", Handle: handle, HTML: html})
+	s.operations = append(s.operations, Operation{Type: "html", Handle: handle, HTML: rendered})
 	return nil
 }
 

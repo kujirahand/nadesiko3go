@@ -205,10 +205,12 @@ func TestDOMGUISampleCompilesAndHandlesEvent(t *testing.T) {
 	if op := result.Operations[4]; op.Tag != "aside" || op.Parent != 2 {
 		t.Fatalf("DOM部品作成 operation = %#v", op)
 	}
-	if op := result.Operations[5]; op.Type != "styles" || op.Handle != 8 || op.Styles["border"] == "" {
+	// HTML変更で差し込まれた<strong>も部品としてハンドル8を持つため(#353)、
+	// 以後の部品のハンドルは従来より1つずれる。
+	if op := result.Operations[5]; op.Type != "styles" || op.Handle != 9 || op.Styles["border"] == "" {
 		t.Fatalf("DOMスキン operation = %#v", op)
 	}
-	if op := result.Operations[6]; op.Type != "create" || op.Tag != "br" || op.Parent != 2 || op.Handle != 9 {
+	if op := result.Operations[6]; op.Type != "create" || op.Tag != "br" || op.Parent != 2 || op.Handle != 10 {
 		t.Fatalf("自動改行 operation = %#v", op)
 	}
 

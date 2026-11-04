@@ -70,6 +70,15 @@ function apply(ops) {
     if (found) elements.set(key, found);
     return found;
   };
+  // text/html で中身を置き換える前に、旧子孫のキャッシュを捨てる(e自身は残す)。
+  // DOM内の子孫はdata-gonako-handleで、生成直後で未接続の子孫はcontainsで拾う。
+  const dropCachedDescendants = e => {
+    const stale = new Set();
+    e.querySelectorAll('[data-gonako-handle]').forEach(child => stale.add(child));
+    for (const [handle, candidate] of elements) {
+      if (candidate !== e && (stale.has(candidate) || e.contains(candidate))) elements.delete(handle);
+    }
+  };
   ops.forEach(o => {
     // ウィンドウのハンドル0はGo側のJSONでは省略される。
     if (o.type === 'listen' && Number(o.handle || 0) === 0 && o.event === 'drop') {
@@ -141,9 +150,14 @@ function apply(ops) {
       }
       e.remove();
     } else if (o.type === 'text') {
-      if (e.matches('input,textarea,select')) e.value = o.text || '';
-      else e.textContent = o.text || '';
+      if (e.matches('input,textarea,select')) {
+        e.value = o.text || '';
+      } else {
+        dropCachedDescendants(e);
+        e.textContent = o.text || '';
+      }
     } else if (o.type === 'html') {
+      dropCachedDescendants(e);
       e.innerHTML = o.html || '';
     } else if (o.type === 'styles') {
       Object.entries(o.styles || {}).forEach(([k, v]) => e.style[k] = v);

@@ -104,6 +104,19 @@ func TestGUIValuesRegressionRunsInNode(t *testing.T) {
 	}
 }
 
+// TestDOMSyncRegressionRunsInNode は、text/html 操作で旧子孫の要素キャッシュが
+// 消えることを両画面の実物の apply 関数で確かめる (Issue #353)。
+func TestDOMSyncRegressionRunsInNode(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("JavaScriptの確認にはNode.jsが必要です")
+	}
+	cmd := exec.Command(node, "testdata/dom-sync-regression.cjs")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("text/html 操作後の要素キャッシュ: %v\n%s", err, output)
+	}
+}
+
 func TestGUIOperationBridgeSupportsPartAttributesAndSelectReplacement(t *testing.T) {
 	for _, asset := range []string{"app.js", "bundled/app.js"} {
 		source := readUIAsset(t, asset)
