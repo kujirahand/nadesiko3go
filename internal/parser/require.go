@@ -103,6 +103,7 @@ var builtinPluginSentinels = map[string]string{
 	"plugin_csv":        "CSV取得",
 	"plugin_toml":       "TOMLデコード",
 	"nadesiko3-toml":    "TOMLデコード",
+	"plugin_ini":        "INI取得",
 	"nadesiko3-sqlite3": "SQLITE3開",
 	"nadesiko3-office":  "OFFICEバージョン",
 }

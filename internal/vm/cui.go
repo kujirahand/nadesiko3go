@@ -16,6 +16,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
+	"github.com/kujirahand/nadesiko3go/internal/inilib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
@@ -192,6 +193,7 @@ var defaultPlugins = []stdlib.Plugin{
 	csvlib.New(),
 	mathlib.New(),
 	tomllib.New(),
+	inilib.New(),
 }
 
 // RegisterPlugin registers additional plugins to the default runtime registry.

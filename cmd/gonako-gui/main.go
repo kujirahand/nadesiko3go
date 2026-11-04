@@ -22,6 +22,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/inilib"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
@@ -51,7 +52,7 @@ func guiPlugins() []stdlib.Plugin {
 func guiPluginsWith(guiPlugin stdlib.Plugin) []stdlib.Plugin {
 	return []stdlib.Plugin{
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), tomllib.New(), guiPlugin,
+		officelib.New(), pdflib.New(), imagelib.New(), tomllib.New(), inilib.New(), guiPlugin,
 	}
 }
 
@@ -171,7 +172,7 @@ func getCommandList() []CommandItem {
 
 	reg := stdlib.NewRegistry(
 		nodelib.New(), csvlib.New(), mathlib.New(), sqlitelib.New(),
-		officelib.New(), pdflib.New(), imagelib.New(), tomllib.New(), guilib.New(),
+		officelib.New(), pdflib.New(), imagelib.New(), tomllib.New(), inilib.New(), guilib.New(),
 	)
 	list := reg.FuncList()
 	items := make([]CommandItem, 0, len(list))

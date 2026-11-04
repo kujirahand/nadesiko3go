@@ -22,6 +22,7 @@ import (
 
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
+	"github.com/kujirahand/nadesiko3go/internal/inilib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
@@ -154,6 +155,7 @@ func OfficeLib() Plugin { return officelib.New() }
 func PDFLib() Plugin    { return pdflib.New() }
 func ImageLib() Plugin  { return imagelib.New() }
 func TOMLLib() Plugin   { return tomllib.New() }
+func INILib() Plugin    { return inilib.New() }
 
 // --- 実行 (internal/vm) ---
 
