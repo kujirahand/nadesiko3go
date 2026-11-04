@@ -414,9 +414,15 @@ func moveEntry(ctx stdlib.Context, src, dest string, overwrite bool) error {
 // 判定は os.SameFile で実体を比べるので、"./" のような相対表記だけでなく、
 // カレントディレクトリを指す絶対パス表記でも同じ扱いになる。
 //
+// ただし判定は os.Lstat で行い、移動元自身がシンボリックリンクのときは
+// この特例に入れない。os.Stat はリンクを解決するため「カレントディレクトリを
+// 指すリンク」(alias -> .) も同一実体と判定され、リンク先である
+// カレントディレクトリの中身を削除してしまう。symlink はリンクとして
+// 削除し、リンク先には触れない。
+//
 // それ以外の削除失敗は呼び出し元へ返し、移動の成功扱いにしない。
 func removeSource(src string) error {
-	if srcInfo, err := os.Stat(src); err == nil {
+	if srcInfo, err := os.Lstat(src); err == nil && srcInfo.Mode()&os.ModeSymlink == 0 {
 		if cwdInfo, cwdErr := os.Stat("."); cwdErr == nil && os.SameFile(srcInfo, cwdInfo) {
 			entries, err := os.ReadDir(src)
 			if err != nil {

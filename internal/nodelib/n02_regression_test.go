@@ -324,6 +324,57 @@ func TestN02MoveFromCurrentDirectoryLeavesEmptyDirectory(t *testing.T) {
 	}
 }
 
+// TestN02MoveSymlinkToCurrentDirectoryKeepsTarget は、移動元がカレント
+// ディレクトリを指す symlink（alias -> .）のときを固定する。
+// os.Stat は symlink を解決するため、移動元自身が symlink でも
+// カレントディレクトリ特例に入ってしまい、リンク先（カレントディレクトリ）
+// の中身を削除していた。symlink はリンクとして削除し、リンク先には
+// 触れないことを確認する。
+// 「zalias」は中身より後に並ぶ名前で、リンク自身が先頭に来る「alias」では
+// 特例が先にリンクを消して以後の削除が不発になり、旧実装の破壊を再現できない。
+// 報告された再現（alias -> .）と、実際に中身が消える並びの両方を固定する。
+func TestN02MoveSymlinkToCurrentDirectoryKeepsTarget(t *testing.T) {
+	for _, linkName := range []string{"alias", "zalias"} {
+		t.Run(linkName, func(t *testing.T) {
+			work := filepath.Join(t.TempDir(), "work")
+			if err := os.MkdirAll(filepath.Join(work, "inner"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(work, "file.txt"), []byte("hello"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(work, "inner", "deep.txt"), []byte("deep"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(".", filepath.Join(work, linkName)); err != nil {
+				t.Skipf("シンボリックリンクを作れません: %v", err)
+			}
+			// 移動先はカレントディレクトリの外に置く（内側だと checkMoveTarget が拒否する）
+			dst := filepath.Join(t.TempDir(), "dst")
+
+			code := fmt.Sprintf(`「%s」を「%s」にファイル移動`, linkName, filepath.ToSlash(dst))
+			if err := runExpectError(t, work, code); err != nil {
+				t.Fatalf("symlink の移動がエラーになりました: %v", err)
+			}
+
+			// リンク先（カレントディレクトリ）の中身が残っていること
+			for _, rel := range []string{"file.txt", "inner/deep.txt"} {
+				if _, err := os.Stat(filepath.Join(work, filepath.FromSlash(rel))); err != nil {
+					t.Errorf("リンク先の %s が失われました: %v", rel, err)
+				}
+			}
+			// 移動元の symlink 自体はリンクとして削除されていること
+			if _, err := os.Lstat(filepath.Join(work, linkName)); err == nil {
+				t.Errorf("移動元の symlink が残っています: %s", filepath.Join(work, linkName))
+			}
+			// リンク先の中身を移動先へ移す既存の扱いは変えない
+			if got, err := os.ReadFile(filepath.Join(dst, "file.txt")); err != nil || string(got) != "hello" {
+				t.Errorf("移動先の file.txt が壊れています: content=%q err=%v", got, err)
+			}
+		})
+	}
+}
+
 // BenchmarkN02MoveDirectory は perf 用。空ディレクトリ 10 個と通常ファイル
 // 100 個を持つディレクトリの移動を、VM を含む実際の命令経路で測る。
 // checkMoveTarget は非公開のため、パッケージ外テストからは実入口を通して測る。
