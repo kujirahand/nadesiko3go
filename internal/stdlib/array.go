@@ -566,22 +566,20 @@ func arrayReference(container, index value.Value) (value.Value, error) {
 		first, firstOK := span.Get("先頭")
 		last, lastOK := span.Get("末尾")
 		if firstOK && lastOK {
-			start, end := int(value.ToNumber(first)), int(value.ToNumber(last))+1
+			// int化すると Inf/NaN/巨大値で不定動作になるため、float64のまま正規化する (#342)
+			startF, endF := value.ToNumber(first), value.ToNumber(last)+1
 			switch container.Kind() {
 			case value.KindArray:
 				a, _ := container.Array()
-				items := make([]value.Value, 0, max(end-start, 0))
-				for i := start; i < end && i < a.Len(); i++ {
+				start, end := jsSliceBounds(a.Len(), startF, endF)
+				items := make([]value.Value, 0, end-start)
+				for i := start; i < end; i++ {
 					items = append(items, a.Get(i))
 				}
 				return value.ArrayValue(value.NewArray(items...)), nil
 			case value.KindString:
 				r := []rune(value.ToString(container))
-				start = max(start, 0)
-				end = min(end, len(r))
-				if start > end {
-					start = end
-				}
+				start, end := jsSubstringBounds(len(r), startF, endF)
 				return value.String(string(r[start:end])), nil
 			}
 		}
@@ -610,6 +608,73 @@ func arrayReference(container, index value.Value) (value.Value, error) {
 		}
 	}
 	return value.Undefined(), errors.New("『参照』で文字列/配列/辞書型以外の値が指定されました。")
+}
+
+// jsSubstringBounds は JS の String.prototype.substring(start, end) と同じ規約で
+// 長さnの範囲を [s, e) に正規化する。本家の『参照』(文字列) の挙動 (#342)。
+//
+// NaN は 0、負数は 0、n 超は n、小数は 0 方向へ切り捨てる。
+// start > end のときは入れ替える。float64 のままクランプしてから int にする。
+func jsSubstringBounds(n int, start, end float64) (int, int) {
+	clamp := func(x float64) int {
+		if math.IsNaN(x) || x <= 0 {
+			return 0
+		}
+		if x >= float64(n) {
+			return n
+		}
+		return int(math.Trunc(x))
+	}
+	s, e := clamp(start), clamp(end)
+	if s > e {
+		s, e = e, s
+	}
+	return s, e
+}
+
+// jsSliceStart は JS の Array.prototype.slice の開始位置の正規化である。
+// NaN は 0、小数は切り捨て、負数は末尾から数え、範囲は [0, n] に収める。
+func jsSliceStart(n int, x float64) int {
+	if math.IsNaN(x) {
+		return 0
+	}
+	x = math.Trunc(x)
+	if x < 0 {
+		x += float64(n)
+		if x < 0 {
+			return 0
+		}
+	}
+	if x > float64(n) {
+		return n
+	}
+	return int(x)
+}
+
+// jsSliceBounds は JS の Array.prototype.slice(start, end) と同じ規約で
+// 長さnの範囲を [s, e) に正規化する。本家の『参照』(配列) の挙動 (#342)。
+// 正規化後に e < s なら空にする (substring と違い入れ替えない)。
+func jsSliceBounds(n int, start, end float64) (int, int) {
+	s, e := jsSliceStart(n, start), jsSliceStart(n, end)
+	if e < s {
+		e = s
+	}
+	return s, e
+}
+
+// jsSpliceBounds は本家の a.splice(先頭, 末尾-先頭+1) に対応する、
+// 開始位置と削除数を返す。開始は slice と同じ正規化、削除数は
+// NaN・負数を 0 とし、残りの要素数までに制限する (#342)。
+func jsSpliceBounds(n int, first, last float64) (int, int) {
+	s := jsSliceStart(n, first)
+	c := last - first + 1
+	if math.IsNaN(c) || c <= 0 {
+		return s, 0
+	}
+	if c >= float64(n-s) {
+		return s, n - s
+	}
+	return s, int(math.Trunc(c))
 }
 
 // eachElement runs a function value over every element of an array and lets
@@ -649,9 +714,8 @@ func arrayCut(container, index value.Value) (value.Value, error) {
 			first, firstOK := span.Get("先頭")
 			last, lastOK := span.Get("末尾")
 			if firstOK && lastOK {
-				start := int(value.ToNumber(first))
-				count := int(value.ToNumber(last)) - start + 1
-				removed := arr.Remove(start, max(count, 0))
+				start, count := jsSpliceBounds(arr.Len(), value.ToNumber(first), value.ToNumber(last))
+				removed := arr.Remove(start, count)
 				return value.ArrayValue(value.NewArray(removed...)), nil
 			}
 		}
