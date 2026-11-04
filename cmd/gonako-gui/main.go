@@ -668,7 +668,7 @@ func main() {
 			forceWNako3 = wnako3ConfigFromIndexJSON(data)
 		}
 	}
-	installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
+	bridge := installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), guiRuntime.window, nil)
 
 	// 特権ブリッジ（ファイル操作・コード実行・ダイアログ等）は、policy設定に
 	// 成功した保護windowにだけ登録する。Bind失敗はこの時点で起動を止める。
@@ -687,6 +687,9 @@ func main() {
 		os.Exit(1)
 	}
 	tw.Window.Run()
+	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
+	guiRuntime.close()
+	bridge.close()
 }
 
 // bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ

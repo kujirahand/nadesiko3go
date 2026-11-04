@@ -7,7 +7,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
@@ -21,12 +23,40 @@ const errOpenDB = "SQLITE3の命令を使う前に『SQLITE3開く』でデー�
 // Plugin owns the database handles opened by one gonako runtime.
 // Handles cross the value boundary as numbers; *sql.DB never does.
 type Plugin struct {
+	mu     sync.Mutex
 	dbs    map[int64]*sql.DB
 	active int64
 	next   int64
 }
 
-func New() *Plugin { return &Plugin{dbs: map[int64]*sql.DB{}} }
+func New() *Plugin {
+	p := &Plugin{dbs: map[int64]*sql.DB{}}
+	// 直接APIで使われ、実行環境の退役（Close）を通らずに参照を捨てられた
+	// 場合の保険。GCされた時点で接続を閉じ、database/sqlの常駐goroutineを
+	// 残さない（#363）。Close後もプラグインは再利用できるので、明示的な
+	// Closeではfinalizerを解除しない。
+	runtime.SetFinalizer(p, func(p *Plugin) { _ = p.Close() })
+	return p
+}
+
+// Close はこのプラグインが開いたすべての接続を閉じる。実行環境の破棄・
+// 終了・置換のときに呼ばれる。二重に呼んでも安全で、呼んだ後も
+// 『SQLITE3開く』で再び開いて使える。
+func (p *Plugin) Close() error {
+	p.mu.Lock()
+	dbs := p.dbs
+	p.dbs = map[int64]*sql.DB{}
+	p.active = 0
+	p.mu.Unlock()
+
+	var errs []error
+	for _, db := range dbs {
+		if err := db.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
+}
 
 type command struct {
 	josi       [][]string
@@ -109,6 +139,8 @@ func (p *Plugin) open(_ stdlib.Context, args []value.Value) (value.Value, error)
 		db.Close()
 		return value.Undefined(), err
 	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.next++
 	p.dbs[p.next] = db
 	p.active = p.next
@@ -116,18 +148,23 @@ func (p *Plugin) open(_ stdlib.Context, args []value.Value) (value.Value, error)
 }
 
 func (p *Plugin) close(_ stdlib.Context, _ []value.Value) (value.Value, error) {
-	db, err := p.activeDB()
+	p.mu.Lock()
+	db, err := p.activeDBLocked()
 	if err != nil {
+		p.mu.Unlock()
 		return value.Undefined(), err
 	}
 	id := p.active
 	p.active = 0
 	delete(p.dbs, id)
+	p.mu.Unlock()
 	return value.Undefined(), db.Close()
 }
 
 func (p *Plugin) switchDB(_ stdlib.Context, args []value.Value) (value.Value, error) {
 	id := int64(value.ToNumber(arg(args, 0)))
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if id <= 0 || p.dbs[id] == nil {
 		return value.Undefined(), errors.New("SQLITE3切替で指定されたデータベースは開かれていません。")
 	}
@@ -136,12 +173,15 @@ func (p *Plugin) switchDB(_ stdlib.Context, args []value.Value) (value.Value, er
 }
 
 func (p *Plugin) exec(ctx stdlib.Context, args []value.Value) (value.Value, error) {
-	_, err := p.execSQL(ctx, value.ToString(arg(args, 0)), arg(args, 1))
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	_, err := p.execSQLLocked(ctx, value.ToString(arg(args, 0)), arg(args, 1))
 	return value.Undefined(), err
 }
 
-func (p *Plugin) execSQL(ctx stdlib.Context, query string, params value.Value) (sql.Result, error) {
-	db, err := p.activeDB()
+// execSQLLocked は p.mu を握った状態で呼ぶこと。
+func (p *Plugin) execSQLLocked(ctx stdlib.Context, query string, params value.Value) (sql.Result, error) {
+	db, err := p.activeDBLocked()
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +219,10 @@ func (p *Plugin) all(_ stdlib.Context, args []value.Value) (value.Value, error) 
 }
 
 func (p *Plugin) execCallback(ctx stdlib.Context, args []value.Value) (value.Value, error) {
-	if _, err := p.execSQL(ctx, value.ToString(arg(args, 1)), arg(args, 2)); err != nil {
+	p.mu.Lock()
+	_, err := p.execSQLLocked(ctx, value.ToString(arg(args, 1)), arg(args, 2))
+	p.mu.Unlock()
+	if err != nil {
 		return value.Undefined(), fmt.Errorf("SQLITE3実行時のエラー『%s』%w", value.ToString(arg(args, 1)), err)
 	}
 	return post(ctx, arg(args, 0), nil)
@@ -206,7 +249,8 @@ func post(ctx stdlib.Context, callable value.Value, args []value.Value) (value.V
 	return value.Undefined(), ctx.PostFunc(fn, args)
 }
 
-func (p *Plugin) activeDB() (*sql.DB, error) {
+// activeDBLocked は p.mu を握った状態で呼ぶこと。
+func (p *Plugin) activeDBLocked() (*sql.DB, error) {
 	if p.active == 0 || p.dbs[p.active] == nil {
 		return nil, errors.New(errOpenDB)
 	}
@@ -214,7 +258,9 @@ func (p *Plugin) activeDB() (*sql.DB, error) {
 }
 
 func (p *Plugin) query(query string, params value.Value, one bool) ([]value.Value, error) {
-	db, err := p.activeDB()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	db, err := p.activeDBLocked()
 	if err != nil {
 		return nil, err
 	}

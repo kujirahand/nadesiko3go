@@ -117,7 +117,7 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 
 	session := &guiSession{window: newNativeWindowController(tw.Window)}
 	bindAsyncRunAPI(tw.Window, session, nil, nil)
-	installWNako3(tw.Window, newWNako3PageConfig(false), session.window, nil)
+	bridge := installWNako3(tw.Window, newWNako3PageConfig(false), session.window, nil)
 	if err := tw.BindErr(); err != nil {
 		tw.Close()
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
@@ -129,4 +129,7 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 		return
 	}
 	tw.Window.Run()
+	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
+	session.close()
+	bridge.close()
 }

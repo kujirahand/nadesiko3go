@@ -87,6 +87,10 @@ func RunSource(code, filename string, wantVars []string) (*Result, error) {
 	machine := New(prog, registry, out, DefaultOptions())
 	runErr := machine.Run()
 	result := &Result{Log: out.Log(), Vars: machine.Vars(VarPrefix, wantVars)}
+	// 一回限りの実行なので、終了時に環境を退役させる（#363）。
+	if closeErr := machine.Close(); runErr == nil {
+		runErr = closeErr
+	}
 	if runErr != nil {
 		return result, runErr
 	}

@@ -98,7 +98,7 @@ func runBundledHTML(packed *bundle.Bundle) {
 	if data, ok := packed.ReadResource(windowConfigFile); ok {
 		forceWNako3 = wnako3ConfigFromIndexJSON(data)
 	}
-	installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), session.window, packed)
+	bridge := installWNako3(tw.Window, newWNako3PageConfig(forceWNako3), session.window, packed)
 	if err := tw.BindErr(); err != nil {
 		tw.Close()
 		showMessageWindow(packed.Title, fmt.Sprintf("Bindを登録できません: %v", err))
@@ -111,6 +111,9 @@ func runBundledHTML(packed *bundle.Bundle) {
 		return
 	}
 	tw.Window.Run()
+	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
+	session.close()
+	bridge.close()
 }
 
 // runBundledProgram runs the packed なでしこプログラム and shows what it
@@ -166,6 +169,8 @@ func runBundledProgram(packed *bundle.Bundle) {
 		return
 	}
 	tw.Window.Run()
+	// ウィンドウを閉じたら、保持していた実行を退役させる（#363）。
+	session.close()
 }
 
 // 実行画面のひな形の置き場。//go:embed でこのバイナリの中に入っている。
