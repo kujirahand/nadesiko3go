@@ -159,6 +159,9 @@ func (m *VM) Fail(msg string, pos int) { m.failAt(msg, pos) }
 // エラー監視 candidate) and, if so, its message. Anything else must be
 // re-panicked — it is a real bug, not a language-level error.
 //
+// 『終了』の exitPanic は nakoPanic ではないので false を返し、呼び出し側で
+// 再 panic されてエラー監視を通過する (#337)。
+//
 // A generated function cannot type-assert this itself: nakoPanic is
 // unexported, on purpose, so that only vm code can manufacture one.
 func (m *VM) Recover(r any) (msg string, isNako bool) {

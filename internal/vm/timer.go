@@ -78,6 +78,8 @@ func (m *VM) runPendingCallbacks() error {
 
 // dispatch runs one scheduled callback. An error inside a callback stops the
 // loop and surfaces as the program's error.
+// コールバック内の『終了』は error ではなく exitPanic で抜けるので、エラー監視や
+// Run まで素通りする (#337)。
 func (m *VM) dispatch(id host.CallbackID) error {
 	callback, ok := m.callbacks[id]
 	if !ok {
