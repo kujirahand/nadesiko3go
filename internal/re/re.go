@@ -404,11 +404,13 @@ func normalizeJSUnicodeEscapes(pattern string) string {
 //
 // クラスの入れ子は深さで数える。『v』ではクラスの中にクラスを書けるため、
 // 内側の『]』で外側が閉じたことにしない。POSIXクラス『[:alpha:]』の括弧も
-// 同じ数え方で外側まで正しく閉じられる。クラスの先頭（否定の『^』の直後も
-// 含む）の『]』はリテラルとして扱う。
+// 同じ数え方で外側まで正しく閉じられる。クラスの先頭の『]』がリテラルに
+// なるのは、RE2の規則に合わせて『[』の直後か、先頭の否定『^』の直後だけ
+// である。『[^^]』のように『^』が続く場合、2つ目の『^』は通常の文字になる。
 func hasVSetOperation(pattern string) bool {
 	depth := 0
 	leading := false // クラスを開いた直後で、次の『]』はリテラルになる状態
+	caret := false   // クラスを開いた直後で、否定の『^』をまだ受け取れる状態
 	for i := 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
@@ -417,10 +419,13 @@ func hasVSetOperation(pattern string) bool {
 			}
 			i++ // エスケープされた文字を飛ばす
 			leading = false
+			caret = false
 		case '[':
 			depth++
 			leading = true
+			caret = true
 		case ']':
+			caret = false
 			if depth == 0 {
 				continue
 			}
@@ -430,20 +435,28 @@ func hasVSetOperation(pattern string) bool {
 			}
 			depth--
 		case '^':
-			// 否定の印の直後の『]』もリテラル扱いが続くので、状態を
-			// 変えない。それ以外の位置では leading は既に false。
+			if caret {
+				// 先頭の否定の印。直後の『]』はリテラルのままなので
+				// leading は維持し、否定の印はこの1回だけ受け取る。
+				caret = false
+			} else {
+				leading = false
+			}
 		case '&':
 			if depth > 0 && i+1 < len(pattern) && pattern[i+1] == '&' {
 				return true
 			}
 			leading = false
+			caret = false
 		case '-':
 			if depth > 0 && i+1 < len(pattern) && pattern[i+1] == '-' {
 				return true
 			}
 			leading = false
+			caret = false
 		default:
 			leading = false
+			caret = false
 		}
 	}
 	return false
