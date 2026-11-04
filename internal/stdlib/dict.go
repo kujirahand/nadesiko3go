@@ -78,19 +78,17 @@ func dictImpls(m map[string]Impl) {
 	m["JSON変換"] = m["JSONエンコード"]
 	m["JSON取得"] = m["JSONデコード"]
 	m["JSONエンコード整形"] = func(_ Context, a []value.Value) (value.Value, error) {
-		var native any
 		plain, err := encodeJSON(arg(a, 0))
 		if err != nil {
 			return value.Undefined(), err
 		}
-		if err := json.Unmarshal([]byte(plain), &native); err != nil {
+		// 汎用のmapへ戻すとキー順がソートされ、<, >, & も再エスケープされる。
+		// エンコード済みの文字列はそのままに、空白と改行だけを整形する。
+		var b bytes.Buffer
+		if err := json.Indent(&b, []byte(plain), "", "  "); err != nil {
 			return value.Undefined(), err
 		}
-		data, err := json.MarshalIndent(native, "", "  ")
-		if err != nil {
-			return value.Undefined(), err
-		}
-		return value.String(string(data)), nil
+		return value.String(b.String()), nil
 	}
 }
 
