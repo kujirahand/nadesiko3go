@@ -206,27 +206,65 @@ func summarizeNames(names []string) string {
 
 // resolveExisting はpathを絶対パスにし、実在する最長の先祖までシンボリック
 // リンクを解決してから未作成の末尾を連結した実体パスを返す。
+//
+// 「..」は文字列として先に畳まず、コンポーネントごとに解決しながら親へ戻す。
+// filepath.Abs は Clean で「..」を字句的に畳むため、alias が src/inner を
+// 指すときに alias/../new を「作業フォルダ直下の new」と誤認し、実体である
+// src/new（移動元の内側）を見逃す。OS は「..」をシンボリックリンク解決後の
+// 親に対して適用するので、ここでも同じ順序で辿る (#328)。
+//
+// 分割は os.PathSeparator で行うため、先に filepath.FromSlash で区切りを
+// 正規化する。Windows のなでしこプログラムは「/」区切りでパスを書くことが
+// 多く、正規化しないと「C:/work/alias/new」が1コンポーネント扱いになり、
+// 未作成の末尾で EvalSymlinks が失敗して alias を解決しないまま cleaned
+// path を返してしまう (#365)。Unix では no-op。
 func resolveExisting(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return filepath.Clean(path)
-	}
-	var tail []string
-	cur := abs
-	for {
-		if resolved, err := filepath.EvalSymlinks(cur); err == nil {
-			for i := len(tail) - 1; i >= 0; i-- {
-				resolved = filepath.Join(resolved, tail[i])
-			}
-			return resolved
+	path = filepath.FromSlash(path)
+	abs := path
+	if !filepath.IsAbs(abs) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return filepath.Clean(path)
 		}
-		parent := filepath.Dir(cur)
-		if parent == cur {
-			return abs
+		// ドライブを持たない rooted path（\foo）は IsAbs が false になるが、
+		// 作業フォルダからの相対ではなく現在のドライブのルートを指す。
+		// 作業フォルダのボリュームで解決する。Unix では「/foo」が IsAbs に
+		// なるためこの分岐には入らない。
+		if vol := filepath.VolumeName(wd); vol != "" && isRootedPath(abs) {
+			abs = vol + abs
+		} else {
+			abs = wd + string(os.PathSeparator) + abs
 		}
-		tail = append(tail, filepath.Base(cur))
-		cur = parent
 	}
+	vol := filepath.VolumeName(abs)
+	resolved := vol + string(os.PathSeparator)
+	parts := strings.Split(abs[len(vol):], string(os.PathSeparator))
+	for i, comp := range parts {
+		switch comp {
+		case "", ".":
+			continue
+		case "..":
+			// 解決済みの親へ戻す。シンボリックリンクの指す先が基準になる。
+			resolved = filepath.Dir(resolved)
+			continue
+		}
+		candidate := filepath.Join(resolved, comp)
+		next, err := filepath.EvalSymlinks(candidate)
+		if err != nil {
+			// 未作成または壊れたリンク。これ以降は解決できないため、
+			// 残りをそのまま連結する（従来の契約を維持する）。
+			return filepath.Join(append([]string{resolved}, parts[i:]...)...)
+		}
+		resolved = next
+	}
+	return resolved
+}
+
+// isRootedPath は区切り文字で始まるパスかを返す。Windows の「\foo」は
+// ドライブを持たないため filepath.IsAbs が false になる。Unix では
+// 区切り文字で始まるパスは常に絶対パスなので、この判定は使われない。
+func isRootedPath(path string) bool {
+	return len(path) > 0 && os.IsPathSeparator(path[0])
 }
 
 // pathInside はtargetがbaseフォルダの内側（自身を含む）にあるかを返す。
@@ -238,5 +276,3 @@ func pathInside(base, target string) bool {
 	}
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
 }
-
-
