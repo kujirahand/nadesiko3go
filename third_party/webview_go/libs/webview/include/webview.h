@@ -3057,6 +3057,19 @@ static constexpr IID IID_ICoreWebView2WebMessageReceivedEventHandler{
     0x00E6,
     0x49FA,
     {0x8E, 0x07, 0x89, 0x8E, 0xA0, 0x1E, 0xCB, 0xD2}};
+// 次の2つは上流の webview.h に自前定義が無く、WebView2.h のグローバル IID
+// (constexpr ではない) を参照して現行 GCC でビルドエラーになるため、
+// WebView2.h の値で追加したローカル修正 (nadesiko3go Issue #446)。
+static constexpr IID IID_ICoreWebView2NavigationStartingEventHandler{
+    0x9ADBE429,
+    0xF36D,
+    0x432B,
+    {0x9D, 0xDC, 0xF8, 0x88, 0x1F, 0xBD, 0x76, 0xE3}};
+static constexpr IID IID_ICoreWebView2NewWindowRequestedEventHandler{
+    0xD4C185FE,
+    0xC81C,
+    0x4989,
+    {0x97, 0xAF, 0x2D, 0x3F, 0xA7, 0xAB, 0x56, 0x51}};
 
 #if WEBVIEW_MSWEBVIEW2_BUILTIN_IMPL == 1
 enum class webview2_runtime_type { installed = 0, embedded = 1 };
