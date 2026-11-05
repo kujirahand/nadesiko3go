@@ -2,6 +2,7 @@
 package compiler
 
 import (
+	"math"
 	"sort"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
@@ -82,7 +83,7 @@ type Compiler struct {
 	// userFuncs maps a function name to its index in prog.Funcs.
 	userFuncs map[string]int
 	// constIndex dedupes the constant pool.
-	constIndex map[ir.Const]int
+	constIndex map[constKey]int
 	posIndex   map[ir.SourcePos]int
 	// globalIndex maps a global's name to its slot, and constGlobals marks
 	// the ones that hold a constant.
@@ -109,7 +110,7 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 	c := &Compiler{
 		registry:          registry,
 		userFuncs:         map[string]int{},
-		constIndex:        map[ir.Const]int{},
+		constIndex:        map[constKey]int{},
 		posIndex:          map[ir.SourcePos]int{},
 		globalIndex:       map[string]int{},
 		constGlobals:      map[int]bool{},
@@ -217,14 +218,30 @@ func (c *Compiler) pos(n *ast.Node) int {
 	return i
 }
 
+// constKey は定数プールの重複排除キー。数値は値ではなくビット列で比べる。
+// Goの float64 としては +0 と -0 が等しいため、ir.Const をそのままキーに
+// すると先に現れたゼロへ統合され、-0 の符号が失われてしまう (#339)。
+// ビット列で比べれば +0 と -0 が別定数になり、NaN も表現どおりに区別できる。
+type constKey struct {
+	kind    ir.ConstKind
+	boolVal bool
+	numBits uint64
+	str     string
+}
+
+func keyOf(k ir.Const) constKey {
+	return constKey{kind: k.Kind, boolVal: k.Bool, numBits: math.Float64bits(k.Num), str: k.Str}
+}
+
 // constant interns a value in the constant pool.
 func (c *Compiler) constant(k ir.Const) int {
-	if i, ok := c.constIndex[k]; ok {
+	key := keyOf(k)
+	if i, ok := c.constIndex[key]; ok {
 		return i
 	}
 	c.prog.Consts = append(c.prog.Consts, k)
 	i := len(c.prog.Consts) - 1
-	c.constIndex[k] = i
+	c.constIndex[key] = i
 	return i
 }
 

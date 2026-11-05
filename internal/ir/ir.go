@@ -2,6 +2,8 @@
 // execution backends.
 package ir
 
+import "encoding/json"
+
 // CurrentVersion は、直列化されたIRの世代。バージョン2で Inst.C と
 // OpBinaryAt (スーパー命令) が加わった。バージョン3で Inst のフィールドを
 // int32 に縮小した (40B→20B)。バージョン4で OpBinaryAtStoreLocal が加わった。
@@ -40,6 +42,39 @@ type Const struct {
 	Bool bool      `json:"bool,omitempty"`
 	Num  float64   `json:"num,omitempty"`
 	Str  string    `json:"str,omitempty"`
+}
+
+// constJSON は Const のJSON表現。数値定数だけは Num をポインタにして、
+// 0 でも必ず書き出す。通常の omitempty では +0 も -0 も省略されてしまい、
+// 読み戻したときに -0 が +0 になってしまうため (#339)。それ以外の種類では
+// 従来どおり、ゼロ値のフィールドは省略する。
+type constJSON struct {
+	Kind ConstKind `json:"kind"`
+	Bool bool      `json:"bool,omitempty"`
+	Num  *float64  `json:"num,omitempty"`
+	Str  string    `json:"str,omitempty"`
+}
+
+func (c Const) MarshalJSON() ([]byte, error) {
+	v := constJSON{Kind: c.Kind, Bool: c.Bool, Str: c.Str}
+	if c.Kind == ConstNumber || c.Num != 0 {
+		n := c.Num
+		v.Num = &n
+	}
+	return json.Marshal(v)
+}
+
+func (c *Const) UnmarshalJSON(data []byte) error {
+	var v constJSON
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	// num が無い旧形式の数値定数は、従来どおり +0 として読む。
+	*c = Const{Kind: v.Kind, Bool: v.Bool, Str: v.Str}
+	if v.Num != nil {
+		c.Num = *v.Num
+	}
+	return nil
 }
 
 type Func struct {

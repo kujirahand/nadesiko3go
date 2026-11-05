@@ -21,6 +21,16 @@ func TestConstExprRoundTrips(t *testing.T) {
 	for _, n := range nums {
 		g.prog.Consts = []ir.Const{{Kind: ir.ConstNumber, Num: n}}
 		expr := g.constExpr(0)
+		if n == 0 && math.Signbit(n) {
+			// -0 はリテラルにしない (#339)。Goのコンパイル時定数 "-0" は
+			// +0 に畳み込まれるが、ParseFloat("-0") は -0 を返すので、
+			// 読み戻し方式のこのテストでは区別できない。式そのものを固定し、
+			// 実際の符号はビルドして実行するテスト (signed_zero_test.go) で見る。
+			if expr != "rt.Number(rt.NegativeZero())" {
+				t.Fatalf("-0: constExpr = %s, want rt.Number(rt.NegativeZero())", expr)
+			}
+			continue
+		}
 		lit, ok := numberLiteralOf(expr)
 		if !ok {
 			t.Fatalf("%v: 数値リテラルとして書き出されなかった: %s", n, expr)
@@ -70,6 +80,17 @@ func TestConstExprKinds(t *testing.T) {
 		if got := g.constExpr(0); got != c.want {
 			t.Errorf("constExpr = %s, want %s", got, c.want)
 		}
+	}
+}
+
+// TestGoNumberSignedZero pins the -0 exception in goNumber directly:
+// +0 stays the plain literal "0", -0 becomes the runtime expression.
+func TestGoNumberSignedZero(t *testing.T) {
+	if got := goNumber(0); got != "0" {
+		t.Errorf("goNumber(+0) = %q, want %q", got, "0")
+	}
+	if got := goNumber(math.Copysign(0, -1)); got != "rt.NegativeZero()" {
+		t.Errorf("goNumber(-0) = %q, want rt.NegativeZero()", got)
 	}
 }
 

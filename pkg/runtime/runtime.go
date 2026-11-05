@@ -99,6 +99,12 @@ func Binary(op BinaryOp, a, b Value) Value { return ops.Binary(op, a, b) }
 // never needs an import beyond this package.
 func Mod(x, y float64) float64 { return math.Mod(x, y) }
 
+// NegativeZero は IEEE 754 の負のゼロ (-0) を返す。Goのソースに -0 と
+// 書いてもコンパイル時定数として +0 に畳み込まれてしまうため、生成コード
+// は -0 をこの実行時式で表す (Mod と同じく、生成ファイルが math を
+// import しなくて済むようにここに置く)。
+func NegativeZero() float64 { return math.Copysign(0, -1) }
+
 func Unary(op UnaryOp, v Value) Value { return ops.Unary(op, v) }
 
 // SpecialCount is the number of system values.
