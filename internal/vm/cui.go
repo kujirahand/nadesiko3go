@@ -124,7 +124,17 @@ func RunProgram(code, filename string, h *CUIHost) error {
 // CompileProgram compiles a program to IR without running it, which is what
 // `gonako build` needs.
 func CompileProgram(code, filename string) (*ir.Program, error) {
-	tree, err := ParseProgram(code, filename)
+	return CompileProgramFile(code, filename, "")
+}
+
+// CompileProgramFile は CompileProgram と同じコンパイルを行うが、IR の
+// ソース名やエラー帰属に使う filename と、相対的な『取り込む』の解決
+// 基準にする sourcePath を分けて受け取る。sourcePath はコードを読み
+// 込んだ主ソースファイル自身のパスであり、空文字の場合は filename を
+// 解決基準にも使う。表示名だけを短くしても include の基準が失われ
+// ないようにするための入口で、GUI のフォルダ変換が使う（#351）。
+func CompileProgramFile(code, filename, sourcePath string) (*ir.Program, error) {
+	tree, err := ParseProgramFile(code, filename, sourcePath)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +146,15 @@ func CompileProgram(code, filename string) (*ir.Program, error) {
 // が必要とするのはこれで、文法チェックと、フォーマッターがインデントを
 // 付け直すために使うブロック構造が手に入る。
 func ParseProgram(code, filename string) (*ast.Node, error) {
+	return ParseProgramFile(code, filename, "")
+}
+
+// ParseProgramFile は ParseProgram と同じ解析を行うが、表示用の
+// filename と取り込み解決基準の sourcePath を分けて受け取る。
+// CompileProgramFile と対になる入口。
+func ParseProgramFile(code, filename, sourcePath string) (*ast.Node, error) {
 	registry := runtimeRegistry()
-	return parser.ParseSource(code, filename, registry.FuncList())
+	return parser.ParseSourceFile(code, filename, sourcePath, registry.FuncList())
 }
 
 // RuntimeFuncList は `gonako run`/`build` と同じ命令レジストリの命令一覧を返す。
