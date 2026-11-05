@@ -2,6 +2,8 @@ package nodelib
 
 import (
 	"archive/zip"
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -284,6 +286,104 @@ func TestCreateZipDestInsideSrc(t *testing.T) {
 	}
 	if err := createZip(srcDir, filepath.Join(srcDir, "x.zip")); err == nil {
 		t.Error("圧縮先が圧縮元フォルダの内側でもエラーになりませんでした")
+	}
+}
+
+// closeErrorOutput は書き込みをバッファへ溜め、Close が指定エラーを返す
+// フェイク出力先 (Issue #330 の最終 close 失敗の注入用)。
+type closeErrorOutput struct {
+	bytes.Buffer
+	closeErr error
+	closeN   int
+}
+
+func (out *closeErrorOutput) Close() error {
+	out.closeN++
+	return out.closeErr
+}
+
+// centralDirectoryErrorOutput は中央ディレクトリのシグネチャ
+// (PK\x01\x02) を含む書き込みだけを失敗させるフェイク出力先。
+// archive/zip は出力先を bufio で包むため、書き込みの区切りは一定でない。
+// 先頭一致ではなく含むかどうかで判定し、区切りに依存しないようにする。
+// 中央ディレクトリは zw.Close() の flush で書かれるため、
+// 失敗は zip.Writer の Close から返る。
+type centralDirectoryErrorOutput struct {
+	bytes.Buffer
+	err    error
+	closeN int
+}
+
+func (out *centralDirectoryErrorOutput) Write(p []byte) (int, error) {
+	if bytes.Contains(p, []byte("PK\x01\x02")) {
+		return 0, out.err
+	}
+	return out.Buffer.Write(p)
+}
+
+func (out *centralDirectoryErrorOutput) Close() error {
+	out.closeN++
+	return nil
+}
+
+// makeZipInput は圧縮元になる小さなファイルを1つ作り、そのパスを返す。
+func makeZipInput(t *testing.T) string {
+	t.Helper()
+	src := filepath.Join(t.TempDir(), "input.txt")
+	if err := os.WriteFile(src, []byte("ZIPのテスト内容"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return src
+}
+
+// Issue #330: /dev/full への圧縮は、最終書き込みの失敗を成功と報告しない。
+func TestCreateZipDevFullReturnsError(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("/dev/full を利用する Linux 固有のテスト")
+	}
+	if _, err := os.Stat("/dev/full"); err != nil {
+		t.Skipf("/dev/full がないためスキップ: %v", err)
+	}
+	if err := createZip(makeZipInput(t), "/dev/full"); err == nil {
+		t.Fatal("createZip(/dev/full) が成功を返しました")
+	}
+}
+
+// Issue #330: 出力先の Close 失敗が writeZip のエラーとして返る。
+func TestWriteZipReturnsOutputCloseError(t *testing.T) {
+	src := makeZipInput(t)
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := errors.New("出力 close 失敗")
+	out := &closeErrorOutput{closeErr: want}
+
+	err = writeZip(src, srcInfo, out)
+	if !errors.Is(err, want) {
+		t.Fatalf("Close エラーが返りません: %v", err)
+	}
+	if out.closeN != 1 {
+		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
+	}
+}
+
+// Issue #330: zip.Writer の Close (中央ディレクトリ書き込み) の失敗が返る。
+func TestWriteZipReturnsZipWriterCloseError(t *testing.T) {
+	src := makeZipInput(t)
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := errors.New("中央ディレクトリ書込み失敗")
+	out := &centralDirectoryErrorOutput{err: want}
+
+	err = writeZip(src, srcInfo, out)
+	if !errors.Is(err, want) {
+		t.Fatalf("zip.Writer.Close のエラーが返りません: %v", err)
+	}
+	if out.closeN != 1 {
+		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
 	}
 }
 

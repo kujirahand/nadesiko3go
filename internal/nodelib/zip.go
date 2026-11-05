@@ -2,6 +2,7 @@ package nodelib
 
 import (
 	"archive/zip"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -110,17 +111,24 @@ func createZip(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	defer zipFile.Close()
 
-	zw := zip.NewWriter(zipFile)
-	defer zw.Close()
+	return writeZip(src, srcInfo, zipFile)
+}
+
+// writeZip は src を ZIP として out へ書き出す。
+// zip.Writer の Close (中央ディレクトリと EOCD の書き込み) と out の Close で
+// 初めて表面化する書き込み失敗 (容量不足など) があるため、defer で戻り値を
+// 捨てず、walk のエラーと合わせてすべて返す (#330)。
+// テストから close 失敗を注入できるよう、出力先は io.WriteCloser で受ける。
+func writeZip(src string, srcInfo os.FileInfo, out io.WriteCloser) error {
+	zw := zip.NewWriter(out)
 
 	var baseDir string
 	if srcInfo.IsDir() {
 		baseDir = filepath.Dir(filepath.Clean(src))
 	}
 
-	return filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+	walkErr := filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -161,11 +169,15 @@ func createZip(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
 
-		_, err = io.Copy(w, file)
-		return err
+		_, copyErr := io.Copy(w, file)
+		closeErr := file.Close()
+		return errors.Join(copyErr, closeErr)
 	})
+
+	zipCloseErr := zw.Close()
+	outCloseErr := out.Close()
+	return errors.Join(walkErr, zipCloseErr, outCloseErr)
 }
 
 func extractZip(src, destDir string) error {
