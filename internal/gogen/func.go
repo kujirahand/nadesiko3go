@@ -160,7 +160,15 @@ func (g *generator) operandExpr(fi int, src ir.Src, index int) string {
 // same value. A whole number is written without an exponent, because most
 // numbers in a なでしこ program are whole and 『5000000』 is easier to match
 // up with the source than 『5e+06』 when reading generated code.
+//
+// ただし -0 だけはリテラルにしない。Goではコンパイル時定数の -0 が +0 に
+// 畳み込まれてしまうので、実行時に -0 を作る rt.NegativeZero() で表す
+// (#339)。文字列として "-0" と書いて読み戻す分には符号が残るため、
+// リテラルの往復だけを見るテストではこの違いに気づけない。
 func goNumber(f float64) string {
+	if f == 0 && math.Signbit(f) {
+		return "rt.NegativeZero()"
+	}
 	if f == math.Trunc(f) && math.Abs(f) < 1e15 {
 		return strconv.FormatFloat(f, 'f', -1, 64)
 	}
