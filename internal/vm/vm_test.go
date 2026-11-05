@@ -329,6 +329,192 @@ func TestNestedClosureReachesOuterVariable(t *testing.T) {
 	}
 }
 
+// TestNestedNamedFuncCapturesOuterVariable pins issue #420: a named function
+// nested inside another function captures the outer local, and calling it by
+// name runs the closure instead of failing IR validation. The outer variable
+// is shared, so the updates are visible from the outer function too.
+func TestNestedNamedFuncCapturesOuterVariable(t *testing.T) {
+	code := `●処理とは
+件数=0
+●次番とは
+件数=件数+1
+件数-1で戻る
+ここまで
+次番を表示
+次番を表示
+件数を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "0\n1\n2" {
+		t.Errorf("got %q, want %q", got, "0\n1\n2")
+	}
+}
+
+// TestNestedNamedFuncWithArgument pins that a capturing nested function
+// still receives its arguments when called as a closure value.
+func TestNestedNamedFuncWithArgument(t *testing.T) {
+	code := `●処理とは
+件数=0
+●(Nだけ)進めるとは
+件数=件数+N
+件数で戻る
+ここまで
+(3だけ進める)を表示
+(4だけ進める)を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "3\n7" {
+		t.Errorf("got %q, want %q", got, "3\n7")
+	}
+}
+
+// TestNestedNamedFuncRecursion pins that a capturing nested function can
+// call itself: the recursive call reaches the closure bound in the parent
+// frame through a capture of its own.
+func TestNestedNamedFuncRecursion(t *testing.T) {
+	code := `●処理とは
+残り=3
+総和=0
+●数えるとは
+もし残り>0ならば
+総和=総和+残り
+残り=残り-1
+数える
+ここまで
+ここまで
+数える
+総和を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "6" {
+		t.Errorf("got %q, want %q", got, "6")
+	}
+}
+
+// TestNestedNamedFuncForwardReference pins that a nested function can be
+// called before its definition appears in the parent body: the closure is
+// bound in the parent's prologue, before any statement runs.
+func TestNestedNamedFuncForwardReference(t *testing.T) {
+	code := `●処理とは
+件数=41
+次番を表示
+●次番とは
+件数=件数+1
+件数で戻る
+ここまで
+ここまで
+処理
+`
+	if got := run(t, code); got != "42" {
+		t.Errorf("got %q, want %q", got, "42")
+	}
+}
+
+// TestNestedNamedFuncSiblingCall pins that one nested function can call a
+// sibling that captures the parent's variable: the sibling's closure was
+// created in the parent frame, so the captured cell is the parent's.
+func TestNestedNamedFuncSiblingCall(t *testing.T) {
+	code := `●処理とは
+件数=10
+●上乗せとは
+件数=件数+5
+件数で戻る
+ここまで
+●二回とは
+上乗せ
+(上乗せ)で戻る
+ここまで
+二回を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "20" {
+		t.Errorf("got %q, want %q", got, "20")
+	}
+}
+
+// TestNestedNamedFuncTwoLevelsDeep pins that the binding is threaded through
+// an intermediate function: a function nested two deep reaches the outermost
+// variable, and the innermost call uses the middle function's binding.
+func TestNestedNamedFuncTwoLevelsDeep(t *testing.T) {
+	code := `●外とは
+件数=100
+●中とは
+●内とは
+件数=件数+1
+件数で戻る
+ここまで
+内を表示
+ここまで
+中
+ここまで
+外
+`
+	if got := run(t, code); got != "101" {
+		t.Errorf("got %q, want %q", got, "101")
+	}
+}
+
+// TestNestedNamedFuncPointer pins that taking a reference to a capturing
+// nested function ({関数}名前) yields the closure bound in the parent frame,
+// not a fresh closure made in the referencing frame.
+func TestNestedNamedFuncPointer(t *testing.T) {
+	code := `●処理とは
+件数=5
+●次番とは
+件数=件数+1
+件数で戻る
+ここまで
+F={関数}次番
+(F())を表示
+(F())を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "6\n7" {
+		t.Errorf("got %q, want %q", got, "6\n7")
+	}
+}
+
+// TestNestedNamedFuncEscapesParent pins that the bound closure keeps the
+// captured cells alive after the parent function has returned.
+func TestNestedNamedFuncEscapesParent(t *testing.T) {
+	code := `●カウンタ作成とは
+件数=0
+●次番とは
+件数=件数+1
+件数で戻る
+ここまで
+({関数}次番)で戻る
+ここまで
+F=カウンタ作成
+(F())を表示
+(F())を表示
+`
+	if got := run(t, code); got != "1\n2" {
+		t.Errorf("got %q, want %q", got, "1\n2")
+	}
+}
+
+// TestNestedNamedFuncWithoutCapture pins that a nested function capturing
+// nothing keeps working when called by name.
+func TestNestedNamedFuncWithoutCapture(t *testing.T) {
+	code := `●処理とは
+●挨拶とは
+「やあ」で戻る
+ここまで
+挨拶を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "やあ" {
+		t.Errorf("got %q, want %q", got, "やあ")
+	}
+}
+
 func TestLeafFrameReuseRecursion(t *testing.T) {
 	code := `●(Nの)フィボとは
 もしN<=1ならばNで戻る

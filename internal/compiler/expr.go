@@ -202,6 +202,19 @@ func (c *Compiler) compileCall(n *ast.Node) {
 	// これにより、副作用のある引数式が二重評価されるのを防ぐ。
 
 	if index, ok := c.userFuncs[n.Name]; ok {
+		// 入れ子関数がこのスコープから見えるなら、定義側フレームで作られた
+		// クロージャを値として呼ぶ。捕捉を持つ関数を OpCallUser で直接
+		// 呼ぶことはできないため (#420)。
+		if key := nestedFuncKey(n.Name); c.nestedFuncVisible(key) {
+			c.loadVar(key, n)
+			for _, a := range n.Blocks {
+				c.compileExpr(a)
+			}
+			c.emit(ir.OpCallValue, 0, len(n.Blocks), n)
+			c.emit(ir.OpDup, 0, 0, n)
+			c.emit(ir.OpStoreSpecial, int(ir.SpecialSore), 0, n)
+			return
+		}
 		// 利用者定義関数: 引数を積んでから呼ぶ
 		for _, a := range n.Blocks {
 			c.compileExpr(a)
@@ -267,6 +280,13 @@ func (c *Compiler) compileCallValue(n *ast.Node) {
 
 // compileFuncPointer pushes a reference to a named function.
 func (c *Compiler) compileFuncPointer(n *ast.Node) {
+	// 入れ子関数は定義側フレームで束縛されたクロージャをそのまま使う。
+	// ここで OpMakeFunc すると、呼び出し側フレームを捕捉元としてしまい
+	// 捕捉セルの対応がずれる (#420)。
+	if key := nestedFuncKey(n.Name); c.nestedFuncVisible(key) {
+		c.loadVar(key, n)
+		return
+	}
 	index, ok := c.userFuncs[n.Name]
 	if !ok {
 		c.fail(fmt.Sprintf("関数『%s』への参照を取得できません。", n.Name), n)
