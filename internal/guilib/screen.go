@@ -65,6 +65,14 @@ type screenNode struct {
 	parent      int
 	styles      map[string]string
 	attributes  map[string]string
+	// dom は HTML断片の登録時に解析ツリーの対応要素を指す（断片要素だけが持つ）。
+	// 子孫の markup を登録時に全ノードへ複製すると深さに対して二乗に膨らむため、
+	// 保持はツリーへの参照だけにし、取得時に必要な範囲だけを描画する (Issue #357)。
+	// 不変条件: 解析ツリーは登録時のハンドル注入を最後に変更しないこと。
+	// 取得時の描画が登録時点のスナップショットと等価であることは、この前提に依存する。
+	// また、html を空にする変更（テキスト変更・HTML変更）では dom も必ず nil にし、
+	// 「空の保持文字列＋生きた dom」という状態を作らないこと。
+	dom *html.Node
 }
 
 type eventBinding struct {
@@ -247,7 +255,7 @@ func (s *Screen) registerFragments(markup string, wrapperHandle int) string {
 		register(fragment, wrapperHandle)
 	}
 	for handle, dom := range nodeRefs {
-		s.nodes[handle].html = renderChildren(dom)
+		s.nodes[handle].dom = dom
 		if s.nodes[handle].tag == "textarea" && s.nodes[handle].text == "" {
 			s.nodes[handle].text = textContent(dom)
 		}
@@ -291,6 +299,21 @@ func (s *Screen) dropDescendants(handle int) {
 			s.domParent = 0
 		}
 	}
+}
+
+// innerMarkup はノードの内容の markup を返す。明示的に保持された文字列
+// （部品作成時の html や、HTML変更で指定された元の文字列）があればそれを
+// 優先し、無ければ登録時の解析ツリーから子要素の範囲だけを描画する。
+// 呼び出し側で s.mu を取っていること（描画はツリーを読むだけだが、
+// ノードの状態との整合はロック前提にそろえる）。
+func (n *screenNode) innerMarkup() string {
+	if n.html != "" {
+		return n.html
+	}
+	if n.dom != nil {
+		return renderChildren(n.dom)
+	}
+	return ""
 }
 
 func renderChildren(node *html.Node) string {
@@ -423,6 +446,8 @@ func (s *Screen) setText(handle int, text string) error {
 		s.dropDescendants(handle)
 	}
 	n.text, n.html = text, ""
+	n.dom = nil // html を空にするので、古い解析ツリーも必ず一緒に落とす
+
 	s.operations = append(s.operations, Operation{Type: "text", Handle: handle, Text: text})
 	return nil
 }
@@ -434,8 +459,10 @@ func (s *Screen) text(handle int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if n.tag != "input" && n.tag != "textarea" && n.tag != "select" && n.html != "" {
-		return n.html, nil
+	if n.tag != "input" && n.tag != "textarea" && n.tag != "select" {
+		if markup := n.innerMarkup(); markup != "" {
+			return markup, nil
+		}
 	}
 	return n.text, nil
 }
@@ -526,6 +553,7 @@ func (s *Screen) setHTML(handle int, html string) error {
 		return err
 	}
 	s.dropDescendants(handle)
+	n.dom = nil // 保持する元の文字列が正になるよう、古い解析ツリーを落とす
 	rendered := s.registerFragments(html, handle)
 	// 保持する値は、HTML取得やテキスト取得が指定どおりの文字列を返せるよう
 	// 元のHTMLのままにする。画面へ送る操作だけ、新しい要素を検索できるよう
@@ -542,8 +570,8 @@ func (s *Screen) html(handle int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if n.html != "" {
-		return n.html, nil
+	if markup := n.innerMarkup(); markup != "" {
+		return markup, nil
 	}
 	return n.text, nil
 }
