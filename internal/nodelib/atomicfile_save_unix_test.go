@@ -28,10 +28,14 @@ func limitFileSizeForSave(t *testing.T, limit uint64) func() {
 		signal.Reset(syscall.SIGXFSZ)
 		t.Fatalf("RLIMIT_FSIZE を設定できません: %v", err)
 	}
-	return func() {
+	restore := func() {
 		_ = syscall.Setrlimit(syscall.RLIMIT_FSIZE, &orig)
 		signal.Reset(syscall.SIGXFSZ)
 	}
+	// 途中で t.Fatal しても制限が残らないよう、Cleanup でも戻す
+	// (明示的に呼んだ後の二重の復元は無害)。
+	t.Cleanup(restore)
+	return restore
 }
 
 func assertNoSaveTempLeftover(t *testing.T, dir string) {

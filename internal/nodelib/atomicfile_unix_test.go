@@ -39,10 +39,14 @@ func limitFileSize(t *testing.T, limit uint64) func() {
 		signalNotify()
 		t.Fatalf("RLIMIT_FSIZE を設定できません: %v", err)
 	}
-	return func() {
+	restore := func() {
 		_ = syscall.Setrlimit(syscall.RLIMIT_FSIZE, &orig)
 		signalNotify()
 	}
+	// 途中で t.Fatal しても制限が残らないよう、Cleanup でも戻す
+	// (明示的に呼んだ後の二重の復元は無害)。
+	t.Cleanup(restore)
+	return restore
 }
 
 // Issue #425: 書き込みが途中で失敗しても、既存ファイルの内容とモードは
@@ -145,7 +149,8 @@ func TestWriteFileAtomicUmask(t *testing.T) {
 // Issue #425: rename 自体の失敗 (バインドマウントされたファイルへの
 // rename は EBUSY になる) では、エラー文面に一時ファイル名が出ず、
 // 既存の内容が無傷で、一時ファイルも残らない。
-// マウント権限が無い環境ではスキップする。
+// バインドマウントには権限が要るため、一般ユーザーの CI ではスキップ
+// される。その場合の文面の回帰防止は TestRetargetLinkError が担う。
 func TestWriteFileAtomicRenameFailure(t *testing.T) {
 	dir := t.TempDir()
 	mounted := filepath.Join(dir, "mounted.txt")
