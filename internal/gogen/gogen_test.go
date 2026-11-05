@@ -53,19 +53,8 @@ func buildAndRun(t *testing.T, code string) string {
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), src, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	goMod := "module gogentest\n\ngo 1.23\n\n" +
-		"require github.com/kujirahand/nadesiko3go v0.0.0\n\n" +
-		"replace github.com/kujirahand/nadesiko3go => " + repoRoot(t) + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(goMod), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	tidy := exec.Command("go", "mod", "tidy")
-	tidy.Dir = dir
-	tidy.Env = append(os.Environ(), "GOFLAGS=-mod=mod")
-	if out, err := tidy.CombinedOutput(); err != nil {
-		t.Fatalf("go mod tidy: %v\n%s\n--- source ---\n%s", err, out, src)
-	}
+	writeGoMod(t, dir)
+	tidyModule(t, dir, src)
 
 	run := exec.Command("go", "run", ".")
 	run.Dir = dir
