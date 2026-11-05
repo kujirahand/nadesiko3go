@@ -4,14 +4,17 @@ package main
 
 /*
 #cgo pkg-config: gtk+-3.0
+#cgo LDFLAGS: -pthread
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
+#include "drop_buffer_linux.h"
 
-// 直近のドロップのパス。NUL区切りのUTF-8で持つ。GTKのシグナルも
-// WebViewのバインド呼び出しもメインスレッドで動くので、ロックは不要。
-static char *gonakoDroppedBuf = NULL;
-static int gonakoDroppedLen = 0;
+// ドロップのパス(NUL区切りのUTF-8)の受け渡しは drop_buffer_linux.c の
+// FIFOキューが担う。記録はGTKのUIスレッド、取得はGoのイベント処理
+// ワーカーと、動くスレッドが異なるため、共有はキュー側のmutexで守る。
+// ここに残る static はフック済みビューの記録だけで、UIスレッドからしか
+// 触らない。
 static GtkWidget *gonakoHookedView = NULL;
 
 static void gonakoDragDataReceived(GtkWidget *widget, GdkDragContext *context, gint x, gint y,
@@ -33,10 +36,17 @@ static void gonakoDragDataReceived(GtkWidget *widget, GdkDragContext *context, g
 		g_free(path);
 	}
 	g_strfreev(uris);
-	if (buf == NULL) return;
-	free(gonakoDroppedBuf);
-	gonakoDroppedBuf = buf;
-	gonakoDroppedLen = len;
+	if (buf == NULL) {
+		// URIのドロップだが変換できるパスがなかった。何も積まないと、
+		// このイベントの取得が次のドロップのパスを取ってしまうので、
+		// 「パスなし」のマーカー項目を積んで対応を保つ。
+		gonakoDropQueuePush(NULL, 0);
+		return;
+	}
+	// 組み立てたbufferの所有権をキューへ移す。失敗したときだけ自分で捨てる。
+	if (!gonakoDropQueuePush(buf, (size_t)len)) {
+		free(buf);
+	}
 }
 
 static void gonakoFindWebView(GtkWidget *widget, gpointer data) {
@@ -61,18 +71,11 @@ void gonakoInstallFileDropHook(void *windowPtr) {
 	gonakoHookedView = view;
 	g_signal_connect(view, "drag-data-received", G_CALLBACK(gonakoDragDataReceived), NULL);
 }
-
-char *gonakoTakeDroppedFiles(int *length) {
-	char *buf = gonakoDroppedBuf;
-	*length = gonakoDroppedLen;
-	gonakoDroppedBuf = NULL;
-	gonakoDroppedLen = 0;
-	return buf;
-}
 */
 import "C"
 
 import (
+	"strings"
 	"unsafe"
 
 	webview "github.com/webview/webview_go"
@@ -83,9 +86,19 @@ func platformInstallFileDrop(w *webview.Protected) error {
 	return nil
 }
 
-func platformTakeDroppedFiles() []string {
+// platformTakeDroppedFiles は、イベントが知っているファイル名と一致する
+// ドロップのパスを返す。記録はUIスレッドで即座に行われる一方、イベントは
+// 遅れたり失われたりするため、単純な先入れ先出しではなく名前で照合する。
+// 取り出したbufferの所有権はここへ移り、コピーし終えたら1回だけ free する。
+func platformTakeDroppedFiles(names []string) []string {
+	if len(names) == 0 {
+		return nil
+	}
+	joined := strings.Join(names, "\x00")
+	cNames := C.CString(joined)
+	defer C.free(unsafe.Pointer(cNames))
 	var length C.int
-	buf := C.gonakoTakeDroppedFiles(&length)
+	buf := C.gonakoTakeDroppedFilesForEvent(cNames, C.int(len(joined)), &length)
 	if buf == nil {
 		return nil
 	}
