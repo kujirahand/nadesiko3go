@@ -236,16 +236,7 @@ func stringImpls(m map[string]Impl) {
 		return value.Bool((r >= '0' && r <= '9') || (r >= '０' && r <= '９')), nil
 	}
 	m["通貨形式"] = func(_ Context, a []value.Value) (value.Value, error) {
-		s := str(a, 0)
-		parts := strings.SplitN(s, ".", 2)
-		start := 0
-		if strings.HasPrefix(parts[0], "-") || strings.HasPrefix(parts[0], "+") {
-			start = 1
-		}
-		for i := len(parts[0]) - 3; i > start; i -= 3 {
-			parts[0] = parts[0][:i] + "," + parts[0][i:]
-		}
-		return value.String(strings.Join(parts, ".")), nil
+		return value.String(formatCurrency(str(a, 0))), nil
 	}
 
 	// --- 文字種の変換 ---
@@ -340,6 +331,56 @@ func stringImpls(m map[string]Impl) {
 		}
 		return value.String(string(rune(int32(value.ToNumber(arg(a, 0)))))), nil
 	}
+}
+
+// formatCurrency は『通貨形式』の整形を行う。整数部をバイト単位で
+// 3桁ごとに区切り、小数部（最初の '.' 以降）は加工せずそのまま末尾へ付ける。
+// 従来は区切りを挿入するたびに文字列全体をコピーしていたため、長い入力で
+// 二乗オーダーになっていた (#361)。ここでは必要な出力長を先に求めて
+// strings.Builder に予約し、一回の走査で生成する。グループ化は従来どおり
+// バイト単位であり、全角数字が3バイトごとに区切られる挙動も変わらない。
+func formatCurrency(s string) string {
+	intEnd := strings.IndexByte(s, '.')
+	if intEnd < 0 {
+		intEnd = len(s)
+	}
+
+	signEnd := 0
+	// intEnd > 0 のガードで、空文字列や '.' 始まりのときに s[0] を読まない。
+	if intEnd > 0 && (s[0] == '-' || s[0] == '+') {
+		signEnd = 1
+	}
+
+	digitsLen := intEnd - signEnd
+	// digitsLen == 0 のとき (0-1)/3 は Go の整数除算で 0 に切り捨てられる
+	// ため、カンマなしとして下でそのまま返る。
+	commaCount := (digitsLen - 1) / 3
+	if commaCount <= 0 {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s) + commaCount)
+
+	// 先頭の符号は区切り対象にしない。
+	b.WriteString(s[:signEnd])
+
+	// 最初のグループだけ 1〜3 バイトで、残りは 3 バイトずつになる。
+	// digitsLen - firstGroupLen は 3 の倍数なので、最後のグループも
+	// ちょうど intEnd で終わる。
+	firstGroupLen := digitsLen % 3
+	if firstGroupLen == 0 {
+		firstGroupLen = 3
+	}
+	b.WriteString(s[signEnd : signEnd+firstGroupLen])
+	for i := signEnd + firstGroupLen; i < intEnd; i += 3 {
+		b.WriteByte(',')
+		b.WriteString(s[i : i+3])
+	}
+
+	// 最初の '.' 以降は、2個目以降の '.' を含めて無加工で保持する。
+	b.WriteString(s[intEnd:])
+	return b.String()
 }
 
 const (
