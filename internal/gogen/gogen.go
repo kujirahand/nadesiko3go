@@ -231,7 +231,14 @@ var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関
 // FindFunc、関数値ならそのまま』で CallFunc/PostFunc する命令群)。
 // 名前付き関数の定義は OpMakeFunc を出さないので、こうした命令が1つでも
 // あれば、どの名前付き関数も静的には見えない引数で呼ばれうる (#335)。
-// FindFunc を使う命令を新しく足したら、ここへも足すこと。
+// FindFunc を使う命令を新しく足したら、ここへも足すこと。再確認の手順は、
+// gogen 対象プラグインの実装 (internal/stdlib, internal/nodelib,
+// internal/sqlitelib) を FindFunc / toFunc / CallFunc / PostFunc で grep し、
+// 文字列から関数を解決している命令が全部この一覧にあるか照合すること
+// (一覧の綴り自体は TestDynamicFuncCommandsResolve が固定する)。
+// internal/guilib の callable も FindFunc を使うが、guilib は gogen の
+// 対象プラグインではない (plugins.go)。対象に加える場合は、そちらの
+// イベント登録命令 (クリック時など) もここへ足すこと。
 // 『AJAX失敗時』はコールバックを AJAX:ONERROR へ保存する側で、その値を
 // toFunc で消費する AJAX/POST 系も併せて入れてある。『ファイル処理時』は
 // コールバックを CommandState へ保存し、『ファイルコピー』等が後で呼ぶ。

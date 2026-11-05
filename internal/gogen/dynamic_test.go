@@ -1,6 +1,7 @@
 package gogen
 
 import (
+	"sort"
 	"strings"
 	"testing"
 
@@ -26,6 +27,49 @@ func TestDynamicFuncCommandsResolve(t *testing.T) {
 	for _, name := range dynamicGlobalCommands {
 		if _, ok := registry.Lookup(name); !ok {
 			t.Errorf("dynamicGlobalCommands の %q がレジストリにない", name)
+		}
+	}
+}
+
+// TestDynamicFuncsKeepsGlobalPromotion は、dynamicFuncs が立っても
+// 主処理の大域変数の昇格まで止めないことを固定する。主処理は FindFunc の
+// 対象外なので escapes に入れず、promotableGlobals が従来どおり働く。
+func TestDynamicFuncsKeepsGlobalPromotion(t *testing.T) {
+	code := "●(Aの)返却とは\n  Aで戻る\nここまで\n" +
+		"S=0\nIを1から3まで繰り返す\n  S=S+I\nここまで\n" +
+		"B=[「abc」]\nC=「返却」をBに配列マップ\nSを表示\n"
+	registry := stdlib.NewRegistry()
+	tree, err := parser.ParseSource(code, "main.nako3", registry.FuncList())
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	prog, err := compiler.Compile(tree, "main.nako3", registry)
+	if err != nil {
+		t.Fatalf("compile: %v", err)
+	}
+	env, err := analyzeEnvFor(prog, nil)
+	if err != nil {
+		t.Fatalf("analyzeEnvFor: %v", err)
+	}
+	if !env.dynamicFuncs {
+		t.Fatal("配列マップがあるのに dynamicFuncs が立っていない")
+	}
+	if env.dynamicGlobals {
+		t.Fatal("このプログラムでは dynamicGlobals は立たないはず")
+	}
+	info := analyze(prog, env)
+	var got []string
+	for slot := range info.promotedGlobals {
+		got = append(got, prog.Globals[slot])
+	}
+	sort.Strings(got)
+	want := []string{"main__I", "main__S"}
+	if len(got) != len(want) {
+		t.Fatalf("移した大域変数 = %v, want %v", got, want)
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			t.Fatalf("移した大域変数 = %v, want %v", got, want)
 		}
 	}
 }
