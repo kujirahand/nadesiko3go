@@ -64,6 +64,39 @@ func TestRequireErrorSameLineDifferentDeps(t *testing.T) {
 	}
 }
 
+// 1つのプログラムが2つの依存ファイルを両方取り込んだときも、
+// エラーは実際に失敗した側のファイルへ帰属すること (Argonレビュー Medium-1)。
+// 両依存ともエラー候補は同じ3行目に置き、取り込む順序を入れ替えた
+// 2ケースで、後から登録される側 (Source: 2) のファイルを検証する。
+func TestRequireErrorSecondDepInSameProgram(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		first      string // 先に取り込む無害な依存
+		second     string // 後から取り込む失敗する依存
+		secondFile string
+		msg        string
+	}{
+		{"Bが後", "depA.nako3", "depB.nako3", "depB.nako3", "Bの失敗"},
+		{"Aが後", "depB.nako3", "depA.nako3", "depA.nako3", "Aの失敗"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			harmless := "#h\n#h\n「ok」を表示\n"
+			failing := "#f\n#f\n「" + tc.msg + "」でエラー発生\n"
+			writeReqFile(t, dir, tc.first, harmless)
+			second := writeReqFile(t, dir, tc.second, failing)
+			code := "!「./" + tc.first + "」を取り込む\n!「./" + tc.second + "」を取り込む\n"
+			ne := runReqMain(t, dir, code)
+			if ne.File != second || ne.Line != 2 {
+				t.Errorf("File=%q Line=%d, want %q / 2", ne.File, ne.Line, second)
+			}
+			if !strings.Contains(ne.Error(), tc.secondFile+"(3行目)") || !strings.Contains(ne.Error(), tc.msg) {
+				t.Errorf("Error()=%q", ne.Error())
+			}
+		})
+	}
+}
+
 func TestRequireErrorInMainStillReportsMain(t *testing.T) {
 	dir := t.TempDir()
 	writeReqFile(t, dir, "dep.nako3", "#何もしない\n")
