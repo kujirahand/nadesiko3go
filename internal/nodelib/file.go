@@ -303,7 +303,7 @@ func writeFile(_ stdlib.Context, a []value.Value) (value.Value, error) {
 	if err != nil {
 		return value.Undefined(), err
 	}
-	if err := os.WriteFile(str(a, 1), data, 0o644); err != nil {
+	if err := writeFileAtomic(str(a, 1), data, 0o644); err != nil {
 		return value.Undefined(), fileError("保存でき", str(a, 1), err)
 	}
 	return value.Undefined(), nil
@@ -569,7 +569,7 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return fileError("作成でき", filepath.Dir(dest), err)
 		}
-		if err := os.WriteFile(dest, data, 0o644); err != nil {
+		if err := writeFileAtomic(dest, data, 0o644); err != nil {
 			return fileError("書き込め", dest, err)
 		}
 		if hasCb {
@@ -659,7 +659,7 @@ func copyMergeWithProgress(src, dest string, overwrite bool, ctx stdlib.Context)
 			if err := replaceDestSymlink(destFile, overwrite); err != nil {
 				return fileError("作成でき", destFile, err)
 			}
-			if err := os.WriteFile(destFile, data, 0o644); err != nil {
+			if err := writeFileAtomic(destFile, data, 0o644); err != nil {
 				return fileError("書き込め", destFile, err)
 			}
 		}
