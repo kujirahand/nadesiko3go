@@ -80,7 +80,7 @@ func encodingCommands(m map[string]command) {
 			if err != nil {
 				return value.Undefined(), fileError("エンコードでき", dst, err)
 			}
-			if err := os.WriteFile(dst, data, 0o644); err != nil {
+			if err := writeFileAtomic(dst, data, 0o644); err != nil {
 				return value.Undefined(), fileError("保存でき", dst, err)
 			}
 			return value.Undefined(), nil
@@ -118,7 +118,7 @@ func encodingCommands(m map[string]command) {
 			if err != nil {
 				return value.Undefined(), fileError("エンコードでき", dst, err)
 			}
-			if err := os.WriteFile(dst, data, 0o644); err != nil {
+			if err := writeFileAtomic(dst, data, 0o644); err != nil {
 				return value.Undefined(), fileError("保存でき", dst, err)
 			}
 			return value.Undefined(), nil
