@@ -74,6 +74,7 @@ import (
 	"fmt"
 	"go/format"
 	"sort"
+	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/ir"
 )
@@ -225,36 +226,72 @@ func checkSupported(prog *ir.Program) error {
 // 強制終了時のハンドラはループの途中で大域変数を読み書きできる。
 var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行", "強制終了時"}
 
+// dynamicFuncKind は、名前で関数を引きうる命令がコールバックをどこから
+// 得るかの分類。analyzeEnvFor がこの分類ごとに静的解析の仕方を変える
+// (#432)。
+type dynamicFuncKind int
+
+const (
+	// dynamicFuncDirect は第0引数そのものがコールバックである命令。
+	// 『文字列なら FindFunc、関数値ならそのまま』で CallFunc/PostFunc
+	// する (toFunc と同じ形)。保存型の2件もここに入る: 『AJAX失敗時』は
+	// 第0引数を AJAX:ONERROR へ保存する側、『ファイル処理時』は第0引数を
+	// CommandState へ保存し『ファイルコピー』等が後で呼ぶ側で、どちらも
+	// 対象関数は登録時点の第0引数で決まる。
+	dynamicFuncDirect dynamicFuncKind = iota
+	// dynamicFuncHatena は『ハテナ関数実行』。引数ではなく CommandState
+	// に保存された命令名パイプラインを CallCommand で実行する推移的
+	// 経路で、どの関数が呼ばれうるか静的には決められない。現れたら
+	// 常に全体抑制へフォールバックする。
+	dynamicFuncHatena
+	// dynamicFuncOnErrorOnly はコールバック引数を持たず、AJAX:ONERROR に
+	// 保存された値だけを toFunc で消費しうる命令 (#335 で消費側として
+	// 一覧に入った AJAX 取得系と POST 系)。対象は保存側 (『AJAX失敗時』=
+	// direct として解析される) で決まるので、この種別自体は対象を
+	// 持たない。ただし AJAX:ONERROR 大域への直接ストアがプログラムに
+	// ある場合は、保存元を静的に追えないので全体抑制にする。
+	dynamicFuncOnErrorOnly
+)
+
 // dynamicFuncCommands names the commands that can reach a user function by
 // a name only known at run time, through Context.FindFunc (『文字列なら
 // FindFunc、関数値ならそのまま』で CallFunc/PostFunc する命令群)。
-// 名前付き関数の定義は OpMakeFunc を出さないので、こうした命令が1つでも
-// あれば、どの名前付き関数も静的には見えない引数で呼ばれうる (#335)。
-// FindFunc を使う命令を新しく足したら、ここへも足すこと。再確認の手順は、
-// gogen 対象プラグインの実装 (internal/stdlib, internal/nodelib,
-// internal/sqlitelib) を FindFunc / toFunc / CallFunc / PostFunc で grep し、
-// 文字列から関数を解決している命令が全部この一覧にあるか照合すること
-// (一覧の綴り自体は TestDynamicFuncCommandsResolve が固定する)。
+// 名前付き関数の定義は OpMakeFunc を出さないので、こうした命令があると
+// 名前付き関数が静的には見えない引数で呼ばれうる (#335)。
+// #432 以降は、コールバックが文字列リテラルで渡されている呼び出しに
+// 限って対象関数だけを escapes にし、それ以外 (変数・式・解決できない
+// 名前) が1つでもあれば従来どおり主処理以外の全関数を対象にする。
+// FindFunc を使う命令を新しく足したら、ここへも足すこと。追加漏れは
+// TestDynamicFuncCommandsCoverage がプラグイン実装の静的走査で検知する
+// (分類の根拠はそちらの対応表にも書くこと。一覧の綴り自体は
+// TestDynamicFuncCommandsResolve が固定する)。
 // internal/guilib の callable も FindFunc を使うが、guilib は gogen の
 // 対象プラグインではない (plugins.go)。対象に加える場合は、そちらの
 // イベント登録命令 (クリック時など) もここへ足すこと。
-// 『AJAX失敗時』はコールバックを AJAX:ONERROR へ保存する側で、その値を
-// toFunc で消費する AJAX/POST 系も併せて入れてある。『ファイル処理時』は
-// コールバックを CommandState へ保存し、『ファイルコピー』等が後で呼ぶ。
-var dynamicFuncCommands = []string{
+var dynamicFuncCommands = map[string]dynamicFuncKind{
 	// plugin_system
-	"JSオブジェクト取得", "実行", "AWAIT実行", "実行時間計測",
-	"配列マップ", "配列関数適用", "配列フィルタ", "配列カスタムソート",
-	"秒後", "秒毎", "秒タイマー開始時", "ハテナ関数実行",
+	"JSオブジェクト取得": dynamicFuncDirect, "実行": dynamicFuncDirect,
+	"AWAIT実行": dynamicFuncDirect, "実行時間計測": dynamicFuncDirect,
+	"配列マップ": dynamicFuncDirect, "配列関数適用": dynamicFuncDirect,
+	"配列フィルタ": dynamicFuncDirect, "配列カスタムソート": dynamicFuncDirect,
+	"秒後": dynamicFuncDirect, "秒毎": dynamicFuncDirect,
+	"秒タイマー開始時": dynamicFuncDirect, "ハテナ関数実行": dynamicFuncHatena,
 	// nodelib
-	"ファイル削除時", "ファイル移動時", "ファイルコピー時", "ファイル処理時",
-	"標準入力取得時", "強制終了時", "起動時", "圧縮時", "解凍時",
-	"AJAX失敗時", "AJAX送信時", "AJAX受信時", "GET送信時",
-	"POST送信時", "POSTフォーム送信時",
-	"AJAXテキスト取得", "AJAX内容取得", "AJAX受信", "AJAX_JSON取得",
-	"AJAXバイナリ取得", "POST送信", "POSTフォーム送信",
+	"ファイル削除時": dynamicFuncDirect, "ファイル移動時": dynamicFuncDirect,
+	"ファイルコピー時": dynamicFuncDirect, "ファイル処理時": dynamicFuncDirect,
+	"標準入力取得時": dynamicFuncDirect, "強制終了時": dynamicFuncDirect,
+	"起動時": dynamicFuncDirect, "圧縮時": dynamicFuncDirect,
+	"解凍時":     dynamicFuncDirect,
+	"AJAX失敗時": dynamicFuncDirect, "AJAX送信時": dynamicFuncDirect,
+	"AJAX受信時": dynamicFuncDirect, "GET送信時": dynamicFuncDirect,
+	"POST送信時": dynamicFuncDirect, "POSTフォーム送信時": dynamicFuncDirect,
+	"AJAXテキスト取得": dynamicFuncOnErrorOnly, "AJAX内容取得": dynamicFuncOnErrorOnly,
+	"AJAX受信": dynamicFuncOnErrorOnly, "AJAX_JSON取得": dynamicFuncOnErrorOnly,
+	"AJAXバイナリ取得": dynamicFuncOnErrorOnly, "POST送信": dynamicFuncOnErrorOnly,
+	"POSTフォーム送信": dynamicFuncOnErrorOnly,
 	// sqlitelib
-	"SQLITE3実行時", "SQLITE3実行後", "SQLITE3取得時",
+	"SQLITE3実行時": dynamicFuncDirect, "SQLITE3実行後": dynamicFuncDirect,
+	"SQLITE3取得時": dynamicFuncDirect,
 }
 
 // extraSystemNames are global names Go code reads or writes through
@@ -282,33 +319,337 @@ func analyzeEnvFor(prog *ir.Program, plugins []string) (analyzeEnv, error) {
 	for _, name := range registry.ConstNames() {
 		names[name] = true
 	}
-	env := analyzeEnv{systemNames: names}
+	env := analyzeEnv{systemNames: names, dynamicTargets: map[int]bool{}}
 	dynamicGlobal := map[int]bool{}
 	for _, name := range dynamicGlobalCommands {
 		if e, ok := registry.Lookup(name); ok {
 			dynamicGlobal[e.ID] = true
 		}
 	}
-	dynamicFunc := map[int]bool{}
-	for _, name := range dynamicFuncCommands {
+	dynamicKind := map[int]dynamicFuncKind{}
+	for name, kind := range dynamicFuncCommands {
 		if e, ok := registry.Lookup(name); ok {
-			dynamicFunc[e.ID] = true
+			dynamicKind[e.ID] = kind
 		}
 	}
+	jsGetID := -1
+	if e, ok := registry.Lookup("JSオブジェクト取得"); ok {
+		jsGetID = e.ID
+	}
+	onErrorConsumer := false
 	for fi := range prog.Funcs {
-		for _, inst := range prog.Funcs[fi].Code {
+		fn := &prog.Funcs[fi]
+		// この関数に動的命令が無ければ生成元の解析は要らない
+		hasDynamic := false
+		for _, inst := range fn.Code {
 			if inst.Op != ir.OpCallStd {
 				continue
 			}
 			if dynamicGlobal[int(inst.A)] {
 				env.dynamicGlobals = true
 			}
-			if dynamicFunc[int(inst.A)] {
+			if _, ok := dynamicKind[int(inst.A)]; ok {
+				hasDynamic = true
+			}
+		}
+		if !hasDynamic {
+			continue
+		}
+		_, depths, err := ir.ComputeDepths(fi, *fn)
+		if err != nil {
+			// 検証を通ったIRならここへは来ない。来たなら安全側 (全体抑制)
+			env.dynamicFuncs = true
+			continue
+		}
+		origins := stackOrigins(prog, fi, depths)
+		for pc, inst := range fn.Code {
+			if inst.Op != ir.OpCallStd || depths[pc] == ir.Unvisited {
+				continue
+			}
+			kind, ok := dynamicKind[int(inst.A)]
+			if !ok {
+				continue
+			}
+			switch kind {
+			case dynamicFuncHatena:
+				// パイプライン経由では対象を特定できない
 				env.dynamicFuncs = true
+			case dynamicFuncOnErrorOnly:
+				onErrorConsumer = true
+			case dynamicFuncDirect:
+				analyzeDynamicCall(prog, &env, int(inst.A), jsGetID, inst, origins[pc], depths[pc])
 			}
 		}
 	}
+	// AJAX:ONERROR の消費命令があるのに、その大域へプログラム自身が
+	// 直接ストアしている場合は保存元を静的に追えない (現行の文法では
+	// 『AJAX:ONERROR』を変数として書けないため通常は起こらないが、
+	// IR を直接組み立てた場合に備えて安全側に倒す)。
+	if onErrorConsumer && !env.dynamicFuncs && hasGlobalStore(prog, "AJAX:ONERROR") {
+		env.dynamicFuncs = true
+	}
 	return env, nil
+}
+
+// analyzeDynamicCall は dynamicFuncDirect な OpCallStd 1件について、
+// 第0引数の生成元から対象関数を特定し env へ反映する。特定できない
+// 場合は env.dynamicFuncs (全体抑制) を立てる。
+func analyzeDynamicCall(prog *ir.Program, env *analyzeEnv, cmdID, jsGetID int, inst ir.Inst, stack []stackOrigin, depth int) {
+	if inst.B < 1 || depth < int(inst.B) || len(stack) != depth {
+		// コールバック引数が無い/スタックが想定と違う。生成元の解析と
+		// 深さが食い違う場合も含め、有効なプログラムでは起こらない
+		// はずの形は安全側に倒す (最終的な安全網)
+		env.dynamicFuncs = true
+		return
+	}
+	org := stack[depth-int(inst.B)] // 第0引数は引数列の一番下
+	switch org.kind {
+	case originFuncValue:
+		// OpMakeFunc で作られた関数値は、analyze が既に対象を escapes
+		// に入れている。追加の抑制は要らない
+	case originOtherConst:
+		// 数値・真偽値などの定数は文字列でも関数値でもないので、
+		// 種別を見てから FindFunc する命令 (toFunc を使う命令群) では
+		// 動的呼び出しは起きない。ただし『JSオブジェクト取得』だけは
+		// 引数を無条件に ToString してから引くため、定数の文字列表現
+		// (例: NaN → "NaN") が関数名と一致する可能性を否定できず、
+		// 安全側に倒す
+		if cmdID == jsGetID {
+			env.dynamicFuncs = true
+		}
+	case originStringConst:
+		if cmdID == jsGetID && jsGetMayReturnGlobal(prog, env, org.text) {
+			// 『JSオブジェクト取得』は FindFunc より先に FindValue で
+			// 大域変数・定数を引く。同名の受け皿があると、返る値が
+			// その中身 (出所を追い切れない値) になりうるので安全側
+			env.dynamicFuncs = true
+			return
+		}
+		// FindFunc と同じ名前規則で一致する関数を全部対象にする。
+		// FindFunc (internal/vm/run.go) は正規化 (全角半角・かな・
+		// 大文字小文字) を一切せず、完全一致か "__"+名前 の接尾辞
+		// 一致だけで引くことを実コードで確認済み。
+		// VM は最初の一致だけを呼ぶが、全候補を対象にするのは
+		// その部分集合なので安全 (名前空間の違いで同名が複数ある
+		// 場合に、列挙順の再現ミスで取りこぼす心配もない)。
+		// 一致が無ければ FindFunc は nil を返し、動的呼び出し自体が
+		// 起きないので対象なしでよい。一致に捕捉を持つ関数が含まれて
+		// いても、対象に含めるのは安全側の過剰抑制にしかならない。
+		for fi := range prog.Funcs {
+			if fi == prog.Main {
+				continue
+			}
+			name := prog.Funcs[fi].Name
+			if name == org.text || strings.HasSuffix(name, "__"+org.text) {
+				env.dynamicTargets[fi] = true
+			}
+		}
+	default:
+		// 変数・式・関数の戻り値・合流で定数性が失われた値など、
+		// 静的に特定できない生成元は全体抑制へフォールバックする
+		env.dynamicFuncs = true
+	}
+}
+
+// jsGetMayReturnGlobal は、『JSオブジェクト取得』が FindFunc より先に
+// FindValue で拾う先 (特殊値・大域変数・レジストリ定数) に name と一致
+// するものがあるかを返す。FindValue の探索順 (internal/vm の
+// loadGlobalByName と FindValue) に合わせ、特殊値名・完全一致/接尾辞
+// 一致の大域変数・システム名 (レジストリ定数を含む集合) を見る。
+func jsGetMayReturnGlobal(prog *ir.Program, env *analyzeEnv, name string) bool {
+	if _, ok := ir.SpecialByName(name); ok {
+		return true
+	}
+	if env.systemNames[name] {
+		return true
+	}
+	for _, g := range prog.Globals {
+		if g == name || strings.HasSuffix(g, "__"+name) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasGlobalStore は、名前 name の大域変数 (完全一致、または名前空間
+// 接頭辞つきの接尾辞一致) へのストアがプログラムのどこかにあるかを返す。
+func hasGlobalStore(prog *ir.Program, name string) bool {
+	slots := map[int]bool{}
+	for i, g := range prog.Globals {
+		if g == name || strings.HasSuffix(g, "__"+name) {
+			slots[i] = true
+		}
+	}
+	if len(slots) == 0 {
+		return false
+	}
+	for fi := range prog.Funcs {
+		for _, inst := range prog.Funcs[fi].Code {
+			switch inst.Op {
+			case ir.OpStoreGlobal, ir.OpInitGlobal:
+				if slots[int(inst.A)] {
+					return true
+				}
+			case ir.OpBinaryStoreGlobal, ir.OpStoreSoreAndGlobal:
+				if slots[int(inst.B)] {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// stackOriginKind は、スタック上の値が「何から作られたか」の分類。
+// 動的命令のコールバック引数が静的に特定できるかだけに使う。
+type stackOriginKind uint8
+
+const (
+	// originUnknown は特定できない生成元 (変数・式・戻り値・合流で
+	// 意見が割れた値)。安全側の既定値。
+	originUnknown stackOriginKind = iota
+	// originStringConst は OpLoadConst で積まれた文字列定数。
+	originStringConst
+	// originFuncValue は OpMakeFunc で作られた関数値。
+	originFuncValue
+	// originOtherConst は文字列でない定数 (数値・真偽値・null など)。
+	// toFunc/FindFunc の対象にならないことが静的に言える。
+	originOtherConst
+)
+
+type stackOrigin struct {
+	kind stackOriginKind
+	text string // originStringConst のときだけ意味を持つ
+}
+
+// stackOrigins は関数 fi の各命令入口における、スタック各段の生成元を
+// 前向きデータフローで求める (types.go の dataflow と同じ進み方)。
+// 合流点では、全ての到達前任者が同じ生成元に同意するときだけそれを
+// 保ち、割れたら originUnknown に倒す (must 解析)。到達できない位置は
+// 空のままにし、呼び出し側が深さで見分ける。
+func stackOrigins(prog *ir.Program, fi int, depths []int) [][]stackOrigin {
+	fn := &prog.Funcs[fi]
+	n := len(fn.Code)
+	in := make([][]stackOrigin, n+1)
+	visited := make([]bool, n+1)
+
+	merge := func(at int, st []stackOrigin) bool {
+		if at < 0 || at > n || depths[at] == ir.Unvisited {
+			return false
+		}
+		if !visited[at] {
+			visited[at] = true
+			in[at] = append([]stackOrigin(nil), st...)
+			return true
+		}
+		if len(st) != len(in[at]) {
+			// 深さが合わない状態同士の合流はありえないはずだが、
+			// 起きたら全段を不明にして安全側に倒す (changed は、
+			// 実際に不明化した段があるときだけ立てる)
+			changed := false
+			for i := range in[at] {
+				if in[at][i].kind != originUnknown {
+					in[at][i] = stackOrigin{kind: originUnknown}
+					changed = true
+				}
+			}
+			return changed
+		}
+		changed := false
+		for i := range in[at] {
+			// 既に不明な段は、不明のままでは変化しない (types.go の
+			// merge と同じく、遷移したときだけ changed にする)
+			if in[at][i].kind != originUnknown && in[at][i] != st[i] {
+				in[at][i] = stackOrigin{kind: originUnknown}
+				changed = true
+			}
+		}
+		return changed
+	}
+
+	merge(0, nil)
+	work := []int{0}
+	for len(work) > 0 {
+		pc := work[len(work)-1]
+		work = work[:len(work)-1]
+		if pc >= n || depths[pc] == ir.Unvisited {
+			continue
+		}
+		inst := fn.Code[pc]
+		out := transferOrigin(prog, inst, in[pc])
+
+		switch inst.Op {
+		case ir.OpReturn:
+			continue
+		case ir.OpJump:
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
+			}
+			continue
+		case ir.OpJumpIfFalse, ir.OpJumpIfTrue, ir.OpJumpIfBinaryAt, ir.OpJumpIfNotBinaryAt:
+			if merge(int(inst.A), out) {
+				work = append(work, int(inst.A))
+			}
+		case ir.OpTry:
+			// 例外で飛び込むときは、Tryを積んだ時点の状態に戻る
+			if merge(int(inst.A), in[pc]) {
+				work = append(work, int(inst.A))
+			}
+		}
+		if merge(pc+1, out) {
+			work = append(work, pc+1)
+		}
+	}
+
+	// 到達しなかった位置にも、長さの合った状態を置いておく
+	for pc := 0; pc <= n; pc++ {
+		if in[pc] == nil {
+			d := depths[pc]
+			if d < 0 {
+				d = 0
+			}
+			in[pc] = make([]stackOrigin, d)
+		}
+	}
+	return in
+}
+
+// transferOrigin は1命令をスタックの生成元列へ適用する。スタック効果は
+// ir.StackDelta に一元化されているので、ここで独自に数え直さない
+// (ずらすと、読む引数の位置そのものが間違える)。
+func transferOrigin(prog *ir.Program, inst ir.Inst, st []stackOrigin) []stackOrigin {
+	needs, delta := ir.StackDelta(inst)
+	pushes := needs + delta
+
+	out := append([]stackOrigin(nil), st...)
+	if needs > len(out) {
+		needs = len(out)
+	}
+	popped := out[len(out)-needs:]
+	out = out[:len(out)-needs]
+
+	desc := stackOrigin{kind: originUnknown}
+	switch inst.Op {
+	case ir.OpLoadConst:
+		if inst.A >= 0 && int(inst.A) < len(prog.Consts) {
+			if c := prog.Consts[inst.A]; c.Kind == ir.ConstString {
+				desc = stackOrigin{kind: originStringConst, text: c.Str}
+			} else {
+				desc = stackOrigin{kind: originOtherConst}
+			}
+		}
+	case ir.OpMakeFunc:
+		desc = stackOrigin{kind: originFuncValue}
+	case ir.OpDup:
+		// 同じ値が2つ積まれるので、生成元も複製する
+		if len(popped) > 0 {
+			desc = popped[0]
+		}
+	}
+	for i := 0; i < pushes; i++ {
+		out = append(out, desc)
+	}
+	return out
 }
 
 func sourceName(prog *ir.Program) string {

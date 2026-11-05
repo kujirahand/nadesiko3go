@@ -49,9 +49,12 @@ package gogen
 // 定義は `OpMakeFunc` を出さないのに、VM の FindFunc は主処理以外の全関数を
 // 名前文字列で取り出せます (internal/vm/run.go)。『JSオブジェクト取得』や
 // 『配列マップ』(文字列名指定) のように FindFunc を使う命令がプログラムに
-// あれば、どの名前付き関数も実行時に決まる引数で呼ばれうるので、主処理
-// 以外の関数はすべて取り出されうるものとして扱います (#335)。
-// analyzeEnv.dynamicFuncs がその判定を持ちます。
+// あれば、その名前付き関数も実行時に決まる引数で呼ばれうるので、取り出され
+// うるものとして扱います (#335)。
+// #432 以降は、コールバックが文字列リテラルで渡されている呼び出しは
+// 対象関数だけを (analyzeEnv.dynamicTargets)、変数や式で渡されるなど
+// 静的に特定できない呼び出しは主処理以外の全関数を対象にします
+// (analyzeEnv.dynamicFuncs、全体抑制へのフォールバック)。
 //
 // これが効くのは、『●(Nの)コラッツステップとは』のように引数を起点にして
 // 計算する関数です。引数が分からないと、そこから代入される変数も芋づるで
@@ -120,7 +123,13 @@ type analyzeEnv struct {
 	// dynamicFuncs means some command can reach any user function by a
 	// name only known at run time (through FindFunc), so no named
 	// function's arguments may be narrowed from its static call sites.
+	// 静的に特定できない動的呼び出しが1つでもある場合の全体抑制
+	// (#432 のフォールバック)。
 	dynamicFuncs bool
+	// dynamicTargets lists the functions a dynamic command was proven to
+	// reach by a string-literal name, so only they escape (#432)。特定に
+	// 失敗した呼び出しがあれば、代わりに dynamicFuncs が立つ。
+	dynamicTargets map[int]bool
 }
 
 // analyze runs the whole-program pass. Globals have to be settled together
@@ -150,6 +159,14 @@ func analyze(prog *ir.Program, env analyzeEnv) *typeInfo {
 		// (FindFunc 自身が主処理を飛ばす)。主処理まで対象にすると
 		// escapes[main] 経由で大域変数の昇格まで止めてしまうので除く
 		for fi := range prog.Funcs {
+			if fi != prog.Main {
+				info.escapes[fi] = true
+			}
+		}
+	} else {
+		// 文字列リテラルで特定できた動的呼び出しの対象だけを逃がす
+		// (#432)。対象の特定は analyzeEnvFor が済ませてある
+		for fi := range env.dynamicTargets {
 			if fi != prog.Main {
 				info.escapes[fi] = true
 			}
