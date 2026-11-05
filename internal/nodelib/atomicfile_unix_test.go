@@ -3,11 +3,14 @@
 package nodelib
 
 import (
+	"context"
 	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -49,6 +52,80 @@ func limitFileSize(t *testing.T, limit uint64) func() {
 	return restore
 }
 
+// 子プロセスの終了コード (親が意味を判別できるよう、0 は使わない。
+// 0 で終わる場合は「子が何も実行しなかった」として親が失敗にする)。
+const (
+	exitLimitWriteFailed  = 17 // 期待どおり EFBIG で書き込みが失敗した
+	exitLimitWriteSuccess = 18 // 制限下なのに書き込みが成功した
+	exitLimitSetupFailed  = 19 // 子プロセス側の準備に失敗した
+	exitLimitWrongError   = 20 // 書き込みは失敗したが EFBIG ではなかった
+)
+
+// TestWriteFileAtomicLimitChild は、RLIMIT_FSIZE をかけた子プロセスで
+// writeFileAtomic を実行するためだけの入口で、通常のテスト実行ではスキップする。
+// 制限をテストプロセス自体にかけると、testing が記録する testlog の
+// 書き込みまで EFBIG で失敗し、全テストが合格してもパッケージが
+// FAIL になる (CI で発生した)。そのため制限は子プロセスに閉じ込める。
+func TestWriteFileAtomicLimitChild(t *testing.T) {
+	if os.Getenv("GONAKO_ATOMIC_LIMIT_CHILD") != "1" {
+		t.Skip("子プロセス専用")
+	}
+	dst := os.Getenv("GONAKO_ATOMIC_LIMIT_DST")
+	size, err := strconv.Atoi(os.Getenv("GONAKO_ATOMIC_LIMIT_SIZE"))
+	if err != nil || dst == "" {
+		os.Exit(exitLimitSetupFailed)
+	}
+	// 子プロセスはこのまま終了するため、制限の復元は不要。
+	_ = limitFileSize(t, 1024)
+	werr := writeFileAtomic(dst, make([]byte, size), 0o644)
+	switch {
+	case werr == nil:
+		os.Exit(exitLimitWriteSuccess)
+	case !errors.Is(werr, syscall.EFBIG):
+		os.Exit(exitLimitWrongError)
+	default:
+		os.Exit(exitLimitWriteFailed)
+	}
+}
+
+// runAtomicWriteWithLimit は子プロセスで制限下の writeFileAtomic を実行し、
+// EFBIG で失敗したこと (子プロセスの終了コード exitLimitWriteFailed) を確認する。
+func runAtomicWriteWithLimit(t *testing.T, dst string, size int) {
+	t.Helper()
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatalf("テストバイナリのパスを取得できません: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, self, "-test.run=^TestWriteFileAtomicLimitChild$", "-test.count=1")
+	cmd.Env = append(os.Environ(),
+		"GONAKO_ATOMIC_LIMIT_CHILD=1",
+		"GONAKO_ATOMIC_LIMIT_DST="+dst,
+		"GONAKO_ATOMIC_LIMIT_SIZE="+strconv.Itoa(size),
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("子プロセスが終了コード 0 で終わりました (制限下の書き込みが実行されていない可能性があります)\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("子プロセスを実行できませんでした: %v\n%s", err, out)
+	}
+	switch code := exitErr.ExitCode(); code {
+	case exitLimitWriteFailed:
+		// 期待どおり
+	case exitLimitWriteSuccess:
+		t.Fatalf("制限下なのに書き込みが成功しました\n%s", out)
+	case exitLimitSetupFailed:
+		t.Fatalf("子プロセスの準備に失敗しました\n%s", out)
+	case exitLimitWrongError:
+		t.Fatalf("書き込みは失敗しましたが EFBIG ではありません\n%s", out)
+	default:
+		t.Fatalf("子プロセスが想定外の終了コード %d で終わりました\n%s", code, out)
+	}
+}
+
 // Issue #425: 書き込みが途中で失敗しても、既存ファイルの内容とモードは
 // 無傷で、一時ファイルも残らない。これが本 Issue の中核の回帰テストで、
 // 修正前の os.WriteFile では元内容が書きかけに置き換わって失敗する。
@@ -63,12 +140,7 @@ func TestWriteFileAtomicFailureKeepsExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	restore := limitFileSize(t, 1024)
-	err := writeFileAtomic(dst, make([]byte, 8192), 0o644)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下の書き込みが成功を返しました")
-	}
+	runAtomicWriteWithLimit(t, dst, 8192)
 
 	got, err := os.ReadFile(dst)
 	if err != nil {
@@ -92,12 +164,7 @@ func TestWriteFileAtomicFailureLeavesNoNewFile(t *testing.T) {
 	dir := t.TempDir()
 	dst := filepath.Join(dir, "new.txt")
 
-	restore := limitFileSize(t, 1024)
-	err := writeFileAtomic(dst, make([]byte, 8192), 0o644)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下の書き込みが成功を返しました")
-	}
+	runAtomicWriteWithLimit(t, dst, 8192)
 	if _, err := os.Lstat(dst); !os.IsNotExist(err) {
 		t.Errorf("失敗した新規ファイルが残っています: %v", err)
 	}

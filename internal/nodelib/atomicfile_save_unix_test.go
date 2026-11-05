@@ -3,39 +3,98 @@
 package nodelib_test
 
 import (
+	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
-// limitFileSizeForSave は RLIMIT_FSIZE を設定し、元へ戻す関数を返す。
-// 容量不足による書き込み失敗を命令レベルで再現するための注入方法 (#425)。
-// SIGXFSZ は無視し、プロセスが終了せずエラーとして返るようにする。
-func limitFileSizeForSave(t *testing.T, limit uint64) func() {
-	t.Helper()
+// 子プロセスの終了コード (親が意味を判別できるよう、0 は使わない。
+// 0 で終わる場合は「子が何も実行しなかった」として親が失敗にする)。
+const (
+	exitLimitSaveFailed  = 17 // 期待どおり容量制限 (file too large) で保存が失敗した
+	exitLimitSaveSuccess = 18 // 制限下なのに保存が成功した
+	exitLimitSetupFailed = 19 // 子プロセス側の準備に失敗した
+	exitLimitWrongError  = 20 // 保存は失敗したが容量制限によるものではなかった
+)
+
+// TestSaveWithFileSizeLimitChild は、RLIMIT_FSIZE をかけた子プロセスで
+// なでしこプログラムを実行するためだけの入口で、通常のテスト実行では
+// スキップする。制限をテストプロセス自体にかけると、testing が記録する
+// testlog の書き込みまで EFBIG で失敗し、全テストが合格しても
+// パッケージが FAIL になる (CI で発生した)。そのため制限は
+// 子プロセスに閉じ込める (#425 の失敗注入方法)。
+func TestSaveWithFileSizeLimitChild(t *testing.T) {
+	if os.Getenv("GONAKO_SAVE_LIMIT_CHILD") != "1" {
+		t.Skip("子プロセス専用")
+	}
+	dir := os.Getenv("GONAKO_SAVE_LIMIT_DIR")
+	code := os.Getenv("GONAKO_SAVE_LIMIT_CODE")
+	// SIGXFSZ は無視し、プロセスが終了せずエラーとして返るようにする。
 	signal.Ignore(syscall.SIGXFSZ)
 	var orig syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_FSIZE, &orig); err != nil {
-		signal.Reset(syscall.SIGXFSZ)
-		t.Fatalf("RLIMIT_FSIZE を取得できません: %v", err)
+		os.Exit(exitLimitSetupFailed)
 	}
 	lim := orig
-	lim.Cur = limit
+	lim.Cur = 1024
 	if err := syscall.Setrlimit(syscall.RLIMIT_FSIZE, &lim); err != nil {
-		signal.Reset(syscall.SIGXFSZ)
-		t.Fatalf("RLIMIT_FSIZE を設定できません: %v", err)
+		os.Exit(exitLimitSetupFailed)
 	}
-	restore := func() {
-		_ = syscall.Setrlimit(syscall.RLIMIT_FSIZE, &orig)
-		signal.Reset(syscall.SIGXFSZ)
+	err := runExpectError(t, dir, code)
+	switch {
+	case err == nil:
+		os.Exit(exitLimitSaveSuccess)
+	case !strings.Contains(err.Error(), "file too large"):
+		os.Exit(exitLimitWrongError)
+	default:
+		os.Exit(exitLimitSaveFailed)
 	}
-	// 途中で t.Fatal しても制限が残らないよう、Cleanup でも戻す
-	// (明示的に呼んだ後の二重の復元は無害)。
-	t.Cleanup(restore)
-	return restore
+}
+
+// runSaveWithFileSizeLimit は子プロセスで制限下のプログラムを実行し、
+// 容量制限で保存が失敗したこと (子プロセスの終了コード
+// exitLimitSaveFailed) を確認する。
+func runSaveWithFileSizeLimit(t *testing.T, dir, code string) {
+	t.Helper()
+	self, err := os.Executable()
+	if err != nil {
+		t.Fatalf("テストバイナリのパスを取得できません: %v", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, self, "-test.run=^TestSaveWithFileSizeLimitChild$", "-test.count=1")
+	cmd.Env = append(os.Environ(),
+		"GONAKO_SAVE_LIMIT_CHILD=1",
+		"GONAKO_SAVE_LIMIT_DIR="+dir,
+		"GONAKO_SAVE_LIMIT_CODE="+code,
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("子プロセスが終了コード 0 で終わりました (制限下の保存が実行されていない可能性があります)\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		t.Fatalf("子プロセスを実行できませんでした: %v\n%s", err, out)
+	}
+	switch c := exitErr.ExitCode(); c {
+	case exitLimitSaveFailed:
+		// 期待どおり
+	case exitLimitSaveSuccess:
+		t.Fatalf("制限下なのに保存が成功しました\n%s", out)
+	case exitLimitSetupFailed:
+		t.Fatalf("子プロセスの準備に失敗しました\n%s", out)
+	case exitLimitWrongError:
+		t.Fatalf("保存は失敗しましたが容量制限によるものではありません\n%s", out)
+	default:
+		t.Fatalf("子プロセスが想定外の終了コード %d で終わりました\n%s", c, out)
+	}
 }
 
 func assertNoSaveTempLeftover(t *testing.T, dir string) {
@@ -62,12 +121,7 @@ func TestSaveFailureKeepsExistingContent(t *testing.T) {
 	}
 
 	code := "「" + strings.Repeat("y", 4096) + "」を\"a.txt\"に保存"
-	restore := limitFileSizeForSave(t, 1024)
-	err := runExpectError(t, dir, code)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下の保存が成功を返しました")
-	}
+	runSaveWithFileSizeLimit(t, dir, code)
 
 	got, err := os.ReadFile(dst)
 	if err != nil {
@@ -89,12 +143,7 @@ func TestEUCSaveFailureKeepsExistingContent(t *testing.T) {
 	}
 
 	code := "「" + strings.Repeat("あ", 1500) + "」を\"enc.txt\"にEUCファイル保存"
-	restore := limitFileSizeForSave(t, 1024)
-	err := runExpectError(t, dir, code)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下の EUC 保存が成功を返しました")
-	}
+	runSaveWithFileSizeLimit(t, dir, code)
 
 	got, err := os.ReadFile(dst)
 	if err != nil {
@@ -119,12 +168,7 @@ func TestOverwriteCopyFailureKeepsDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	restore := limitFileSizeForSave(t, 1024)
-	err := runExpectError(t, dir, `「src.txt」を「dest.txt」にファイル上書コピー`)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下のコピーが成功を返しました")
-	}
+	runSaveWithFileSizeLimit(t, dir, `「src.txt」を「dest.txt」にファイル上書コピー`)
 
 	got, err := os.ReadFile(dst)
 	if err != nil {
@@ -157,12 +201,7 @@ func TestFolderOverwriteCopyFailureKeepsDestination(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	restore := limitFileSizeForSave(t, 1024)
-	err := runExpectError(t, dir, `「srcdir」を「destdir」にファイル上書コピー`)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下のフォルダコピーが成功を返しました")
-	}
+	runSaveWithFileSizeLimit(t, dir, `「srcdir」を「destdir」にファイル上書コピー`)
 
 	got, err := os.ReadFile(dstFile)
 	if err != nil {
@@ -184,12 +223,7 @@ func TestSJISSaveFailureKeepsExistingContent(t *testing.T) {
 	}
 
 	code := "「" + strings.Repeat("あ", 1500) + "」を\"enc.txt\"にSJISファイル保存"
-	restore := limitFileSizeForSave(t, 1024)
-	err := runExpectError(t, dir, code)
-	restore()
-	if err == nil {
-		t.Fatal("容量制限下の SJIS 保存が成功を返しました")
-	}
+	runSaveWithFileSizeLimit(t, dir, code)
 
 	got, err := os.ReadFile(dst)
 	if err != nil {
