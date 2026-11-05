@@ -117,18 +117,27 @@ func createZip(src, dst string) error {
 
 // writeZip は src を ZIP として out へ書き出す。
 // zip.Writer の Close (中央ディレクトリと EOCD の書き込み) と out の Close で
-// 初めて表面化する書き込み失敗 (容量不足など) があるため、defer で戻り値を
+// 初めて表面化する書き込み失敗 (容量不足など) があるため、close の戻り値を
 // 捨てず、walk のエラーと合わせてすべて返す (#330)。
+// close は defer で名前付き戻り値へ合成する。実行順は登録と逆順で
+// zw.Close() → out.Close() になり、walk 中に panic が起きても
+// (VM は panic を回収して言語エラーにする) 両方とも必ず1回ずつ呼ばれる。
 // テストから close 失敗を注入できるよう、出力先は io.WriteCloser で受ける。
-func writeZip(src string, srcInfo os.FileInfo, out io.WriteCloser) error {
+func writeZip(src string, srcInfo os.FileInfo, out io.WriteCloser) (err error) {
 	zw := zip.NewWriter(out)
+	defer func() {
+		err = errors.Join(err, out.Close())
+	}()
+	defer func() {
+		err = errors.Join(err, zw.Close())
+	}()
 
 	var baseDir string
 	if srcInfo.IsDir() {
 		baseDir = filepath.Dir(filepath.Clean(src))
 	}
 
-	walkErr := filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+	return filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -174,10 +183,6 @@ func writeZip(src string, srcInfo os.FileInfo, out io.WriteCloser) error {
 		closeErr := file.Close()
 		return errors.Join(copyErr, closeErr)
 	})
-
-	zipCloseErr := zw.Close()
-	outCloseErr := out.Close()
-	return errors.Join(walkErr, zipCloseErr, outCloseErr)
 }
 
 func extractZip(src, destDir string) error {

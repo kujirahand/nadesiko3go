@@ -5,10 +5,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -306,15 +309,21 @@ func (out *closeErrorOutput) Close() error {
 // (PK\x01\x02) を含む書き込みだけを失敗させるフェイク出力先。
 // archive/zip は出力先を bufio で包むため、書き込みの区切りは一定でない。
 // 先頭一致ではなく含むかどうかで判定し、区切りに依存しないようにする。
-// 中央ディレクトリは zw.Close() の flush で書かれるため、
-// 失敗は zip.Writer の Close から返る。
+//
+// 失敗が zw.Close() 由来になる前提: テスト入力は小さな1ファイルで、
+// ZIP 全体が bufio のバッファ (4096バイト) に収まる。そのため基底への
+// 書き込みは zw.Close() の flush による1回だけで、中央ディレクトリも
+// その中に含まれる (書き込み回数もテストで固定する)。
+// 入力を大きく変える場合は、この前提が崩れていないか再確認すること。
 type centralDirectoryErrorOutput struct {
 	bytes.Buffer
 	err    error
 	closeN int
+	writeN int
 }
 
 func (out *centralDirectoryErrorOutput) Write(p []byte) (int, error) {
+	out.writeN++
 	if bytes.Contains(p, []byte("PK\x01\x02")) {
 		return 0, out.err
 	}
@@ -344,8 +353,14 @@ func TestCreateZipDevFullReturnsError(t *testing.T) {
 	if _, err := os.Stat("/dev/full"); err != nil {
 		t.Skipf("/dev/full がないためスキップ: %v", err)
 	}
-	if err := createZip(makeZipInput(t), "/dev/full"); err == nil {
+	err := createZip(makeZipInput(t), "/dev/full")
+	if err == nil {
 		t.Fatal("createZip(/dev/full) が成功を返しました")
+	}
+	// os.Create 自体の失敗など別原因のエラーで合格しないよう、
+	// 書き込みの容量不足 (ENOSPC) が含まれることまで確認する。
+	if !errors.Is(err, syscall.ENOSPC) {
+		t.Fatalf("エラーに ENOSPC が含まれません: %v", err)
 	}
 }
 
@@ -384,6 +399,108 @@ func TestWriteZipReturnsZipWriterCloseError(t *testing.T) {
 	}
 	if out.closeN != 1 {
 		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
+	}
+	// 基底への書き込みが flush の1回だけであること (フェイクの前提) も固定する。
+	if out.writeN != 1 {
+		t.Fatalf("Write 呼出回数 = %d, want 1", out.writeN)
+	}
+}
+
+// Issue #330: walk の失敗と出力 Close の失敗が同時に起きても、
+// 両方のエラーが返り、Close は必ず呼ばれる。
+func TestWriteZipJoinsWalkAndCloseErrors(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("シンボリックリンクの作成に権限が必要なため")
+	}
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "zsrc")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// 壊れたシンボリックリンクを置くと、Walk 中の os.Open が失敗する。
+	if err := os.Symlink(filepath.Join(dir, "nonexistent.txt"), filepath.Join(srcDir, "broken.txt")); err != nil {
+		t.Fatal(err)
+	}
+	srcInfo, err := os.Stat(srcDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := errors.New("出力 close 失敗")
+	out := &closeErrorOutput{closeErr: want}
+
+	err = writeZip(srcDir, srcInfo, out)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("walk のエラー (存在しないファイル) が返りません: %v", err)
+	}
+	if !errors.Is(err, want) {
+		t.Fatalf("Close エラーが返りません: %v", err)
+	}
+	if out.closeN != 1 {
+		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
+	}
+}
+
+// Issue #330: フォルダ圧縮 (baseDir 経由) でも出力 Close の失敗が返る。
+func TestWriteZipDirReturnsOutputCloseError(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "zsrc")
+	if err := os.MkdirAll(filepath.Join(srcDir, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "a.txt"), []byte("hello"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "sub", "b.txt"), []byte("world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	srcInfo, err := os.Stat(srcDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := errors.New("出力 close 失敗")
+	out := &closeErrorOutput{closeErr: want}
+
+	err = writeZip(srcDir, srcInfo, out)
+	if !errors.Is(err, want) {
+		t.Fatalf("Close エラーが返りません: %v", err)
+	}
+	if out.closeN != 1 {
+		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
+	}
+}
+
+// writeZip の正常系: 書き出した ZIP を読み戻して内容が一致する。
+func TestWriteZipRoundTrip(t *testing.T) {
+	src := makeZipInput(t)
+	srcInfo, err := os.Stat(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := &closeErrorOutput{}
+	if err := writeZip(src, srcInfo, out); err != nil {
+		t.Fatal(err)
+	}
+	if out.closeN != 1 {
+		t.Fatalf("Close 呼出回数 = %d, want 1", out.closeN)
+	}
+	r, err := zip.NewReader(bytes.NewReader(out.Bytes()), int64(out.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.File) != 1 || r.File[0].Name != "input.txt" {
+		t.Fatalf("エントリが想定と違います: %v", r.File)
+	}
+	rc, err := r.File[0].Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rc.Close()
+	body, err := io.ReadAll(rc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(body) != "ZIPのテスト内容" {
+		t.Errorf("読み戻した内容 = %q, want %q", body, "ZIPのテスト内容")
 	}
 }
 
