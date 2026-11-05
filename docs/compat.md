@@ -297,3 +297,44 @@ SJIS・EUC-JP・UTF-8のいずれで復号しても、不正なバイト列は�
 - `internal/stdlib/v06_regression_test.go` の `TestV06NonASCIIFlagLanguageError`
 
 なお `v` フラグ自体は受理するが、UnicodeSets の集合演算（文字クラス内の `&&`・`--`・`\q{...}`）は未対応である（Issue #401）。該当するパターンは、Go の RE2 による異なる解釈の結果を黙って返さず、未対応の言語エラーになる（例: 「正規表現『/[\w&&\d]/v』のvフラグの集合演算には対応していません。」）。クラス外の `&&`・`--` は JavaScript でもリテラルなので対象外で、`v` の付かないパターンも従来どおりである。この挙動は `internal/re/re_test.go` の `TestUnsupportedVSetOperations` と `internal/stdlib/v06_regression_test.go` の `TestV06VSetOperationLanguageError` で固定している。なお `v` の文字クラス構文そのものの検証（JavaScript では SyntaxError になる二重記号など）は行っておらず、それらは従来どおり Go の解釈で通る。
+
+---
+
+## 8. AJAXオプションの対応範囲
+
+`plugin_node` 相当（`internal/nodelib/net.go`）の挙動であり、互換保証の対象外だが、Issue #331 で対応範囲を次のとおり固定した。本家 TypeScript 版が `fetch(url, options)` に『AJAXオプション』を渡す命令群と一致する。
+
+『AJAXオプション設定』で設定した辞書を読む命令:
+
+- 『AJAXテキスト取得』（『AJAX内容取得』『AJAX受信』は同一実装の別名）
+- 『AJAX_JSON取得』『AJAXバイナリ取得』
+- 『AJAX送信時』（『AJAX受信時』『GET送信時』は同一実装）
+- 『AJAX保障送信』（『HTTP保障取得』『GET保障送信』は同一実装）
+
+読まない命令（本家でも自前の method・Content-Type・body を組み立てる専用命令であり、AJAXオプションを波及させない）:
+
+- 『POST送信』『POSTフォーム送信』『POST送信時』『POSTフォーム送信時』『POST保障送信』『POSTフォーム保障送信』
+- 『DISCORD送信』『DISCORDファイル送信』
+
+対応するオプション項目は次の3つだけである。キー名の大文字小文字は区別しない。
+
+| 項目 | 型 | 意味 |
+|---|---|---|
+| `method` | 文字列 | HTTPメソッド。既定は `GET`。小文字で書いても大文字化する。不正な文字を含む場合はエラー |
+| `headers` | 辞書 | 追加するリクエストヘッダー。値は文字列（数値・真偽値は文字列化する）。ヘッダー名が不正な場合や値に改行・制御文字を含む場合はエラー。`Host` は Go の都合で `req.Host` へ反映し、`Content-Length`・`Transfer-Encoding` は Transport が管理するため指定自体をエラーにする（無言で無視しないため） |
+| `body` | 文字列 | リクエストボディ。`method` が `GET`・`HEAD` のときは fetch と同じくエラー。fetch と違い `Content-Type` は自動付与しない（必要な場合は `headers` で指定する） |
+
+それ以外の項目（`timeout` や `credentials` など）は無言で捨てず、「AJAXオプションの項目『…』には対応していません」というエラーになる。オプションが辞書でない場合、`headers` が辞書でない場合、`method`・`body` が文字列でない場合もエラーになる。オプション未指定・空文字列・空辞書のときは従来どおり `GET`・追加ヘッダーなしで送信する。設定を解除したいときは、空文字列か空辞書を改めて『AJAXオプション設定』する（数値などの辞書でない値はエラーになる）。`headers` 内で大文字小文字だけが違う同名ヘッダーがある場合も、重複としてエラーになる。
+
+注意: 従来は未対応の項目を含む辞書や辞書でない値を設定しても黙って無視していたため、この変更はそのようなプログラムに対する破壊的変更である。無視されていた項目を書き続けている場合は、項目を取り除くか、対応する命令の使い方に直す必要がある。これは Issue #331 の方針（未対応項目を無言で捨てない）に基づく意図的な変更である。
+
+なお『AJAXオプション』は、プログラム中に変数名が現れない場合は VM に記憶領域が割り当てられないため、『AJAXオプション設定』の書き込みだけではシステム変数に残らないことがある（guilib の『DOM親要素』と同じ事情）。そのため設定命令は実行単位の CommandState にも控えを持ち、システム変数が使える場合（プログラム中に直接代入がある場合）はそちらを正として、後の直接代入が優先される。状態は CommandState に置くため、レジストリを使い回すホストでも実行をまたいで設定が残ることはない。
+
+この挙動は `internal/nodelib/ajax_options_test.go` で固定している（外部通信はせず mock Transport でリクエストを捕捉する）。
+
+- `TestAjaxOptionsHeadersReflected` — 全対応命令で `Authorization` が観測できる
+- `TestAjaxOptionsDefaults` / `TestAjaxOptionsDirectAssignment` / `TestAjaxOptionsMethodAndBody`
+- `TestAjaxOptionsErrors` / `TestAjaxOptionsErrorsOtherCommands` — 未対応項目・不正値がリクエスト送信前にエラーになる
+- `TestAjaxOptionsHostHeader` — `Host` ヘッダーが `req.Host` へ反映される
+- `TestAjaxOptionsNoLeakAcrossRuns` — 連続実行・レジストリ再利用でも設定が次の実行に漏れない
+- `TestAjaxOptionsNotAppliedToPostCommands` — 専用POST命令・DISCORD送信へ波及しない

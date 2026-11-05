@@ -62,8 +62,231 @@ func buildMultipartForm(cmdName string, v value.Value) (*bytes.Buffer, string, e
 	return &body, mw.FormDataContentType(), nil
 }
 
+// ajaxOptions は『AJAXオプション設定』で設定された辞書を検証した結果。
+// 対応範囲は Issue #331 で次のとおり固定した（テストは ajax_options_test.go、
+// 文書は docs/compat.md 第8節）。
+//
+//   - オプションを読む命令: 『AJAXテキスト取得』（『AJAX内容取得』『AJAX受信』は
+//     同一実装の別名）、『AJAX_JSON取得』、『AJAXバイナリ取得』、
+//     『AJAX送信時』（『AJAX受信時』『GET送信時』は同一実装）、
+//     『AJAX保障送信』（『HTTP保障取得』『GET保障送信』は同一実装）。
+//     本家 TypeScript 版が fetch(url, options) に AJAXオプションを渡す命令群と一致する。
+//   - オプションを読まない命令: 『POST送信』『POSTフォーム送信』『POST送信時』
+//     『POSTフォーム送信時』『POST保障送信』『POSTフォーム保障送信』と
+//     DISCORD系。これらは本家でも自前の method・Content-Type・body を組み立てる
+//     専用命令であり、AJAXオプションを波及させない。
+//   - 対応項目は method（文字列）・headers（辞書）・body（文字列）だけ。
+//     それ以外の項目は無言で捨てずエラーにする。
+type ajaxOptions struct {
+	method  string
+	headers http.Header
+	host    string
+	hasHost bool
+	body    string
+	hasBody bool
+}
+
+// isHTTPTokenChar は RFC 9110 の token（メソッド名・ヘッダー名に使える文字）か。
+func isHTTPTokenChar(c byte) bool {
+	switch {
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		return true
+	}
+	switch c {
+	case '!', '#', '$', '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~':
+		return true
+	}
+	return false
+}
+
+func isHTTPToken(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if !isHTTPTokenChar(s[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// validHeaderValue はヘッダー値に使える文字だけか（タブと表示可能な文字、
+// および obs-text）。改行を含むとヘッダー注入になるため、事前に弾く。
+func validHeaderValue(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '\t' || (c >= 0x20 && c != 0x7f) {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+// parseAjaxOptions は『AJAXオプション』の値を検証して ajaxOptions にする。
+// 未設定・空文字列・空辞書は従来どおり GET・追加ヘッダーなし・body なしになる。
+func parseAjaxOptions(v value.Value) (ajaxOptions, error) {
+	opts := ajaxOptions{method: http.MethodGet, headers: make(http.Header)}
+	switch v.Kind() {
+	case value.KindUndefined:
+		return opts, nil
+	case value.KindString:
+		if s, _ := v.String(); strings.TrimSpace(s) == "" {
+			return opts, nil
+		}
+		return opts, fmt.Errorf("AJAXオプションには辞書を指定してください")
+	}
+	d, ok := v.Dict()
+	if !ok {
+		return opts, fmt.Errorf("AJAXオプションには辞書を指定してください")
+	}
+	seen := make(map[string]bool)
+	for _, key := range d.Keys() {
+		item, _ := d.Get(key)
+		name := strings.ToLower(key)
+		switch name {
+		case "method", "headers", "body":
+			if seen[name] {
+				return opts, fmt.Errorf("AJAXオプションの項目『%s』が重複しています", key)
+			}
+			seen[name] = true
+		default:
+			return opts, fmt.Errorf("AJAXオプションの項目『%s』には対応していません。対応している項目はmethod・headers・bodyです", key)
+		}
+		switch name {
+		case "method":
+			if item.Kind() != value.KindString {
+				return opts, fmt.Errorf("AJAXオプションのmethodには文字列を指定してください")
+			}
+			s, _ := item.String()
+			method := strings.ToUpper(strings.TrimSpace(s))
+			if !isHTTPToken(method) {
+				return opts, fmt.Errorf("AJAXオプションのmethod『%s』が不正です", s)
+			}
+			opts.method = method
+		case "body":
+			if item.Kind() != value.KindString {
+				return opts, fmt.Errorf("AJAXオプションのbodyには文字列を指定してください")
+			}
+			opts.body, _ = item.String()
+			opts.hasBody = true
+		case "headers":
+			hd, ok := item.Dict()
+			if !ok {
+				return opts, fmt.Errorf("AJAXオプションのheadersには辞書を指定してください")
+			}
+			seenHeaders := make(map[string]bool)
+			for _, hk := range hd.Keys() {
+				hv, _ := hd.Get(hk)
+				if seenHeaders[strings.ToLower(hk)] {
+					return opts, fmt.Errorf("AJAXオプションのヘッダー『%s』が重複しています", hk)
+				}
+				seenHeaders[strings.ToLower(hk)] = true
+				if !isHTTPToken(hk) {
+					return opts, fmt.Errorf("AJAXオプションのヘッダー名『%s』が不正です", hk)
+				}
+				switch hv.Kind() {
+				case value.KindString, value.KindNumber, value.KindBool:
+				default:
+					return opts, fmt.Errorf("AJAXオプションのヘッダー『%s』の値には文字列を指定してください", hk)
+				}
+				val := value.ToString(hv)
+				if !validHeaderValue(val) {
+					return opts, fmt.Errorf("AJAXオプションのヘッダー『%s』の値が不正です", hk)
+				}
+				// Go の http.Client が req.Header では無視するヘッダーの扱い。
+				// 無言で捨てないため、Host は req.Host へ反映し、
+				// Transport が管理する Content-Length / Transfer-Encoding はエラーにする。
+				switch strings.ToLower(hk) {
+				case "host":
+					opts.host = val
+					opts.hasHost = true
+				case "content-length", "transfer-encoding":
+					return opts, fmt.Errorf("AJAXオプションのヘッダー『%s』は指定できません", hk)
+				default:
+					opts.headers.Set(hk, val)
+				}
+			}
+		}
+	}
+	// fetch と同じく、GET・HEAD のリクエストに body は付けられない。
+	// 付けても Go の Transport が黙って捨てる場合があるため、ここで明示する。
+	if opts.hasBody && (opts.method == http.MethodGet || opts.method == http.MethodHead) {
+		return opts, fmt.Errorf("AJAXオプションのbodyはmethodがGET・HEADのとき指定できません")
+	}
+	return opts, nil
+}
+
+// newAjaxRequest は『AJAXオプション』を反映したリクエストを作る共通処理。
+// AJAXオプション対応命令は client.Get ではなく、必ずこちらを使う。
+func newAjaxRequest(optVal value.Value, reqURL string) (*http.Request, error) {
+	opts, err := parseAjaxOptions(optVal)
+	if err != nil {
+		return nil, err
+	}
+	var body io.Reader
+	if opts.hasBody {
+		body = strings.NewReader(opts.body)
+	}
+	req, err := http.NewRequest(opts.method, reqURL, body)
+	if err != nil {
+		return nil, err
+	}
+	for k, vs := range opts.headers {
+		req.Header[k] = append([]string(nil), vs...)
+	}
+	if opts.hasHost {
+		req.Host = opts.host
+	}
+	return req, nil
+}
+
+// doAjax は AJAXオプション対応命令の共通送信処理。
+func doAjax(client *http.Client, optVal value.Value, reqURL string) (*http.Response, error) {
+	req, err := newAjaxRequest(optVal, reqURL)
+	if err != nil {
+		return nil, err
+	}
+	return client.Do(req)
+}
+
 func netCommands(m map[string]command) {
 	client := &http.Client{Timeout: 30 * time.Second}
+
+	// ajaxOptionValue は現在の『AJAXオプション』の実効値を返す。
+	//
+	// VMはプログラム中に名前が現れない変数に記憶領域を割り当てないため、
+	// 『AJAXオプション設定』の SetSysVar が黙って捨てられることがある
+	// （guilib の『DOM親要素』と同じ事情）。その場合でも設定が届くよう、
+	// 設定命令は実行単位の CommandState にも控えを保存する。状態を
+	// netCommands のクロージャ変数に持つと、レジストリを使い回すホストで
+	// 実行をまたいで残ってしまうため、控えも判定結果も CommandState に置く。
+	// 読み出し側は、システム変数が使える場合（書いて読み直せる場合）に
+	// だけそちらを正とし、プログラム中の直接代入を優先する。使えない場合は
+	// 控えを使う（その場合は直接代入自体がプログラムに現れない）。
+	ajaxOptionValue := func(ctx stdlib.Context) value.Value {
+		usable := ctx.CommandState("__ajaxOptionUsable")
+		if usable.Kind() == value.KindUndefined {
+			saved := ctx.SysVar("AJAXオプション")
+			const probe = "__AJAXオプション確認用__"
+			ctx.SetSysVar("AJAXオプション", value.String(probe))
+			ok := false
+			if s, isStr := ctx.SysVar("AJAXオプション").String(); isStr && s == probe {
+				ok = true
+			}
+			ctx.SetSysVar("AJAXオプション", saved)
+			ctx.SetCommandState("__ajaxOptionUsable", value.Bool(ok))
+			usable = value.Bool(ok)
+		}
+		if b, _ := usable.Bool(); b {
+			return ctx.SysVar("AJAXオプション")
+		}
+		if savedCopy := ctx.CommandState("__ajaxOptionCopy"); savedCopy.Kind() != value.KindUndefined {
+			return savedCopy
+		}
+		return ctx.SysVar("AJAXオプション")
+	}
 
 	m["自分IPアドレス取得"] = command{fn: func(_ stdlib.Context, _ []value.Value) (value.Value, error) {
 		addrs, err := net.InterfaceAddrs()
@@ -108,9 +331,9 @@ func netCommands(m map[string]command) {
 
 	m["AJAXテキスト取得"] = command{
 		josi: [][]string{{"から", "の", "を"}},
-		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			resp, err := client.Get(reqURL)
+			resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 			if err != nil {
 				return value.Undefined(), err
 			}
@@ -127,9 +350,9 @@ func netCommands(m map[string]command) {
 
 	m["AJAX_JSON取得"] = command{
 		josi: [][]string{{"から", "の", "を"}},
-		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			resp, err := client.Get(reqURL)
+			resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 			if err != nil {
 				return value.Undefined(), err
 			}
@@ -144,9 +367,9 @@ func netCommands(m map[string]command) {
 
 	m["AJAXバイナリ取得"] = command{
 		josi: [][]string{{"から", "の", "を"}},
-		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			resp, err := client.Get(reqURL)
+			resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 			if err != nil {
 				return value.Undefined(), err
 			}
@@ -213,7 +436,10 @@ func netCommands(m map[string]command) {
 		josi:       [][]string{{"に", "へ", "と"}},
 		returnNone: true,
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			ctx.SetSysVar("AJAXオプション", argAt(a, 0))
+			v := argAt(a, 0)
+			ctx.SetSysVar("AJAXオプション", v)
+			// システム変数に記憶領域が無い場合に備えた控え（ajaxOptionValue のコメント参照）。
+			ctx.SetCommandState("__ajaxOptionCopy", v)
 			return value.Undefined(), nil
 		},
 	}
@@ -230,7 +456,7 @@ func netCommands(m map[string]command) {
 	ajaxSendFn := func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 		callbackVal := argAt(a, 0)
 		reqURL := str(a, 1)
-		resp, err := client.Get(reqURL)
+		resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 		if err != nil {
 			if onErr := ctx.SysVar("AJAX:ONERROR"); onErr.Kind() != value.KindUndefined {
 				if fn, ok := toFunc(ctx, onErr); ok {
@@ -330,9 +556,9 @@ func netCommands(m map[string]command) {
 
 	m["AJAX保障送信"] = command{
 		josi: [][]string{{"まで", "へ", "に", "の", "から", "を"}},
-		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
 			reqURL := str(a, 0)
-			resp, err := client.Get(reqURL)
+			resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 			if err != nil {
 				return value.Undefined(), err
 			}
