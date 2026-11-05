@@ -315,6 +315,62 @@ S=5
 ?? "S"
 `)
 
+	// #335: 名前で動的に取り出した関数は、静的呼び出しが見えないので
+	// 引数を数値だと推論してはいけない。動的経路ごとに VM と比べる。
+	assertMatchesVM(t, "dynamic_func_via_js_object_get", `
+●(Aの)返却とは
+  Aで戻る
+ここまで
+F=「返却」のJSオブジェクト取得
+(F(「abc」))を表示
+`)
+
+	assertMatchesVM(t, "dynamic_func_via_await_by_name", `
+●(Aの)返却とは
+  Aで戻る
+ここまで
+(「返却」を「xyz」でAWAIT実行)を表示
+`)
+
+	// 引数なしで名前実行すると、引数は undefined であって NaN ではない。
+	assertMatchesVM(t, "dynamic_func_via_exec_by_name_no_args", `
+●(Aの)返却とは
+  Aで戻る
+ここまで
+「返却」を実行して表示
+`)
+
+	assertMatchesVM(t, "dynamic_func_via_array_map_strings", `
+●(Aの)返却とは
+  Aで戻る
+ここまで
+B=[「abc」,「def」]
+A=「返却」をBに配列マップ
+Aを表示
+`)
+
+	assertMatchesVM(t, "dynamic_func_via_array_map_array_and_dict", `
+●(Aの)返却とは
+  Aで戻る
+ここまで
+B=[[1,2],{"k":"v"}]
+A=「返却」をBに配列マップ
+(AをJSONエンコード)を表示
+`)
+
+	// 動的経路のない静的な数値呼び出しは、従来どおりの出力のまま。
+	assertMatchesVM(t, "static_numeric_func_call", `
+●(Nの)二倍とは
+  (N*2)で戻る
+ここまで
+(21の二倍)を表示
+S=0
+Iを1から10まで繰り返す
+  S=S+(Iの二倍)
+ここまで
+Sを表示
+`)
+
 	assertMatchesVM(t, "frame_specials_inherit_and_isolate", `
 対象="親"
 回数=7

@@ -226,6 +226,31 @@ func checkSupported(prog *ir.Program) error {
 // 強制終了時のハンドラはループの途中で大域変数を読み書きできる。
 var dynamicGlobalCommands = []string{"JSオブジェクト取得", "ハテナ関数実行", "強制終了時"}
 
+// dynamicFuncCommands names the commands that can reach a user function by
+// a name only known at run time, through Context.FindFunc (『文字列なら
+// FindFunc、関数値ならそのまま』で CallFunc/PostFunc する命令群)。
+// 名前付き関数の定義は OpMakeFunc を出さないので、こうした命令が1つでも
+// あれば、どの名前付き関数も静的には見えない引数で呼ばれうる (#335)。
+// FindFunc を使う命令を新しく足したら、ここへも足すこと。
+// 『AJAX失敗時』はコールバックを AJAX:ONERROR へ保存する側で、その値を
+// toFunc で消費する AJAX/POST 系も併せて入れてある。『ファイル処理時』は
+// コールバックを CommandState へ保存し、『ファイルコピー』等が後で呼ぶ。
+var dynamicFuncCommands = []string{
+	// plugin_system
+	"JSオブジェクト取得", "実行", "AWAIT実行", "実行時間計測",
+	"配列マップ", "配列関数適用", "配列フィルタ", "配列カスタムソート",
+	"秒後", "秒毎", "秒タイマー開始時", "ハテナ関数実行",
+	// nodelib
+	"ファイル削除時", "ファイル移動時", "ファイルコピー時", "ファイル処理時",
+	"標準入力取得時", "強制終了時", "起動時", "圧縮時", "解凍時",
+	"AJAX失敗時", "AJAX送信時", "AJAX受信時", "GET送信時",
+	"POST送信時", "POSTフォーム送信時",
+	"AJAXテキスト取得", "AJAX内容取得", "AJAX受信", "AJAX_JSON取得",
+	"AJAXバイナリ取得", "POST送信", "POSTフォーム送信",
+	// sqlitelib
+	"SQLITE3実行時", "SQLITE3実行後", "SQLITE3取得時",
+}
+
 // extraSystemNames are global names Go code reads or writes through
 // Context.SysVar / SetSysVar without the registry necessarily declaring them
 // (internal/nodelib, internal/sqlitelib), plus the two internal/vm's New()
@@ -258,10 +283,22 @@ func analyzeEnvFor(prog *ir.Program, plugins []string) (analyzeEnv, error) {
 			dynamicGlobal[e.ID] = true
 		}
 	}
+	dynamicFunc := map[int]bool{}
+	for _, name := range dynamicFuncCommands {
+		if e, ok := registry.Lookup(name); ok {
+			dynamicFunc[e.ID] = true
+		}
+	}
 	for fi := range prog.Funcs {
 		for _, inst := range prog.Funcs[fi].Code {
-			if inst.Op == ir.OpCallStd && dynamicGlobal[int(inst.A)] {
+			if inst.Op != ir.OpCallStd {
+				continue
+			}
+			if dynamicGlobal[int(inst.A)] {
 				env.dynamicGlobals = true
+			}
+			if dynamicFunc[int(inst.A)] {
+				env.dynamicFuncs = true
 			}
 		}
 	}
