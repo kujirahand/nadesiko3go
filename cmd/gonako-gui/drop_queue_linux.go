@@ -10,6 +10,7 @@ import "C"
 
 import (
 	"strings"
+	"unsafe"
 )
 
 // このファイルの関数は検証用。GTKコールバックを通さずに
@@ -40,4 +41,16 @@ func recordDroppedRawForTest(joined string) bool {
 // 記録側も取得側も動いていないときにだけ使う。
 func clearDroppedFilesForTest() {
 	C.gonakoDropQueueClear()
+}
+
+// takeDroppedFilesHeadForTest は照合せずに先頭の項目を取り出す。
+// キューの並行安全性と先入れ先出しを直接確認するために使う。
+func takeDroppedFilesHeadForTest() []string {
+	var length C.int
+	buf := C.gonakoTakeDroppedFiles(&length)
+	if buf == nil {
+		return nil
+	}
+	defer C.free(unsafe.Pointer(buf))
+	return splitDroppedPaths(C.GoBytes(unsafe.Pointer(buf), length))
 }

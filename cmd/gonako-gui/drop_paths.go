@@ -52,7 +52,9 @@ func withDroppedFiles(event string, payload guilib.EventPayload) guilib.EventPay
 	if event != "drop" {
 		return payload
 	}
-	paths := platformTakeDroppedFiles()
+	// この時点で payload.DropFiles には JavaScript が知っているファイル名が
+	// 入っている。ネイティブ側の記録との照合に使うので、差し替え前に渡す。
+	paths := platformTakeDroppedFiles(payload.DropFiles)
 	if len(paths) == 0 {
 		return payload
 	}

@@ -46,4 +46,4 @@ func gonakoTrustInstalled(handle unsafe.Pointer) C.int {
 	return 0
 }
 
-func platformTakeDroppedFiles() []string { return nil }
+func platformTakeDroppedFiles(_ []string) []string { return nil }

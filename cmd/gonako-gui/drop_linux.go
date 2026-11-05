@@ -75,6 +75,7 @@ void gonakoInstallFileDropHook(void *windowPtr) {
 import "C"
 
 import (
+	"strings"
 	"unsafe"
 
 	webview "github.com/webview/webview_go"
@@ -85,11 +86,19 @@ func platformInstallFileDrop(w *webview.Protected) error {
 	return nil
 }
 
-// platformTakeDroppedFiles は最も古い未取得ドロップのパスを返す。
+// platformTakeDroppedFiles は、イベントが知っているファイル名と一致する
+// ドロップのパスを返す。記録はUIスレッドで即座に行われる一方、イベントは
+// 遅れたり失われたりするため、単純な先入れ先出しではなく名前で照合する。
 // 取り出したbufferの所有権はここへ移り、コピーし終えたら1回だけ free する。
-func platformTakeDroppedFiles() []string {
+func platformTakeDroppedFiles(names []string) []string {
+	if len(names) == 0 {
+		return nil
+	}
+	joined := strings.Join(names, "\x00")
+	cNames := C.CString(joined)
+	defer C.free(unsafe.Pointer(cNames))
 	var length C.int
-	buf := C.gonakoTakeDroppedFiles(&length)
+	buf := C.gonakoTakeDroppedFilesForEvent(cNames, C.int(len(joined)), &length)
 	if buf == nil {
 		return nil
 	}

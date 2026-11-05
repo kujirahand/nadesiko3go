@@ -22,7 +22,8 @@ func platformInstallFileDrop(_ *webview.Protected) error {
 	return nil
 }
 
-func platformTakeDroppedFiles() []string {
+// macOS は記録時にコピーを返す単一スロットで、名前による照合はしない。
+func platformTakeDroppedFiles(_ []string) []string {
 	var length C.int
 	buf := C.gonakoTakeDroppedFiles(&length)
 	if buf == nil {
