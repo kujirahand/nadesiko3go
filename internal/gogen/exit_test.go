@@ -118,8 +118,8 @@ func TestGeneratedExitMatchesVM(t *testing.T) {
 // 突き合わせを併せて固定する。固定値でも見るのは、VMと生成側が同じ誤った
 // 規約に揃ってしまった場合でも「7で強制終了はプロセスとして7」という
 // 外部仕様を守るため。
-// なお生成 Run が RealSleep を有効にしない点は #333 の範囲であり、待機の
-// 実時間性は終了コードに影響しないので、ここでは触らない。
+// なお生成 Run の既定は仮想時間のままで、RealSleep は生成 main だけが
+// 有効にする (#333)。待機の実時間性は終了コードに影響しない。
 func TestGeneratedBinaryExitCodeContract(t *testing.T) {
 	tests := []struct {
 		name       string

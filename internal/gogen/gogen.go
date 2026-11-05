@@ -160,11 +160,19 @@ func registerNatives(m *rt.Machine) {
 		fmt.Fprintf(&out, "\tm.SetNative(%d, native%d)\n", i, i)
 	}
 	out.WriteString("}\n\n")
-	fmt.Fprintf(&out, `// Run executes program against host, exactly as the VM backend's Run does —
-// registerNatives is the only difference from an ordinary vm.New(...).Run().
+	fmt.Fprintf(&out, `// Run は既定のオプションでプログラムを実行する。既定では『秒待』は
+// 仮想時間で進むだけで実時間では待たないので、テストや埋め込み利用が
+// 高速で決定的になる。実時間で待たせたい場合は RunWithOptions で
+// RealSleep を有効にしたオプションを渡すこと (#333)。
+// registerNatives が通常の vm.New(...).Run() との唯一の違いである。
 // 実行後はVMを退役させ、閉じ忘れた接続などを解放する (なでしこ3go #363)。
 func Run(host rt.Host) error {
-	m := rt.NewMachine(program, %s, host, rt.DefaultOptions())
+	return RunWithOptions(host, rt.DefaultOptions())
+}
+
+// RunWithOptions は指定したオプションでプログラムを実行する。
+func RunWithOptions(host rt.Host, opts rt.Options) error {
+	m := rt.NewMachine(program, %s, host, opts)
 	registerNatives(m)
 	err := m.Run()
 	if closeErr := m.Close(); err == nil {
@@ -177,7 +185,11 @@ func Run(host rt.Host) error {
 		out.WriteString(`
 func main() {
 	host := rt.NewCUIHost(os.Stdout, os.Stdin, os.Args[1:])
-	if err := Run(host); err != nil {
+	// 生成CUIは通常CUI (vm.RunCompiled) と同じく『秒待』を実時間で
+	// 待たせる (#333)。Run の既定 (仮想時間) は変えない。
+	opts := rt.DefaultOptions()
+	opts.RealSleep = true
+	if err := RunWithOptions(host, opts); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}

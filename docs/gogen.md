@@ -121,6 +121,10 @@ $ gonako gengo async_example.nako3
 gogenは非同期関数に対応していません（VM実行にフォールバックしてください）: [非同期テスト]
 ```
 
+### 『秒待』の実時間と仮想時間（#333）
+
+生成した実行ファイル（`package main`）では、『秒待』は通常CUI（`gonako run`）と同じく**実時間**で待ちます。一方、生成コードをライブラリとして埋め込む場合の `Run(host)` は、既定では**仮想時間**で進むだけで実時間では待ちません（テストや埋め込み利用が高速で決定的になるため）。ライブラリ利用側で実時間で待たせたいときは、`rt.DefaultOptions()` で作ったオプションの `RealSleep` を有効にして `RunWithOptions(host, opts)` を呼んでください（`rt` は生成コードが依存する `github.com/kujirahand/nadesiko3go/pkg/runtime` の別名で、呼び出し側でも同じ import を使います）。
+
 ---
 
 ## 5. 仕組み（開発者向け）
