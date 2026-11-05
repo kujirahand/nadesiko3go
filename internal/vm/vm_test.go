@@ -515,6 +515,124 @@ func TestNestedNamedFuncWithoutCapture(t *testing.T) {
 	}
 }
 
+// TestNestedNamedFuncMutualRecursion pins issue #433: two nested functions
+// that call each other while both capture the outer locals. 甲 adds 10 and
+// 乙 adds 1 per visit, so the alternating total 10+1+10+1+10+1=33 cannot
+// result from either function recursing on its own, and the order code
+// (甲 appends digit 1, 乙 appends digit 2) pins the exact visit sequence
+// 甲乙甲乙甲乙 as 121212.
+func TestNestedNamedFuncMutualRecursion(t *testing.T) {
+	code := `●処理とは
+残り=6
+総和=0
+順序=0
+●甲とは
+もし残り>0ならば
+総和=総和+10
+順序=順序*10+1
+残り=残り-1
+乙
+ここまで
+ここまで
+●乙とは
+もし残り>0ならば
+総和=総和+1
+順序=順序*10+2
+残り=残り-1
+甲
+ここまで
+ここまで
+甲
+総和を表示
+順序を表示
+残りを表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "33\n121212\n0" {
+		t.Errorf("got %q, want %q", got, "33\n121212\n0")
+	}
+}
+
+// TestNestedNamedFuncSameNameAsTopLevel pins the current name resolution
+// for issue #433: function names are unique across the whole program, so a
+// call inside the parent resolves to the nested function defined later,
+// not to the top-level function of the same name. This pins the current
+// (post-#431) semantics, not a claim that shadowing is the desired
+// specification. The nested function captures the outer local, so the
+// capture works through the shadowing resolution as well; before #431
+// this capturing shape failed IR validation like every other capturing
+// nested call.
+func TestNestedNamedFuncSameNameAsTopLevel(t *testing.T) {
+	code := `●挨拶とは
+「外側」で戻る
+ここまで
+●処理とは
+件数=100
+●挨拶とは
+件数=件数+1
+「内側{件数}」で戻る
+ここまで
+挨拶を表示
+挨拶を表示
+件数を表示
+ここまで
+処理
+`
+	if got := run(t, code); got != "内側101\n内側102\n102" {
+		t.Errorf("got %q, want %q", got, "内側101\n内側102\n102")
+	}
+}
+
+// TestNestedNamedFuncSameNameFromTopLevel pins the other half of the
+// current whole-program name resolution for issue #433: even a call from
+// the top level resolves to the nested function defined later, because
+// the name table is global. Like the test above, this pins existing
+// semantics (identical on master before #431) rather than prescribing
+// them; changing to lexical-scope priority would intentionally change
+// this expectation.
+func TestNestedNamedFuncSameNameFromTopLevel(t *testing.T) {
+	code := `●挨拶とは
+「外側」で戻る
+ここまで
+●処理とは
+●挨拶とは
+「内側」で戻る
+ここまで
+挨拶を表示
+ここまで
+処理
+挨拶を表示
+`
+	if got := run(t, code); got != "内側\n内側" {
+		t.Errorf("got %q, want %q", got, "内側\n内側")
+	}
+}
+
+// TestNestedNamedFuncSameNameDefinedFirst pins the reverse definition
+// order for issue #433: when the nested function is defined before the
+// top-level function of the same name, every call resolves to the
+// top-level one. Together with the two tests above, this shows the
+// current rule is "the later definition wins", regardless of nesting,
+// rather than "the nested definition wins".
+func TestNestedNamedFuncSameNameDefinedFirst(t *testing.T) {
+	code := `●処理とは
+●挨拶とは
+「内側」で戻る
+ここまで
+挨拶を表示
+ここまで
+●挨拶とは
+「外側」で戻る
+ここまで
+処理
+挨拶を表示
+`
+	if got := run(t, code); got != "外側\n外側" {
+		t.Errorf("got %q, want %q", got, "外側\n外側")
+	}
+}
+
 func TestLeafFrameReuseRecursion(t *testing.T) {
 	code := `●(Nの)フィボとは
 もしN<=1ならばNで戻る
