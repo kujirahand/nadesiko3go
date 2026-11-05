@@ -612,8 +612,8 @@ func TestNestedNamedFuncSameNameFromTopLevel(t *testing.T) {
 // TestNestedNamedFuncSameNameDefinedFirst pins the reverse definition
 // order for issue #433: when the nested function is defined before the
 // top-level function of the same name, every call resolves to the
-// top-level one. Together with the two tests above, this shows the
-// current rule is "the later definition wins", regardless of nesting,
+// top-level one. Together with the two tests above, this shows that in
+// these two layouts the current rule is "the later definition wins",
 // rather than "the nested definition wins".
 func TestNestedNamedFuncSameNameDefinedFirst(t *testing.T) {
 	code := `●処理とは
