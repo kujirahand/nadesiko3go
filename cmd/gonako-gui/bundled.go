@@ -346,7 +346,11 @@ func buildAppFromFolder(folderPath, entryPath, outPath, title string) BuildResul
 		if err != nil {
 			return BuildResult{Error: fmt.Sprintf("ファイルを読み込めません: %v", err)}
 		}
-		prog, err := vm.CompileProgram(string(code), filepath.Base(entry))
+		// 梱包名とエラー表示は basename のままにし、相対的な
+		// 『取り込む』の解決基準としてだけ entry の絶対パスを渡す。
+		// これにより、変換するフォルダの外が作業フォルダでも依存
+		// ソースを元ファイルの隣から解決できる（#351）。
+		prog, err := vm.CompileProgramFile(string(code), filepath.Base(entry), entry)
 		if err != nil {
 			return BuildResult{Error: err.Error()}
 		}

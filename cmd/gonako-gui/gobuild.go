@@ -71,13 +71,20 @@ func buildWithGo(sourcePath, outPath string) GoBuildResult {
 	if err != nil {
 		return GoBuildResult{Error: fmt.Sprintf("ファイルを読み込めません: %v", err)}
 	}
+	// 相対的な『取り込む』は、表示名ではなく元ファイルの場所を基準に
+	// 解決する。作業フォルダへ移動したり名前を短くしたりしても基準が
+	// 失われないよう、絶対パスを解決専用に parser へ渡す（#351）。
+	absSourcePath, err := filepath.Abs(sourcePath)
+	if err != nil {
+		return GoBuildResult{Error: fmt.Sprintf("ファイルの場所が分かりません: %v", err)}
+	}
 
 	registry, err := gogen.BuildRegistry(goBuildPlugins)
 	if err != nil {
 		return GoBuildResult{Error: err.Error()}
 	}
 	name := filepath.Base(sourcePath)
-	tree, err := parser.ParseSource(string(code), name, registry.FuncList())
+	tree, err := parser.ParseSourceFile(string(code), name, absSourcePath, registry.FuncList())
 	if err != nil {
 		return GoBuildResult{Error: err.Error()}
 	}
