@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -99,14 +101,75 @@ func EncodeJSON(v value.Value) (string, error) { return encodeJSON(v) }
 // DecodeJSON はJSON文字列をキーの順序を保ったままなでしこの値にする。
 func DecodeJSON(s string) (value.Value, error) { return decodeJSON(s) }
 
-// encodeJSON renders a value the way JSON.stringify does: keys in insertion
-// order, no HTML escaping, and undefined dropped.
+// encodeJSON renders a value the way JSON.stringify does: no HTML escaping,
+// undefined and function values dropped from objects, and keys ordered the
+// JavaScript way (array-index keys first in numeric order, then the rest in
+// insertion order).
 func encodeJSON(v value.Value) (string, error) {
 	var b strings.Builder
 	if err := writeJSON(&b, v, make(map[any]bool)); err != nil {
 		return "", err
 	}
 	return b.String(), nil
+}
+
+// jsonDictKeys は辞書のキーを JSON.stringify の順序で返す (Issue #417)。
+// JavaScript の OrdinaryOwnPropertyKeys と同じく、配列インデックス形式の
+// キーを数値の昇順で先に並べ、それ以外のキーは挿入順のまま後ろに置く。
+// 並び替えはこの出力のときだけであり、Dict 自身の保持順 (反復や
+// 『辞書キー列挙』の結果) は変えない。インデックス形式のキーが無ければ
+// 余分な振り分けをせず、そのまま返す。
+func jsonDictKeys(d *value.Dict) []string {
+	keys := d.Keys()
+	type indexedKey struct {
+		key string
+		num uint32
+	}
+	var indexed []indexedKey
+	for _, k := range keys {
+		if n, ok := jsArrayIndex(k); ok {
+			indexed = append(indexed, indexedKey{key: k, num: n})
+		}
+	}
+	if len(indexed) == 0 {
+		return keys
+	}
+	sort.SliceStable(indexed, func(i, j int) bool { return indexed[i].num < indexed[j].num })
+	ordered := make([]string, 0, len(keys))
+	for _, ik := range indexed {
+		ordered = append(ordered, ik.key)
+	}
+	for _, k := range keys {
+		if _, ok := jsArrayIndex(k); !ok {
+			ordered = append(ordered, k)
+		}
+	}
+	return ordered
+}
+
+// jsArrayIndex はキーが JavaScript の配列インデックスかどうかを返す。
+// 定義 (OrdinaryOwnPropertyKeys / array index) は、文字列が
+// ToString(ToUint32(P)) と一致し、かつ 2^32-1 でないこと。つまり
+// "0" から "4294967294" (2^32-2) までの10進表記であり、先行ゼロ
+// ("01"・"00")・負数 ("-1"・"-0")・小数 ("1.0")・符号 ("+1")・
+// 空白 (" 1")・空文字列はインデックスではない。
+func jsArrayIndex(key string) (uint32, bool) {
+	if key == "" || len(key) > 10 {
+		return 0, false
+	}
+	if len(key) > 1 && key[0] == '0' {
+		return 0, false // 先行ゼロは正規の10進表記ではない
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] < '0' || key[i] > '9' {
+			return 0, false
+		}
+	}
+	n, err := strconv.ParseUint(key, 10, 64)
+	if err != nil || n > 4294967294 {
+		return 0, false
+	}
+	return uint32(n), true
 }
 
 // writeJSON は値をJSONとして書き出す。seen は現在の再帰経路上にある
@@ -161,10 +224,12 @@ func writeJSON(b *strings.Builder, v value.Value, seen map[any]bool) error {
 		defer delete(seen, d)
 		b.WriteByte('{')
 		first := true
-		for _, k := range d.Keys() {
+		for _, k := range jsonDictKeys(d) {
 			item, _ := d.Get(k)
-			if item.Kind() == value.KindUndefined {
-				continue // undefined のキーは出力しない
+			if item.Kind() == value.KindUndefined || item.Kind() == value.KindFunc {
+				// undefined と関数のキーは出力しない (JSON.stringify と同じ)。
+				// 配列の中の関数は従来どおり null になる (writeJSON の先頭の分岐)。
+				continue
 			}
 			if !first {
 				b.WriteByte(',')
