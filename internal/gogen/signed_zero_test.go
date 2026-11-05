@@ -22,4 +22,11 @@ B=0
 	assertMatchesVM(t, "signed_zero_in_expression", `
 (1/-0)を表示
 `)
+	// 融合命令の operandFloat 経路: 変数と -0 の二項演算でも符号が残ること。
+	// X * -0 は -0 になるので、その逆数は -Infinity になる。
+	assertMatchesVM(t, "signed_zero_fused_binary", `
+X=5
+Y=X*-0
+(1/Y)を表示
+`)
 }

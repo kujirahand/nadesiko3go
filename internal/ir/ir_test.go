@@ -77,6 +77,26 @@ func TestConstJSONLegacyWithoutNum(t *testing.T) {
 	}
 }
 
+// TestConstJSONMixedNum は、数値以外の定数に num が混ざる形の
+// 読み書きが従来どおりであることを固定する。旧形式の出力で他種別に
+// num が付くのは num が非ゼロのときだけで、その往復が壊れないこと。
+func TestConstJSONMixedNum(t *testing.T) {
+	var got Const
+	if err := json.Unmarshal([]byte(`{"kind":4,"num":5,"str":"あ"}`), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Kind != ConstString || got.Str != "あ" || got.Num != 5 {
+		t.Errorf("混在した旧形式 = %+v", got)
+	}
+	data, err := json.Marshal(Const{Kind: ConstString, Str: "あ", Num: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != `{"kind":4,"num":5,"str":"あ"}` {
+		t.Errorf("文字列定数 (num=5) のJSON = %s", data)
+	}
+}
+
 // TestConstJSONOtherKindsUnchanged は、数値以外の定数のJSON形が
 // 従来と変わらないことを固定する。
 func TestConstJSONOtherKindsUnchanged(t *testing.T) {
