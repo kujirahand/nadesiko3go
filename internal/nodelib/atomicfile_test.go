@@ -215,6 +215,27 @@ func TestWriteFileAtomicMissingParent(t *testing.T) {
 	}
 }
 
+// Issue #425: rename のエラー文面に一時ファイル名が出ないこと。
+// *os.LinkError の移動元・移動先を保存先の表記へ付け替え、
+// errors.Is の判定は保たれる。
+func TestRetargetLinkError(t *testing.T) {
+	orig := &os.LinkError{Op: "rename", Old: "/work/.gonako-save-abcdef", New: "/work/a.txt", Err: syscall.EBUSY}
+	err := retargetLinkError(orig, "a.txt", "/work/a.txt")
+	if strings.Contains(err.Error(), ".gonako-save-") {
+		t.Fatalf("エラー文面に一時ファイル名が含まれます: %v", err)
+	}
+	if !errors.Is(err, syscall.EBUSY) {
+		t.Fatalf("errors.Is で EBUSY を判定できません: %v", err)
+	}
+	var le *os.LinkError
+	if !errors.As(err, &le) {
+		t.Fatalf("*os.LinkError の形が保たれていません: %T", err)
+	}
+	if le.Old != "a.txt" || le.New != "/work/a.txt" {
+		t.Fatalf("付け替え結果 = %q -> %q", le.Old, le.New)
+	}
+}
+
 // Issue #425: 読み取り専用の既存ファイルは、rename のフォルダ権限だけで
 // 置き換えられてしまう後退を避けるため、従来どおりエラーになり無傷で残る。
 func TestWriteFileAtomicReadOnlyFile(t *testing.T) {

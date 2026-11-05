@@ -29,8 +29,10 @@ import (
 //     は、直接書き込みへは戻さずエラーにする。既存ファイルは無傷。
 //
 // rename で置き換えるため、所有者・xattr・ハードリンクは引き継がれない
-// （実体のモードだけを引き継ぐ）。梱包（bundle）や整形の atomicWriteFile と
-// 同じ制限で、#425 の第2部に記録した許容事項である。
+// （引き継ぐのは実体のモードのパーミッションビットだけ）。梱包（bundle）や
+// 整形の atomicWriteFile と同じ制限で、#425 の第2部に記録した許容事項で
+// ある。また、置き換えのたびに Sync するため、小さなファイルを大量に
+// 保存する場合は従来より遅くなるトレードオフがある（#424 の方針）。
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 	info, err := os.Stat(path)
 	switch {
@@ -104,7 +106,7 @@ func replaceFileAtomic(path string, data []byte, mode os.FileMode, exists bool) 
 		return retargetPathError(err, final)
 	}
 	if err := os.Rename(tmpPath, final); err != nil {
-		return fmt.Errorf("ファイル『%s』を置き換えられません: %w", path, err)
+		return retargetLinkError(err, path, final)
 	}
 	committed = true
 	return nil
@@ -135,6 +137,21 @@ func retargetPathError(err error, display string) error {
 	if errors.As(err, &pe) {
 		retargeted := *pe
 		retargeted.Path = display
+		return &retargeted
+	}
+	return err
+}
+
+// retargetLinkError は、rename のエラーが示す移動元（一時ファイル）を
+// 利用者が指定した保存先の表記へ付け替える。retargetPathError と同じく、
+// 一時ファイル名をエラー文面に出さないためで、*os.LinkError の形と
+// errors.Is の判定は元のまま保つ。
+func retargetLinkError(err error, displayOld, displayNew string) error {
+	var le *os.LinkError
+	if errors.As(err, &le) {
+		retargeted := *le
+		retargeted.Old = displayOld
+		retargeted.New = displayNew
 		return &retargeted
 	}
 	return err

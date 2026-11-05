@@ -3,10 +3,12 @@
 package nodelib
 
 import (
+	"errors"
 	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -94,6 +96,87 @@ func TestWriteFileAtomicFailureLeavesNoNewFile(t *testing.T) {
 	}
 	if _, err := os.Lstat(dst); !os.IsNotExist(err) {
 		t.Errorf("失敗した新規ファイルが残っています: %v", err)
+	}
+	assertNoAtomicTempLeftover(t, dir)
+}
+
+// Issue #425: umask の下でも、新規ファイルは os.WriteFile と同じ権限に
+// なり、既存ファイルのモード (umask で変わる 0o666 を含む) は保持される。
+// 既存ファイル側は、書き込み後の Chmod が無いと一時ファイル作成時の
+// umask で 0o640 に落ちてしまうため、Chmod の有無を検出できる。
+func TestWriteFileAtomicUmask(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "existing.txt")
+	if err := os.WriteFile(existing, []byte("旧"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(existing, 0o666); err != nil {
+		t.Fatal(err)
+	}
+
+	oldMask := syscall.Umask(0o027)
+	defer syscall.Umask(oldMask)
+
+	fresh := filepath.Join(dir, "fresh.txt")
+	if err := writeFileAtomic(fresh, []byte("新規"), 0o644); err != nil {
+		t.Fatalf("writeFileAtomic(新規): %v", err)
+	}
+	info, err := os.Stat(fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o640 {
+		t.Errorf("新規ファイルのモード = %v, want 0o640 (0o644 &^ umask 0o027)", info.Mode().Perm())
+	}
+
+	if err := writeFileAtomic(existing, []byte("新"), 0o644); err != nil {
+		t.Fatalf("writeFileAtomic(既存): %v", err)
+	}
+	info, err = os.Stat(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o666 {
+		t.Errorf("既存ファイルのモード = %v, want 0o666 (umask に関わらず保持)", info.Mode().Perm())
+	}
+	assertNoAtomicTempLeftover(t, dir)
+}
+
+// Issue #425: rename 自体の失敗 (バインドマウントされたファイルへの
+// rename は EBUSY になる) では、エラー文面に一時ファイル名が出ず、
+// 既存の内容が無傷で、一時ファイルも残らない。
+// マウント権限が無い環境ではスキップする。
+func TestWriteFileAtomicRenameFailure(t *testing.T) {
+	dir := t.TempDir()
+	mounted := filepath.Join(dir, "mounted.txt")
+	dst := filepath.Join(dir, "dst.txt")
+	if err := os.WriteFile(mounted, []byte("マウント元の内容"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("元の内容"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mount(mounted, dst, "", syscall.MS_BIND, ""); err != nil {
+		t.Skipf("バインドマウントできません: %v", err)
+	}
+	defer func() { _ = syscall.Unmount(dst, 0) }()
+
+	err := writeFileAtomic(dst, []byte("新しい内容"), 0o644)
+	if err == nil {
+		t.Fatal("マウントされたファイルへの rename が成功を返しました")
+	}
+	if !errors.Is(err, syscall.EBUSY) {
+		t.Fatalf("エラーに EBUSY が含まれません: %v", err)
+	}
+	if strings.Contains(err.Error(), ".gonako-save-") {
+		t.Fatalf("エラー文面に一時ファイル名が含まれます: %v", err)
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "マウント元の内容" {
+		t.Fatalf("内容 = %q, want マウント元の内容", got)
 	}
 	assertNoAtomicTempLeftover(t, dir)
 }

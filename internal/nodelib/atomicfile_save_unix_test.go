@@ -75,6 +75,33 @@ func TestSaveFailureKeepsExistingContent(t *testing.T) {
 	assertNoSaveTempLeftover(t, dir)
 }
 
+// Issue #425 の回帰テスト: 『EUCファイル保存』が途中で失敗しても、
+// 既存ファイルの内容は無傷で、一時ファイルも残らない。
+func TestEUCSaveFailureKeepsExistingContent(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "enc.txt")
+	if err := os.WriteFile(dst, []byte("元の内容"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code := "「" + strings.Repeat("あ", 1500) + "」を\"enc.txt\"にEUCファイル保存"
+	restore := limitFileSizeForSave(t, 1024)
+	err := runExpectError(t, dir, code)
+	restore()
+	if err == nil {
+		t.Fatal("容量制限下の EUC 保存が成功を返しました")
+	}
+
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "元の内容" {
+		t.Fatalf("既存の内容が壊れています: %q", got)
+	}
+	assertNoSaveTempLeftover(t, dir)
+}
+
 // Issue #425 の回帰テスト: 『ファイル上書コピー』が途中で失敗しても、
 // コピー先の既存内容は無傷で、一時ファイルも残らない。
 func TestOverwriteCopyFailureKeepsDestination(t *testing.T) {
@@ -103,6 +130,44 @@ func TestOverwriteCopyFailureKeepsDestination(t *testing.T) {
 		t.Fatalf("コピー先の内容が壊れています: %q", got)
 	}
 	assertNoSaveTempLeftover(t, dir)
+}
+
+// Issue #425 の回帰テスト: フォルダの上書コピーで中のファイルの
+// 書き込みが途中で失敗しても、コピー先の既存ファイルは無傷で、
+// 一時ファイルも残らない (file.go のフォルダマージコピー経路)。
+func TestFolderOverwriteCopyFailureKeepsDestination(t *testing.T) {
+	dir := t.TempDir()
+	srcDir := filepath.Join(dir, "srcdir")
+	dstDir := filepath.Join(dir, "destdir")
+	if err := os.MkdirAll(srcDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(dstDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "f.txt"), []byte(strings.Repeat("s", 4096)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dstFile := filepath.Join(dstDir, "f.txt")
+	if err := os.WriteFile(dstFile, []byte("フォルダコピー先の元の内容"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	restore := limitFileSizeForSave(t, 1024)
+	err := runExpectError(t, dir, `「srcdir」を「destdir」にファイル上書コピー`)
+	restore()
+	if err == nil {
+		t.Fatal("容量制限下のフォルダコピーが成功を返しました")
+	}
+
+	got, err := os.ReadFile(dstFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "フォルダコピー先の元の内容" {
+		t.Fatalf("コピー先の内容が壊れています: %q", got)
+	}
+	assertNoSaveTempLeftover(t, dstDir)
 }
 
 // Issue #425 の回帰テスト: 『SJISファイル保存』が途中で失敗しても、
