@@ -1186,7 +1186,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ジャンルのチェックボックスを正規タグ集合から作る。
+  // 作り直しの前に付いていたチェックは保持する（一覧の再取得で消えないように）。
   function renderTemplateGenreFilters() {
+    const checked = new Set(
+      [...templateGenreFilters.querySelectorAll('input:checked')].map(input => input.value),
+    );
     templateGenreFilters.innerHTML = '';
     templateGenres.forEach(genre => {
       const label = document.createElement('label');
@@ -1194,6 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.value = genre;
+      checkbox.checked = checked.has(genre);
       label.appendChild(checkbox);
       label.append(` ${genre}`);
       templateGenreFilters.appendChild(label);

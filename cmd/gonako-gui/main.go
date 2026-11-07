@@ -138,7 +138,7 @@ func parseTemplateMeta(code string) (desc string, tags []string, modes []string)
 				tags = splitTemplateMetaValues(content)
 				continue
 			case "mode":
-				modes = splitTemplateMetaValues(content)
+				modes = filterTemplateModes(splitTemplateMetaValues(content))
 				continue
 			}
 		}
@@ -147,6 +147,26 @@ func parseTemplateMeta(code string) (desc string, tags []string, modes []string)
 		}
 	}
 	return desc, tags, modes
+}
+
+// templateModeIDs は実行モードIDの正規集合。
+// ui/index.html の select-app-type の値と合わせる。
+var templateModeIDs = []string{"window", "newwindow", "cli", "wnako3"}
+
+// filterTemplateModes は正規集合にない実行モードIDを捨てる。
+// 誤記した mode だけでひな形がどのモードでも表示されなくなるのを防ぐためで、
+// すべて捨てられた場合は空になり「どのモードでも表示」になる。
+func filterTemplateModes(values []string) []string {
+	filtered := []string{}
+	for _, value := range values {
+		for _, id := range templateModeIDs {
+			if value == id {
+				filtered = append(filtered, value)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 // splitTemplateMetaValues はカンマ区切りのメタ情報の値を分解する。

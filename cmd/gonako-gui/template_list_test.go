@@ -56,6 +56,27 @@ func TestParseTemplateMeta(t *testing.T) {
 			wantModes: []string{"wnako3"},
 		},
 		{
+			name:      "mode の未知の値は捨てる",
+			code:      "### 説明\n### tags = 文法\n### mode = foo,cli\nA=1\n",
+			wantDesc:  "説明",
+			wantTags:  []string{"文法"},
+			wantModes: []string{"cli"},
+		},
+		{
+			name:      "mode が未知の値だけなら空になる（全モード表示）",
+			code:      "### 説明\n### mode = foo\nA=1\n",
+			wantDesc:  "説明",
+			wantTags:  nil,
+			wantModes: []string{},
+		},
+		{
+			name:      "tags と mode の重複行は後勝ち",
+			code:      "### 説明\n### tags = 文法\n### tags = GUI,CUI\n### mode = cli\n### mode = window\nA=1\n",
+			wantDesc:  "説明",
+			wantTags:  []string{"GUI", "CUI"},
+			wantModes: []string{"window"},
+		},
+		{
 			name:      "CRLFでも読める",
 			code:      "### 説明です\r\n### tags = 文法, CUI\r\n### mode = cli\r\nA=1\r\n",
 			wantDesc:  "説明です",
