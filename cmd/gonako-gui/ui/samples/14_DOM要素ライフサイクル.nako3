@@ -1,4 +1,6 @@
-// 未接続のDOM要素を準備してから、追加・移動・削除するサンプル
+### 未接続のDOM要素を準備してから、追加・移動・削除するサンプル
+### tags = GUI,WEB
+### mode = window,newwindow
 「<section id="left"><h2>左</h2></section><section id="right"><h2>右</h2></section>」をHTML表示
 
 部品=「article」のDOM要素作成

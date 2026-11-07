@@ -787,3 +787,45 @@ func TestContextMenuOpenEditorKeepsTargetAcrossSave(t *testing.T) {
 		t.Fatalf("コンテキストメニューの回帰テストに失敗しました: %v\n%s", err, output)
 	}
 }
+
+// ひな形がジャンルと実行モードで絞り込めること（#445）。
+func TestTemplateFiltersByGenreAndRunMode(t *testing.T) {
+	index := readUIAsset(t, "index.html")
+	for _, required := range []string{
+		`id="template-mode-note"`,
+		`id="template-genre-filters"`,
+		`id="template-show-all"`,
+	} {
+		if !strings.Contains(index, required) {
+			t.Fatalf("index.html にひな形の絞り込み要素 %q がありません", required)
+		}
+	}
+
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"const templateGenres = [",
+		"function renderTemplateGenreFilters()",
+		"function applyTemplateFilters()",
+		"let templateModeFilterEnabled = true;",
+		// 実行モードの変更に連動してひな形も絞り込む。
+		"templateModeFilterEnabled = true;\n    applyTemplateFilters();",
+		// 「すべてのサンプル」でモード絞り込みも解除する。
+		"templateModeFilterEnabled = false;",
+		"templateSearch.addEventListener('input', applyTemplateFilters)",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js にひな形の絞り込み処理 %q がありません", required)
+		}
+	}
+
+	style := readUIAsset(t, "style.css")
+	for _, required := range []string{
+		".template-genre-filters {",
+		".template-mode-note {",
+		".template-tag {",
+	} {
+		if !strings.Contains(style, required) {
+			t.Fatalf("style.css にひな形の絞り込みスタイル %q がありません", required)
+		}
+	}
+}

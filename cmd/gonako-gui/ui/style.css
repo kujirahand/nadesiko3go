@@ -533,6 +533,63 @@ body {
   border-radius: 3px;
 }
 
+/* ひな形の絞り込み（#445） */
+.template-mode-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--shade);
+  border-left: 3px solid var(--accent-yellow);
+  padding: 5px 8px;
+  margin: 6px 10px 0;
+}
+
+.template-genre-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 10px 0;
+}
+
+.template-genre-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.template-genre-filter input {
+  accent-color: var(--accent-yellow);
+  cursor: pointer;
+}
+
+.template-show-all {
+  margin: 8px 10px 0;
+  padding: 3px 9px;
+  font-size: 11px;
+  color: var(--text-main);
+  background: var(--shade);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.template-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.template-tag {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--shade);
+  padding: 0 5px;
+  border-radius: 3px;
+}
+
 /* 表示順（グループ順/名前順）切り替えバー */
 .sort-bar {
   display: flex;

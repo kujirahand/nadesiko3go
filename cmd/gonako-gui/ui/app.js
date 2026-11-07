@@ -120,6 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const templateSearch = document.getElementById('template-search');
   const templateCount = document.getElementById('template-count');
   const templateListElem = document.getElementById('template-list');
+  const templateModeNote = document.getElementById('template-mode-note');
+  const templateGenreFilters = document.getElementById('template-genre-filters');
+  const templateShowAll = document.getElementById('template-show-all');
 
   // ファイルタブ要素
   const btnFileRefresh = document.getElementById('btn-file-refresh');
@@ -222,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (allTemplates.length === 0) {
       loadTemplates();
     } else {
-      renderTemplates(allTemplates);
+      applyTemplateFilters();
     }
   });
 
@@ -290,6 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateRunModeBadge();
     // ブラウザ版で実行するときはwnako、それ以外はGo版の命令一覧を表示する（#124）。
     setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false);
+    // ひな形も実行モードに合わせて絞り込む（#445）。
+    templateModeFilterEnabled = true;
+    applyTemplateFilters();
     setStatus(`実行モードを「${runModeLabels[mode] || mode}」に変更しました`);
   });
 
@@ -1155,7 +1161,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return false;
   }
 
-  // --- ひな形一覧の読み込みと検索 ---
+  // --- ひな形一覧の読み込みと絞り込み（#445） ---
+  // ジャンルの正規タグ集合。サンプルの `### tags =` と合わせる。
+  const templateGenres = [
+    '文法', 'プログラミング学習', 'GUI', 'ダイアログ',
+    '仕事自動化', 'ファイル', 'CUI', 'WEB',
+  ];
+  // 実行モードによる絞り込みが有効かどうか。「すべてのサンプル」で解除され、
+  // 実行モードを変更すると再び有効になる。
+  let templateModeFilterEnabled = true;
+
   async function loadTemplates() {
     if (typeof window.getTemplateList === 'function') {
       try {
@@ -1165,9 +1180,54 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('ひな形読み込みエラー:', err);
       }
     }
-    if (allTemplates && allTemplates.length > 0) {
-      renderTemplates(allTemplates);
+    if (!Array.isArray(allTemplates)) allTemplates = [];
+    renderTemplateGenreFilters();
+    applyTemplateFilters();
+  }
+
+  // ジャンルのチェックボックスを正規タグ集合から作る。
+  function renderTemplateGenreFilters() {
+    templateGenreFilters.innerHTML = '';
+    templateGenres.forEach(genre => {
+      const label = document.createElement('label');
+      label.className = 'template-genre-filter';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = genre;
+      label.appendChild(checkbox);
+      label.append(` ${genre}`);
+      templateGenreFilters.appendChild(label);
+    });
+  }
+
+  // 検索・ジャンル・実行モードの絞り込みを組み合わせて一覧を描き直す。
+  function applyTemplateFilters() {
+    const query = templateSearch.value.trim().toLowerCase();
+    const selectedGenres = new Set(
+      [...templateGenreFilters.querySelectorAll('input:checked')].map(input => input.value),
+    );
+    const currentMode = selectAppType.value;
+
+    templateModeNote.hidden = !templateModeFilterEnabled;
+    if (templateModeFilterEnabled) {
+      templateModeNote.textContent =
+        `実行モード「${runModeLabels[currentMode] || currentMode}」で使えるひな形を表示中です（「すべてのサンプル」で解除）`;
     }
+
+    const filtered = allTemplates.filter(t => {
+      const tags = Array.isArray(t.tags) ? t.tags : [];
+      const modes = Array.isArray(t.modes) ? t.modes : [];
+      const matchesSearch = !query || [
+        t.title, t.desc, t.category, ...tags,
+      ].some(value => String(value || '').toLowerCase().includes(query));
+      const matchesGenre =
+        selectedGenres.size === 0 || tags.some(tag => selectedGenres.has(tag));
+      // モード情報が無いひな形は、どのモードでも使えるとみなして表示する。
+      const matchesMode =
+        !templateModeFilterEnabled || modes.length === 0 || modes.includes(currentMode);
+      return matchesSearch && matchesGenre && matchesMode;
+    });
+    renderTemplates(filtered);
   }
 
   function renderTemplates(list) {
@@ -1178,6 +1238,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.createElement('div');
       item.className = 'list-item';
       item.title = `クリックでエディタに読み込み: ${t.title}`;
+      const tags = Array.isArray(t.tags) ? t.tags : [];
+      const tagsHtml = tags.length > 0
+        ? `<div class="template-tags">${tags.map(tag => `<span class="template-tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+        : '';
 
       item.innerHTML = `
         <div class="item-left">
@@ -1185,6 +1249,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div>
             <span class="item-name">${escapeHtml(t.title)}</span>
             <span class="item-desc">${escapeHtml(t.desc)}</span>
+            ${tagsHtml}
           </div>
         </div>
         <span class="template-badge">${escapeHtml(t.category)}</span>
@@ -1209,18 +1274,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  templateSearch.addEventListener('input', () => {
-    const q = templateSearch.value.trim().toLowerCase();
-    if (!q) {
-      renderTemplates(allTemplates);
-      return;
-    }
-    const filtered = allTemplates.filter(t => 
-      t.title.toLowerCase().includes(q) || 
-      t.desc.toLowerCase().includes(q) || 
-      t.category.toLowerCase().includes(q)
-    );
-    renderTemplates(filtered);
+  templateSearch.addEventListener('input', applyTemplateFilters);
+  templateGenreFilters.addEventListener('change', applyTemplateFilters);
+
+  // 「すべてのサンプル」で検索・ジャンル・モードの絞り込みをすべて解除する。
+  templateShowAll.addEventListener('click', () => {
+    templateSearch.value = '';
+    templateGenreFilters.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.checked = false;
+    });
+    templateModeFilterEnabled = false;
+    applyTemplateFilters();
   });
 
   // --- 命令一覧の読み込みと検索 ---

@@ -1,4 +1,6 @@
-// Excelブックの作成と保存 (officelib)
+### Excelブックの作成と保存 (officelib)
+### tags = 仕事自動化,ファイル,CUI
+### mode = cli
 HOME = デスクトップ。
 エクセル新規ブック。
 「A1」に「品名」をエクセルセル設定

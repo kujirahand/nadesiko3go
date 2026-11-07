@@ -1,4 +1,6 @@
-// DOM要素の検索・内容変更・フォーカス・イベントを試すサンプル
+### DOM要素の検索・内容変更・フォーカス・イベントを試すサンプル
+### tags = GUI,WEB
+### mode = window,newwindow
 画面HTML=『<section class="dom-sample">
   <h2 id="title">DOM操作サンプル</h2>
   <label>名前: <input id="name" class="field" value="太郎"></label>
