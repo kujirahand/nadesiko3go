@@ -36,6 +36,11 @@ const usage = `gonako-cui - なでしこ3 Go言語版 (軽量CUI版)
 
 ファイル名に - を指定すると標準入力から読み込みます。
 
+実行のオプション:
+  --longtime-error ファイルやプログラムの前に指定すると、命令数の上限に
+                   達したときに継続するか尋ねず、エラーで停止する
+                   (既定では上限に達したら継続するか質問する)
+
 build のオプション:
   --out NAME       出力する実行ファイル名 (既定: ソース名から作る)
   --resource DIR   同梱するリソースのフォルダ
@@ -56,30 +61,50 @@ doctest のオプション:
   パスを省略すると manual/plugin_system と testdata/doctest を対象にします。
 `
 
+// takeLongtimeError は実行対象より前に置かれた --longtime-error を取り除く。
+// ファイル名より後ろの引数はプログラムへの引数なので取り除かない。
+func takeLongtimeError(args []string) (rest []string, longtimeError bool) {
+	if len(args) == 0 {
+		return args, false
+	}
+	if args[0] == "--longtime-error" {
+		return args[1:], true
+	}
+	if (args[0] == "run" || args[0] == "-e") && len(args) >= 2 && args[1] == "--longtime-error" {
+		rest = append([]string{args[0]}, args[2:]...)
+		return rest, true
+	}
+	return args, false
+}
+
 // runFile runs a program from a file. Everything after the file name is passed
 // on to the program as its arguments.
-func runFile(args []string, stdout io.Writer) error {
+func runFile(args []string, stdout io.Writer, longtimeError bool) error {
 	if len(args) == 0 {
 		return errors.New("実行するファイルを指定してください")
 	}
 	host := vm.NewCUIHost(stdout, os.Stdin, args[1:])
+	options := vm.DefaultOptions()
+	options.LongtimeError = longtimeError
 	if args[0] == "-" {
 		code, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("標準入力を読み込めません: %w", err)
 		}
-		return finish(vm.RunProgram(string(code), "main.nako3", host), host)
+		return finish(vm.RunProgramWithOptions(string(code), "main.nako3", host, options), host)
 	}
-	return finish(vm.RunFile(args[0], host), host)
+	return finish(vm.RunFileWithOptions(args[0], host, options), host)
 }
 
 // runInline runs a program given on the command line.
-func runInline(args []string, stdout io.Writer) error {
+func runInline(args []string, stdout io.Writer, longtimeError bool) error {
 	if len(args) == 0 {
 		return errors.New("実行するプログラムを指定してください")
 	}
 	host := vm.NewCUIHost(stdout, os.Stdin, args[1:])
-	return finish(vm.RunProgram(args[0], "main.nako3", host), host)
+	options := vm.DefaultOptions()
+	options.LongtimeError = longtimeError
+	return finish(vm.RunProgramWithOptions(args[0], "main.nako3", host, options), host)
 }
 
 // finish reports the program's outcome. 『終了』 with a non-zero status ends the
@@ -469,18 +494,26 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
+	args, longtimeError := takeLongtimeError(args)
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		fmt.Fprint(stdout, usage)
 		return nil
+	}
+	// --longtime-error は実行系以外では黙って無視せずエラーにする (#449 レビュー対応)。
+	if longtimeError {
+		switch args[0] {
+		case "build", "doctest", "compat", "version", "-v", "--version":
+			return errors.New("--longtime-error はプログラムを実行するときだけ指定できます")
+		}
 	}
 	switch args[0] {
 	case "version", "-v", "--version":
 		fmt.Fprintf(stdout, "gonako-cui v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	case "run":
-		return runFile(args[1:], stdout)
+		return runFile(args[1:], stdout, longtimeError)
 	case "-e":
-		return runInline(args[1:], stdout)
+		return runInline(args[1:], stdout, longtimeError)
 	case "build":
 		return buildBundle(args[1:], stdout, stderr)
 	case "doctest":
@@ -511,10 +544,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 
 	if args[0] == "-" || strings.HasSuffix(args[0], ".nako3") || strings.HasSuffix(args[0], ".nako") {
-		return runFile(args, stdout)
+		return runFile(args, stdout, longtimeError)
 	}
 	if _, err := os.Stat(args[0]); err == nil {
-		return runFile(args, stdout)
+		return runFile(args, stdout, longtimeError)
 	}
 
 	fmt.Fprint(stderr, usage)
