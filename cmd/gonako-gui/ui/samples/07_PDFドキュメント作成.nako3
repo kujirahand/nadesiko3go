@@ -1,4 +1,6 @@
-// PDFドキュメントの新規作成とテキスト描画 (pdflib)
+### PDFドキュメントの新規作成とテキスト描画 (pdflib)
+### tags = 仕事自動化,ファイル,CUI
+### mode = cli
 HOME = デスクトップ。
 PDF新規作成
 「Hello, Nadesiko3 Go!」を[100,100]へPDF文字描画
