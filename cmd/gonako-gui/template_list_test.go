@@ -77,6 +77,13 @@ func TestParseTemplateMeta(t *testing.T) {
 			wantModes: []string{"window"},
 		},
 		{
+			name:      "シェバン行の後ろのヘッダも読む",
+			code:      "#!/usr/bin/env gonako\n### シェバン付きサンプル\n### tags = 文法,CUI\n### mode = cli\n「表示」と表示\n",
+			wantDesc:  "シェバン付きサンプル",
+			wantTags:  []string{"文法", "CUI"},
+			wantModes: []string{"cli"},
+		},
+		{
 			name:      "CRLFでも読める",
 			code:      "### 説明です\r\n### tags = 文法, CUI\r\n### mode = cli\r\nA=1\r\n",
 			wantDesc:  "説明です",

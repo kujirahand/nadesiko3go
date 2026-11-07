@@ -118,13 +118,16 @@ type TemplateItem struct {
 //	### mode = window,cli
 //
 // ヘッダとして見るのはファイル先頭から、空行でも `###` でも `//` でもない
-// 行が現れるまで。`=` を含む行でも、キーが tags / mode でなければ説明文
-// として扱う（説明文の中の `=` で誤認しないため）。
+// 行が現れるまで。1行目のシェバン（`#!...`）は読み飛ばす（gonako 本体も
+// シェバンを読み飛ばして実行する）。`=` を含む行でも、キーが tags / mode
+// でなければ説明文として扱う（説明文の中の `=` で誤認しないため）。
 func parseTemplateMeta(code string) (desc string, tags []string, modes []string) {
-	for _, line := range strings.Split(code, "\n") {
+	for i, line := range strings.Split(code, "\n") {
 		trimmed := strings.TrimSpace(strings.TrimSuffix(line, "\r"))
 		switch {
 		case trimmed == "":
+			continue
+		case i == 0 && strings.HasPrefix(trimmed, "#!"):
 			continue
 		case strings.HasPrefix(trimmed, "//"):
 			continue
