@@ -59,6 +59,69 @@ func TestImageBasicE2E(t *testing.T) {
 	}
 }
 
+// TestImageColorReplaceE2E は Issue #448 の『画像色置換』の E2E テスト。
+// Issue の用例 (赤を透明に置換する) を小さな画像で再現し、置換件数が
+// 返ることと、対象外のピクセルが変わらないことを確認する。
+func TestImageColorReplaceE2E(t *testing.T) {
+	code := strings.Join([]string{
+		`[4, 2]の画像新規作成`,
+		`「赤」に画像背景色設定`,
+		`[0, 0]を「青」に画像点設定`,
+		`N=「#FF0000」を「#00000000」に画像色置換`,
+		`Nを表示`,
+		`[2, 0]の画像点取得を表示`,
+		`[0, 0]の画像点取得を表示`,
+		`画像閉`,
+	}, "\n")
+
+	got, err := runCUICommands(t, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 全8点を赤で塗った後、1点を青に上書きしたので、赤い点は7点。
+	// その7点がすべて透明に置換され、青い点は変わらないはず。
+	want := "7\n#00000000\n#0000FFFF"
+	if got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+// TestImageColorReplaceColorNameE2E は色名と文形式 (戻り値を捨てる形) の
+// 『画像色置換』を確認する。Issue #448 の用例はこちらが近い。
+func TestImageColorReplaceColorNameE2E(t *testing.T) {
+	code := strings.Join([]string{
+		`[2, 1]の画像新規作成`,
+		`「赤」に画像背景色設定`,
+		`「赤」を「透明」に画像色置換`,
+		`[0, 0]の画像点取得を表示`,
+		`[1, 0]の画像点取得を表示`,
+		`画像閉`,
+	}, "\n")
+
+	got, err := runCUICommands(t, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "#00000000\n#00000000"
+	if got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+// TestImageColorReplaceNoImageE2E は、画像を開いていない状態の
+// 『画像色置換』が実行時エラーになることを確認する。
+func TestImageColorReplaceNoImageE2E(t *testing.T) {
+	got, err := runCUICommands(t, `「赤」を「黒」に画像色置換`)
+	if err == nil {
+		t.Fatalf("エラーになるはずが got=%q", got)
+	}
+	if !strings.Contains(err.Error(), "画像新規作成") {
+		t.Fatalf("error = %v, want 『画像新規作成』への案内", err)
+	}
+}
+
 func TestImageMultipleImagesE2E(t *testing.T) {
 	code := strings.Join([]string{
 		`I1=[50, 50]の画像新規作成`,
