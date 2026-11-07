@@ -240,6 +240,47 @@ func TestInstructionLimitPipedStdinNeverAsks(t *testing.T) {
 	}
 }
 
+// T5 (#453): 上限延長の計算（飽和付き加算）の単体テスト。
+func TestExtendInstructionLimit(t *testing.T) {
+	max := ^uint64(0)
+	tests := []struct {
+		name          string
+		current, step uint64
+		want          uint64
+	}{
+		{name: "通常加算", current: 100, step: 20, want: 120},
+		{name: "ちょうど最大値", current: max - 10, step: 10, want: max},
+		{name: "溢れは飽和", current: max - 10, step: 11, want: max},
+		{name: "延長幅ゼロ", current: 100, step: 0, want: 100},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extendInstructionLimit(tt.current, tt.step); got != tt.want {
+				t.Fatalf("extendInstructionLimit(%d, %d) = %d, want %d", tt.current, tt.step, got, tt.want)
+			}
+		})
+	}
+}
+
+// M2残件 (#453): 継続確認のプロンプトは標準出力ではなく Err へ出ること。
+// Err 未設定のときは従来どおり Out へ出ること。
+func TestInstructionLimitPromptGoesToErr(t *testing.T) {
+	var out, errOut bytes.Buffer
+	host := terminalHost(&out, "n\n")
+	host.Err = &errOut
+	opts := DefaultOptions()
+	opts.MaxInstructions = 10
+	if err := runInstructionLimitSource(t, host, opts); err == nil {
+		t.Fatal("上限エラーになるはずがならなかった")
+	}
+	if !strings.Contains(errOut.String(), "継続しますか？ (y/N): ") {
+		t.Errorf("プロンプトが Err に出ていない: Err = %q", errOut.String())
+	}
+	if strings.Contains(out.String(), "継続しますか") {
+		t.Errorf("プロンプトが標準出力に混ざっている: Out = %q", out.String())
+	}
+}
+
 func TestInstructionLimitLongtimeErrorSkipsQuestion(t *testing.T) {
 	host := &confirmHost{accepted: true}
 	opts := DefaultOptions()

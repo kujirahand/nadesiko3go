@@ -29,7 +29,10 @@ import (
 // CUIHost runs a program against a real terminal: output goes to a writer,
 // 『尋ねる』 reads a line of input, and 『終了』 stops the process.
 type CUIHost struct {
-	Out     io.Writer
+	Out io.Writer
+	// Err は確認プロンプトなど、プログラムの出力と混ぜたくない
+	// メッセージの出力先。nil のときは Out を使う。
+	Err     io.Writer
 	In      *bufio.Reader
 	CmdArgs []string
 	// Bundle is the payload packed into the executable, if any. Its files are
@@ -64,6 +67,17 @@ func NewCUIHost(out io.Writer, in io.Reader, args []string) *CUIHost {
 // プログラムへの入力データを横取りしたり応答待ちで止まったりする
 // ため質問せず、従来どおりエラーにする (#449 レビュー対応)。
 func (h *CUIHost) InstructionLimitPromptable() bool { return h.stdinTerminal }
+
+// WriteConfirmPrompt は命令数上限の継続確認プロンプトを出力する。
+// 標準出力をリダイレクトしてもプロンプトが結果に混ざらないよう、
+// Err が設定されていればそちらへ出す (#453)。
+func (h *CUIHost) WriteConfirmPrompt(s string) {
+	out := h.Err
+	if out == nil {
+		out = h.Out
+	}
+	_, _ = io.WriteString(out, s)
+}
 
 func (h *CUIHost) Print(s string) {
 	fmt.Fprintln(h.Out, s)

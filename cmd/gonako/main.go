@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
+	"github.com/kujirahand/nadesiko3go/internal/cliopt"
 	"github.com/kujirahand/nadesiko3go/internal/commanddiff"
 	"github.com/kujirahand/nadesiko3go/internal/compat"
 	"github.com/kujirahand/nadesiko3go/internal/compiler"
@@ -98,29 +99,14 @@ format のオプション:
   --colon          『ここまで』で閉じるブロックを『3回:』のようなコロン記法に書き換える
 `
 
-// takeLongtimeError は実行対象より前に置かれた --longtime-error を取り除く。
-// ファイル名より後ろの引数はプログラムへの引数なので取り除かない。
-func takeLongtimeError(args []string) (rest []string, longtimeError bool) {
-	if len(args) == 0 {
-		return args, false
-	}
-	if args[0] == "--longtime-error" {
-		return args[1:], true
-	}
-	if (args[0] == "run" || args[0] == "-e") && len(args) >= 2 && args[1] == "--longtime-error" {
-		rest = append([]string{args[0]}, args[2:]...)
-		return rest, true
-	}
-	return args, false
-}
-
 // runFile runs a program from a file. Everything after the file name is passed
 // on to the program as its arguments.
-func runFile(args []string, stdout io.Writer, longtimeError bool) error {
+func runFile(args []string, stdout, stderr io.Writer, longtimeError bool) error {
 	if len(args) == 0 {
 		return errors.New("実行するファイルを指定してください")
 	}
 	host := vm.NewCUIHost(stdout, os.Stdin, args[1:])
+	host.Err = stderr
 	options := vm.DefaultOptions()
 	options.LongtimeError = longtimeError
 	if args[0] == "-" {
@@ -134,11 +120,12 @@ func runFile(args []string, stdout io.Writer, longtimeError bool) error {
 }
 
 // runInline runs a program given on the command line.
-func runInline(args []string, stdout io.Writer, longtimeError bool) error {
+func runInline(args []string, stdout, stderr io.Writer, longtimeError bool) error {
 	if len(args) == 0 {
 		return errors.New("実行するプログラムを指定してください")
 	}
 	host := vm.NewCUIHost(stdout, os.Stdin, args[1:])
+	host.Err = stderr
 	options := vm.DefaultOptions()
 	options.LongtimeError = longtimeError
 	return finish(vm.RunProgramWithOptions(args[0], "main.nako3", host, options), host)
@@ -740,9 +727,22 @@ func runBundled() (ran bool, err error) {
 		return true, fmt.Errorf("この実行ファイルはGUI用です（HTML種バンドル）。gonako-guiで実行してください")
 	}
 
-	host := vm.NewCUIHost(os.Stdout, os.Stdin, os.Args[1:])
+	// 梱包版でも先頭引数の --longtime-error だけはオプションとして解釈する。
+	// ただし梱包版では残りの全引数がプログラムへの引数になるため、
+	// プログラム自身が先頭引数として "--longtime-error" を受け取りたい
+	// 場合はこのフラグと衝突する（仕様、#453）。
+	args := os.Args[1:]
+	longtimeError := false
+	if len(args) > 0 && args[0] == "--longtime-error" {
+		args = args[1:]
+		longtimeError = true
+	}
+	host := vm.NewCUIHost(os.Stdout, os.Stdin, args)
+	host.Err = os.Stderr
 	host.Bundle = packed
-	return true, finish(vm.RunCompiled(packed.Program, host), host)
+	options := vm.DefaultOptions()
+	options.LongtimeError = longtimeError
+	return true, finish(vm.RunCompiledWithOptions(packed.Program, host, options), host)
 }
 
 func main() {
@@ -761,7 +761,7 @@ func main() {
 }
 
 func run(args []string, stdout, stderr io.Writer) error {
-	args, longtimeError := takeLongtimeError(args)
+	args, longtimeError := cliopt.TakeLongtimeError(args)
 	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
 		fmt.Fprint(stdout, usage)
 		return nil
@@ -778,9 +778,9 @@ func run(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprintf(stdout, "gonako v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
 		return nil
 	case "run":
-		return runFile(args[1:], stdout, longtimeError)
+		return runFile(args[1:], stdout, stderr, longtimeError)
 	case "-e":
-		return runInline(args[1:], stdout, longtimeError)
+		return runInline(args[1:], stdout, stderr, longtimeError)
 	case "build":
 		return buildBundle(args[1:], stdout, stderr)
 	case "gengo":
@@ -825,7 +825,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 
 	// ファイル直接指定の場合 (例: gonako main.nako3, gonako index.html, gonako -)
 	if isRunnableFileArg(args[0]) {
-		return runFile(args, stdout, longtimeError)
+		return runFile(args, stdout, stderr, longtimeError)
 	}
 
 	fmt.Fprint(stderr, usage)

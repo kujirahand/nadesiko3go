@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/kujirahand/nadesiko3go/internal/cliopt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,7 +27,7 @@ func TestRunLongtimeErrorCUI(t *testing.T) {
 }
 
 func TestTakeLongtimeErrorKeepsProgramArgsCUI(t *testing.T) {
-	rest, got := takeLongtimeError([]string{"run", "app.nako3", "--longtime-error"})
+	rest, got := cliopt.TakeLongtimeError([]string{"run", "app.nako3", "--longtime-error"})
 	if got {
 		t.Fatal("ファイル名の後ろのフラグを取り除いてしまった")
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/kujirahand/nadesiko3go/internal/cliopt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,7 +74,7 @@ func TestRunLongtimeErrorRejectsNonRunSubcommand(t *testing.T) {
 
 func TestTakeLongtimeErrorKeepsProgramArgs(t *testing.T) {
 	// ファイル名より後ろの --longtime-error はプログラムへの引数として残す。
-	rest, got := takeLongtimeError([]string{"run", "app.nako3", "--longtime-error"})
+	rest, got := cliopt.TakeLongtimeError([]string{"run", "app.nako3", "--longtime-error"})
 	if got {
 		t.Fatal("ファイル名の後ろのフラグを取り除いてしまった")
 	}
@@ -81,7 +82,7 @@ func TestTakeLongtimeErrorKeepsProgramArgs(t *testing.T) {
 		t.Fatalf("rest = %v, want プログラム引数を保持", rest)
 	}
 	// フラグが無い場合はそのまま。
-	rest, got = takeLongtimeError([]string{"run", "app.nako3"})
+	rest, got = cliopt.TakeLongtimeError([]string{"run", "app.nako3"})
 	if got || len(rest) != 2 {
 		t.Fatalf("rest = %v, longtimeError = %v", rest, got)
 	}

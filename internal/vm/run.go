@@ -433,15 +433,10 @@ dispatch:
 			// dispatch の先頭から同じ pc で再開する (#449)。
 			if !m.options.LongtimeError && m.continueAfterInstructionLimit() {
 				// 次の実行枠として、元の上限と同じ分だけ延長する。
-				// uint64 の加算が溢れる極端な場合は事実上の上限なしにする。
 				// 延長は VM にも記録し、呼び出し元フレームや再開後の実行でも
 				// すぐ再び質問にならないようにする。上の同期を経ているため
 				// maxInstructions は extended 以上であり、記録は単調に増える。
-				if ^uint64(0)-maxInstructions < m.options.MaxInstructions {
-					maxInstructions = ^uint64(0)
-				} else {
-					maxInstructions += m.options.MaxInstructions
-				}
+				maxInstructions = extendInstructionLimit(maxInstructions, m.options.MaxInstructions)
 				m.extendedMaxInstructions = maxInstructions
 				continue dispatch
 			}
@@ -864,23 +859,40 @@ const instructionLimitMessage = "実行した命令が多すぎます。終わ�
 // instructionLimitConfirmMessage は上限到達時に継続を尋ねる文面。
 const instructionLimitConfirmMessage = instructionLimitMessage + "\n実行を継続しますか？"
 
+// extendInstructionLimit は命令数上限を延長した新しい値を返す。
+// 加算が uint64 の範囲を超える場合は、事実上の上限なしとして最大値へ
+// 飽和させる (#453)。
+func extendInstructionLimit(current, step uint64) uint64 {
+	if ^uint64(0)-current < step {
+		return ^uint64(0)
+	}
+	return current + step
+}
+
 // continueAfterInstructionLimit は、命令数の上限に達したときに実行を
 // 継続するかどうかをユーザーへ尋ね、継続なら true を返す (#449)。
-// ダイアログ対応ホスト（GUI版など）では確認ダイアログを使い、そうでない
-// 場合は標準入力から1行読む。入力が読めない環境（自動実行やテスト用の
-// 収集ホストなど、質問できない場合）は継続せず false を返し、呼び出し側が
-// 従来どおりエラーにする。
+// ダイアログ対応ホスト（GUI版など）では確認ダイアログを使う。
+// 標準入力での確認は、InstructionLimitPromptable を明示的に実装して
+// true を返すホストだけに限る（オプトイン、#453）。実装していない
+// ホストまで ReadLine に進むと、将来 ReadLine がブロックし得るホストで
+// 上限到達時に止まってしまうためである。現行ホスト（Collector、wasmrt、
+// doctest 等）は ReadLine が EOF を返すので、この制限で挙動は変わらない。
 func (m *VM) continueAfterInstructionLimit() bool {
 	_, accepted, supported, err := m.ShowDialog("confirm", instructionLimitConfirmMessage)
 	if supported {
 		return err == nil && accepted
 	}
-	// 標準入力で質問できるホスト（端末に繋がった CUIHost）でなければ、
-	// 入力を横取りしたり応答待ちで止まったりするのを避けて質問しない。
-	if p, ok := m.host.(interface{ InstructionLimitPromptable() bool }); ok && !p.InstructionLimitPromptable() {
+	p, ok := m.host.(interface{ InstructionLimitPromptable() bool })
+	if !ok || !p.InstructionLimitPromptable() {
 		return false
 	}
-	m.host.Write(instructionLimitMessage + "\n継続しますか？ (y/N): ")
+	// プロンプトの出力先はホストに任せる（CUIHost は標準エラー出力へ出す）。
+	prompt := instructionLimitMessage + "\n継続しますか？ (y/N): "
+	if w, ok := m.host.(interface{ WriteConfirmPrompt(string) }); ok {
+		w.WriteConfirmPrompt(prompt)
+	} else {
+		m.host.Write(prompt)
+	}
 	answer, err := m.host.ReadLine()
 	if err != nil {
 		return false
