@@ -58,6 +58,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 	// 命令列と上限はループの間ずっと同じ。毎回たどり直さない。
 	code := f.fn.Code
 	maxInstructions := m.options.MaxInstructions
+	// 以前のフレームで継続が選ばれて延長済みなら、その上限を引き継ぐ (#449)。
+	if m.extendedMaxInstructions > maxInstructions {
+		maxInstructions = m.extendedMaxInstructions
+	}
 dispatch:
 	for pc < len(code) {
 		if m.hasExternal {
@@ -417,8 +421,27 @@ dispatch:
 			}
 		}
 		if limitReached {
+			// pc は上限を超える最初の未実行命令を指している。継続する
+			// 場合はこの命令をまだ課金・実行せず、上限だけを延長して
+			// dispatch の先頭から同じ pc で再開する (#449)。
+			if !m.options.LongtimeError && m.continueAfterInstructionLimit() {
+				// 次の実行枠として、元の上限と同じ分だけ延長する。
+				// uint64 の加算が溢れる極端な場合は事実上の上限なしにする。
+				// 延長は VM にも記録し、呼び出し元フレームや再開後の実行でも
+				// すぐ再び質問にならないようにする。
+				if ^uint64(0)-maxInstructions < m.options.MaxInstructions {
+					maxInstructions = ^uint64(0)
+				} else {
+					maxInstructions += m.options.MaxInstructions
+				}
+				m.extendedMaxInstructions = maxInstructions
+				continue dispatch
+			}
+			// 停止する場合（質問できない環境を含む）は、従来と同じ
+			// 順序・同じ位置で失敗させる。エラー監視で捕捉可能な
+			// nakoPanic の経路も failAt により維持される。
 			m.executed++
-			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
+			m.failAt(instructionLimitMessage, int(code[pc].Pos))
 		}
 	}
 	return value.Undefined()
@@ -825,6 +848,36 @@ func (m *VM) ShowDialog(kind, message string) (string, bool, bool, error) {
 		return "", false, false, nil
 	}
 	return h.ShowDialog(kind, message)
+}
+
+// instructionLimitMessage は命令数上限のエラーの文言 (#449)。
+const instructionLimitMessage = "実行した命令が多すぎます。終わらない繰り返しになっていませんか。"
+
+// instructionLimitConfirmMessage は上限到達時に継続を尋ねる文面。
+const instructionLimitConfirmMessage = instructionLimitMessage + "\n実行を継続しますか？"
+
+// continueAfterInstructionLimit は、命令数の上限に達したときに実行を
+// 継続するかどうかをユーザーへ尋ね、継続なら true を返す (#449)。
+// ダイアログ対応ホスト（GUI版など）では確認ダイアログを使い、そうでない
+// 場合は標準入力から1行読む。入力が読めない環境（自動実行やテスト用の
+// 収集ホストなど、質問できない場合）は継続せず false を返し、呼び出し側が
+// 従来どおりエラーにする。
+func (m *VM) continueAfterInstructionLimit() bool {
+	_, accepted, supported, err := m.ShowDialog("confirm", instructionLimitConfirmMessage)
+	if supported {
+		return err == nil && accepted
+	}
+	m.host.Write(instructionLimitConfirmMessage + "\n継続しますか？ (y/N): ")
+	answer, err := m.host.ReadLine()
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes", "はい", "継続":
+		return true
+	default:
+		return false
+	}
 }
 
 // RequestGUI は画面処理を任意のGUIホストへ委譲する。

@@ -102,11 +102,16 @@ func trimNewline(s string) string {
 
 // RunFile reads a program from a file and runs it against the host.
 func RunFile(path string, h *CUIHost) error {
+	return RunFileWithOptions(path, h, cuiOptions())
+}
+
+// RunFileWithOptions は RunFile と同じ実行を、指定したオプションで行う。
+func RunFileWithOptions(path string, h *CUIHost, options Options) error {
 	code, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("ファイル『%s』を読み込めません: %w", path, err)
 	}
-	return RunProgram(string(code), path, h)
+	return RunProgramWithOptions(string(code), path, h, options)
 }
 
 // RunProgram compiles and runs a program against the host.
@@ -114,11 +119,24 @@ func RunFile(path string, h *CUIHost) error {
 // This is the path the CUI takes, so nodelib is available. The compat runner
 // takes RunSource instead, which stays inside plugin_system.
 func RunProgram(code, filename string, h *CUIHost) error {
+	return RunProgramWithOptions(code, filename, h, cuiOptions())
+}
+
+// RunProgramWithOptions は RunProgram と同じ実行を、指定したオプションで行う。
+// CUI実行の流儀として RealSleep は常に有効にする（RunCompiled と同じ）。
+func RunProgramWithOptions(code, filename string, h *CUIHost, options Options) error {
 	prog, err := CompileProgram(code, filename)
 	if err != nil {
 		return err
 	}
-	return RunCompiled(prog, h)
+	return RunCompiledWithOptions(prog, h, options)
+}
+
+// cuiOptions はCUI実行の既定オプション（『秒待つ』は実時間で待つ）。
+func cuiOptions() Options {
+	opts := DefaultOptions()
+	opts.RealSleep = true
+	return opts
 }
 
 // CompileProgram compiles a program to IR without running it, which is what
@@ -168,7 +186,12 @@ func RuntimeFuncList() lexer.FuncList {
 // RunCompiled runs IR that was compiled earlier, which is how a bundled
 // executable starts: the program is already compiled inside it.
 func RunCompiled(prog *ir.Program, h *CUIHost) error {
-	opts := DefaultOptions()
+	return RunCompiledWithOptions(prog, h, cuiOptions())
+}
+
+// RunCompiledWithOptions は RunCompiled と同じ実行を、指定したオプションで行う。
+// CUI実行の流儀として RealSleep は常に有効にする。
+func RunCompiledWithOptions(prog *ir.Program, h *CUIHost, opts Options) error {
 	opts.RealSleep = true
 	machine := New(prog, runtimeRegistry(), h, opts)
 	runErr := machine.Run()

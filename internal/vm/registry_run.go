@@ -12,12 +12,18 @@ import (
 
 // RunWithHostAndRegistry compiles and runs a program with a custom registry.
 func RunWithHostAndRegistry(code, filename string, registry *stdlib.Registry, h Host) error {
+	options := DefaultOptions()
+	options.RealSleep = true
+	return RunWithHostAndRegistryOptions(code, filename, registry, h, options)
+}
+
+// RunWithHostAndRegistryOptions は RunWithHostAndRegistry と同じ実行を、
+// 指定したオプションで行う。
+func RunWithHostAndRegistryOptions(code, filename string, registry *stdlib.Registry, h Host, options Options) error {
 	prog, err := CompileWithRegistry(code, filename, registry)
 	if err != nil {
 		return err
 	}
-	options := DefaultOptions()
-	options.RealSleep = true
 	machine := New(prog, registry, h, options)
 	runErr := machine.Run()
 	// 一回限りの実行なので、終了時に環境を退役させ、閉じ忘れた接続などを
