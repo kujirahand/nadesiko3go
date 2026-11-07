@@ -316,7 +316,7 @@ func TestImageColorReplace(t *testing.T) {
 		t.Fatalf("一致なし後の点(1,0) = %s, want #FF000000 (変わらないはず)", got)
 	}
 
-	// 置換元と置換先が同じ色なら 0 件で、画像は変わらない
+	// 置換元と置換先が同じ色なら 0 件で、画像は変わらない (複数点で確認する)
 	n, err = replace(nil, []value.Value{value.String("#00000000"), value.String("透明")})
 	if err != nil {
 		t.Fatalf("画像色置換 (同色) failed: %v", err)
@@ -326,6 +326,15 @@ func TestImageColorReplace(t *testing.T) {
 	}
 	if got := get(2, 0); got != "#00000000" {
 		t.Fatalf("同色置換後の点(2,0) = %s, want #00000000", got)
+	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("同色置換後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(1, 0); got != "#FF000000" {
+		t.Fatalf("同色置換後の点(1,0) = %s, want #FF000000 (変わらないはず)", got)
+	}
+	if got := get(3, 1); got != "#00000000" {
+		t.Fatalf("同色置換後の点(3,1) = %s, want #00000000 (変わらないはず)", got)
 	}
 
 	// 不正な色はエラーになる
