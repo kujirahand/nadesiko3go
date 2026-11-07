@@ -228,6 +228,150 @@ func TestImageLibErrors(t *testing.T) {
 	}
 }
 
+// TestImageColorReplace は Issue #448 の『画像色置換』のテスト。
+// 完全一致したピクセルだけが置換され、置換件数が返ることを確認する。
+func TestImageColorReplace(t *testing.T) {
+	p := imagelib.New()
+	impls := p.Impls()
+	replace, ok := impls["画像色置換"]
+	if !ok {
+		t.Fatal("『画像色置換』が登録されていません")
+	}
+	get := func(x, y int) string {
+		t.Helper()
+		pt := value.ArrayValue(value.NewArray(value.Number(float64(x)), value.Number(float64(y))))
+		v, err := impls["画像点取得"](nil, []value.Value{pt})
+		if err != nil {
+			t.Fatalf("画像点取得(%d,%d) failed: %v", x, y, err)
+		}
+		return value.ToString(v)
+	}
+	set := func(x, y int, col string) {
+		t.Helper()
+		pt := value.ArrayValue(value.NewArray(value.Number(float64(x)), value.Number(float64(y))))
+		if _, err := impls["画像点設定"](nil, []value.Value{pt, value.String(col)}); err != nil {
+			t.Fatalf("画像点設定(%d,%d,%s) failed: %v", x, y, col, err)
+		}
+	}
+
+	// 4x2 を赤で塗り、1点だけ青、1点だけアルファ違いの赤にする
+	size := value.ArrayValue(value.NewArray(value.Number(4), value.Number(2)))
+	if _, err := impls["画像新規作成"](nil, []value.Value{size}); err != nil {
+		t.Fatalf("画像新規作成 failed: %v", err)
+	}
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	set(0, 0, "青")
+	set(1, 0, "#FF000000") // RGBは赤と同じだがアルファが違うので置換されないはず
+
+	// Issue の用例: 赤 (#FF0000) を透明 (#00000000) に置換する。残りの赤は 8-1-1=6 点
+	n, err := replace(nil, []value.Value{value.String("#FF0000"), value.String("#00000000")})
+	if err != nil {
+		t.Fatalf("画像色置換 failed: %v", err)
+	}
+	if value.ToNumber(n) != 6 {
+		t.Fatalf("置換件数 = %v, want 6", n)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("置換後の点(2,0) = %s, want #00000000", got)
+	}
+	if got := get(3, 1); got != "#00000000" {
+		t.Fatalf("置換後の点(3,1) = %s, want #00000000", got)
+	}
+	if got := get(0, 0); got != "#0000FFFF" {
+		t.Fatalf("青い点(0,0) = %s, want #0000FFFF (変わらないはず)", got)
+	}
+	if got := get(1, 0); got != "#FF000000" {
+		t.Fatalf("アルファ違いの点(1,0) = %s, want #FF000000 (変わらないはず)", got)
+	}
+
+	// 色名でも置換できる (青 → 黒)。#RRGGBB と #RRGGBBAA の等価もここで確認する
+	n, err = replace(nil, []value.Value{value.String("青"), value.String("#000000")})
+	if err != nil {
+		t.Fatalf("画像色置換 (色名) failed: %v", err)
+	}
+	if value.ToNumber(n) != 1 {
+		t.Fatalf("色名での置換件数 = %v, want 1", n)
+	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("置換後の点(0,0) = %s, want #000000FF", got)
+	}
+
+	// 一致するピクセルが無ければ 0 件で、画像は変わらない
+	n, err = replace(nil, []value.Value{value.String("緑"), value.String("白")})
+	if err != nil {
+		t.Fatalf("画像色置換 (一致なし) failed: %v", err)
+	}
+	if value.ToNumber(n) != 0 {
+		t.Fatalf("一致なしの置換件数 = %v, want 0", n)
+	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("一致なし後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("一致なし後の点(2,0) = %s, want #00000000 (変わらないはず)", got)
+	}
+	if got := get(1, 0); got != "#FF000000" {
+		t.Fatalf("一致なし後の点(1,0) = %s, want #FF000000 (変わらないはず)", got)
+	}
+
+	// 置換元と置換先が同じ色なら 0 件で、画像は変わらない (複数点で確認する)
+	n, err = replace(nil, []value.Value{value.String("#00000000"), value.String("透明")})
+	if err != nil {
+		t.Fatalf("画像色置換 (同色) failed: %v", err)
+	}
+	if value.ToNumber(n) != 0 {
+		t.Fatalf("同色の置換件数 = %v, want 0", n)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("同色置換後の点(2,0) = %s, want #00000000", got)
+	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("同色置換後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(1, 0); got != "#FF000000" {
+		t.Fatalf("同色置換後の点(1,0) = %s, want #FF000000 (変わらないはず)", got)
+	}
+	if got := get(3, 1); got != "#00000000" {
+		t.Fatalf("同色置換後の点(3,1) = %s, want #00000000 (変わらないはず)", got)
+	}
+
+	// 不正な色はエラーになる
+	if _, err := replace(nil, []value.Value{value.String("存在しない色"), value.String("白")}); err == nil {
+		t.Fatal("不正な置換元の色でエラーになりませんでした")
+	}
+	if _, err := replace(nil, []value.Value{value.String("白"), value.String("#XYZ")}); err == nil {
+		t.Fatal("不正な置換先の色でエラーになりませんでした")
+	}
+	// 色の検証は走査前に行われるため、エラー時に画像は変わらない
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("エラー後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("エラー後の点(2,0) = %s, want #00000000 (変わらないはず)", got)
+	}
+
+	// 引数が不足したら、色のエラーではなく引数不足のエラーになる
+	if _, err := replace(nil, nil); err == nil || !strings.Contains(err.Error(), "画像色置換には") {
+		t.Fatalf("引数なしのエラー = %v, want 引数不足の案内", err)
+	}
+	if _, err := replace(nil, []value.Value{value.String("赤")}); err == nil || !strings.Contains(err.Error(), "画像色置換には") {
+		t.Fatalf("引数1個のエラー = %v, want 引数不足の案内", err)
+	}
+}
+
+// TestImageColorReplaceWithoutImage は、画像を開いていない状態の
+// 『画像色置換』が他の画像命令と同じエラーを返すことを確認する。
+func TestImageColorReplaceWithoutImage(t *testing.T) {
+	p := imagelib.New()
+	impls := p.Impls()
+	_, err := impls["画像色置換"](nil, []value.Value{value.String("赤"), value.String("黒")})
+	if err == nil || !strings.Contains(err.Error(), "画像新規作成") {
+		t.Fatalf("画像なしのエラー = %v, want 『画像新規作成』への案内", err)
+	}
+}
+
 // TestImageSaveUnsupportedFormatPreservesExistingFile は Issue #190 の回帰テスト。
 // 未対応の拡張子で画像保存しようとしたとき、既存ファイルの内容が保持されることを確認する。
 func TestImageSaveUnsupportedFormatPreservesExistingFile(t *testing.T) {
