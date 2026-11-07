@@ -99,6 +99,9 @@ func (p *Plugin) commands() map[string]command {
 		"画像リサイズ": { // @現在の画像を指定サイズ [幅, 高さ] に拡大縮小する // @がぞうりさいず
 			josi: [][]string{{"に", "へ"}}, returnNone: true, fn: p.resize,
 		},
+		"画像色置換": { // @現在の画像の指定色を別の色に置換して置換したピクセル数を返す // @がぞうしょくちかん
+			josi: [][]string{{"を"}, {"に", "へ"}}, fn: p.replaceColor,
+		},
 		"画像幅取得": { // @現在の画像の幅をピクセル単位で返す // @がぞうはばしゅとく
 			fn: p.width,
 		},
@@ -387,6 +390,50 @@ func (p *Plugin) resize(_ stdlib.Context, args []value.Value) (value.Value, erro
 	xdraw.CatmullRom.Scale(dst, dst.Bounds(), c.img, c.img.Bounds(), draw.Src, nil)
 	c.img = dst
 	return value.Undefined(), nil
+}
+
+// replaceColor は現在の画像で置換元の色と完全一致するピクセルをすべて
+// 置換先の色に置き換え、置換したピクセル数を返す (Issue #448)。
+// 1ピクセルずつ『画像点取得』『画像点設定』を繰り返すよりも高速に処理するため、
+// RGBA の Pix 配列を行単位で直接走査する。色の解釈は parseColor に合わせ、
+// 『画像点取得』が返す #RRGGBBAA と同じ RGBA 4成分の完全一致で判定する。
+func (p *Plugin) replaceColor(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	c, err := p.current()
+	if err != nil {
+		return value.Undefined(), err
+	}
+	from, err := parseColor(value.ToString(arg(args, 0)))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	to, err := parseColor(value.ToString(arg(args, 1)))
+	if err != nil {
+		return value.Undefined(), err
+	}
+	// 同じ色への置換は画像を走査しない。
+	if from == to {
+		return value.Number(0), nil
+	}
+	img := c.img
+	bounds := img.Bounds()
+	replaced := 0
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		offset := img.PixOffset(bounds.Min.X, y)
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			if img.Pix[offset] == from.R &&
+				img.Pix[offset+1] == from.G &&
+				img.Pix[offset+2] == from.B &&
+				img.Pix[offset+3] == from.A {
+				img.Pix[offset] = to.R
+				img.Pix[offset+1] = to.G
+				img.Pix[offset+2] = to.B
+				img.Pix[offset+3] = to.A
+				replaced++
+			}
+			offset += 4
+		}
+	}
+	return value.Number(float64(replaced)), nil
 }
 
 func (p *Plugin) width(_ stdlib.Context, _ []value.Value) (value.Value, error) {

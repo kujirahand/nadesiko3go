@@ -59,6 +59,34 @@ func TestImageBasicE2E(t *testing.T) {
 	}
 }
 
+// TestImageColorReplaceE2E は Issue #448 の『画像色置換』の E2E テスト。
+// Issue の用例 (赤を透明に置換する) を小さな画像で再現し、置換件数が
+// 返ることと、対象外のピクセルが変わらないことを確認する。
+func TestImageColorReplaceE2E(t *testing.T) {
+	code := strings.Join([]string{
+		`[4, 2]の画像新規作成`,
+		`「赤」に画像背景色設定`,
+		`[0, 0]を「青」に画像点設定`,
+		`N=「#FF0000」を「#00000000」に画像色置換`,
+		`Nを表示`,
+		`[2, 0]の画像点取得を表示`,
+		`[0, 0]の画像点取得を表示`,
+		`画像閉`,
+	}, "\n")
+
+	got, err := runCUICommands(t, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 全8点を赤で塗った後、1点を青に上書きしたので、赤い点は7点。
+	// その7点がすべて透明に置換され、青い点は変わらないはず。
+	want := "7\n#00000000\n#0000FFFF"
+	if got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
 func TestImageMultipleImagesE2E(t *testing.T) {
 	code := strings.Join([]string{
 		`I1=[50, 50]の画像新規作成`,
