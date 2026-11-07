@@ -29,7 +29,10 @@ import (
 // CUIHost runs a program against a real terminal: output goes to a writer,
 // 『尋ねる』 reads a line of input, and 『終了』 stops the process.
 type CUIHost struct {
-	Out     io.Writer
+	Out io.Writer
+	// Err は確認プロンプトなど、プログラムの出力と混ぜたくない
+	// メッセージの出力先。nil のときは Out を使う。
+	Err     io.Writer
 	In      *bufio.Reader
 	CmdArgs []string
 	// Bundle is the payload packed into the executable, if any. Its files are
@@ -42,11 +45,38 @@ type CUIHost struct {
 	// not have to end the test process.
 	ExitCode int
 	Exited   bool
+
+	// stdinTerminal は標準入力が端末かどうか。命令数上限の継続確認を
+	// 標準入力で質問してよいかの判定に使う (#449 レビュー対応)。
+	stdinTerminal bool
 }
 
 // NewCUIHost wires a host to the process's own streams.
 func NewCUIHost(out io.Writer, in io.Reader, args []string) *CUIHost {
-	return &CUIHost{Out: out, In: bufio.NewReader(in), CmdArgs: args}
+	h := &CUIHost{Out: out, In: bufio.NewReader(in), CmdArgs: args}
+	if f, ok := in.(*os.File); ok {
+		if info, err := f.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			h.stdinTerminal = true
+		}
+	}
+	return h
+}
+
+// InstructionLimitPromptable は、命令数上限の継続確認を標準入出力で
+// 行えるか（標準入力が端末か）を返す。パイプやリダイレクトでは、
+// プログラムへの入力データを横取りしたり応答待ちで止まったりする
+// ため質問せず、従来どおりエラーにする (#449 レビュー対応)。
+func (h *CUIHost) InstructionLimitPromptable() bool { return h.stdinTerminal }
+
+// WriteConfirmPrompt は命令数上限の継続確認プロンプトを出力する。
+// 標準出力をリダイレクトしてもプロンプトが結果に混ざらないよう、
+// Err が設定されていればそちらへ出す (#453)。
+func (h *CUIHost) WriteConfirmPrompt(s string) {
+	out := h.Err
+	if out == nil {
+		out = h.Out
+	}
+	_, _ = io.WriteString(out, s)
 }
 
 func (h *CUIHost) Print(s string) {
@@ -102,11 +132,16 @@ func trimNewline(s string) string {
 
 // RunFile reads a program from a file and runs it against the host.
 func RunFile(path string, h *CUIHost) error {
+	return RunFileWithOptions(path, h, cuiOptions())
+}
+
+// RunFileWithOptions は RunFile と同じ実行を、指定したオプションで行う。
+func RunFileWithOptions(path string, h *CUIHost, options Options) error {
 	code, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("ファイル『%s』を読み込めません: %w", path, err)
 	}
-	return RunProgram(string(code), path, h)
+	return RunProgramWithOptions(string(code), path, h, options)
 }
 
 // RunProgram compiles and runs a program against the host.
@@ -114,11 +149,24 @@ func RunFile(path string, h *CUIHost) error {
 // This is the path the CUI takes, so nodelib is available. The compat runner
 // takes RunSource instead, which stays inside plugin_system.
 func RunProgram(code, filename string, h *CUIHost) error {
+	return RunProgramWithOptions(code, filename, h, cuiOptions())
+}
+
+// RunProgramWithOptions は RunProgram と同じ実行を、指定したオプションで行う。
+// CUI実行の流儀として RealSleep は常に有効にする（RunCompiled と同じ）。
+func RunProgramWithOptions(code, filename string, h *CUIHost, options Options) error {
 	prog, err := CompileProgram(code, filename)
 	if err != nil {
 		return err
 	}
-	return RunCompiled(prog, h)
+	return RunCompiledWithOptions(prog, h, options)
+}
+
+// cuiOptions はCUI実行の既定オプション（『秒待つ』は実時間で待つ）。
+func cuiOptions() Options {
+	opts := DefaultOptions()
+	opts.RealSleep = true
+	return opts
 }
 
 // CompileProgram compiles a program to IR without running it, which is what
@@ -168,7 +216,12 @@ func RuntimeFuncList() lexer.FuncList {
 // RunCompiled runs IR that was compiled earlier, which is how a bundled
 // executable starts: the program is already compiled inside it.
 func RunCompiled(prog *ir.Program, h *CUIHost) error {
-	opts := DefaultOptions()
+	return RunCompiledWithOptions(prog, h, cuiOptions())
+}
+
+// RunCompiledWithOptions は RunCompiled と同じ実行を、指定したオプションで行う。
+// CUI実行の流儀として RealSleep は常に有効にする。
+func RunCompiledWithOptions(prog *ir.Program, h *CUIHost, opts Options) error {
 	opts.RealSleep = true
 	machine := New(prog, runtimeRegistry(), h, opts)
 	runErr := machine.Run()

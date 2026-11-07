@@ -58,6 +58,10 @@ func (m *VM) execute(f *frame, pc int) value.Value {
 	// 命令列と上限はループの間ずっと同じ。毎回たどり直さない。
 	code := f.fn.Code
 	maxInstructions := m.options.MaxInstructions
+	// 以前のフレームで継続が選ばれて延長済みなら、その上限を引き継ぐ (#449)。
+	if m.extendedMaxInstructions > maxInstructions {
+		maxInstructions = m.extendedMaxInstructions
+	}
 dispatch:
 	for pc < len(code) {
 		if m.hasExternal {
@@ -417,8 +421,30 @@ dispatch:
 			}
 		}
 		if limitReached {
+			// 呼び出し先のフレームで既に延長済みなら、質問せずにその上限へ
+			// 同期して再判定する。実行中の呼び出し元フレームは execute 冒頭の
+			// 引き継ぎでは更新されないため、ここでも同期が要る (#449 レビュー)。
+			if m.extendedMaxInstructions > maxInstructions {
+				maxInstructions = m.extendedMaxInstructions
+				continue dispatch
+			}
+			// pc は上限を超える最初の未実行命令を指している。継続する
+			// 場合はこの命令をまだ課金・実行せず、上限だけを延長して
+			// dispatch の先頭から同じ pc で再開する (#449)。
+			if !m.options.LongtimeError && m.continueAfterInstructionLimit() {
+				// 次の実行枠として、元の上限と同じ分だけ延長する。
+				// 延長は VM にも記録し、呼び出し元フレームや再開後の実行でも
+				// すぐ再び質問にならないようにする。上の同期を経ているため
+				// maxInstructions は extended 以上であり、記録は単調に増える。
+				maxInstructions = extendInstructionLimit(maxInstructions, m.options.MaxInstructions)
+				m.extendedMaxInstructions = maxInstructions
+				continue dispatch
+			}
+			// 停止する場合（質問できない環境を含む）は、従来と同じ
+			// 順序・同じ位置で失敗させる。エラー監視で捕捉可能な
+			// nakoPanic の経路も failAt により維持される。
 			m.executed++
-			m.failAt("実行した命令が多すぎます。終わらない繰り返しになっていませんか。", int(code[pc].Pos))
+			m.failAt(instructionLimitMessage, int(code[pc].Pos))
 		}
 	}
 	return value.Undefined()
@@ -825,6 +851,58 @@ func (m *VM) ShowDialog(kind, message string) (string, bool, bool, error) {
 		return "", false, false, nil
 	}
 	return h.ShowDialog(kind, message)
+}
+
+// instructionLimitMessage は命令数上限のエラーの文言 (#449)。
+const instructionLimitMessage = "実行した命令が多すぎます。終わらない繰り返しになっていませんか。"
+
+// instructionLimitConfirmMessage は上限到達時に継続を尋ねる文面。
+const instructionLimitConfirmMessage = instructionLimitMessage + "\n実行を継続しますか？"
+
+// extendInstructionLimit は命令数上限を延長した新しい値を返す。
+// 加算が uint64 の範囲を超える場合は、事実上の上限なしとして最大値へ
+// 飽和させる (#453)。
+func extendInstructionLimit(current, step uint64) uint64 {
+	if ^uint64(0)-current < step {
+		return ^uint64(0)
+	}
+	return current + step
+}
+
+// continueAfterInstructionLimit は、命令数の上限に達したときに実行を
+// 継続するかどうかをユーザーへ尋ね、継続なら true を返す (#449)。
+// ダイアログ対応ホスト（GUI版など）では確認ダイアログを使う。
+// 標準入力での確認は、InstructionLimitPromptable を明示的に実装して
+// true を返すホストだけに限る（オプトイン、#453）。実装していない
+// ホストまで ReadLine に進むと、将来 ReadLine がブロックし得るホストで
+// 上限到達時に止まってしまうためである。現行ホスト（Collector、wasmrt、
+// doctest 等）は ReadLine が EOF を返すので、この制限で挙動は変わらない。
+func (m *VM) continueAfterInstructionLimit() bool {
+	_, accepted, supported, err := m.ShowDialog("confirm", instructionLimitConfirmMessage)
+	if supported {
+		return err == nil && accepted
+	}
+	p, ok := m.host.(interface{ InstructionLimitPromptable() bool })
+	if !ok || !p.InstructionLimitPromptable() {
+		return false
+	}
+	// プロンプトの出力先はホストに任せる（CUIHost は標準エラー出力へ出す）。
+	prompt := instructionLimitMessage + "\n継続しますか？ (y/N): "
+	if w, ok := m.host.(interface{ WriteConfirmPrompt(string) }); ok {
+		w.WriteConfirmPrompt(prompt)
+	} else {
+		m.host.Write(prompt)
+	}
+	answer, err := m.host.ReadLine()
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(answer)) {
+	case "y", "yes", "はい", "継続":
+		return true
+	default:
+		return false
+	}
 }
 
 // RequestGUI は画面処理を任意のGUIホストへ委譲する。

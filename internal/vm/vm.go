@@ -85,7 +85,11 @@ type VM struct {
 	// run, so that a broken program stops instead of hanging.
 	depth    int
 	executed uint64
-	options  Options
+	// extendedMaxInstructions は、上限到達時にユーザーが継続を選んだことで
+	// 延長された命令数の上限。フレームをまたいでも延長が効くように、execute の
+	// ローカルな上限ではなく VM 側に保持する (#449)。
+	extendedMaxInstructions uint64
+	options                 Options
 
 	// entry は実行の入口（Run / InvokeCommand / 外部からの CallFunc）の
 	// 入れ子の数。0 のときに CallFunc が呼ばれたら、それは実行の外からの
@@ -130,8 +134,12 @@ func (m *VM) SetNative(index int, fn NativeFunc) {
 type Options struct {
 	// MaxFrames bounds how deep calls may nest.
 	MaxFrames int
-	// MaxInstructions bounds how many instructions one run may execute.
+	// MaxInstructions は、継続確認までに実行できる命令数の上限。
+	// 0なら命令数の上限を無効にする。
 	MaxInstructions uint64
+	// LongtimeError は、命令数の上限に達したときに継続確認をせず、
+	// 従来どおり直ちにエラーにする（gonako の --longtime-error 用）。
+	LongtimeError bool
 	// MaxCallbacks bounds how many timer callbacks one run may dispatch.
 	MaxCallbacks int
 	// DrainPendingCallbacks runs callbacks left in the event queue after main
@@ -149,7 +157,7 @@ type Options struct {
 func DefaultOptions() Options {
 	return Options{
 		MaxFrames:             10000,
-		MaxInstructions:       200_000_000,
+		MaxInstructions:       600_000_000,
 		MaxCallbacks:          event.DefaultMaxCallbacks,
 		DrainPendingCallbacks: true,
 	}
