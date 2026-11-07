@@ -306,6 +306,15 @@ func TestImageColorReplace(t *testing.T) {
 	if value.ToNumber(n) != 0 {
 		t.Fatalf("一致なしの置換件数 = %v, want 0", n)
 	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("一致なし後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("一致なし後の点(2,0) = %s, want #00000000 (変わらないはず)", got)
+	}
+	if got := get(1, 0); got != "#FF000000" {
+		t.Fatalf("一致なし後の点(1,0) = %s, want #FF000000 (変わらないはず)", got)
+	}
 
 	// 置換元と置換先が同じ色なら 0 件で、画像は変わらない
 	n, err = replace(nil, []value.Value{value.String("#00000000"), value.String("透明")})
@@ -325,6 +334,21 @@ func TestImageColorReplace(t *testing.T) {
 	}
 	if _, err := replace(nil, []value.Value{value.String("白"), value.String("#XYZ")}); err == nil {
 		t.Fatal("不正な置換先の色でエラーになりませんでした")
+	}
+	// 色の検証は走査前に行われるため、エラー時に画像は変わらない
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("エラー後の点(0,0) = %s, want #000000FF (変わらないはず)", got)
+	}
+	if got := get(2, 0); got != "#00000000" {
+		t.Fatalf("エラー後の点(2,0) = %s, want #00000000 (変わらないはず)", got)
+	}
+
+	// 引数が不足したら、色のエラーではなく引数不足のエラーになる
+	if _, err := replace(nil, nil); err == nil || !strings.Contains(err.Error(), "画像色置換には") {
+		t.Fatalf("引数なしのエラー = %v, want 引数不足の案内", err)
+	}
+	if _, err := replace(nil, []value.Value{value.String("赤")}); err == nil || !strings.Contains(err.Error(), "画像色置換には") {
+		t.Fatalf("引数1個のエラー = %v, want 引数不足の案内", err)
 	}
 }
 

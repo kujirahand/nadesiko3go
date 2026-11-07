@@ -397,10 +397,15 @@ func (p *Plugin) resize(_ stdlib.Context, args []value.Value) (value.Value, erro
 // 1ピクセルずつ『画像点取得』『画像点設定』を繰り返すよりも高速に処理するため、
 // RGBA の Pix 配列を行単位で直接走査する。色の解釈は parseColor に合わせ、
 // 『画像点取得』が返す #RRGGBBAA と同じ RGBA 4成分の完全一致で判定する。
+// 色は color.RGBA の値をそのまま比較・書き込むため、『画像点設定』で
+// 設定した色とそのまま一致する (半透明色も同じ扱いになる)。
 func (p *Plugin) replaceColor(_ stdlib.Context, args []value.Value) (value.Value, error) {
 	c, err := p.current()
 	if err != nil {
 		return value.Undefined(), err
+	}
+	if len(args) < 2 {
+		return value.Undefined(), errors.New("画像色置換には置換元の色と置換先の色を指定してください。")
 	}
 	from, err := parseColor(value.ToString(arg(args, 0)))
 	if err != nil {

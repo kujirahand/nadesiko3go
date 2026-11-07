@@ -87,6 +87,41 @@ func TestImageColorReplaceE2E(t *testing.T) {
 	}
 }
 
+// TestImageColorReplaceColorNameE2E は色名と文形式 (戻り値を捨てる形) の
+// 『画像色置換』を確認する。Issue #448 の用例はこちらが近い。
+func TestImageColorReplaceColorNameE2E(t *testing.T) {
+	code := strings.Join([]string{
+		`[2, 1]の画像新規作成`,
+		`「赤」に画像背景色設定`,
+		`「赤」を「透明」に画像色置換`,
+		`[0, 0]の画像点取得を表示`,
+		`[1, 0]の画像点取得を表示`,
+		`画像閉`,
+	}, "\n")
+
+	got, err := runCUICommands(t, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := "#00000000\n#00000000"
+	if got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+// TestImageColorReplaceNoImageE2E は、画像を開いていない状態の
+// 『画像色置換』が実行時エラーになることを確認する。
+func TestImageColorReplaceNoImageE2E(t *testing.T) {
+	got, err := runCUICommands(t, `「赤」を「黒」に画像色置換`)
+	if err == nil {
+		t.Fatalf("エラーになるはずが got=%q", got)
+	}
+	if !strings.Contains(err.Error(), "画像新規作成") {
+		t.Fatalf("error = %v, want 『画像新規作成』への案内", err)
+	}
+}
+
 func TestImageMultipleImagesE2E(t *testing.T) {
 	code := strings.Join([]string{
 		`I1=[50, 50]の画像新規作成`,
