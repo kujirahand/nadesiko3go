@@ -64,6 +64,13 @@ func TestRunLongtimeErrorInline(t *testing.T) {
 	}
 }
 
+func TestRunLongtimeErrorRejectsNonRunSubcommand(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"--longtime-error", "build", "app.nako3"}, &stdout, &stderr); err == nil {
+		t.Fatal("実行系以外で --longtime-error が黙って無視された")
+	}
+}
+
 func TestTakeLongtimeErrorKeepsProgramArgs(t *testing.T) {
 	// ファイル名より後ろの --longtime-error はプログラムへの引数として残す。
 	rest, got := takeLongtimeError([]string{"run", "app.nako3", "--longtime-error"})

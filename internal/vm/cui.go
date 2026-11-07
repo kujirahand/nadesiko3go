@@ -42,12 +42,28 @@ type CUIHost struct {
 	// not have to end the test process.
 	ExitCode int
 	Exited   bool
+
+	// stdinTerminal は標準入力が端末かどうか。命令数上限の継続確認を
+	// 標準入力で質問してよいかの判定に使う (#449 レビュー対応)。
+	stdinTerminal bool
 }
 
 // NewCUIHost wires a host to the process's own streams.
 func NewCUIHost(out io.Writer, in io.Reader, args []string) *CUIHost {
-	return &CUIHost{Out: out, In: bufio.NewReader(in), CmdArgs: args}
+	h := &CUIHost{Out: out, In: bufio.NewReader(in), CmdArgs: args}
+	if f, ok := in.(*os.File); ok {
+		if info, err := f.Stat(); err == nil && info.Mode()&os.ModeCharDevice != 0 {
+			h.stdinTerminal = true
+		}
+	}
+	return h
 }
+
+// InstructionLimitPromptable は、命令数上限の継続確認を標準入出力で
+// 行えるか（標準入力が端末か）を返す。パイプやリダイレクトでは、
+// プログラムへの入力データを横取りしたり応答待ちで止まったりする
+// ため質問せず、従来どおりエラーにする (#449 レビュー対応)。
+func (h *CUIHost) InstructionLimitPromptable() bool { return h.stdinTerminal }
 
 func (h *CUIHost) Print(s string) {
 	fmt.Fprintln(h.Out, s)

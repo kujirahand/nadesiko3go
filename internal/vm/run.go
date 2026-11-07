@@ -421,6 +421,13 @@ dispatch:
 			}
 		}
 		if limitReached {
+			// 呼び出し先のフレームで既に延長済みなら、質問せずにその上限へ
+			// 同期して再判定する。実行中の呼び出し元フレームは execute 冒頭の
+			// 引き継ぎでは更新されないため、ここでも同期が要る (#449 レビュー)。
+			if m.extendedMaxInstructions > maxInstructions {
+				maxInstructions = m.extendedMaxInstructions
+				continue dispatch
+			}
 			// pc は上限を超える最初の未実行命令を指している。継続する
 			// 場合はこの命令をまだ課金・実行せず、上限だけを延長して
 			// dispatch の先頭から同じ pc で再開する (#449)。
@@ -428,7 +435,8 @@ dispatch:
 				// 次の実行枠として、元の上限と同じ分だけ延長する。
 				// uint64 の加算が溢れる極端な場合は事実上の上限なしにする。
 				// 延長は VM にも記録し、呼び出し元フレームや再開後の実行でも
-				// すぐ再び質問にならないようにする。
+				// すぐ再び質問にならないようにする。上の同期を経ているため
+				// maxInstructions は extended 以上であり、記録は単調に増える。
 				if ^uint64(0)-maxInstructions < m.options.MaxInstructions {
 					maxInstructions = ^uint64(0)
 				} else {
@@ -867,7 +875,12 @@ func (m *VM) continueAfterInstructionLimit() bool {
 	if supported {
 		return err == nil && accepted
 	}
-	m.host.Write(instructionLimitConfirmMessage + "\n継続しますか？ (y/N): ")
+	// 標準入力で質問できるホスト（端末に繋がった CUIHost）でなければ、
+	// 入力を横取りしたり応答待ちで止まったりするのを避けて質問しない。
+	if p, ok := m.host.(interface{ InstructionLimitPromptable() bool }); ok && !p.InstructionLimitPromptable() {
+		return false
+	}
+	m.host.Write(instructionLimitMessage + "\n継続しますか？ (y/N): ")
 	answer, err := m.host.ReadLine()
 	if err != nil {
 		return false

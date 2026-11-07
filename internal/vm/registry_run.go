@@ -18,7 +18,8 @@ func RunWithHostAndRegistry(code, filename string, registry *stdlib.Registry, h 
 }
 
 // RunWithHostAndRegistryOptions は RunWithHostAndRegistry と同じ実行を、
-// 指定したオプションで行う。
+// 指定したオプションで行う。オプションは呼び出し側の指定をそのまま使う
+// （CUI向けの RunProgramWithOptions 等と違い、RealSleep は強制しない）。
 func RunWithHostAndRegistryOptions(code, filename string, registry *stdlib.Registry, h Host, options Options) error {
 	prog, err := CompileWithRegistry(code, filename, registry)
 	if err != nil {

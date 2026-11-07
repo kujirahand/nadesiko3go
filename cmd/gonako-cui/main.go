@@ -499,6 +499,13 @@ func run(args []string, stdout, stderr io.Writer) error {
 		fmt.Fprint(stdout, usage)
 		return nil
 	}
+	// --longtime-error は実行系以外では黙って無視せずエラーにする (#449 レビュー対応)。
+	if longtimeError {
+		switch args[0] {
+		case "build", "doctest", "compat", "version", "-v", "--version":
+			return errors.New("--longtime-error はプログラムを実行するときだけ指定できます")
+		}
+	}
 	switch args[0] {
 	case "version", "-v", "--version":
 		fmt.Fprintf(stdout, "gonako-cui v%s (%s/%s)\n", Version, runtime.GOOS, runtime.GOARCH)
