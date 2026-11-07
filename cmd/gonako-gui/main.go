@@ -99,13 +99,88 @@ type CommandItem struct {
 	DocURL string `json:"docUrl,omitempty"`
 }
 
-// TemplateItem describes a sample nadesiko3 script file.
+// TemplateItem はサンプルのなでしこ3スクリプトファイルを表す。
 type TemplateItem struct {
-	ID       string `json:"id"`
-	Title    string `json:"title"`
-	Category string `json:"category"`
-	Desc     string `json:"desc"`
-	Code     string `json:"code"`
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Category string   `json:"category"`
+	Desc     string   `json:"desc"`
+	Tags     []string `json:"tags"`
+	Modes    []string `json:"modes"`
+	Code     string   `json:"code"`
+}
+
+// parseTemplateMeta はサンプル先頭のメタ情報ヘッダを解析する（#445）。
+// 書式は次のとおりで、`###` はなでしこ3のコメント行である。
+//
+//	### サンプルの説明文
+//	### tags = 文法,GUI,CUI
+//	### mode = window,cli
+//
+// ヘッダとして見るのはファイル先頭から、空行でも `###` でも `//` でもない
+// 行が現れるまで。1行目のシェバン（`#!...`）は読み飛ばす（gonako 本体も
+// シェバンを読み飛ばして実行する）。`=` を含む行でも、キーが tags / mode
+// でなければ説明文として扱う（説明文の中の `=` で誤認しないため）。
+func parseTemplateMeta(code string) (desc string, tags []string, modes []string) {
+	for i, line := range strings.Split(code, "\n") {
+		trimmed := strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+		switch {
+		case trimmed == "":
+			continue
+		case i == 0 && strings.HasPrefix(trimmed, "#!"):
+			continue
+		case strings.HasPrefix(trimmed, "//"):
+			continue
+		case !strings.HasPrefix(trimmed, "###"):
+			return desc, tags, modes
+		}
+		value := strings.TrimSpace(strings.TrimPrefix(trimmed, "###"))
+		if key, content, ok := strings.Cut(value, "="); ok {
+			switch strings.TrimSpace(key) {
+			case "tags":
+				tags = splitTemplateMetaValues(content)
+				continue
+			case "mode":
+				modes = filterTemplateModes(splitTemplateMetaValues(content))
+				continue
+			}
+		}
+		if desc == "" {
+			desc = value
+		}
+	}
+	return desc, tags, modes
+}
+
+// templateModeIDs は実行モードIDの正規集合。
+// ui/index.html の select-app-type の値と合わせる。
+var templateModeIDs = []string{"window", "newwindow", "cli", "wnako3"}
+
+// filterTemplateModes は正規集合にない実行モードIDを捨てる。
+// 誤記した mode だけでひな形がどのモードでも表示されなくなるのを防ぐためで、
+// すべて捨てられた場合は空になり「どのモードでも表示」になる。
+func filterTemplateModes(values []string) []string {
+	filtered := []string{}
+	for _, value := range values {
+		for _, id := range templateModeIDs {
+			if value == id {
+				filtered = append(filtered, value)
+				break
+			}
+		}
+	}
+	return filtered
+}
+
+// splitTemplateMetaValues はカンマ区切りのメタ情報の値を分解する。
+func splitTemplateMetaValues(value string) []string {
+	values := []string{}
+	for _, item := range strings.Split(value, ",") {
+		if item = strings.TrimSpace(item); item != "" {
+			values = append(values, item)
+		}
+	}
+	return values
 }
 
 // FileItem represents a single file or directory in the file browser.
@@ -234,10 +309,21 @@ func getTemplateList() []TemplateItem {
 			title = base[idx+1:]
 		}
 
-		desc := title
-		lines := strings.Split(code, "\n")
-		if len(lines) > 0 && strings.HasPrefix(lines[0], "//") {
-			desc = strings.TrimSpace(strings.TrimPrefix(lines[0], "//"))
+		// 先頭の `###` ヘッダから説明・タグ・対応モードを読む（#445）。
+		// ヘッダが無いファイルは従来どおり先頭の `//` 行を説明とする。
+		desc, tags, modes := parseTemplateMeta(code)
+		if desc == "" {
+			desc = title
+			lines := strings.Split(code, "\n")
+			if len(lines) > 0 && strings.HasPrefix(lines[0], "//") {
+				desc = strings.TrimSpace(strings.TrimPrefix(lines[0], "//"))
+			}
+		}
+		if tags == nil {
+			tags = []string{}
+		}
+		if modes == nil {
+			modes = []string{}
 		}
 
 		category := "サンプル"
@@ -262,11 +348,17 @@ func getTemplateList() []TemplateItem {
 			category = "GUI"
 		}
 
+		// カテゴリは互換のため残し、タグがある場合は先頭のタグを入れる。
+		if len(tags) > 0 {
+			category = tags[0]
+		}
 		list = append(list, TemplateItem{
 			ID:       base,
 			Title:    title,
 			Category: category,
 			Desc:     desc,
+			Tags:     tags,
+			Modes:    modes,
 			Code:     code,
 		})
 	}

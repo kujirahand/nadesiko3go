@@ -1,4 +1,6 @@
-// 埋め込みパッケージ mandelbrot.nako3 を取り込み、マンデルブロ集合を画像保存します。
+### 埋め込みパッケージ mandelbrot.nako3 を取り込み、マンデルブロ集合を画像保存します。
+### tags = プログラミング学習,CUI
+### mode = cli,newwindow
 !「mandelbrot.nako3」を取り込む。
 
 出力先 = 「{デスクトップ}/mandelbrot.png」

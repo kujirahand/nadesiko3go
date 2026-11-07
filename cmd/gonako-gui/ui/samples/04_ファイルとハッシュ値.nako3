@@ -1,4 +1,6 @@
-// ファイル・ハッシュ値計算・UUID生成
+### ファイル・ハッシュ値計算・UUID生成
+### tags = ファイル,CUI
+### mode = window,cli
 Msg = 「こんにちは」
 Sha = Msgを「sha256」でハッシュ値計算
 「SHA256: {Sha}」と表示。

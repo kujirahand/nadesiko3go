@@ -1,4 +1,6 @@
-// 追加の入力部品を作成し、選択値の変更を受け取るサンプル
+### 追加の入力部品を作成し、選択値の変更を受け取るサンプル
+### tags = GUI,WEB
+### mode = window,newwindow
 「<section id="controls"><h2>追加DOM部品</h2></section>」をHTML表示
 「#controls」にDOM親要素設定
 
