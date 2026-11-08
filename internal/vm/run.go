@@ -432,11 +432,11 @@ dispatch:
 			// 場合はこの命令をまだ課金・実行せず、上限だけを延長して
 			// dispatch の先頭から同じ pc で再開する (#449)。
 			if !m.options.LongtimeError && m.continueAfterInstructionLimit() {
-				// 次の実行枠として、元の上限と同じ分だけ延長する。
+				// 次の実行枠として、現在の上限を2倍にする。
 				// 延長は VM にも記録し、呼び出し元フレームや再開後の実行でも
 				// すぐ再び質問にならないようにする。上の同期を経ているため
 				// maxInstructions は extended 以上であり、記録は単調に増える。
-				maxInstructions = extendInstructionLimit(maxInstructions, m.options.MaxInstructions)
+				maxInstructions = extendInstructionLimit(maxInstructions)
 				m.extendedMaxInstructions = maxInstructions
 				continue dispatch
 			}
@@ -857,16 +857,16 @@ func (m *VM) ShowDialog(kind, message string) (string, bool, bool, error) {
 const instructionLimitMessage = "実行した命令が多すぎます。終わらない繰り返しになっていませんか。"
 
 // instructionLimitConfirmMessage は上限到達時に継続を尋ねる文面。
-const instructionLimitConfirmMessage = instructionLimitMessage + "\n実行を継続しますか？"
+const instructionLimitConfirmMessage = instructionLimitMessage + "\n実行を継続しますか？ [OK]を押したら継続します。"
 
-// extendInstructionLimit は命令数上限を延長した新しい値を返す。
-// 加算が uint64 の範囲を超える場合は、事実上の上限なしとして最大値へ
+// extendInstructionLimit は命令数上限を2倍にした新しい値を返す。
+// 2倍が uint64 の範囲を超える場合は、事実上の上限なしとして最大値へ
 // 飽和させる (#453)。
-func extendInstructionLimit(current, step uint64) uint64 {
-	if ^uint64(0)-current < step {
+func extendInstructionLimit(current uint64) uint64 {
+	if current > ^uint64(0)/2 {
 		return ^uint64(0)
 	}
-	return current + step
+	return current * 2
 }
 
 // continueAfterInstructionLimit は、命令数の上限に達したときに実行を
