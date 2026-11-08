@@ -144,3 +144,44 @@ func TestImageMultipleImagesE2E(t *testing.T) {
 		t.Fatalf("output = %q, want %q", got, want)
 	}
 }
+
+// TestImageColorReplaceMultipleE2E は Issue #454 の『画像色一括置換』の E2E テスト。
+// なでしこソースで辞書リテラルを作り、「で」助詞で変換表を渡せることと、
+// 置換件数と対象外のピクセルを確認する。
+func TestImageColorReplaceMultipleE2E(t *testing.T) {
+	code := strings.Join([]string{
+		`[2, 1]の画像新規作成`,
+		`「赤」に画像背景色設定`,
+		`[1, 0]を「青」に画像点設定`,
+		`変換表={"赤":"黒", "青":"緑"}`,
+		`N=変換表で画像色一括置換`,
+		`Nを表示`,
+		`[0, 0]の画像点取得を表示`,
+		`[1, 0]の画像点取得を表示`,
+		`画像閉`,
+	}, "\n")
+
+	got, err := runCUICommands(t, code)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 赤1点が黒に、青1点が緑 (#008000FF) に置換される。
+	want := "2\n#000000FF\n#008000FF"
+	if got != want {
+		t.Fatalf("output = %q, want %q", got, want)
+	}
+}
+
+// TestImageColorReplaceMultipleNoImageE2E は、画像を開いていない状態の
+// 『画像色一括置換』が実行時エラーになることを確認する。
+func TestImageColorReplaceMultipleNoImageE2E(t *testing.T) {
+	got, err := runCUICommands(t, `変換表={"赤":"黒"}
+変換表で画像色一括置換`)
+	if err == nil {
+		t.Fatalf("エラーになるはずが got=%q", got)
+	}
+	if !strings.Contains(err.Error(), "画像新規作成") {
+		t.Fatalf("error = %v, want 『画像新規作成』への案内", err)
+	}
+}

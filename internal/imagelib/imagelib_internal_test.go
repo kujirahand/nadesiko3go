@@ -56,3 +56,39 @@ func TestReplaceColorSubImage(t *testing.T) {
 		t.Fatalf("範囲内の点(3,1) = %v, want %v", got, transparent)
 	}
 }
+
+// TestReplaceColorsSubImage は、『画像色一括置換』でも SubImage の対象範囲
+// だけを置換することを確認する (TestReplaceColorSubImage と同じ前提)。
+func TestReplaceColorsSubImage(t *testing.T) {
+	parent := image.NewRGBA(image.Rect(0, 0, 4, 2))
+	red := color.RGBA{R: 0xFF, A: 0xFF}
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 4; x++ {
+			parent.SetRGBA(x, y, red)
+		}
+	}
+	sub, ok := parent.SubImage(image.Rect(1, 0, 4, 2)).(*image.RGBA)
+	if !ok {
+		t.Fatal("SubImage が *image.RGBA ではありません")
+	}
+	p := New()
+	p.images[1] = &canvas{img: sub}
+	p.active = 1
+
+	d := value.NewDict()
+	d.Set("赤", value.String("透明"))
+	n, err := p.replaceColors(nil, []value.Value{value.DictValue(d)})
+	if err != nil {
+		t.Fatalf("画像色一括置換 failed: %v", err)
+	}
+	if value.ToNumber(n) != 6 {
+		t.Fatalf("置換件数 = %v, want 6 (3x2)", n)
+	}
+	if got := parent.RGBAAt(0, 0); got != red {
+		t.Fatalf("範囲外の点(0,0) = %v, want %v (変わらないはず)", got, red)
+	}
+	transparent := color.RGBA{}
+	if got := parent.RGBAAt(3, 1); got != transparent {
+		t.Fatalf("範囲内の点(3,1) = %v, want %v", got, transparent)
+	}
+}

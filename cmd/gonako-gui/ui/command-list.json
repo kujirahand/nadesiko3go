@@ -4177,8 +4177,8 @@
     "template": "【S】をスクリーンショット撮影",
     "yomi": "すくりーんしょっとさつえい",
     "file": "internal/imagelib/imagelib.go",
-    "line": 117,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L117",
+    "line": 120,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L120",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%B9%E3%82%AF%E3%83%AA%E3%83%BC%E3%83%B3%E3%82%B7%E3%83%A7%E3%83%83%E3%83%88%E6%92%AE%E5%BD%B1"
   },
   {
@@ -8099,8 +8099,8 @@
     "template": "画像幅取得",
     "yomi": "がぞうはばしゅとく",
     "file": "internal/imagelib/imagelib.go",
-    "line": 105,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L105",
+    "line": 108,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L108",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E5%B9%85%E5%8F%96%E5%BE%97"
   },
   {
@@ -8247,6 +8247,24 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E8%83%8C%E6%99%AF%E8%89%B2%E8%A8%AD%E5%AE%9A"
   },
   {
+    "name": "画像色一括置換",
+    "type": "func",
+    "josi": [
+      [
+        "で"
+      ]
+    ],
+    "plugin": "gonako",
+    "category": "画像",
+    "desc": "現在の画像の複数色を辞書の変換表で一括置換して置換したピクセル数を返す",
+    "template": "【A】で画像色一括置換",
+    "yomi": "がぞうしょくいっかつちかん",
+    "file": "internal/imagelib/imagelib.go",
+    "line": 105,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L105",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E8%89%B2%E4%B8%80%E6%8B%AC%E7%BD%AE%E6%8F%9B"
+  },
+  {
     "name": "画像色置換",
     "type": "func",
     "josi": [
@@ -8278,8 +8296,8 @@
     "template": "画像閉",
     "yomi": "がぞうとじる",
     "file": "internal/imagelib/imagelib.go",
-    "line": 114,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L114",
+    "line": 117,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L117",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E9%96%89"
   },
   {
@@ -8312,8 +8330,8 @@
     "template": "画像高さ取得",
     "yomi": "がぞうたかさしゅとく",
     "file": "internal/imagelib/imagelib.go",
-    "line": 111,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L111",
+    "line": 114,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L114",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E9%AB%98%E3%81%95%E5%8F%96%E5%BE%97"
   },
   {
@@ -8326,8 +8344,8 @@
     "template": "画像高取得",
     "yomi": "がぞうたかしゅとく",
     "file": "internal/imagelib/imagelib.go",
-    "line": 108,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L108",
+    "line": 111,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/imagelib/imagelib.go#L111",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%94%BB%E5%83%8F%E9%AB%98%E5%8F%96%E5%BE%97"
   },
   {
