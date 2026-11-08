@@ -102,6 +102,9 @@ func (p *Plugin) commands() map[string]command {
 		"画像色置換": { // @現在の画像の指定色を別の色に置換して置換したピクセル数を返す // @がぞうしょくちかん
 			josi: [][]string{{"を"}, {"に", "へ"}}, fn: p.replaceColor,
 		},
+		"画像色一括置換": { // @現在の画像の複数色を辞書の変換表で一括置換して置換したピクセル数を返す // @がぞうしょくいっかつちかん
+			josi: [][]string{{"で"}}, fn: p.replaceColors,
+		},
 		"画像幅取得": { // @現在の画像の幅をピクセル単位で返す // @がぞうはばしゅとく
 			fn: p.width,
 		},
@@ -429,6 +432,71 @@ func (p *Plugin) replaceColor(_ stdlib.Context, args []value.Value) (value.Value
 				img.Pix[offset+1] == from.G &&
 				img.Pix[offset+2] == from.B &&
 				img.Pix[offset+3] == from.A {
+				img.Pix[offset] = to.R
+				img.Pix[offset+1] = to.G
+				img.Pix[offset+2] = to.B
+				img.Pix[offset+3] = to.A
+				replaced++
+			}
+			offset += 4
+		}
+	}
+	return value.Number(float64(replaced)), nil
+}
+
+// replaceColors は辞書の変換表に従い、現在の画像の複数色を一括置換し、
+// 置換したピクセルの総数を返す (Issue #454)。変換表は走査前にすべて
+// parseColor で検証するため、不正な色が含まれる場合は画像を変更しない。
+// 各ピクセルは置換前の色だけで判定するので、置換結果は連鎖しない
+// (赤→青・青→緑 の表では、元の赤は青になり、元の青は緑になる)。
+// 異なる色文字列が同じ RGBA に解釈される場合は、辞書の挿入順で後の
+// 指定が優先される。後の指定が置換元と同色なら、置換しない指定として
+// それまでの指定も取り消す。
+func (p *Plugin) replaceColors(_ stdlib.Context, args []value.Value) (value.Value, error) {
+	c, err := p.current()
+	if err != nil {
+		return value.Undefined(), err
+	}
+	if len(args) < 1 {
+		return value.Undefined(), errors.New("画像色一括置換には変換表を辞書で指定してください。")
+	}
+	table, ok := args[0].Dict()
+	if !ok || table == nil {
+		return value.Undefined(), errors.New("画像色一括置換には変換表を辞書で指定してください。")
+	}
+	replacements := make(map[color.RGBA]color.RGBA, table.Len())
+	for _, key := range table.Keys() {
+		from, err := parseColor(key)
+		if err != nil {
+			return value.Undefined(), err
+		}
+		toValue, _ := table.Get(key)
+		to, err := parseColor(value.ToString(toValue))
+		if err != nil {
+			return value.Undefined(), err
+		}
+		if from == to {
+			delete(replacements, from)
+			continue
+		}
+		replacements[from] = to
+	}
+	if len(replacements) == 0 {
+		return value.Number(0), nil
+	}
+	img := c.img
+	bounds := img.Bounds()
+	replaced := 0
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		offset := img.PixOffset(bounds.Min.X, y)
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			from := color.RGBA{
+				R: img.Pix[offset],
+				G: img.Pix[offset+1],
+				B: img.Pix[offset+2],
+				A: img.Pix[offset+3],
+			}
+			if to, ok := replacements[from]; ok {
 				img.Pix[offset] = to.R
 				img.Pix[offset+1] = to.G
 				img.Pix[offset+2] = to.B

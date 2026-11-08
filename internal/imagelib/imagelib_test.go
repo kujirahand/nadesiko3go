@@ -402,3 +402,173 @@ func TestImageSaveUnsupportedFormatPreservesExistingFile(t *testing.T) {
 		t.Fatalf("既存ファイルの内容が変わりました: got %q, want %q", got, want)
 	}
 }
+
+// TestImageColorReplaceMultiple は Issue #454 の『画像色一括置換』のテスト。
+// 辞書の変換表で複数色を一度に置換でき、置換が連鎖しないこと、
+// 件数とエラーの扱いが『画像色置換』と揃っていることを確認する。
+func TestImageColorReplaceMultiple(t *testing.T) {
+	p := imagelib.New()
+	impls := p.Impls()
+	replaceAll, ok := impls["画像色一括置換"]
+	if !ok {
+		t.Fatal("『画像色一括置換』が登録されていません")
+	}
+	get := func(x, y int) string {
+		t.Helper()
+		pt := value.ArrayValue(value.NewArray(value.Number(float64(x)), value.Number(float64(y))))
+		v, err := impls["画像点取得"](nil, []value.Value{pt})
+		if err != nil {
+			t.Fatalf("画像点取得(%d,%d) failed: %v", x, y, err)
+		}
+		return value.ToString(v)
+	}
+	set := func(x, y int, col string) {
+		t.Helper()
+		pt := value.ArrayValue(value.NewArray(value.Number(float64(x)), value.Number(float64(y))))
+		if _, err := impls["画像点設定"](nil, []value.Value{pt, value.String(col)}); err != nil {
+			t.Fatalf("画像点設定(%d,%d,%s) failed: %v", x, y, col, err)
+		}
+	}
+	dict := func(pairs ...string) value.Value {
+		t.Helper()
+		d := value.NewDict()
+		for i := 0; i+1 < len(pairs); i += 2 {
+			d.Set(pairs[i], value.String(pairs[i+1]))
+		}
+		return value.DictValue(d)
+	}
+
+	size := value.ArrayValue(value.NewArray(value.Number(4), value.Number(2)))
+	if _, err := impls["画像新規作成"](nil, []value.Value{size}); err != nil {
+		t.Fatalf("画像新規作成 failed: %v", err)
+	}
+
+	// 複数色の一括変換: 4x2 を赤で塗り、青・緑・白を1点ずつ置く (赤は5点)。
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	set(0, 0, "青")
+	set(1, 0, "緑")
+	set(2, 0, "白")
+	n, err := replaceAll(nil, []value.Value{dict("赤", "黒", "青", "透明", "緑", "黄")})
+	if err != nil {
+		t.Fatalf("画像色一括置換 failed: %v", err)
+	}
+	if value.ToNumber(n) != 7 {
+		t.Fatalf("一括置換件数 = %v, want 7 (赤5+青1+緑1)", n)
+	}
+	if got := get(3, 1); got != "#000000FF" {
+		t.Fatalf("赤から黒への置換後の点(3,1) = %s, want #000000FF", got)
+	}
+	if got := get(0, 0); got != "#00000000" {
+		t.Fatalf("青から透明への置換後の点(0,0) = %s, want #00000000", got)
+	}
+	if got := get(1, 0); got != "#FFFF00FF" {
+		t.Fatalf("緑から黄への置換後の点(1,0) = %s, want #FFFF00FF", got)
+	}
+	if got := get(2, 0); got != "#FFFFFFFF" {
+		t.Fatalf("変換表にない白い点(2,0) = %s, want #FFFFFFFF (変わらないはず)", got)
+	}
+
+	// 連鎖しないこと: 赤→青・青→緑 でも、元の赤は青で止まる。
+	// 緑は parseColor で #008000FF (ライム #00FF00 とは別色) である点に注意。
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	set(0, 0, "青")
+	n, err = replaceAll(nil, []value.Value{dict("赤", "青", "青", "緑")})
+	if err != nil {
+		t.Fatalf("画像色一括置換 (連鎖なし) failed: %v", err)
+	}
+	if value.ToNumber(n) != 8 {
+		t.Fatalf("連鎖なしの置換件数 = %v, want 8", n)
+	}
+	if got := get(1, 0); got != "#0000FFFF" {
+		t.Fatalf("元の赤い点の置換後 = %s, want #0000FFFF (青で止まるはず)", got)
+	}
+	if got := get(0, 0); got != "#008000FF" {
+		t.Fatalf("元の青い点の置換後 = %s, want #008000FF (緑)", got)
+	}
+
+	// 色名と #RRGGBB の混在。#008000→緑 は同色 (どちらも #008000FF) なので
+	// 置換しないエントリとして数えない。
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	set(0, 0, "青")
+	set(1, 0, "緑")
+	n, err = replaceAll(nil, []value.Value{dict("赤", "#FFFF00", "#0000FF", "黒", "#008000", "緑")})
+	if err != nil {
+		t.Fatalf("画像色一括置換 (色名と16進色) failed: %v", err)
+	}
+	if value.ToNumber(n) != 7 {
+		t.Fatalf("同色指定を除いた置換件数 = %v, want 7 (赤6+青1)", n)
+	}
+	if got := get(2, 1); got != "#FFFF00FF" {
+		t.Fatalf("赤から黄への置換後の点(2,1) = %s, want #FFFF00FF", got)
+	}
+	if got := get(0, 0); got != "#000000FF" {
+		t.Fatalf("青から黒への置換後の点(0,0) = %s, want #000000FF", got)
+	}
+	if got := get(1, 0); got != "#008000FF" {
+		t.Fatalf("同色指定後の緑の点(1,0) = %s, want #008000FF (変わらないはず)", got)
+	}
+
+	// 後勝ちの取り消し: 同じ色を別の表記で同色に戻す指定は、置換しない。
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	n, err = replaceAll(nil, []value.Value{dict("赤", "青", "#FF0000", "赤")})
+	if err != nil {
+		t.Fatalf("画像色一括置換 (後勝ち) failed: %v", err)
+	}
+	if value.ToNumber(n) != 0 {
+		t.Fatalf("後勝ちで取り消した置換件数 = %v, want 0", n)
+	}
+	if got := get(0, 0); got != "#FF0000FF" {
+		t.Fatalf("後勝ち後の点(0,0) = %s, want #FF0000FF (変わらないはず)", got)
+	}
+
+	// 空の変換表は走査せず 0 を返す。
+	n, err = replaceAll(nil, []value.Value{dict()})
+	if err != nil {
+		t.Fatalf("画像色一括置換 (空辞書) failed: %v", err)
+	}
+	if value.ToNumber(n) != 0 {
+		t.Fatalf("空辞書の置換件数 = %v, want 0", n)
+	}
+
+	// 辞書以外と引数不足は、変換表を辞書で指定するよう案内する。
+	if _, err := replaceAll(nil, []value.Value{value.String("赤")}); err == nil ||
+		!strings.Contains(err.Error(), "画像色一括置換には変換表を辞書で指定してください。") {
+		t.Fatalf("辞書でない引数のエラー = %v", err)
+	}
+	if _, err := replaceAll(nil, nil); err == nil ||
+		!strings.Contains(err.Error(), "画像色一括置換には変換表を辞書で指定してください。") {
+		t.Fatalf("引数なしのエラー = %v", err)
+	}
+
+	// 変換表は走査前にすべて検証するため、エラー時は画像を変更しない。
+	if _, err := impls["画像背景色設定"](nil, []value.Value{value.String("赤")}); err != nil {
+		t.Fatalf("画像背景色設定 failed: %v", err)
+	}
+	if _, err := replaceAll(nil, []value.Value{dict("赤", "黒", "存在しない色", "白")}); err == nil {
+		t.Fatal("不正な色を含む変換表でエラーになりませんでした")
+	}
+	if got := get(0, 0); got != "#FF0000FF" {
+		t.Fatalf("変換表エラー後の点(0,0) = %s, want #FF0000FF (変わらないはず)", got)
+	}
+}
+
+// TestImageColorReplaceMultipleWithoutImage は、画像を開いていない状態の
+// 『画像色一括置換』が他の画像命令と同じエラーを返すことを確認する。
+func TestImageColorReplaceMultipleWithoutImage(t *testing.T) {
+	p := imagelib.New()
+	impls := p.Impls()
+	d := value.NewDict()
+	d.Set("赤", value.String("黒"))
+	_, err := impls["画像色一括置換"](nil, []value.Value{value.DictValue(d)})
+	if err == nil || !strings.Contains(err.Error(), "画像新規作成") {
+		t.Fatalf("画像なしのエラー = %v, want 『画像新規作成』への案内", err)
+	}
+}
