@@ -16,10 +16,12 @@ type confirmHost struct {
 	Collector
 	calls    int
 	accepted bool
+	message  string
 }
 
 func (h *confirmHost) ShowDialog(kind, message string) (string, bool, bool, error) {
 	h.calls++
+	h.message = message
 	if kind != "confirm" {
 		return "", false, true, nil
 	}
@@ -240,23 +242,39 @@ func TestInstructionLimitPipedStdinNeverAsks(t *testing.T) {
 	}
 }
 
-// T5 (#453): 上限延長の計算（飽和付き加算）の単体テスト。
+// 確認ダイアログの文面が、どちらのボタンで継続するか明示する文面であること
+// (#449 実機フィードバック)。
+func TestInstructionLimitConfirmMessageMentionsOK(t *testing.T) {
+	host := &confirmHost{accepted: false}
+	opts := DefaultOptions()
+	opts.MaxInstructions = 10
+	_ = runInstructionLimitSource(t, host, opts)
+	if host.calls == 0 {
+		t.Fatal("確認ダイアログが呼ばれていません")
+	}
+	want := "実行した命令が多すぎます。終わらない繰り返しになっていませんか。\n実行を継続しますか？ [OK]を押したら継続します。"
+	if host.message != want {
+		t.Fatalf("ダイアログ文面 = %q, want %q", host.message, want)
+	}
+}
+
+// T5 (#453): 上限延長の計算（2倍・飽和付き）の単体テスト。
 func TestExtendInstructionLimit(t *testing.T) {
 	max := ^uint64(0)
 	tests := []struct {
-		name          string
-		current, step uint64
-		want          uint64
+		name    string
+		current uint64
+		want    uint64
 	}{
-		{name: "通常加算", current: 100, step: 20, want: 120},
-		{name: "ちょうど最大値", current: max - 10, step: 10, want: max},
-		{name: "溢れは飽和", current: max - 10, step: 11, want: max},
-		{name: "延長幅ゼロ", current: 100, step: 0, want: 100},
+		{name: "通常は2倍", current: 100, want: 200},
+		{name: "ちょうど境界", current: max / 2, want: max - 1},
+		{name: "溢れは飽和", current: max/2 + 1, want: max},
+		{name: "ゼロ", current: 0, want: 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := extendInstructionLimit(tt.current, tt.step); got != tt.want {
-				t.Fatalf("extendInstructionLimit(%d, %d) = %d, want %d", tt.current, tt.step, got, tt.want)
+			if got := extendInstructionLimit(tt.current); got != tt.want {
+				t.Fatalf("extendInstructionLimit(%d) = %d, want %d", tt.current, got, tt.want)
 			}
 		})
 	}
