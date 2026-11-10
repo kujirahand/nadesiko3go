@@ -165,7 +165,11 @@ func (p *Parser) yValue() *ast.Node {
 		t := p.peek(0)
 		nextIsSplit := false
 		if next := p.peek(1); next != nil {
-			split := append(append([]string{}, operatorList...), "eol", ")", "]", "ならば", "回", "間", "反復", "条件分岐")
+			// #458: 配列・辞書・C風呼び出しの引数区切り(comma)や辞書の閉じ括弧(})も
+			// 無引数関数の値の終わりとして扱う。これらがないと `[今,0]` や
+			// `{"時刻":今}` のようにJSONの値として関数を使えない。
+			// なおカンマのトークン種別は記号ではなく lexer.TypeComma ("comma")。
+			split := append(append([]string{}, operatorList...), "eol", ")", "]", "}", string(lexer.TypeComma), "ならば", "回", "間", "反復", "条件分岐")
 			nextIsSplit = containsString(split, string(next.Type))
 		}
 		if nextIsSplit || t.Josi != "" {
