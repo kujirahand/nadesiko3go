@@ -299,6 +299,51 @@ document.addEventListener('DOMContentLoaded', () => {
     setStatus(`実行モードを「${runModeLabels[mode] || mode}」に変更しました`);
   });
 
+  // ファイル先頭のメタ情報はGo側のparseTemplateMetaと同じ規則で読む（#457）。
+  // ただし行頭のBOMはJSのtrimで取り除かれるため、BOM付きファイルでも
+  // 宣言を読める（この点だけGo側より寛容）。
+  function parseDeclaredRunModes(code) {
+    let modes = [];
+    const validModes = new Set(Object.keys(runModeLabels));
+
+    for (const [index, rawLine] of String(code).split('\n').entries()) {
+      const trimmed = rawLine.replace(/\r$/, '').trim();
+      if (trimmed === '') continue;
+      if (index === 0 && trimmed.startsWith('#!')) continue;
+      if (trimmed.startsWith('//')) continue;
+      if (!trimmed.startsWith('###')) break;
+
+      const value = trimmed.slice(3).trim();
+      const equalIndex = value.indexOf('=');
+      if (equalIndex === -1) continue;
+
+      const key = value.slice(0, equalIndex).trim();
+      if (key !== 'mode') continue;
+
+      // mode行が複数ある場合は、ひな形メタ情報と同様に後の宣言を優先する。
+      modes = value.slice(equalIndex + 1)
+        .split(',')
+        .map(item => item.trim())
+        .filter(item => item !== '' && validModes.has(item));
+    }
+    return modes;
+  }
+
+  function resolveAutoRunMode(declaredModes, currentMode) {
+    if (declaredModes.length === 0 || declaredModes.includes(currentMode)) return '';
+    return declaredModes[0];
+  }
+
+  function applyAutoRunMode(code) {
+    const declaredModes = parseDeclaredRunModes(code);
+    const mode = resolveAutoRunMode(declaredModes, selectAppType.value);
+    if (mode === '') return '';
+
+    selectAppType.value = mode;
+    selectAppType.dispatchEvent(new Event('change'));
+    return mode;
+  }
+
   // --- 汎用ダイアログ関数 (WebView対応) ---
   function showSaveConfirmDialog(filename) {
     return new Promise((resolve) => {
@@ -1272,7 +1317,9 @@ document.addEventListener('DOMContentLoaded', () => {
         updateLineNumbers();
         updateCharCount();
         updateCursorPos();
-        setStatus(`ひな形「${t.title}」を読み込みました`);
+        const autoRunMode = applyAutoRunMode(t.code);
+        const modeChanged = autoRunMode ? `（実行モードを「${runModeLabels[autoRunMode] || autoRunMode}」に切り替えました）` : '';
+        setStatus(`ひな形「${t.title}」を読み込みました${modeChanged}`);
       });
 
       templateListElem.appendChild(item);
@@ -2140,9 +2187,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isBinaryFile) {
           setStatus(`バイナリファイルのため編集できません: ${fileName}`);
         } else {
+          const autoRunMode = applyAutoRunMode(editor.value);
           // Shift_JIS/EUC-JPは確認なしでUTF-8へ変換し、保存時は元の文字コードへ戻す
           const conversion = data.converted ? ` (${data.encoding}から変換。保存時は${data.encoding}形式を維持します)` : '';
-          setStatus(`開きました: ${fileName}${conversion}`);
+          const modeChanged = autoRunMode ? `（実行モードを「${runModeLabels[autoRunMode] || autoRunMode}」に切り替えました）` : '';
+          setStatus(`開きました: ${fileName}${conversion}${modeChanged}`);
         }
       } else {
         await showAlertDialog('エラー', `ファイルを開けませんでした: ${data.error}`);
