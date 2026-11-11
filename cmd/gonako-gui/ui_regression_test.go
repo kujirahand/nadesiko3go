@@ -829,3 +829,37 @@ func TestTemplateFiltersByGenreAndRunMode(t *testing.T) {
 		}
 	}
 }
+
+// ファイルやひな形を開いたとき、先頭の `### mode = ...` 宣言に合わせて
+// 実行モードが自動で切り替わる処理が配線されていること（#457）。
+func TestAutoRunModeSwitchIsWired(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"function parseDeclaredRunModes(code)",
+		"function resolveAutoRunMode(declaredModes, currentMode)",
+		"function applyAutoRunMode(code)",
+		// 手動変更と同じ 'change' ハンドラに、バッジ・命令一覧・ひな形絞り込みの
+		// 連動を任せる。
+		"selectAppType.dispatchEvent(new Event('change'))",
+		// ファイルを開く処理とひな形の読み込み処理の両方から適用する。
+		"const autoRunMode = applyAutoRunMode(editor.value);",
+		"const autoRunMode = applyAutoRunMode(t.code);",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js に実行モードの自動切替処理 %q がありません", required)
+		}
+	}
+}
+
+// TestAutoRunModeRegressionRunsInNode は、文字列の有無ではなく実物の解析・
+// 切替関数を Node で実行して確かめる（#457）。
+func TestAutoRunModeRegressionRunsInNode(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("JavaScriptの確認にはNode.jsが必要です")
+	}
+	cmd := exec.Command(node, "testdata/run-mode-auto-switch-regression.cjs")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("実行モードの自動切替: %v\n%s", err, output)
+	}
+}
