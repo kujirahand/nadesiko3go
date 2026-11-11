@@ -153,6 +153,48 @@ func TestIssue458FuncValueRegression(t *testing.T) {
 	}
 }
 
+// 複数添字 A[行,列] の添字位置でも無引数関数が使えること。
+// agy レビュー (低指摘2) を実地確認のうえ追加した。
+func TestIssue458FuncValueInSubscript(t *testing.T) {
+	defs := "●イチとは\n1を戻す\nここまで\n"
+	tests := []struct{ name, code, want string }{
+		{"第1添字", "A=[[1,2],[3,4]]\nA[イチ,1]を表示", "4"},
+		{"第2添字", "A=[[1,2],[3,4]]\nA[0,イチ]を表示", "2"},
+		{"両方の添字", "A=[[1,2],[3,4]]\nA[イチ,イチ]を表示", "4"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := run(t, defs+tt.code); got != tt.want {
+				t.Errorf("%q = %q, want %q", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+// 引数が要る関数を値の位置に裸で置いた場合は、区切りとして受理されても
+// 「引数が指定されていません」エラーになること (一語関数分岐の既存処理)。
+// agy レビュー (低指摘1) を実地確認のうえ追加した。
+func TestIssue458ArgCountMismatchStillErrors(t *testing.T) {
+	defs := "●タス(AとBの)とは\nA+Bを戻す\nここまで\n"
+	tests := []struct{ name, code string }{
+		{"配列で組み込み2引数関数", "A=[MAX,0]"},
+		{"辞書で組み込み2引数関数", "A={\"a\":MAX}"},
+		{"配列でユーザー定義2引数関数", defs + "A=[タス,0]"},
+		{"辞書でユーザー定義2引数関数", defs + "A={\"a\":タス}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := vm.RunSource(tt.code, "main.nako3", nil)
+			if err == nil {
+				t.Fatalf("%q はエラーになるべき", tt.code)
+			}
+			if !strings.Contains(err.Error(), "引数が指定されていません") {
+				t.Fatalf("%q のエラー = %v, want 引数不足のエラー", tt.code, err)
+			}
+		})
+	}
+}
+
 // カンマや閉じ括弧の欠落は、修正後も文法エラーのままであること。
 // 区切りとして受理する範囲を広げても、不正な入力を通してはいけない。
 func TestIssue458StillRejectsBrokenContainers(t *testing.T) {

@@ -19,6 +19,8 @@ func parseWithZeroArgFuncs(t *testing.T, code string) (*ast.Node, error) {
 		lx.FuncList[name] = &lexer.FuncItem{Name: name, Type: "func"}
 	}
 	lx.FuncList["表示"] = &lexer.FuncItem{Name: "表示", Type: "func", Josi: [][]string{{"を", "と"}}, ReturnNone: true}
+	// 1引数関数 (「それ」補完の対象)
+	lx.FuncList["倍"] = &lexer.FuncItem{Name: "倍", Type: "func", Josi: [][]string{{"の"}}}
 	raw, err := lexer.Tokenize(prepare.Text(prepare.Convert(code)), 0, "main.nako3")
 	if err != nil {
 		return nil, err
@@ -124,6 +126,25 @@ func TestIssue458ParseNestedFuncValues(t *testing.T) {
 	dict := arr.Blocks[1]
 	if dict.Type != ast.JSONObj || dict.Blocks[1].Type != ast.Func || dict.Blocks[1].Name != "今日" {
 		t.Fatalf("inner dict = %#v", dict)
+	}
+}
+
+// 1引数関数がカンマや } の直前に来た場合も一語関数分岐に入り、
+// 既存処理どおり暗黙引数「それ」が補完されること。
+// agy レビュー (低指摘1) を受けて追加した (実行時の「それ」の値は
+// 文脈依存のため、ここでは AST の形状だけを固定する)。
+func TestIssue458ParseOneArgFuncGetsSore(t *testing.T) {
+	// 配列: A=[倍,0] の要素0
+	arr := issue458AssignValue(t, "A=[倍,0]")
+	elem := arr.Blocks[0]
+	if elem.Type != ast.Func || elem.Name != "倍" || len(elem.Blocks) != 1 || elem.Blocks[0].Value != "それ" {
+		t.Fatalf("A=[倍,0] の要素 = %#v, want 「それ」を引数に持つ関数 倍", elem)
+	}
+	// 辞書: A={"a":倍} の値 (Blocks[1])
+	dict := issue458AssignValue(t, "A={\"a\":倍}")
+	val := dict.Blocks[1]
+	if val.Type != ast.Func || val.Name != "倍" || len(val.Blocks) != 1 || val.Blocks[0].Value != "それ" {
+		t.Fatalf("辞書の値 = %#v, want 「それ」を引数に持つ関数 倍", val)
 	}
 }
 
