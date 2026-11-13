@@ -20,28 +20,32 @@
 
   function isOpen() { return panel.style.display !== 'none'; }
 
-  // 検索パターンを作る。不正な正規表現は null を返す。
+  // 検索パターンを作る。空の検索語や不正な正規表現は null を返し、
+  // 不正な場合は regexInvalid を立てる (例外は投げない)。
+  let regexInvalid = false;
   function buildRegex() {
+    regexInvalid = false;
     const q = findInput.value;
     if (!q) return null;
     const src = optRegex.checked ? q : q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    try {
-      return new RegExp(src, optCase.checked ? 'gu' : 'giu');
-    } catch (e) {
-      return new RegExp(src, optCase.checked ? 'g' : 'gi');
+    for (const flags of [optCase.checked ? 'gu' : 'giu', optCase.checked ? 'g' : 'gi']) {
+      try {
+        return new RegExp(src, flags);
+      } catch (e) { /* 次のフラグで試す */ }
     }
+    regexInvalid = true;
+    return null;
   }
 
-  function collect() {
+  // limit は一覧表示用の上限。すべて置換では Infinity を渡して全件を集める。
+  function collect(limit = MAX_RESULTS) {
     matches = [];
     current = -1;
     summary.textContent = '';
     summary.style.color = '';
     const text = editor.value;
-    let re;
-    try {
-      re = buildRegex();
-    } catch (e) {
+    const re = buildRegex();
+    if (regexInvalid) {
       summary.textContent = '正規表現が正しくありません';
       summary.style.color = 'var(--accent-pink)';
       render();
@@ -52,7 +56,7 @@
     let truncated = false;
     while ((m = re.exec(text)) !== null) {
       if (m[0] === '') { re.lastIndex++; continue; } // 空一致は無視
-      if (matches.length >= MAX_RESULTS) { truncated = true; break; }
+      if (matches.length >= limit) { truncated = true; break; }
       matches.push({ start: m.index, end: m.index + m[0].length });
     }
     // 行情報を付与 (開始位置は昇順なので1回の走査で足りる)
@@ -142,6 +146,7 @@
     const rep = replaceInput.value;
     if (!optRegex.checked) return rep;
     const re = buildRegex();
+    if (!re) return rep;
     return matchText.replace(new RegExp(re.source, re.flags.replace('g', '')), rep);
   }
 
@@ -169,8 +174,8 @@
 
   function replaceAll() {
     if (editor.readOnly) return;
-    collect();
-    if (matches.length === 0) return;
+    collect(Infinity);
+    if (regexInvalid || matches.length === 0) return;
     const n = matches.length;
     const text = editor.value;
     let out = '', pos = 0;
@@ -183,6 +188,7 @@
     changed();
     collect();
     summary.textContent = `${n}件 置換しました`;
+    summary.style.color = '';
   }
 
   function open() {
@@ -227,6 +233,20 @@
 
   // 編集されたら一致位置が古くなるので再検索する
   editor.addEventListener('input', () => { if (isOpen()) collect(); });
+
+  // app.js はファイル読込・新規作成・自動整形で editor.value を直接書き換え、
+  // input イベントを出さない。value の代入も検知して再検索する。
+  const valueDesc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  if (valueDesc && valueDesc.set) {
+    Object.defineProperty(editor, 'value', {
+      configurable: true,
+      get() { return valueDesc.get.call(this); },
+      set(v) {
+        valueDesc.set.call(this, v);
+        if (isOpen()) collect();
+      },
+    });
+  }
 
   // Ctrl+F / Cmd+F で開く。app.js のハンドラより先に処理する。
   window.addEventListener('keydown', (ev) => {
