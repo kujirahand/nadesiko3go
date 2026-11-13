@@ -66,3 +66,18 @@ func TestCreateManualPages(t *testing.T) {
 		t.Fatalf("再実行: 作成数 = %d, エラー = %v", created, err)
 	}
 }
+
+func TestTypeName(t *testing.T) {
+	cases := map[string]string{
+		"func":  "関数",
+		"const": "定数",
+		"var":   "変数",
+		"":      "関数",
+		"other": "関数",
+	}
+	for in, want := range cases {
+		if got := typeName(in); got != want {
+			t.Errorf("typeName(%q) = %q, 期待値 %q", in, got, want)
+		}
+	}
+}

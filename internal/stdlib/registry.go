@@ -28,60 +28,60 @@ func ParserFuncList() lexer.FuncList {
 		list[name] = &lexer.FuncItem{Name: name, Type: "func", Josi: josi, Pure: true}
 	}
 
-	addConst("はい", true)
-	addConst("いいえ", false)
-	addConst("真", true)
-	addConst("偽", false)
-	addConst("TRUE", true)
-	addConst("FALSE", false)
-	addConst("true", true)
-	addConst("false", false)
-	addConst("永遠", true)
-	addConst("オン", true)
-	addConst("オフ", false)
-	addConst("OK", true)
-	addConst("NG", false)
-	addConst("キャンセル", 0)
-	addConst("PI", math.Pi)
-	addConst("改行", "\n")
-	addConst("CR", "\r")
-	addConst("LF", "\n")
-	addConst("タブ", "\t")
-	addConst("空", "")
-	addConst("非数", math.NaN())
-	addConst("無限大", math.Inf(1))
-	addConst("NULL", nullConst{})
-	addConst("undefined", undefinedConst{})
-	addConst("未定義", undefinedConst{})
-	addConst("エラーメッセージ", "")
-	addConst("対象", "")
-	addConst("対象キー", "")
-	addConst("回数", "")
-	addConst("カッコ", "「")
-	addConst("カッコ閉", "」")
-	addConst("カッコ閉じ", "」")
-	addConst("波カッコ", "{")
-	addConst("波カッコ閉", "}")
-	addConst("ナデシコエンジン", "nadesi.com/v3")
-	addConst("ナデシコバージョン", version.Nadesiko)
-	addConst("ナデシコ言語バージョン", version.Nadesiko)
-	addConst("ナデシコ種類", "?")
-	addConst("プラグイン名", "メイン")
-	addConst("名前空間", "")
-	addConst("表示ログ", "")
-	addConst("全角カナ一覧", fullWidthKana)
-	addConst("全角カナ濁音一覧", fullWidthVoicedKana)
-	addConst("半角カナ一覧", halfWidthKana)
-	addConst("半角カナ濁音一覧", halfWidthVoicedKana)
-	addConst("元号データ", eraDataConst{})
-	addConst("戻値無", 0)
-	addConst("戻値有", 1)
+	addConst("はい", true)                      // @真を表す論理値で、条件判定に使う定数です // @はい
+	addConst("いいえ", false)                    // @偽を表す論理値で、条件判定に使う定数です // @いいえ
+	addConst("真", true)                       // @真を表す論理値で、条件判定に使う定数です // @しん
+	addConst("偽", false)                      // @偽を表す論理値で、条件判定に使う定数です // @ぎ
+	addConst("TRUE", true)                    // @真を表す論理値で、条件判定に使う定数です // @TRUE
+	addConst("FALSE", false)                  // @偽を表す論理値で、条件判定に使う定数です // @FALSE
+	addConst("true", true)                    // @真を表す論理値で、条件判定に使う定数です // @true
+	addConst("false", false)                  // @偽を表す論理値で、条件判定に使う定数です // @false
+	addConst("永遠", true)                      // @常に真であり、無限ループの条件などに使う定数です // @えいえん
+	addConst("オン", true)                      // @有効状態を表す真の論理値定数です // @オン
+	addConst("オフ", false)                     // @無効状態を表す偽の論理値定数です // @オフ
+	addConst("OK", true)                      // @成功または肯定を表す真の論理値定数です // @OK
+	addConst("NG", false)                     // @失敗または否定を表す偽の論理値定数です // @NG
+	addConst("キャンセル", 0)                      // @ダイアログなどでの取消を表す数値定数です // @キャンセル
+	addConst("PI", math.Pi)                   // @円周率を表す math.Pi の数値定数です // @パイ
+	addConst("改行", "\n")                      // @改行文字である LF 文字列を表す定数です // @かいぎょう
+	addConst("CR", "\r")                      // @キャリッジリターン文字を表す文字列定数です // @CR
+	addConst("LF", "\n")                      // @ラインフィード文字を表す文字列定数です // @LF
+	addConst("タブ", "\t")                      // @タブ文字を表す文字列定数です // @タブ
+	addConst("空", "")                         // @長さが零の空文字列を表す定数です // @から
+	addConst("非数", math.NaN())                // @数値ではない値である NaN を表す定数です // @ひすう
+	addConst("無限大", math.Inf(1))              // @正の無限大である +Inf を表す数値定数です // @むげんだい
+	addConst("NULL", nullConst{})             // @null 相当の値を表す定数です // @NULL
+	addConst("undefined", undefinedConst{})   // @未定義値を表す定数です // @undefined
+	addConst("未定義", undefinedConst{})         // @undefined と同じ未定義値を表す定数です // @みていぎ
+	addConst("エラーメッセージ", "")                  // @発生したエラーのメッセージを保持する変数です // @エラーメッセージ
+	addConst("対象", "")                        // @繰り返しや命令で対象となる値を保持する変数です // @たいしょう
+	addConst("対象キー", "")                      // @辞書反復中の現在のキーを保持する変数です // @たいしょうキー
+	addConst("回数", "")                        // @繰り返し処理の現在回数を保持する変数です // @かいすう
+	addConst("カッコ", "「")                      // @開始かぎ括弧「を表す文字列定数です // @カッコ
+	addConst("カッコ閉", "」")                     // @終了かぎ括弧」を表す文字列定数です // @カッコとじ
+	addConst("カッコ閉じ", "」")                    // @終了かぎ括弧」を表すカッコ閉の別名定数です // @カッコとじ
+	addConst("波カッコ", "{")                     // @開始波括弧 { を表す文字列定数です // @なみカッコ
+	addConst("波カッコ閉", "}")                    // @終了波括弧 } を表す文字列定数です // @なみカッコとじ
+	addConst("ナデシコエンジン", "nadesi.com/v3")     // @なでしこエンジン識別子を表す文字列定数です // @ナデシコエンジン
+	addConst("ナデシコバージョン", version.Nadesiko)   // @なでしこのバージョン番号を表す文字列定数です // @ナデシコバージョン
+	addConst("ナデシコ言語バージョン", version.Nadesiko) // @ナデシコバージョンと同じ値を表す定数です // @ナデシコげんごバージョン
+	addConst("ナデシコ種類", "?")                   // @実行環境の種類を保持する初期値 ? の変数です // @ナデシコしゅるい
+	addConst("プラグイン名", "メイン")                 // @現在のプラグイン名を保持するシステム変数です // @プラグインめい
+	addConst("名前空間", "")                      // @現在使用中の名前空間を保持するシステム変数です // @なまえくうかん
+	addConst("表示ログ", "")                      // @表示命令で出力した内容のログを保持する変数です // @ひょうじログ
+	addConst("全角カナ一覧", fullWidthKana)         // @全角カタカナを並べた一覧文字列の定数です // @ぜんかくカナいちらん
+	addConst("全角カナ濁音一覧", fullWidthVoicedKana) // @全角カタカナ濁音を並べた一覧文字列の定数です // @ぜんかくカナだくおんいちらん
+	addConst("半角カナ一覧", halfWidthKana)         // @半角カタカナを並べた一覧文字列の定数です // @はんかくカナいちらん
+	addConst("半角カナ濁音一覧", halfWidthVoicedKana) // @半角カタカナ濁音を並べた一覧文字列の定数です // @はんかくカナだくおんいちらん
+	addConst("元号データ", eraDataConst{})         // @和暦への変換に使用する元号データの定数です // @げんごうデータ
+	addConst("戻値無", 0)                        // @関数の戻り値がないことを表す数値定数です // @もどりちなし
+	addConst("戻値有", 1)                        // @関数の戻り値があることを表す数値定数です // @もどりちあり
 	addFunc("空配列", nil)
 	addFunc("空辞書", nil)
 	addFunc("空ハッシュ", nil)
 	addFunc("空オブジェクト", nil)
 	// 『正規表現マッチ』が部分マッチを入れる先。初期値は空の配列。
-	addConst("抽出文字列", emptyArrayConst{})
+	addConst("抽出文字列", emptyArrayConst{}) // @正規表現マッチの部分一致を格納する変数です // @ちゅうしゅつもじれつ
 
 	addFunc("表示", [][]string{{"を", "と"}})
 	list["表示"].ReturnNone = true

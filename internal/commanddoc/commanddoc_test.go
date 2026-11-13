@@ -3,6 +3,12 @@ package commanddoc
 import (
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/lexer"
+	"github.com/kujirahand/nadesiko3go/internal/nodelib"
+	"github.com/kujirahand/nadesiko3go/internal/officelib"
+	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
+	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 )
 
 func TestCommandsLoadsEmbeddedList(t *testing.T) {
@@ -20,6 +26,60 @@ func TestCommandsLoadsEmbeddedList(t *testing.T) {
 		if cmd.DocURL == "" {
 			t.Fatalf("『%s』のマニュアルURLがありません", cmd.Name)
 		}
+	}
+}
+
+// TestCommandsCoverRuntimeConsts は #474 の回帰防止。
+// ランタイムに登録された定数・システム変数 (FuncItem の Type が const/var) が、
+// 埋め込みの命令一覧にも同じ種別で載っていることを確認する。
+// 落ちた場合は `just gen-const-list` の実行漏れを疑うこと。
+// guilib は cgo (GTK/WebKit) 依存でこのパッケージから import できないため、
+// 代表として『母艦』の収録だけを別途確認する。
+func TestCommandsCoverRuntimeConsts(t *testing.T) {
+	list, err := Commands()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]Command{}
+	for _, cmd := range list {
+		byName[cmd.Name] = cmd
+	}
+	lists := map[string]lexer.FuncList{
+		"stdlib":    stdlib.ParserFuncList(),
+		"nodelib":   nodelib.New().FuncList(),
+		"officelib": officelib.New().FuncList(),
+		"sqlitelib": sqlitelib.New().FuncList(),
+	}
+	checked := 0
+	for src, funcs := range lists {
+		for name, item := range funcs {
+			if item.Type != "const" && item.Type != "var" {
+				continue
+			}
+			checked++
+			cmd, ok := byName[name]
+			if !ok {
+				t.Errorf("%s の定数『%s』が命令一覧にありません (#474)", src, name)
+				continue
+			}
+			if cmd.Type != item.Type {
+				t.Errorf("『%s』の種別が違います: 一覧=%s ランタイム=%s", name, cmd.Type, item.Type)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("検査対象の定数が0件でした")
+	}
+	// PI は Issue #474 の発端。種別・分類・読みまで固定で確認する。
+	pi, ok := byName["PI"]
+	if !ok {
+		t.Fatal("『PI』が命令一覧にありません (#474)")
+	}
+	if pi.Type != "const" || pi.Category != "システム定数" || pi.Yomi != "パイ" {
+		t.Errorf("『PI』の内容が違います: %+v", pi)
+	}
+	if cmd, ok := byName["母艦"]; !ok || cmd.Type != "const" {
+		t.Errorf("guilib の定数『母艦』が命令一覧にありません (#474): %+v", cmd)
 	}
 }
 
