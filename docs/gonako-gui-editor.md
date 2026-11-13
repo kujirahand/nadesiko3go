@@ -41,6 +41,12 @@ GUI版に関する節を独立させたものです。使い方（コマンド�
   `refresh` / `setEnabled` / `destroy` の3つだけを `app.js` が使うので、
   CodeMirror等に置き換えても `app.js` は変えずに済みます
 
+- `ui/lang-syntax.js` --- Markdown / HTML（`<script>`・`<style>` 内はJS・CSS）/ JavaScript / CSS
+  の簡易な色分け定義（#462）。開いたファイルの拡張子（`.md` `.html` `.htm` `.js` `.css` など）
+  に応じて `app.js` の `updateHighlightSyntax` が `setSyntax` で切り替えます。
+  それ以外の拡張子（`.nako3` や新規プログラム）はなでしこの規則のままです。
+  トークン種別は既存の `.tk-*` クラスを流用するので、テーマ側の追加はありません
+
 IME変換中は未確定文字が `textarea` にしか無いため、色分けを止めて
 `textarea` の文字を見せます（`compositionstart` / `compositionend`）。
 

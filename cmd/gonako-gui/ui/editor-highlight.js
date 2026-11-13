@@ -9,6 +9,7 @@
  *   const h = window.GonakoHighlighter.create(textarea, options);
  *   h.refresh();          // textarea.value を反映（プログラムから値を変えた後に呼ぶ）
  *   h.setEnabled(bool);   // 色分けの ON/OFF
+ *   h.setSyntax(syntax);  // 言語定義の切り替え（null でなでしこに戻す）
  *   h.destroy();          // DOMと購読を元に戻す
  * CodeMirror などに置き換える場合も、この3メソッドを持つオブジェクトを
  * 返す create() を用意すれば、app.js 側は変更しなくてよい。
@@ -42,9 +43,10 @@
 
   function create(textarea, options) {
     const opts = options || {};
-    const syntax = opts.syntax || global.NakoSyntax;
+    const defaultSyntax = opts.syntax || global.NakoSyntax;
+    let syntax = defaultSyntax;
     const maxLength = opts.maxLength || 200000;
-    if (!textarea || !syntax || typeof syntax.tokenize !== 'function') {
+    if (!textarea || !defaultSyntax || typeof defaultSyntax.tokenize !== 'function') {
       return null; // シンタックス定義がなければ何もしない（素の textarea のまま）
     }
 
@@ -104,6 +106,15 @@
 
     return {
       refresh: schedule,
+      // ファイルの拡張子などに応じて色分け規則を切り替える。
+      // 未対応の拡張子（null/undefined）はなでしこの規則に戻す。
+      setSyntax: function (next) {
+        const target = (next && typeof next.tokenize === 'function') ? next : defaultSyntax;
+        if (target === syntax) return;
+        syntax = target;
+        lastValue = null;
+        schedule();
+      },
       setEnabled: function (value) {
         enabled = !!value;
         lastValue = null;

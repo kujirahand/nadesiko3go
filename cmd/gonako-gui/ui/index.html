@@ -32,6 +32,11 @@
           <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 3h14l3 3v15H3V3z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg> 保存
         </button>
         <div class="separator"></div>
+        <!-- 検索・置換 -->
+        <button id="btn-search" aria-label="検索・置換" class="btn btn-secondary btn-icon-only" title="検索・置換 (Ctrl+F / Cmd+F)">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+        </button>
+        <div class="separator"></div>
         <!-- 実行 -->
         <button id="btn-run" class="btn btn-primary" title="プログラムを実行 (F5 / Ctrl+R / Cmd+R)">
           <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m8 5 11 7-11 7z"/></svg> 実行 (F5)
@@ -39,11 +44,6 @@
         <!-- 文法チェック -->
         <button id="btn-syntax-check" aria-label="文法チェック" class="btn btn-secondary btn-icon-only" title="文法チェック（実行せずに構文だけ確認します）">
           <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg>
-        </button>
-        <div class="separator"></div>
-        <!-- 検索・置換 -->
-        <button id="btn-search" aria-label="検索・置換" class="btn btn-secondary btn-icon-only" title="検索・置換 (Ctrl+F / Cmd+F)">
-          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
         </button>
         <div class="separator"></div>
         <!-- アプリ種類 -->
@@ -391,6 +391,7 @@
 
   <!-- なでしこ3の文法定義と、それを使う色分け部品。app.js より先に読み込む -->
   <script src="nako-syntax.js"></script>
+  <script src="lang-syntax.js"></script>
   <script src="editor-highlight.js"></script>
   <script src="app.js"></script>
   <script src="search-panel.js"></script>
