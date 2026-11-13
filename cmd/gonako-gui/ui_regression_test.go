@@ -470,32 +470,6 @@ func TestPromptDialogIgnoresIMEEnter(t *testing.T) {
 	}
 }
 
-// 命令一覧をgonako/wnakoで切り替えられること（#101）。
-func TestCommandListSourceSwitch(t *testing.T) {
-	html := readUIAsset(t, "index.html")
-	for _, required := range []string{
-		`id="cmd-source-gonako"`,
-		`id="cmd-source-wnako"`,
-	} {
-		if !strings.Contains(html, required) {
-			t.Fatalf("index.html に命令一覧の切り替えボタン %s がありません", required)
-		}
-	}
-
-	app := readUIAsset(t, "app.js")
-	for _, required := range []string{
-		"const commandCache = { gonako: null, wnako: null }",
-		"bind: 'getWNakoCommandList'",
-		"json: 'command-list-wnako.json'",
-		"localStorage.setItem('gonako-cmd-source', source)",
-		"cmdSourceWnakoBtn.addEventListener('click', () => setCmdSource('wnako'))",
-	} {
-		if !strings.Contains(app, required) {
-			t.Fatalf("app.js に命令一覧の切り替え処理 %q がありません", required)
-		}
-	}
-}
-
 // 文法チェックと自動整形が実行モードの命令セットで行われること（#301）。
 func TestSyntaxCheckFollowsRunMode(t *testing.T) {
 	app := readUIAsset(t, "app.js")
@@ -515,17 +489,17 @@ func TestRunModeSynchronizesCommandListSource(t *testing.T) {
 	app := readUIAsset(t, "app.js")
 	for _, required := range []string{
 		"selectAppType.addEventListener('change', () =>",
-		"setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false)",
-		"async function setCmdSource(source, announce = true)",
+		"setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako')",
+		"async function setCmdSource(source)",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js に実行モードと命令一覧の同期処理 %q がありません", required)
 		}
 	}
 
-	style := readUIAsset(t, "style.css")
-	if !strings.Contains(style, ".sort-btn.active,\n.source-btn.active {") {
-		t.Fatal("命令種別と表示順のアクティブボタンで配色が共有されていません")
+	html := readUIAsset(t, "index.html")
+	if strings.Contains(html, `id="cmd-source-gonako"`) || strings.Contains(html, `id="cmd-source-wnako"`) {
+		t.Fatal("命令一覧の手動切り替えボタンが残っています")
 	}
 }
 
