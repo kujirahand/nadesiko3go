@@ -853,3 +853,19 @@ func TestAutoRunModeRegressionRunsInNode(t *testing.T) {
 		t.Fatalf("実行モードの自動切替: %v\n%s", err, output)
 	}
 }
+
+// 検索・置換ダイアログ (#464) のUI部品が揃っていること。
+func TestSearchPanelAssets(t *testing.T) {
+	html := readUIAsset(t, "index.html")
+	for _, id := range []string{"btn-search", "search-panel", "search-find", "search-replace", "search-results", "search-replace-all", "search-panel.js"} {
+		if !strings.Contains(html, id) {
+			t.Fatalf("index.html に %q がありません", id)
+		}
+	}
+	js := readUIAsset(t, "search-panel.js")
+	for _, want := range []string{"replaceAll", "collect", "'f'"} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("search-panel.js に %q がありません", want)
+		}
+	}
+}

@@ -41,6 +41,11 @@
           <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg>
         </button>
         <div class="separator"></div>
+        <!-- 検索・置換 -->
+        <button id="btn-search" aria-label="検索・置換" class="btn btn-secondary btn-icon-only" title="検索・置換 (Ctrl+F / Cmd+F)">
+          <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+        </button>
+        <div class="separator"></div>
         <!-- アプリ種類 -->
         <div class="app-type-group">
           <label for="select-app-type" class="label-app-type">実行モード:</label>
@@ -189,6 +194,31 @@
           <div class="editor-wrapper">
             <div id="line-numbers" class="line-numbers">1</div>
             <textarea id="editor" class="editor" spellcheck="false" placeholder="ここに なでしこ3 のプログラムを入力してください..."></textarea>
+            <!-- 検索・置換ダイアログ -->
+            <div id="search-panel" class="search-panel" style="display: none;" role="dialog" aria-label="検索・置換">
+              <div class="search-panel-header">
+                <span class="search-panel-title">検索・置換</span>
+                <button id="search-close" class="btn-close-pane" title="閉じる (Esc)" aria-label="閉じる">×</button>
+              </div>
+              <div class="search-row">
+                <input id="search-find" type="text" class="search-input" placeholder="検索する文字列" spellcheck="false" />
+              </div>
+              <div class="search-row">
+                <input id="search-replace" type="text" class="search-input" placeholder="置換後の文字列" spellcheck="false" />
+              </div>
+              <div class="search-options">
+                <label><input type="checkbox" id="search-case" /> 大文字小文字を区別</label>
+                <label><input type="checkbox" id="search-regex" /> 正規表現</label>
+              </div>
+              <div class="search-row search-buttons">
+                <button id="search-prev" class="btn-sm">↑ 前へ</button>
+                <button id="search-next" class="btn-sm">↓ 次へ</button>
+                <button id="search-replace-one" class="btn-sm">置換</button>
+                <button id="search-replace-all" class="btn-sm">すべて置換</button>
+              </div>
+              <div id="search-summary" class="search-summary"></div>
+              <ul id="search-results" class="search-results"></ul>
+            </div>
           </div>
         </section>
 
@@ -306,6 +336,10 @@
                 <td>すべて選択</td>
               </tr>
               <tr>
+                <td><kbd>Ctrl</kbd> + <kbd>F</kbd> / <kbd>Cmd</kbd> + <kbd>F</kbd></td>
+                <td>検索・置換</td>
+              </tr>
+              <tr>
                 <td><kbd>Tab</kbd></td>
                 <td>タブ文字（インデント）を挿入</td>
               </tr>
@@ -359,5 +393,6 @@
   <script src="nako-syntax.js"></script>
   <script src="editor-highlight.js"></script>
   <script src="app.js"></script>
+  <script src="search-panel.js"></script>
 </body>
 </html>

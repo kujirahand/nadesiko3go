@@ -1614,3 +1614,58 @@ kbd {
 .help-field-syntax .help-field-label { width: 100%; }
 .help-field-syntax .help-code { flex: 1; min-width: 0; }
 .help-field-syntax .help-insert-button { flex-shrink: 0; }
+
+/* 検索・置換ダイアログ (エディタ右上に重ねて表示) */
+.editor-wrapper { position: relative; }
+.search-panel {
+  position: absolute;
+  top: 8px;
+  right: 18px;
+  width: 360px;
+  max-width: calc(100% - 28px);
+  max-height: calc(100% - 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px var(--shade-strong);
+  z-index: 20;
+  font-size: 12px;
+  color: var(--text-main);
+}
+.search-panel-header { display: flex; align-items: center; justify-content: space-between; }
+.search-panel-title { font-weight: 600; }
+.search-row { display: flex; gap: 6px; }
+.search-row .search-input { flex: 1; min-width: 0; }
+.search-options { display: flex; gap: 12px; color: var(--text-muted); }
+.search-options label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+.search-buttons { flex-wrap: wrap; }
+.search-summary { color: var(--text-muted); min-height: 1.2em; }
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  max-height: 260px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-editor);
+  font-family: var(--font-mono);
+}
+.search-results:empty { display: none; }
+.search-results li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.search-results li:hover { background: var(--bg-hover); }
+.search-results li.current { background: var(--bg-active); }
+.search-results .sr-line { color: var(--text-muted); min-width: 3.5em; text-align: right; }
+.search-results .sr-text { overflow: hidden; text-overflow: ellipsis; }
+.search-results mark { background: var(--accent-yellow); color: var(--text-on-accent); border-radius: 2px; }
