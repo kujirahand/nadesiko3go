@@ -211,8 +211,8 @@
   $('search-prev').addEventListener('click', () => step(-1));
   $('search-replace-one').addEventListener('click', replaceOne);
   $('search-replace-all').addEventListener('click', replaceAll);
-  [findInput, optCase, optRegex].forEach((el) => el.addEventListener('input', collect));
-  [optCase, optRegex].forEach((el) => el.addEventListener('change', collect));
+  [findInput, optCase, optRegex].forEach((el) => el.addEventListener('input', () => collect()));
+  [optCase, optRegex].forEach((el) => el.addEventListener('change', () => collect()));
 
   list.addEventListener('click', (ev) => {
     const li = ev.target.closest('li');
