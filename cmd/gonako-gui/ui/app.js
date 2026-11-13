@@ -1166,7 +1166,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 変更検知と保存確認 ---
+  // 拡張子に応じて色分け規則を切り替える（Markdown/HTML/JS/CSS。それ以外はなでしこ）
+  function updateHighlightSyntax() {
+    if (!highlighter || !highlighter.setSyntax || !window.LangSyntax) return;
+    const ext = (/\.([^.\\/]+)$/.exec(currentFileDisplayName) || ['', ''])[1];
+    highlighter.setSyntax(window.LangSyntax.forExtension(ext));
+  }
+
   function updateFileTitleDisplay() {
+    updateHighlightSyntax();
     document.querySelectorAll('#file-list .list-item').forEach(item => {
       item.classList.toggle('selected', !!currentFilePath && item.dataset.path === currentFilePath);
     });
