@@ -326,6 +326,22 @@ func TestNewFolderAutomaticallyScaffoldsAIProject(t *testing.T) {
 	}
 }
 
+func TestNewProjectUsesDocumentsFolder(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	start := strings.Index(app, "async function newProject()")
+	if start < 0 {
+		t.Fatal("新規プロジェクト処理がありません")
+	}
+	end := strings.Index(app[start:], "if (menuItemNewFile)")
+	if end < 0 {
+		t.Fatal("新規プロジェクト処理がありません")
+	}
+	handler := app[start : start+end]
+	if !strings.Contains(handler, "documentsDirPath || homeDirPath, name") {
+		t.Fatal("ドキュメントフォルダが指定されていません")
+	}
+}
+
 func TestAIProjectTemplateMenuIsWired(t *testing.T) {
 	html := readUIAsset(t, "index.html")
 	for _, required := range []string{`id="menu-item-ai-project"`, "AI用の雛形を作成"} {
@@ -342,7 +358,7 @@ func TestAIProjectTemplateMenuIsWired(t *testing.T) {
 		"window.createAIProject(targetDir)",
 		"activateTab(tabBtnFile, tabContentFile)",
 		"await loadDirectory(data.path)",
-		"AGENTS.md", "CLAUDE.md",
+		"AGENTS.md",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js is missing AI project behavior %q", required)

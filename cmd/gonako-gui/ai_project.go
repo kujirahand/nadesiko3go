@@ -12,11 +12,10 @@ var aiDevelopmentGuide string
 
 var aiProjectFiles = map[string]string{
 	"AGENTS.md": aiDevelopmentGuide,
-	"CLAUDE.md": aiDevelopmentGuide,
 }
 
 // createAIProject は既存のプロジェクトフォルダへAI向けの指示ファイルを作る。
-// どちらかのファイルが既にある場合は、片方だけ作ることも上書きもせずに終了する。
+// ファイルが既にある場合は上書きせずに終了する。
 func createAIProject(projectDir string) (string, []string, error) {
 	absDir, err := filepath.Abs(projectDir)
 	if err != nil {
@@ -30,7 +29,7 @@ func createAIProject(projectDir string) (string, []string, error) {
 		return "", nil, fmt.Errorf("フォルダではありません: %s", absDir)
 	}
 
-	for _, fileName := range []string{"AGENTS.md", "CLAUDE.md"} {
+	for _, fileName := range []string{"AGENTS.md"} {
 		filePath := filepath.Join(absDir, fileName)
 		if _, err := os.Lstat(filePath); err == nil {
 			return "", nil, fmt.Errorf("%sは既に存在します。上書きしません", filePath)
@@ -40,7 +39,7 @@ func createAIProject(projectDir string) (string, []string, error) {
 	}
 
 	created := make([]string, 0, len(aiProjectFiles))
-	for _, fileName := range []string{"AGENTS.md", "CLAUDE.md"} {
+	for _, fileName := range []string{"AGENTS.md"} {
 		filePath := filepath.Join(absDir, fileName)
 		file, err := os.OpenFile(filePath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
 		createdCurrent := err == nil

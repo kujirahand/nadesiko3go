@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let parentDirPath = '';
   let homeDirPath = '';
   let desktopDirPath = '';
+  let documentsDirPath = '';
   let hasLoadedFileList = false;
   let isLoadingFileList = false;
   let currentFilePath = '';
@@ -973,7 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const confirmed = await showConfirmDialog(
       'AI用の雛形を作成',
-      `次のフォルダへAGENTS.mdとCLAUDE.mdを作成します。\n既存のファイルは上書きしません。\n\n${targetDir}`,
+      `次のフォルダへAGENTS.mdを作成します。\n既存のファイルは上書きしません。\n\n${targetDir}`,
       '作成'
     );
     if (!confirmed) return;
@@ -992,7 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
       activateTab(tabBtnFile, tabContentFile);
       toggleSidebar(false);
       await loadDirectory(data.path);
-      const files = (data.files || ['AGENTS.md', 'CLAUDE.md']).join('\n');
+      const files = (data.files || ['AGENTS.md']).join('\n');
       setStatus(`AI用の雛形を作成しました: ${data.path}`);
       await showAlertDialog('AI用の雛形を作成しました', `${data.path}\n\n作成したファイル:\n${files}`);
     } catch (err) {
@@ -1975,7 +1976,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiRes = await window.createAIProject(data.path);
             const aiData = typeof aiRes === 'string' ? JSON.parse(aiRes) : aiRes;
             if (aiData.ok) {
-              statusMsg += '（AGENTS.md/CLAUDE.mdも用意しました）';
+              statusMsg += '（AGENTS.mdも用意しました）';
             }
           } catch (err) {
             console.error('AI用の雛形の自動作成エラー:', err);
@@ -2039,7 +2040,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await window.createNewFolder(
-        currentDirPath || desktopDirPath || homeDirPath, name
+        documentsDirPath || homeDirPath, name
       );
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (!data.ok) {
@@ -2052,7 +2053,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const aiRes = await window.createAIProject(data.path);
         const aiData = typeof aiRes === 'string' ? JSON.parse(aiRes) : aiRes;
         if (aiData.ok) {
-          statusMsg += '（AGENTS.md/CLAUDE.mdも用意しました）';
+          statusMsg += '（AGENTS.mdも用意しました）';
         }
       } catch (err) {
         console.error('AI用の雛形の自動作成エラー:', err);
@@ -3192,6 +3193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         versionInfo.textContent = `gonako-gui v${currentAppVersion} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
         desktopDirPath = info.desktopDir || homeDirPath;
+        documentsDirPath = info.documentsDir || homeDirPath;
         if (!currentDirPath) {
           currentDirPath = desktopDirPath;
           currentDirDisplay.textContent = currentDirPath;

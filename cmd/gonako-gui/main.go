@@ -71,12 +71,13 @@ type RunResult struct {
 
 // AppInfo contains metadata about the running gonako-gui application.
 type AppInfo struct {
-	Version     string `json:"version"`
-	OS          string `json:"os"`
-	Arch        string `json:"arch"`
-	HomeDir     string `json:"homeDir"`
-	DesktopDir  string `json:"desktopDir"`
-	InitialFile string `json:"initialFile,omitempty"`
+	Version      string `json:"version"`
+	OS           string `json:"os"`
+	Arch         string `json:"arch"`
+	HomeDir      string `json:"homeDir"`
+	DesktopDir   string `json:"desktopDir"`
+	DocumentsDir string `json:"documentsDir"`
+	InitialFile  string `json:"initialFile,omitempty"`
 	// WNako3Version は同梱したブラウザ版なでしこ（wnako3.js）の版（#63）。
 	WNako3Version string `json:"wnako3Version,omitempty"`
 }
@@ -943,12 +944,13 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	_ = w.Bind("getAppInfo", func() string {
 		home, _ := os.UserHomeDir()
 		info := AppInfo{
-			Version:     appVersion,
-			OS:          runtime.GOOS,
-			Arch:        runtime.GOARCH,
-			HomeDir:     home,
-			DesktopDir:  getDesktopDir(),
-			InitialFile: initialFile,
+			Version:      appVersion,
+			OS:           runtime.GOOS,
+			Arch:         runtime.GOARCH,
+			HomeDir:      home,
+			DesktopDir:   getDesktopDir(),
+			DocumentsDir: deskutil.DocumentsDir(),
+			InitialFile:  initialFile,
 
 			WNako3Version: readWNako3Info().Version,
 		}
