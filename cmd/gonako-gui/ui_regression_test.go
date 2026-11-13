@@ -337,7 +337,7 @@ func TestNewProjectUsesDocumentsFolder(t *testing.T) {
 		t.Fatal("新規プロジェクト処理がありません")
 	}
 	handler := app[start : start+end]
-	if !strings.Contains(handler, "documentsDirPath || homeDirPath, name") {
+	if !strings.Contains(handler, "'$DOCUMENTS', name") {
 		t.Fatal("ドキュメントフォルダが指定されていません")
 	}
 }

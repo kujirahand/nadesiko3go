@@ -3,8 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 )
 
 func TestCreateNewFolder(t *testing.T) {
@@ -19,6 +22,25 @@ func TestCreateNewFolder(t *testing.T) {
 	}
 	if info, err := os.Stat(created); err != nil || !info.IsDir() {
 		t.Fatalf("folder was not created: info=%v err=%v", info, err)
+	}
+}
+
+func TestCreateNewFolderInDocuments(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windowsではレジストリの設定を使用する")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	documents := deskutil.DocumentsDir()
+	if err := os.MkdirAll(documents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := createNewFolder("$DOCUMENTS", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Join(documents, "project") {
+		t.Fatalf("作成先 = %q", got)
 	}
 }
 

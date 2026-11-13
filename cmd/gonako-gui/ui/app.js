@@ -151,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let parentDirPath = '';
   let homeDirPath = '';
   let desktopDirPath = '';
-  let documentsDirPath = '';
   let hasLoadedFileList = false;
   let isLoadingFileList = false;
   let currentFilePath = '';
@@ -2040,7 +2039,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const res = await window.createNewFolder(
-        documentsDirPath || homeDirPath, name
+        '$DOCUMENTS', name
       );
       const data = typeof res === 'string' ? JSON.parse(res) : res;
       if (!data.ok) {
@@ -3193,7 +3192,6 @@ document.addEventListener('DOMContentLoaded', () => {
         versionInfo.textContent = `gonako-gui v${currentAppVersion} (${info.os}/${info.arch})`;
         homeDirPath = info.homeDir || '';
         desktopDirPath = info.desktopDir || homeDirPath;
-        documentsDirPath = info.documentsDir || homeDirPath;
         if (!currentDirPath) {
           currentDirPath = desktopDirPath;
           currentDirDisplay.textContent = currentDirPath;
