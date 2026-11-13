@@ -18,3 +18,12 @@ func Dir() string {
 	}
 	return filepath.Join(dir, "Desktop")
 }
+
+// DocumentsDir はドキュメントフォルダのパスを返す。
+func DocumentsDir() string {
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "Documents")
+}

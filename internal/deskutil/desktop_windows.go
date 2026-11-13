@@ -33,3 +33,21 @@ func Dir() string {
 	}
 	return filepath.Join(dir, "Desktop")
 }
+
+// DocumentsDir は移動された場合も含めドキュメントフォルダのパスを返す。
+func DocumentsDir() string {
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders`, registry.QUERY_VALUE)
+	if err == nil {
+		defer k.Close()
+		if raw, _, err := k.GetStringValue("Personal"); err == nil {
+			if expanded, err := registry.ExpandString(raw); err == nil && expanded != "" {
+				return expanded
+			}
+		}
+	}
+	dir, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "Documents")
+}

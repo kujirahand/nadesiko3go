@@ -3,8 +3,11 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 )
 
 func TestCreateNewFolder(t *testing.T) {
@@ -19,6 +22,25 @@ func TestCreateNewFolder(t *testing.T) {
 	}
 	if info, err := os.Stat(created); err != nil || !info.IsDir() {
 		t.Fatalf("folder was not created: info=%v err=%v", info, err)
+	}
+}
+
+func TestCreateNewFolderInDocuments(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windowsではレジストリの設定を使用する")
+	}
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	documents := deskutil.DocumentsDir()
+	if err := os.MkdirAll(documents, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := createNewFolder("$DOCUMENTS", "project")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Join(documents, "project") {
+		t.Fatalf("作成先 = %q", got)
 	}
 }
 
@@ -39,11 +61,15 @@ func TestCreateAIProject(t *testing.T) {
 	if gotPath != projectPath {
 		t.Fatalf("project path = %q, want %q", gotPath, projectPath)
 	}
-	if got := aiProjectFileNames(files); len(got) != 2 || got[0] != "AGENTS.md" || got[1] != "CLAUDE.md" {
+	if got := aiProjectFileNames(files); len(got) != 1 || got[0] != "AGENTS.md" {
 		t.Fatalf("created files = %#v", got)
 	}
 
-	for _, name := range []string{"AGENTS.md", "CLAUDE.md"} {
+	if _, err := os.Stat(filepath.Join(projectPath, "CLAUDE.md")); !os.IsNotExist(err) {
+		t.Fatalf("CLAUDE.mdを作成してしまった: %v", err)
+	}
+
+	for _, name := range []string{"AGENTS.md"} {
 		data, err := os.ReadFile(filepath.Join(projectPath, name))
 		if err != nil {
 			t.Fatal(err)
@@ -59,6 +85,24 @@ func TestCreateAIProject(t *testing.T) {
 				t.Errorf("%sに%qがありません", name, required)
 			}
 		}
+	}
+}
+
+func TestCreateAIProjectKeepsExistingClaudeFile(t *testing.T) {
+	projectPath := t.TempDir()
+	path := filepath.Join(projectPath, "CLAUDE.md")
+	if err := os.WriteFile(path, []byte("残す"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := createAIProject(projectPath); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "残す" {
+		t.Fatalf("CLAUDE.mdが変更された: %q, %v", data, err)
+	}
+	if _, err := os.Stat(filepath.Join(projectPath, "AGENTS.md")); err != nil {
+		t.Fatal(err)
 	}
 }
 

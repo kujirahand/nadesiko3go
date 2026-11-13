@@ -446,7 +446,12 @@ func listFiles(dirPath string) DirListing {
 }
 
 func createNewFolder(dirPath, name string) (string, error) {
-	if dirPath == "" || dirPath == "$DESKTOP" {
+	if dirPath == "$DOCUMENTS" {
+		dirPath = deskutil.DocumentsDir()
+		if dirPath == "" {
+			return "", fmt.Errorf("ドキュメントフォルダを取得できません")
+		}
+	} else if dirPath == "" || dirPath == "$DESKTOP" {
 		dirPath = getDesktopDir()
 	} else if dirPath == "~" || dirPath == "$HOME" {
 		home, err := os.UserHomeDir()
