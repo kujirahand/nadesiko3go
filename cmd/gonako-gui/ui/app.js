@@ -106,8 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const cmdCount = document.getElementById('cmd-count');
   const cmdSearchClear = document.getElementById('cmd-search-clear');
   const cmdList = document.getElementById('cmd-list');
-  const cmdSourceGonakoBtn = document.getElementById('cmd-source-gonako');
-  const cmdSourceWnakoBtn = document.getElementById('cmd-source-wnako');
   const cmdSortGroupBtn = document.getElementById('cmd-sort-group');
   const cmdSortNameBtn = document.getElementById('cmd-sort-name');
   // 通常はグループのルートだけを表示し、利用者が開いたものだけを記録する。
@@ -292,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mode = selectAppType.value;
     updateRunModeBadge();
     // ブラウザ版で実行するときはwnako、それ以外はGo版の命令一覧を表示する（#124）。
-    setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako', false);
+    setCmdSource(mode === 'wnako3' ? 'wnako' : 'gonako');
     // ひな形も実行モードに合わせて絞り込む（#445）。
     templateModeFilterEnabled = true;
     applyTemplateFilters();
@@ -1399,29 +1397,12 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   }
 
-  // setCmdSource は命令一覧をgonako/wnakoで切り替える（#101）。
-  async function setCmdSource(source, announce = true) {
-    if (source !== 'wnako') source = 'gonako';
-    cmdSource = source;
-    localStorage.setItem('gonako-cmd-source', source);
-    cmdSourceGonakoBtn.classList.toggle('active', source === 'gonako');
-    cmdSourceWnakoBtn.classList.toggle('active', source === 'wnako');
+  // 実行モードに合わせて命令一覧を切り替える。
+  async function setCmdSource(source) {
+    cmdSource = source === 'wnako' ? 'wnako' : 'gonako';
     expandedCmdGroups.clear();
-    const applied = await loadCommands();
-    // 取得中にさらに切り替えられて反映されなかった場合、この呼び出しの
-    // 完了メッセージは現在の状態と食い違うので出さない（後の切替処理に任せる）。
-    if (!applied) return;
-    if (announce) {
-      setStatus(source === 'wnako'
-        ? '命令一覧を wnako (本家ブラウザ版) に切り替えました'
-        : '命令一覧を gonako (Go版) に切り替えました');
-    }
+    await loadCommands();
   }
-
-  cmdSourceGonakoBtn.addEventListener('click', () => setCmdSource('gonako'));
-  cmdSourceWnakoBtn.addEventListener('click', () => setCmdSource('wnako'));
-  cmdSourceGonakoBtn.classList.toggle('active', cmdSource === 'gonako');
-  cmdSourceWnakoBtn.classList.toggle('active', cmdSource === 'wnako');
 
   function hideDocPreview() {
     selectOutputTab('result');
@@ -3009,8 +2990,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // isWNakoRunMode は実行モードがブラウザ(wnako3)かを返す。命令一覧の
-  // gonako/wnako切り替え（cmdSource）は利用者が手で変えられる表示上の選択なので、
   // 文法チェックや整形の命令セットは実行モードで決める（#301）。
   function isWNakoRunMode() {
     return selectAppType.value === 'wnako3';

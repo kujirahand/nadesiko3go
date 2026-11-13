@@ -621,40 +621,10 @@ body {
   color: var(--text-main);
 }
 
-.sort-btn.active,
-.source-btn.active {
+.sort-btn.active {
   color: var(--text-main);
   background-color: var(--overlay-strong);
   border-color: var(--border-color);
-}
-
-/* 命令一覧の切り替え gonako / wnako (#101) */
-.cmd-source-switch {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 6px;
-  flex: none;
-}
-
-.cmd-source-label {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.source-btn {
-  flex: 1;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.source-btn:hover {
-  color: var(--text-main);
 }
 
 /* 命令一覧のグループ（ツリー）表示 */

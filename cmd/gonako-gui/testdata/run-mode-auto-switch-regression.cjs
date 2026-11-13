@@ -157,7 +157,7 @@ assert.equal(
   'wnako3'
 );
 assert.equal(selectAppType.value, 'wnako3');
-assert.deepEqual(cmdSources.at(-1), ['wnako', false]);
+assert.deepEqual(cmdSources.at(-1), ['wnako']);
 assert.equal(evaluate('templateModeFilterEnabled'), true);
 assert.equal(filterCalls, 1);
 
