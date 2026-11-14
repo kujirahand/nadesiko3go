@@ -50,25 +50,45 @@ func TestCommandsCoverRuntimeConsts(t *testing.T) {
 		"officelib": officelib.New().FuncList(),
 		"sqlitelib": sqlitelib.New().FuncList(),
 	}
-	checked := 0
-	for src, funcs := range lists {
+	expected := map[string]string{}
+	for _, funcs := range lists {
 		for name, item := range funcs {
-			if item.Type != "const" && item.Type != "var" {
-				continue
+			if item.Type == "const" || item.Type == "var" {
+				expected[name] = item.Type
 			}
-			checked++
-			cmd, ok := byName[name]
-			if !ok {
-				t.Errorf("%s の定数『%s』が命令一覧にありません (#474)", src, name)
-				continue
-			}
-			if cmd.Type != item.Type {
-				t.Errorf("『%s』の種別が違います: 一覧=%s ランタイム=%s", name, cmd.Type, item.Type)
-			}
+		}
+	}
+	// guilib は import できないため、定数名を明示して期待値に加える。
+	for _, name := range []string{
+		"ドロップファイル", "フォーム値", "フォームチェック", "DOM親要素",
+		"DOMスキン", "DOMスキン辞書", "DOM部品オプション", "母艦",
+	} {
+		expected[name] = "const"
+	}
+	checked := 0
+	for name, typ := range expected {
+		checked++
+		cmd, ok := byName[name]
+		if !ok {
+			t.Errorf("定数『%s』が命令一覧にありません (#474)", name)
+			continue
+		}
+		if cmd.Type != typ {
+			t.Errorf("『%s』の種別が違います: 一覧=%s ランタイム=%s", name, cmd.Type, typ)
 		}
 	}
 	if checked == 0 {
 		t.Fatal("検査対象の定数が0件でした")
+	}
+	// 逆方向: 一覧にある const/var が、ランタイム側に実在することも確認する。
+	// ソースで削除・改名した定数が一覧に残り続ける事故を検知するため。
+	for _, cmd := range list {
+		if cmd.Type != "const" && cmd.Type != "var" {
+			continue
+		}
+		if _, ok := expected[cmd.Name]; !ok {
+			t.Errorf("一覧の『%s』(%s) がランタイム登録にありません。削除・改名の反映漏れではありませんか (#474)", cmd.Name, cmd.Type)
+		}
 	}
 	// PI は Issue #474 の発端。種別・分類・読みまで固定で確認する。
 	pi, ok := byName["PI"]
