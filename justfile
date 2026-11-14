@@ -197,6 +197,10 @@ gen-const-list:
 gen-manual: gen-command-list
     {{go}} run ./scripts/gen-manual.go
 
+# 命令一覧の関数・定数・変数に対応するマニュアルの有無を確認する
+check-manual:
+    python3 scripts/check-manual.py
+
 # wnako(本家ブラウザ版)の命令一覧を生成する（GUIエディタの[wnako]表示用 / #101）
 # 入力は just copy-nadesiko3 が取り込む ui/wnako3/command.json.js
 gen-wnako-command-list:
