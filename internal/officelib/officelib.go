@@ -47,7 +47,7 @@ type command struct {
 
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{
-		"OFFICEバージョン": {Name: "OFFICEバージョン", Type: "const", Value: officeVersion},
+		"OFFICEバージョン": {Name: "OFFICEバージョン", Type: "const", Value: officeVersion}, // @Office命令プラグインの版を表す文字列定数です // @OFFICEバージョン
 	}
 	for name, cmd := range p.commands() {
 		list[name] = &lexer.FuncItem{Name: name, Type: "func", Josi: cmd.josi, Pure: false, ReturnNone: cmd.returnNone}

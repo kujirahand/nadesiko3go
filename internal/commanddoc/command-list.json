@@ -38,6 +38,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FAJAX_JSON%E5%8F%96%E5%BE%97"
   },
   {
+    "name": "AJAXオプション",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "AJAX命令で使うオプションを保持する変数です",
+    "template": "AJAXオプション",
+    "yomi": "AJAXオプション",
+    "file": "internal/nodelib/file.go",
+    "line": 30,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L30",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FAJAX%E3%82%AA%E3%83%97%E3%82%B7%E3%83%A7%E3%83%B3"
+  },
+  {
     "name": "AJAXオプション設定",
     "type": "func",
     "josi": [
@@ -532,6 +546,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FCPU%E4%BD%BF%E7%94%A8%E7%8E%87%E5%8F%96%E5%BE%97"
   },
   {
+    "name": "CR",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "キャリッジリターン文字を表す文字列定数です",
+    "template": "CR",
+    "yomi": "CR",
+    "file": "internal/stdlib/registry.go",
+    "line": 47,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L47",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FCR"
+  },
+  {
     "name": "CSVオプション設定",
     "type": "func",
     "josi": [
@@ -659,6 +687,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDISCORD%E9%80%81%E4%BF%A1"
   },
   {
+    "name": "DOMスキン",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "DOM部品に使うスキン名を保持するシステム変数です",
+    "template": "DOMスキン",
+    "yomi": "DOMスキン",
+    "file": "internal/guilib/guilib.go",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L77",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E3%82%B9%E3%82%AD%E3%83%B3"
+  },
+  {
     "name": "DOMスキン設定",
     "type": "func",
     "josi": [
@@ -677,6 +719,20 @@
     "line": 147,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L147",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E3%82%B9%E3%82%AD%E3%83%B3%E8%A8%AD%E5%AE%9A"
+  },
+  {
+    "name": "DOMスキン辞書",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "DOM部品のスキン定義を保持する辞書変数です",
+    "template": "DOMスキン辞書",
+    "yomi": "DOMスキンじしょ",
+    "file": "internal/guilib/guilib.go",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L78",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E3%82%B9%E3%82%AD%E3%83%B3%E8%BE%9E%E6%9B%B8"
   },
   {
     "name": "DOMスタイル一括設定",
@@ -909,6 +965,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E8%A6%81%E7%B4%A0%E5%8F%96%E5%BE%97"
   },
   {
+    "name": "DOM親要素",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "DOM操作の親要素番号を保持するシステム変数です",
+    "template": "DOM親要素",
+    "yomi": "DOMおやようそ",
+    "file": "internal/guilib/guilib.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L76",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E8%A6%AA%E8%A6%81%E7%B4%A0"
+  },
+  {
     "name": "DOM親要素設定",
     "type": "func",
     "josi": [
@@ -945,6 +1015,20 @@
     "line": 139,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L139",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E8%A6%AA%E9%83%A8%E5%93%81%E8%A8%AD%E5%AE%9A"
+  },
+  {
+    "name": "DOM部品オプション",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "DOM部品の表示オプションを保持する辞書変数です",
+    "template": "DOM部品オプション",
+    "yomi": "DOMぶひんオプション",
+    "file": "internal/guilib/guilib.go",
+    "line": 86,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L86",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FDOM%E9%83%A8%E5%93%81%E3%82%AA%E3%83%97%E3%82%B7%E3%83%A7%E3%83%B3"
   },
   {
     "name": "DOM部品作成",
@@ -1041,6 +1125,20 @@
     "line": 55,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/mathlib/mathlib.go#L55",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_math%2FEXP"
+  },
+  {
+    "name": "FALSE",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "偽を表す論理値で、条件判定に使う定数です",
+    "template": "FALSE",
+    "yomi": "FALSE",
+    "file": "internal/stdlib/registry.go",
+    "line": 36,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L36",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FFALSE"
   },
   {
     "name": "FLOAT",
@@ -1467,6 +1565,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FLEN"
   },
   {
+    "name": "LF",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "ラインフィード文字を表す文字列定数です",
+    "template": "LF",
+    "yomi": "LF",
+    "file": "internal/stdlib/registry.go",
+    "line": 48,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L48",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FLF"
+  },
+  {
     "name": "LN",
     "type": "func",
     "josi": [
@@ -1610,6 +1722,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FNAN%E5%88%A4%E5%AE%9A"
   },
   {
+    "name": "NG",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "失敗または否定を表す偽の論理値定数です",
+    "template": "NG",
+    "yomi": "NG",
+    "file": "internal/stdlib/registry.go",
+    "line": 43,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L43",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FNG"
+  },
+  {
     "name": "NOT",
     "type": "func",
     "josi": [
@@ -1626,6 +1752,48 @@
     "line": 86,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L86",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FNOT"
+  },
+  {
+    "name": "NULL",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "null 相当の値を表す定数です",
+    "template": "NULL",
+    "yomi": "NULL",
+    "file": "internal/stdlib/registry.go",
+    "line": 53,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L53",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FNULL"
+  },
+  {
+    "name": "OFFICEバージョン",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "Excel",
+    "desc": "Office命令プラグインの版を表す文字列定数です",
+    "template": "OFFICEバージョン",
+    "yomi": "OFFICEバージョン",
+    "file": "internal/officelib/officelib.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/officelib/officelib.go#L50",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FOFFICE%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3"
+  },
+  {
+    "name": "OK",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "成功または肯定を表す真の論理値定数です",
+    "template": "OK",
+    "yomi": "OK",
+    "file": "internal/stdlib/registry.go",
+    "line": 42,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L42",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FOK"
   },
   {
     "name": "OR",
@@ -1906,6 +2074,20 @@
     "line": 91,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/pdflib/pdflib.go#L91",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FPDF%E9%96%89"
+  },
+  {
+    "name": "PI",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "円周率を表す math.Pi の数値定数です",
+    "template": "PI",
+    "yomi": "パイ",
+    "file": "internal/stdlib/registry.go",
+    "line": 45,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L45",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FPI"
   },
   {
     "name": "POSTデータ生成",
@@ -2352,6 +2534,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FSJIS%E5%A4%89%E6%8F%9B"
   },
   {
+    "name": "SQLITE3今挿入ID",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "SQLite",
+    "desc": "SQLiteで最後に挿入した行IDを保持する変数です",
+    "template": "SQLITE3今挿入ID",
+    "yomi": "SQLITE3いまそうにゅうID",
+    "file": "internal/sqlitelib/sqlitelib.go",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/sqlitelib/sqlitelib.go#L70",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FSQLITE3%E4%BB%8A%E6%8C%BF%E5%85%A5ID"
+  },
+  {
     "name": "SQLITE3全取得",
     "type": "func",
     "josi": [
@@ -2707,6 +2903,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FTOSTR"
   },
   {
+    "name": "TRUE",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "真を表す論理値で、条件判定に使う定数です",
+    "template": "TRUE",
+    "yomi": "TRUE",
+    "file": "internal/stdlib/registry.go",
+    "line": 35,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L35",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FTRUE"
+  },
+  {
     "name": "TSV取得",
     "type": "func",
     "josi": [
@@ -2887,6 +3097,62 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FXOR"
   },
   {
+    "name": "false",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "偽を表す論理値で、条件判定に使う定数です",
+    "template": "false",
+    "yomi": "false",
+    "file": "internal/stdlib/registry.go",
+    "line": 38,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L38",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2Ffalse"
+  },
+  {
+    "name": "true",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "真を表す論理値で、条件判定に使う定数です",
+    "template": "true",
+    "yomi": "true",
+    "file": "internal/stdlib/registry.go",
+    "line": 37,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L37",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2Ftrue"
+  },
+  {
+    "name": "undefined",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "未定義値を表す定数です",
+    "template": "undefined",
+    "yomi": "undefined",
+    "file": "internal/stdlib/registry.go",
+    "line": 54,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L54",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2Fundefined"
+  },
+  {
+    "name": "いいえ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "偽を表す論理値で、条件判定に使う定数です",
+    "template": "いいえ",
+    "yomi": "いいえ",
+    "file": "internal/stdlib/registry.go",
+    "line": 32,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L32",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%81%84%E3%81%84%E3%81%88"
+  },
+  {
     "name": "お願",
     "type": "func",
     "josi": null,
@@ -2947,6 +3213,20 @@
     "line": 167,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L167",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%81%A7%E3%81%99"
+  },
+  {
+    "name": "はい",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "真を表す論理値で、条件判定に使う定数です",
+    "template": "はい",
+    "yomi": "はい",
+    "file": "internal/stdlib/registry.go",
+    "line": 31,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L31",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%81%AF%E3%81%84"
   },
   {
     "name": "べき乗",
@@ -3465,6 +3745,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF%E4%BD%9C%E6%88%90"
   },
   {
+    "name": "エラーメッセージ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "発生したエラーのメッセージを保持する変数です",
+    "template": "エラーメッセージ",
+    "yomi": "エラーメッセージ",
+    "file": "internal/stdlib/registry.go",
+    "line": 56,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L56",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%A8%E3%83%A9%E3%83%BC%E3%83%A1%E3%83%83%E3%82%BB%E3%83%BC%E3%82%B8"
+  },
+  {
     "name": "エラー発生",
     "type": "func",
     "josi": [
@@ -3526,6 +3820,34 @@
     "line": 128,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/encoding.go#L128",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%A8%E3%83%B3%E3%82%B3%E3%83%BC%E3%83%87%E3%82%A3%E3%83%B3%E3%82%B0%E5%A4%89%E6%8F%9B"
+  },
+  {
+    "name": "オフ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "無効状態を表す偽の論理値定数です",
+    "template": "オフ",
+    "yomi": "オフ",
+    "file": "internal/stdlib/registry.go",
+    "line": 41,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L41",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AA%E3%83%95"
+  },
+  {
+    "name": "オン",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "有効状態を表す真の論理値定数です",
+    "template": "オン",
+    "yomi": "オン",
+    "file": "internal/stdlib/registry.go",
+    "line": 40,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L40",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AA%E3%83%B3"
   },
   {
     "name": "カスタムダイアログ表示",
@@ -3627,6 +3949,48 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AB%E3%82%BF%E3%82%AB%E3%83%8A%E5%A4%89%E6%8F%9B"
   },
   {
+    "name": "カッコ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "開始かぎ括弧「を表す文字列定数です",
+    "template": "カッコ",
+    "yomi": "カッコ",
+    "file": "internal/stdlib/registry.go",
+    "line": 60,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L60",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AB%E3%83%83%E3%82%B3"
+  },
+  {
+    "name": "カッコ閉",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "終了かぎ括弧」を表す文字列定数です",
+    "template": "カッコ閉",
+    "yomi": "カッコとじ",
+    "file": "internal/stdlib/registry.go",
+    "line": 61,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L61",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AB%E3%83%83%E3%82%B3%E9%96%89"
+  },
+  {
+    "name": "カッコ閉じ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "終了かぎ括弧」を表すカッコ閉の別名定数です",
+    "template": "カッコ閉じ",
+    "yomi": "カッコとじ",
+    "file": "internal/stdlib/registry.go",
+    "line": 62,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L62",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AB%E3%83%83%E3%82%B3%E9%96%89%E3%81%98"
+  },
+  {
     "name": "カレントディレクトリ取得",
     "type": "func",
     "josi": null,
@@ -3658,6 +4022,20 @@
     "line": 201,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L201",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%82%AB%E3%83%AC%E3%83%B3%E3%83%88%E3%83%87%E3%82%A3%E3%83%AC%E3%82%AF%E3%83%88%E3%83%AA%E5%A4%89%E6%9B%B4"
+  },
+  {
+    "name": "キャンセル",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "ダイアログなどでの取消を表す数値定数です",
+    "template": "キャンセル",
+    "yomi": "キャンセル",
+    "file": "internal/stdlib/registry.go",
+    "line": 44,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L44",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%AD%E3%83%A3%E3%83%B3%E3%82%BB%E3%83%AB"
   },
   {
     "name": "キャンバス作成",
@@ -4262,6 +4640,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%BF%E3%82%A4%E3%83%9E%E3%83%BC%E5%81%9C%E6%AD%A2"
   },
   {
+    "name": "タブ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "タブ文字を表す文字列定数です",
+    "template": "タブ",
+    "yomi": "タブ",
+    "file": "internal/stdlib/registry.go",
+    "line": 49,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L49",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%82%BF%E3%83%96"
+  },
+  {
     "name": "ダイアログキャンセル値",
     "type": "var",
     "josi": null,
@@ -4463,6 +4855,104 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%88%E3%83%AA%E3%83%A0"
   },
   {
+    "name": "ドロップファイル",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "ウィンドウへドロップされたファイル一覧の変数です",
+    "template": "ドロップファイル",
+    "yomi": "ドロップファイル",
+    "file": "internal/guilib/guilib.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L73",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%89%E3%83%AD%E3%83%83%E3%83%97%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB"
+  },
+  {
+    "name": "ナデシコエンジン",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "なでしこエンジン識別子を表す文字列定数です",
+    "template": "ナデシコエンジン",
+    "yomi": "ナデシコエンジン",
+    "file": "internal/stdlib/registry.go",
+    "line": 65,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L65",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E3%82%A8%E3%83%B3%E3%82%B8%E3%83%B3"
+  },
+  {
+    "name": "ナデシコバージョン",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "なでしこのバージョン番号を表す文字列定数です",
+    "template": "ナデシコバージョン",
+    "yomi": "ナデシコバージョン",
+    "file": "internal/stdlib/registry.go",
+    "line": 66,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L66",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3"
+  },
+  {
+    "name": "ナデシコランタイム",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "gonako ランタイム名を表す文字列定数です",
+    "template": "ナデシコランタイム",
+    "yomi": "ナデシコランタイム",
+    "file": "internal/nodelib/file.go",
+    "line": 26,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L26",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E3%83%A9%E3%83%B3%E3%82%BF%E3%82%A4%E3%83%A0"
+  },
+  {
+    "name": "ナデシコランタイムパス",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "実行中のランタイムのパスを保持する変数です",
+    "template": "ナデシコランタイムパス",
+    "yomi": "ナデシコランタイムパス",
+    "file": "internal/nodelib/file.go",
+    "line": 27,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L27",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E3%83%A9%E3%83%B3%E3%82%BF%E3%82%A4%E3%83%A0%E3%83%91%E3%82%B9"
+  },
+  {
+    "name": "ナデシコ種類",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "実行環境の種類を保持する初期値 ? の変数です",
+    "template": "ナデシコ種類",
+    "yomi": "ナデシコしゅるい",
+    "file": "internal/stdlib/registry.go",
+    "line": 68,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L68",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E7%A8%AE%E9%A1%9E"
+  },
+  {
+    "name": "ナデシコ言語バージョン",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "ナデシコバージョンと同じ値を表す定数です",
+    "template": "ナデシコ言語バージョン",
+    "yomi": "ナデシコげんごバージョン",
+    "file": "internal/stdlib/registry.go",
+    "line": 67,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L67",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E8%A8%80%E8%AA%9E%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3"
+  },
+  {
     "name": "ハッシュキー列挙",
     "type": "func",
     "josi": [
@@ -4657,6 +5147,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%91%E3%82%B9%E3%83%AF%E3%83%BC%E3%83%89%E5%85%A5%E5%8A%9B%E3%82%A8%E3%83%87%E3%82%A3%E3%82%BF%E4%BD%9C%E6%88%90"
   },
   {
+    "name": "パス区切",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "OS のパス区切り文字を表す文字列定数です",
+    "template": "パス区切",
+    "yomi": "パスくぎり",
+    "file": "internal/nodelib/file.go",
+    "line": 25,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L25",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%91%E3%82%B9%E5%8C%BA%E5%88%87"
+  },
+  {
     "name": "パス抽出",
     "type": "func",
     "josi": [
@@ -4716,6 +5220,20 @@
     "line": 99,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L99",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%82%B3%E3%83%94%E3%83%BC"
+  },
+  {
+    "name": "ファイルコピーデフォルト動作",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "ファイルコピー時の既定動作を表す定数です",
+    "template": "ファイルコピーデフォルト動作",
+    "yomi": "ファイルコピーでふぉるとどうさ",
+    "file": "internal/nodelib/file.go",
+    "line": 29,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L29",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E3%82%B3%E3%83%94%E3%83%BC%E3%83%87%E3%83%95%E3%82%A9%E3%83%AB%E3%83%88%E5%8B%95%E4%BD%9C"
   },
   {
     "name": "ファイルコピー時",
@@ -5096,6 +5614,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A9%E3%83%AB%E3%83%80%E9%81%B8%E6%8A%9E"
   },
   {
+    "name": "フォームチェック",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "フォームのチェック状態を保持する辞書変数です",
+    "template": "フォームチェック",
+    "yomi": "フォームチェック",
+    "file": "internal/guilib/guilib.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L75",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A9%E3%83%BC%E3%83%A0%E3%83%81%E3%82%A7%E3%83%83%E3%82%AF"
+  },
+  {
     "name": "フォーム作成",
     "type": "func",
     "josi": [
@@ -5116,6 +5648,20 @@
     "line": 181,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L181",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A9%E3%83%BC%E3%83%A0%E4%BD%9C%E6%88%90"
+  },
+  {
+    "name": "フォーム値",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "フォームから取得した値を保持するシステム変数です",
+    "template": "フォーム値",
+    "yomi": "フォームあたい",
+    "file": "internal/guilib/guilib.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L74",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E3%83%95%E3%82%A9%E3%83%BC%E3%83%A0%E5%80%A4"
   },
   {
     "name": "フォーム送信時",
@@ -5172,6 +5718,20 @@
     "line": 322,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L322",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3%E4%B8%80%E8%A6%A7%E5%8F%96%E5%BE%97"
+  },
+  {
+    "name": "プラグイン名",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "現在のプラグイン名を保持するシステム変数です",
+    "template": "プラグイン名",
+    "yomi": "プラグインめい",
+    "file": "internal/stdlib/registry.go",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L69",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3%E5%90%8D"
   },
   {
     "name": "プラグイン名設定",
@@ -5869,6 +6429,34 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%81%B6%E6%95%B0"
   },
   {
+    "name": "偽",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "偽を表す論理値で、条件判定に使う定数です",
+    "template": "偽",
+    "yomi": "ぎ",
+    "file": "internal/stdlib/registry.go",
+    "line": 34,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L34",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%81%BD"
+  },
+  {
+    "name": "元号データ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "和暦への変換に使用する元号データの定数です",
+    "template": "元号データ",
+    "yomi": "げんごうデータ",
+    "file": "internal/stdlib/registry.go",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L76",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%83%E5%8F%B7%E3%83%87%E3%83%BC%E3%82%BF"
+  },
+  {
     "name": "先月",
     "type": "func",
     "josi": null,
@@ -5915,6 +6503,34 @@
     "line": 156,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L156",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E5%85%A8%E3%83%95%E3%82%A1%E3%82%A4%E3%83%AB%E5%88%97%E6%8C%99"
+  },
+  {
+    "name": "全角カナ一覧",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "全角カタカナを並べた一覧文字列の定数です",
+    "template": "全角カナ一覧",
+    "yomi": "ぜんかくカナいちらん",
+    "file": "internal/stdlib/registry.go",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L72",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%A8%E8%A7%92%E3%82%AB%E3%83%8A%E4%B8%80%E8%A6%A7"
+  },
+  {
+    "name": "全角カナ濁音一覧",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "全角カタカナ濁音を並べた一覧文字列の定数です",
+    "template": "全角カナ濁音一覧",
+    "yomi": "ぜんかくカナだくおんいちらん",
+    "file": "internal/stdlib/registry.go",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L73",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%A8%E8%A7%92%E3%82%AB%E3%83%8A%E6%BF%81%E9%9F%B3%E4%B8%80%E8%A6%A7"
   },
   {
     "name": "全角変換",
@@ -6139,6 +6755,34 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%8C%BA%E5%88%87"
   },
   {
+    "name": "半角カナ一覧",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "半角カタカナを並べた一覧文字列の定数です",
+    "template": "半角カナ一覧",
+    "yomi": "はんかくカナいちらん",
+    "file": "internal/stdlib/registry.go",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L74",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%8D%8A%E8%A7%92%E3%82%AB%E3%83%8A%E4%B8%80%E8%A6%A7"
+  },
+  {
+    "name": "半角カナ濁音一覧",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "半角カタカナ濁音を並べた一覧文字列の定数です",
+    "template": "半角カナ濁音一覧",
+    "yomi": "はんかくカナだくおんいちらん",
+    "file": "internal/stdlib/registry.go",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L75",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%8D%8A%E8%A7%92%E3%82%AB%E3%83%8A%E6%BF%81%E9%9F%B3%E4%B8%80%E8%A6%A7"
+  },
+  {
     "name": "半角変換",
     "type": "func",
     "josi": [
@@ -6259,6 +6903,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%90%88%E8%A8%88"
   },
   {
+    "name": "名前空間",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "現在使用中の名前空間を保持するシステム変数です",
+    "template": "名前空間",
+    "yomi": "なまえくうかん",
+    "file": "internal/stdlib/registry.go",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L70",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%90%8D%E5%89%8D%E7%A9%BA%E9%96%93"
+  },
+  {
     "name": "名前空間ポップ",
     "type": "func",
     "josi": null,
@@ -6329,6 +6987,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_math%2F%E5%9B%9B%E6%8D%A8%E4%BA%94%E5%85%A5"
   },
   {
+    "name": "回数",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "繰り返し処理の現在回数を保持する変数です",
+    "template": "回数",
+    "yomi": "かいすう",
+    "file": "internal/stdlib/registry.go",
+    "line": 59,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L59",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%9B%9E%E6%95%B0"
+  },
+  {
     "name": "圧縮",
     "type": "func",
     "josi": [
@@ -6378,6 +7050,20 @@
     "line": 56,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/zip.go#L56",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E5%9C%A7%E7%B8%AE%E6%99%82"
+  },
+  {
+    "name": "圧縮解凍ツールパス",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "圧縮・解凍に使う外部ツールのパスを表す変数です",
+    "template": "圧縮解凍ツールパス",
+    "yomi": "あっしゅくかいとうツールパス",
+    "file": "internal/nodelib/file.go",
+    "line": 31,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L31",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E5%9C%A7%E7%B8%AE%E8%A7%A3%E5%87%8D%E3%83%84%E3%83%BC%E3%83%AB%E3%83%91%E3%82%B9"
   },
   {
     "name": "圧縮解凍ツールパス変更",
@@ -6549,6 +7235,34 @@
     "line": 214,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L214",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%AE%9F%E8%A1%8C%E6%99%82%E9%96%93%E8%A8%88%E6%B8%AC"
+  },
+  {
+    "name": "対象",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "繰り返しや命令で対象となる値を保持する変数です",
+    "template": "対象",
+    "yomi": "たいしょう",
+    "file": "internal/stdlib/registry.go",
+    "line": 57,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L57",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%AF%BE%E8%B1%A1"
+  },
+  {
+    "name": "対象キー",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "辞書反復中の現在のキーを保持する変数です",
+    "template": "対象キー",
+    "yomi": "たいしょうキー",
+    "file": "internal/stdlib/registry.go",
+    "line": 58,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L58",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%AF%BE%E8%B1%A1%E3%82%AD%E3%83%BC"
   },
   {
     "name": "尋",
@@ -6845,6 +7559,48 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E5%BC%B7%E5%88%B6%E7%B5%82%E4%BA%86%E6%99%82"
   },
   {
+    "name": "戻値有",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "関数の戻り値があることを表す数値定数です",
+    "template": "戻値有",
+    "yomi": "もどりちあり",
+    "file": "internal/stdlib/registry.go",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L78",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%88%BB%E5%80%A4%E6%9C%89"
+  },
+  {
+    "name": "戻値無",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "関数の戻り値がないことを表す数値定数です",
+    "template": "戻値無",
+    "yomi": "もどりちなし",
+    "file": "internal/stdlib/registry.go",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L77",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%88%BB%E5%80%A4%E7%84%A1"
+  },
+  {
+    "name": "抽出文字列",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "正規表現マッチの部分一致を格納する変数です",
+    "template": "抽出文字列",
+    "yomi": "ちゅうしゅつもじれつ",
+    "file": "internal/stdlib/registry.go",
+    "line": 84,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L84",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%8A%BD%E5%87%BA%E6%96%87%E5%AD%97%E5%88%97"
+  },
+  {
     "name": "拝啓",
     "type": "func",
     "josi": null,
@@ -6922,6 +7678,34 @@
     "line": 17,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/math.go#L17",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%8E%9B"
+  },
+  {
+    "name": "改行",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "改行文字である LF 文字列を表す定数です",
+    "template": "改行",
+    "yomi": "かいぎょう",
+    "file": "internal/stdlib/registry.go",
+    "line": 46,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L46",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%94%B9%E8%A1%8C"
+  },
+  {
+    "name": "改行コード",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "LF による改行コードを表す文字列定数です",
+    "template": "改行コード",
+    "yomi": "かいぎょうコード",
+    "file": "internal/nodelib/file.go",
+    "line": 24,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L24",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E6%94%B9%E8%A1%8C%E3%82%B3%E3%83%BC%E3%83%89"
   },
   {
     "name": "改行作成",
@@ -7731,6 +8515,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%9C%88%E6%95%B0%E5%B7%AE"
   },
   {
+    "name": "未定義",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "undefined と同じ未定義値を表す定数です",
+    "template": "未定義",
+    "yomi": "みていぎ",
+    "file": "internal/stdlib/registry.go",
+    "line": 55,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L55",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%9C%AA%E5%AE%9A%E7%BE%A9"
+  },
+  {
     "name": "未満",
     "type": "func",
     "josi": [
@@ -7926,6 +8724,34 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%AD%A3%E8%A6%8F%E8%A1%A8%E7%8F%BE%E7%BD%AE%E6%8F%9B"
   },
   {
+    "name": "母艦",
+    "type": "const",
+    "josi": null,
+    "plugin": "gonako",
+    "category": "GUI",
+    "desc": "gonako-gui 本体のメインウィンドウを表す値です",
+    "template": "母艦",
+    "yomi": "ぼかん",
+    "file": "internal/guilib/guilib.go",
+    "line": 87,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L87",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E6%AF%8D%E8%89%A6"
+  },
+  {
+    "name": "母艦パス",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_node",
+    "category": "システム定数",
+    "desc": "母艦プログラムのパスを保持するシステム変数です",
+    "template": "母艦パス",
+    "yomi": "ぼかんパス",
+    "file": "internal/nodelib/file.go",
+    "line": 28,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L28",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E6%AF%8D%E8%89%A6%E3%83%91%E3%82%B9"
+  },
+  {
     "name": "母艦パス取得",
     "type": "func",
     "josi": null,
@@ -7938,6 +8764,48 @@
     "line": 241,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L241",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E6%AF%8D%E8%89%A6%E3%83%91%E3%82%B9%E5%8F%96%E5%BE%97"
+  },
+  {
+    "name": "永遠",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "常に真であり、無限ループの条件などに使う定数です",
+    "template": "永遠",
+    "yomi": "えいえん",
+    "file": "internal/stdlib/registry.go",
+    "line": 39,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L39",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%B0%B8%E9%81%A0"
+  },
+  {
+    "name": "波カッコ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "開始波括弧 { を表す文字列定数です",
+    "template": "波カッコ",
+    "yomi": "なみカッコ",
+    "file": "internal/stdlib/registry.go",
+    "line": 63,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L63",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%B3%A2%E3%82%AB%E3%83%83%E3%82%B3"
+  },
+  {
+    "name": "波カッコ閉",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "終了波括弧 } を表す文字列定数です",
+    "template": "波カッコ閉",
+    "yomi": "なみカッコとじ",
+    "file": "internal/stdlib/registry.go",
+    "line": 64,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L64",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%B3%A2%E3%82%AB%E3%83%83%E3%82%B3%E9%96%89"
   },
   {
     "name": "注目",
@@ -7958,6 +8826,20 @@
     "line": 345,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/guilib/guilib.go#L345",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E6%B3%A8%E7%9B%AE"
+  },
+  {
+    "name": "無限大",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "正の無限大である +Inf を表す数値定数です",
+    "template": "無限大",
+    "yomi": "むげんだい",
+    "file": "internal/stdlib/registry.go",
+    "line": 52,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L52",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E7%84%A1%E9%99%90%E5%A4%A7"
   },
   {
     "name": "環境変数一覧取得",
@@ -8370,6 +9252,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E7%9B%B8%E5%AF%BE%E3%83%91%E3%82%B9%E5%B1%95%E9%96%8B"
   },
   {
+    "name": "真",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "真を表す論理値で、条件判定に使う定数です",
+    "template": "真",
+    "yomi": "しん",
+    "file": "internal/stdlib/registry.go",
+    "line": 33,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L33",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E7%9C%9F"
+  },
+  {
     "name": "真偽判定",
     "type": "func",
     "josi": [
@@ -8523,6 +9419,20 @@
     "line": 20,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/timer.go#L20",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E7%A7%92%E6%AF%8E"
+  },
+  {
+    "name": "空",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "長さが零の空文字列を表す定数です",
+    "template": "空",
+    "yomi": "から",
+    "file": "internal/stdlib/registry.go",
+    "line": 50,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L50",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E7%A9%BA"
   },
   {
     "name": "空オブジェクト",
@@ -9515,6 +10425,20 @@
     "line": 24,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/system.go#L24",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E8%A1%A8%E7%A4%BA"
+  },
+  {
+    "name": "表示ログ",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "表示命令で出力した内容のログを保持する変数です",
+    "template": "表示ログ",
+    "yomi": "ひょうじログ",
+    "file": "internal/stdlib/registry.go",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L71",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E8%A1%A8%E7%A4%BA%E3%83%AD%E3%82%B0"
   },
   {
     "name": "表示ログクリア",
@@ -10777,6 +11701,20 @@
     "line": 41,
     "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/nodelib/file.go#L41",
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2F%E9%96%8B"
+  },
+  {
+    "name": "非数",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "数値ではない値である NaN を表す定数です",
+    "template": "非数",
+    "yomi": "ひすう",
+    "file": "internal/stdlib/registry.go",
+    "line": 51,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L51",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E9%9D%9E%E6%95%B0"
   },
   {
     "name": "非数判定",

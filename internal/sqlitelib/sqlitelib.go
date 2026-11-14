@@ -67,7 +67,7 @@ type command struct {
 
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{
-		"SQLITE3今挿入ID": {Name: "SQLITE3今挿入ID", Type: "const", Value: "?"},
+		"SQLITE3今挿入ID": {Name: "SQLITE3今挿入ID", Type: "const", Value: "?"}, // @SQLiteで最後に挿入した行IDを保持する変数です // @SQLITE3いまそうにゅうID
 	}
 	for name, cmd := range p.commands() {
 		list[name] = &lexer.FuncItem{

@@ -70,12 +70,12 @@ type command struct {
 // FuncList returns the command signatures for parser and lexer.
 func (p *Plugin) FuncList() lexer.FuncList {
 	list := lexer.FuncList{}
-	list["ドロップファイル"] = &lexer.FuncItem{Name: "ドロップファイル", Type: "const", Value: value.ArrayValue(value.NewArray())}
-	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}
-	list["フォームチェック"] = &lexer.FuncItem{Name: "フォームチェック", Type: "const", Value: value.DictValue(value.NewDict())}
-	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}
-	list["DOMスキン"] = &lexer.FuncItem{Name: "DOMスキン", Type: "const", Value: ""}
-	list["DOMスキン辞書"] = &lexer.FuncItem{Name: "DOMスキン辞書", Type: "const", Value: value.DictValue(value.NewDict())}
+	list["ドロップファイル"] = &lexer.FuncItem{Name: "ドロップファイル", Type: "const", Value: value.ArrayValue(value.NewArray())} // @ウィンドウへドロップされたファイル一覧の変数です // @ドロップファイル
+	list["フォーム値"] = &lexer.FuncItem{Name: "フォーム値", Type: "const", Value: ""}                                       // @フォームから取得した値を保持するシステム変数です // @フォームあたい
+	list["フォームチェック"] = &lexer.FuncItem{Name: "フォームチェック", Type: "const", Value: value.DictValue(value.NewDict())}   // @フォームのチェック状態を保持する辞書変数です // @フォームチェック
+	list["DOM親要素"] = &lexer.FuncItem{Name: "DOM親要素", Type: "const", Value: 0}                                      // @DOM操作の親要素番号を保持するシステム変数です // @DOMおやようそ
+	list["DOMスキン"] = &lexer.FuncItem{Name: "DOMスキン", Type: "const", Value: ""}                                     // @DOM部品に使うスキン名を保持するシステム変数です // @DOMスキン
+	list["DOMスキン辞書"] = &lexer.FuncItem{Name: "DOMスキン辞書", Type: "const", Value: value.DictValue(value.NewDict())}   // @DOM部品のスキン定義を保持する辞書変数です // @DOMスキンじしょ
 	domOptions := value.NewDict()
 	domOptions.Set("自動改行", value.Bool(false))
 	domOptions.Set("テーブルヘッダ", value.Bool(true))
@@ -83,8 +83,8 @@ func (p *Plugin) FuncList() lexer.FuncList {
 		value.String("#AA4040"), value.String("#ffffff"), value.String("#fff0f0"),
 	)))
 	domOptions.Set("テーブル数値右寄せ", value.Bool(true))
-	list["DOM部品オプション"] = &lexer.FuncItem{Name: "DOM部品オプション", Type: "const", Value: value.DictValue(domOptions)}
-	list["母艦"] = &lexer.FuncItem{Name: "母艦", Type: "const", Value: MotherWindowHandle}
+	list["DOM部品オプション"] = &lexer.FuncItem{Name: "DOM部品オプション", Type: "const", Value: value.DictValue(domOptions)} // @DOM部品の表示オプションを保持する辞書変数です // @DOMぶひんオプション
+	list["母艦"] = &lexer.FuncItem{Name: "母艦", Type: "const", Value: MotherWindowHandle}                          // @gonako-gui 本体のメインウィンドウを表す値です // @ぼかん
 	for name, c := range p.commands() {
 		list[name] = &lexer.FuncItem{
 			Name:       name,

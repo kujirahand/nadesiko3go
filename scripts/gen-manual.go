@@ -30,12 +30,28 @@ const (
 
 type commandDoc struct {
 	Name     string     `json:"name"`
+	Type     string     `json:"type"`
 	Josi     [][]string `json:"josi"`
 	Plugin   string     `json:"plugin"`
 	Category string     `json:"category"`
 	Desc     string     `json:"desc"`
 	Yomi     string     `json:"yomi"`
 	URL      string     `json:"url"`
+}
+
+// typeName は command-list.json の種別 (func/const/var) を、
+// nadesiko3doc の commands.type に入れる日本語表記へ変換する (Issue #474)。
+// 定数・システム変数も「関数」として登録されてしまう問題への対応で、
+// 未知の種別は従来どおり「関数」に倒す。
+func typeName(jsonType string) string {
+	switch jsonType {
+	case "const":
+		return "定数"
+	case "var":
+		return "変数"
+	default:
+		return "関数"
+	}
 }
 
 // manualPlugins は、gonako配下にマニュアルを生成する対象のプラグイン。
@@ -208,7 +224,7 @@ func main() {
 		_, err = tx.Exec(`INSERT INTO commands
   (command_id, pagename, plugin, genre, name, type, kana, args, desc, src_url, ctime, mtime)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			count, pluginTag+"/"+c.Name, pluginTag, c.Category, c.Name, "関数",
+			count, pluginTag+"/"+c.Name, pluginTag, c.Category, c.Name, typeName(c.Type),
 			c.Yomi, makeArgs(c.Josi), c.Desc, c.URL, t, t)
 		if err != nil {
 			fatal("commands登録エラー(%s): %v", c.Name, err)

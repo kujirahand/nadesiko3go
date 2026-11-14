@@ -3,6 +3,12 @@ package commanddoc
 import (
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/lexer"
+	"github.com/kujirahand/nadesiko3go/internal/nodelib"
+	"github.com/kujirahand/nadesiko3go/internal/officelib"
+	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
+	"github.com/kujirahand/nadesiko3go/internal/stdlib"
 )
 
 func TestCommandsLoadsEmbeddedList(t *testing.T) {
@@ -20,6 +26,80 @@ func TestCommandsLoadsEmbeddedList(t *testing.T) {
 		if cmd.DocURL == "" {
 			t.Fatalf("『%s』のマニュアルURLがありません", cmd.Name)
 		}
+	}
+}
+
+// TestCommandsCoverRuntimeConsts は #474 の回帰防止。
+// ランタイムに登録された定数・システム変数 (FuncItem の Type が const/var) が、
+// 埋め込みの命令一覧にも同じ種別で載っていることを確認する。
+// 落ちた場合は `just gen-const-list` の実行漏れを疑うこと。
+// guilib は cgo (GTK/WebKit) 依存でこのパッケージから import できないため、
+// 代表として『母艦』の収録だけを別途確認する。
+func TestCommandsCoverRuntimeConsts(t *testing.T) {
+	list, err := Commands()
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]Command{}
+	for _, cmd := range list {
+		byName[cmd.Name] = cmd
+	}
+	lists := map[string]lexer.FuncList{
+		"stdlib":    stdlib.ParserFuncList(),
+		"nodelib":   nodelib.New().FuncList(),
+		"officelib": officelib.New().FuncList(),
+		"sqlitelib": sqlitelib.New().FuncList(),
+	}
+	expected := map[string]string{}
+	for _, funcs := range lists {
+		for name, item := range funcs {
+			if item.Type == "const" || item.Type == "var" {
+				expected[name] = item.Type
+			}
+		}
+	}
+	// guilib は import できないため、定数名を明示して期待値に加える。
+	for _, name := range []string{
+		"ドロップファイル", "フォーム値", "フォームチェック", "DOM親要素",
+		"DOMスキン", "DOMスキン辞書", "DOM部品オプション", "母艦",
+	} {
+		expected[name] = "const"
+	}
+	checked := 0
+	for name, typ := range expected {
+		checked++
+		cmd, ok := byName[name]
+		if !ok {
+			t.Errorf("定数『%s』が命令一覧にありません (#474)", name)
+			continue
+		}
+		if cmd.Type != typ {
+			t.Errorf("『%s』の種別が違います: 一覧=%s ランタイム=%s", name, cmd.Type, typ)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("検査対象の定数が0件でした")
+	}
+	// 逆方向: 一覧にある const/var が、ランタイム側に実在することも確認する。
+	// ソースで削除・改名した定数が一覧に残り続ける事故を検知するため。
+	for _, cmd := range list {
+		if cmd.Type != "const" && cmd.Type != "var" {
+			continue
+		}
+		if _, ok := expected[cmd.Name]; !ok {
+			t.Errorf("一覧の『%s』(%s) がランタイム登録にありません。削除・改名の反映漏れではありませんか (#474)", cmd.Name, cmd.Type)
+		}
+	}
+	// PI は Issue #474 の発端。種別・分類・読みまで固定で確認する。
+	pi, ok := byName["PI"]
+	if !ok {
+		t.Fatal("『PI』が命令一覧にありません (#474)")
+	}
+	if pi.Type != "const" || pi.Category != "システム定数" || pi.Yomi != "パイ" {
+		t.Errorf("『PI』の内容が違います: %+v", pi)
+	}
+	if cmd, ok := byName["母艦"]; !ok || cmd.Type != "const" {
+		t.Errorf("guilib の定数『母艦』が命令一覧にありません (#474): %+v", cmd)
 	}
 }
 

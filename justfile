@@ -179,8 +179,19 @@ compat-check:
     cd nadesiko3 && npm run compat:check -- ../out
 
 # command-list.jsonを生成する（GUIエディタの色分け用）
-gen-command-list:
+# Go版ジェネレータは関数のみを対象とするため、続けて gonako 自身のバッチで
+# 定数・システム変数をマージする (#474)
+gen-command-list: gen-const-list-base
+    {{go}} run ./cmd/gonako run scripts/gen-command-list.nako3
+
+[private]
+gen-const-list-base:
     {{go}} run ./scripts/gen-command-list.go
+
+# 定数・システム変数だけを command-list.json へ反映する (#474)
+# 既存の関数一覧はそのままに、Goソースの addConst 等から const/var を抽出してマージする
+gen-const-list:
+    {{go}} run ./cmd/gonako run scripts/gen-command-list.nako3
 
 # manual/gonako/*.txt の未作成ページと manual/gonako-commands.db を生成する
 gen-manual: gen-command-list
