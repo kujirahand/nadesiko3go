@@ -69,6 +69,8 @@ just test
 just doctest
 ```
 
+`just release` と `just publish` は先に `just gen-manual` を実行し、命令一覧（`command-list.json`）と `manual/gonako-commands.db` を最新にします。DBは別リポジトリ（nadesiko3doc）の管理なので、`just publish` の後に `manual/` 側でコミット・pushしてください。
+
 ### ステップ 2: 手元でのOS別ビルド確認
 
 全OSを一度にビルドするとGUIのクロスコンパイルなどで途中失敗しやすいため（Issue #150）、
