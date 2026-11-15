@@ -58,6 +58,9 @@ func (p *Parser) Parse(tokens []lexer.Token, filename string) (result *ast.Node,
 
 	node := p.startParser()
 
+	// 関数定義より後で代入されたグローバル変数を、関数内から同じ変数として扱う。
+	p.resolveLateGlobals(node)
+
 	// 関数毎に非同期処理が必要かどうかを判定する。「非同期関数を呼ぶ関数もまた
 	// 非同期」と伝播していくので、変化が無くなるまで繰り返す。
 	for CheckAsyncFn(node, p.FuncList) {
