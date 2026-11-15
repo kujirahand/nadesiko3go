@@ -1,6 +1,10 @@
 package vm_test
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/vm"
@@ -78,4 +82,54 @@ func TestIssue476FuncObj(t *testing.T) {
 	code := "F=関数\n  Gを戻す\nここまで\n" +
 		"G=42\nFを実行して表示\n"
 	runIssue476(t, code, "42")
+}
+
+// トップレベルで代入した後に定数として宣言し直すとエラーになる。
+func TestIssue476TopLevelConstRedeclareError(t *testing.T) {
+	if _, err := vm.RunSource("C=1\nCとは定数=3\n", "main.nako3", nil); err == nil {
+		t.Fatal("定数の再宣言がエラーになりませんでした")
+	}
+}
+
+// runIssue476Files は lib をファイルに書き、main から取り込んで実行する。
+func runIssue476Files(t *testing.T, libName, libCode, mainCode, want string) {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, libName), []byte(libCode), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	mainPath := filepath.Join(dir, "main.nako3")
+	prog, err := vm.CompileProgramFile(mainCode, "main.nako3", mainPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
+	if err := vm.RunCompiled(prog, host); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != want {
+		t.Errorf("log = %q, want %q", out.String(), want)
+	}
+}
+
+// 自モジュールの後定義グローバルが、取り込み元の同名グローバルより優先される。
+func TestIssue476ModuleOwnPriority(t *testing.T) {
+	lib := "●LIB計算とは\n  結果=10\n  結果を戻す\nここまで\n結果=1\n"
+	main := "!「./lib_own.nako3」を取り込む\n結果=99\nLIB計算を表示\n結果を表示\n"
+	runIssue476Files(t, "lib_own.nako3", lib, main, "10\n99\n")
+}
+
+// 非公開の変数は、他のモジュールの関数から見えない。
+func TestIssue476ModuleNonExportedHidden(t *testing.T) {
+	lib := "秘とは変数{非公開}=5\n●LIB秘読取とは\n  秘を戻す\nここまで\n"
+	main := "!「./lib_secret.nako3」を取り込む\n●MAIN読取とは\n  秘を戻す\nここまで\nMAIN読取を表示\nLIB秘読取を表示\n"
+	runIssue476Files(t, "lib_secret.nako3", lib, main, "undefined\n5\n")
+}
+
+// 取り込んだモジュールの関数は、自モジュールの後定義グローバルを読める。
+func TestIssue476ModuleLateGlobal(t *testing.T) {
+	lib := "●LIB読取とは\n  共有値を戻す\nここまで\n共有値=7\n"
+	main := "!「./lib_late.nako3」を取り込む\nLIB読取を表示\n"
+	runIssue476Files(t, "lib_late.nako3", lib, main, "7\n")
 }
