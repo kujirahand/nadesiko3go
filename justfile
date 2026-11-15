@@ -58,7 +58,7 @@ release-clean:
 # 配布用に現在のOS向けのバイナリ・ツール（CLI・GUI）を作る
 # 実行中のOSを自動判定し、release-darwin / release-windows / release-linux の
 # 該当するものだけを実行する。先に release/ を空にしてから作り直す。
-release version=version: release-clean
+release version=version: gen-manual release-clean
     #!/usr/bin/env bash
     set -euo pipefail
     # 子の just 呼び出しにバージョン指定を引き継ぐ
@@ -222,5 +222,6 @@ homebrew-check:
 
 # GitHubリリースの作成・成果物のアップロード・Homebrew Tapの更新まで一括で行う
 # 事前に `just version-update X.Y.Z` と `just release` を済ませておくこと
-publish version=version:
+# 先に gen-manual を実行し、命令一覧DB(manual/gonako-commands.db)を最新にする (nadesiko3doc#121)
+publish version=version: gen-manual
     ./scripts/publish-release.sh {{quote(version)}}
