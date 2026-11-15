@@ -91,6 +91,9 @@ type Compiler struct {
 	// the ones that hold a constant.
 	globalIndex  map[string]int
 	constGlobals map[int]bool
+	// topConstNames は、トップレベルで『定数』宣言された名前。関数定義より後で
+	// 宣言された定数への、関数内からの代入を検出するために先に集めておく。
+	topConstNames map[string]bool
 	// constGlobalValues holds the value of the module 『定数』 declared on the
 	// straight line of main. → fold.go
 	constGlobalValues map[int]value.Value
@@ -117,6 +120,7 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 		sourceIndex:       map[string]int{filename: 0},
 		globalIndex:       map[string]int{},
 		constGlobals:      map[int]bool{},
+		topConstNames:     collectTopConstNames(tree),
 		constGlobalValues: map[int]value.Value{},
 		foldRefusals:      map[foldRefusal]struct{}{},
 		file:              filename,
@@ -159,6 +163,45 @@ func Compile(tree *ast.Node, filename string, registry *stdlib.Registry) (prog *
 		return nil, err
 	}
 	return &c.prog, nil
+}
+
+// collectTopConstNames はトップレベルの文だけを走査し、『定数』宣言の名前を
+// 集める。関数定義の中には入らない。
+func collectTopConstNames(tree *ast.Node) map[string]bool {
+	names := map[string]bool{}
+	var walk func(n *ast.Node)
+	walk = func(n *ast.Node) {
+		if n == nil {
+			return
+		}
+		switch n.Type {
+		case ast.DefFunc, ast.DefTest, ast.FuncObj:
+			return
+		case ast.DefLocalVar:
+			if n.VarType == "定数" && n.Name != "" {
+				names[n.Name] = true
+			}
+		case ast.DefLocalVarList:
+			if n.VarType == "定数" {
+				for _, nm := range n.Names {
+					if s := nm.StringValue(); s != "" {
+						names[s] = true
+					}
+				}
+			}
+		}
+		for _, b := range n.Blocks {
+			walk(b)
+		}
+	}
+	walk(tree)
+	return names
+}
+
+// isConstRef は、解決結果が定数への参照かどうかを返す。関数定義より後で宣言
+// された大域定数は、解決時点では constGlobals に載っていないため名前でも調べる。
+func (c *Compiler) isConstRef(name string, ref varRef) bool {
+	return ref.isConst || (ref.kind == refGlobal && c.topConstNames[name])
 }
 
 func (c *Compiler) fail(msg string, n *ast.Node) {
@@ -393,7 +436,7 @@ func (c *Compiler) loadVar(name string, n *ast.Node) {
 // before any IR is emitted for it.
 func (c *Compiler) storeVar(name string, n *ast.Node) {
 	ref := c.resolve(name)
-	if ref.isConst {
+	if c.isConstRef(name, ref) {
 		c.failConst(name, "は既に定義済みなので、値を代入することはできません。", n)
 	}
 	switch ref.kind {
@@ -431,7 +474,7 @@ func (c *Compiler) checkWritable(name, reason string, n *ast.Node) {
 	if name == "" {
 		return
 	}
-	if ref := c.resolve(name); ref.isConst {
+	if ref := c.resolve(name); c.isConstRef(name, ref) {
 		c.failConst(name, reason, n)
 	}
 }
