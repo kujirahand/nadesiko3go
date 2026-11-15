@@ -582,6 +582,24 @@ func (p *Parser) yCall() *ast.Node {
 		if p.check2([][]lexer.TokenType{{lexer.TypeFunc, lexer.TypeWord}, {"("}}) {
 			if cur := p.peek(0); cur != nil && cur.Josi == "" {
 				if t := p.yValue(); t != nil { // yValueでC言語風呼び出しをパースする
+					// 呼び出しの直後に演算子が続くときは計算式として読む (#478 / 本家 #2671)
+					// 例: INT(3.7)-1を表示, 10にINT(3.7)+1を足して表示
+					if (t.Type == ast.Func || t.Type == ast.CallValue) && t.Josi == "" &&
+						p.checkTypes(toTokenTypes(operatorList)) {
+						calc := p.yGetArgOperator(t)
+						// 『(式)ならば』の条件として使う場合は、ySentence が戻り値を見るのでそのまま返す
+						if p.check("ならば") {
+							return calc
+						}
+						// それ以外はスタックに積んで読み続ける。計算結果に助詞が
+						// 付いている場合も、後続の関数が消費する。最後まで消費
+						// されなければ、通常の計算文と同じく「不完全な文」になる
+						p.pushStack(calc)
+						if p.check(lexer.TypeComma) {
+							p.get()
+						}
+						continue
+					}
 					if t.Type == ast.Func && (t.Josi == "" || containsString(RenbunJosi, t.Josi)) {
 						t.Josi = ""
 						return t // 関数なら値とする
