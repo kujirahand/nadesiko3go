@@ -268,3 +268,47 @@ func TestParse2DArrayLiteral(t *testing.T) {
 		t.Fatalf("unexpected row0 node: %#v", row0)
 	}
 }
+
+// 辞書オブジェクトの省略記法『{A}』が変数参照として解決されること。
+// 回帰: getVarNameRef を通していなかったため、グローバル変数 A が
+// main__A に解決されず別スロットの A を参照して undefined になっていた。
+func TestParseDictShorthandVariableReference(t *testing.T) {
+	tree, err := parse(t, "A=10\nD={A}\nE={\"A\"}\nF={1}")
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	findLet := func(name string) *ast.Node {
+		t.Helper()
+		for _, n := range tree.Blocks {
+			if n != nil && n.Type == ast.Let && n.Name == name {
+				return n
+			}
+		}
+		t.Fatalf("代入 %q が見つかりません", name)
+		return nil
+	}
+
+	// {A} はキーが文字列 "A"、値が変数 main__A への参照になる。
+	dict := findLet("main__D").Block(0)
+	if dict.Type != ast.JSONObj || len(dict.Blocks) != 2 {
+		t.Fatalf("dict = %#v", dict)
+	}
+	if key := dict.Block(0); key.Type != ast.String || key.StringValue() != "A" {
+		t.Errorf("key = %#v, want string A", key)
+	}
+	if val := dict.Block(1); val.Type != ast.Word || val.StringValue() != "main__A" {
+		t.Errorf("value = %#v, want word main__A", val)
+	}
+
+	// {"A"} は文字列リテラルの省略記法のまま。変数参照にしない。
+	dict = findLet("main__E").Block(0)
+	if val := dict.Block(1); val.Type != ast.String || val.StringValue() != "A" {
+		t.Errorf("string shorthand value = %#v, want string A", val)
+	}
+
+	// {1} は数値リテラルの省略記法のまま。変数参照にしない。
+	dict = findLet("main__F").Block(0)
+	if val := dict.Block(1); val.Type != ast.Number || val.Value != float64(1) {
+		t.Errorf("number shorthand value = %#v, want number 1", val)
+	}
+}
