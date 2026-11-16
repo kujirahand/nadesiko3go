@@ -128,6 +128,10 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 	_ = tw.Window.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return session.resolveDialog(runID, dialogID, text, accepted)
 	})
+	// ページのリロード・移動で、応答を待っているダイアログを打ち切る。
+	_ = tw.Window.Bind("cancelNakoDialogs", func() {
+		session.cancelPendingDialogs()
+	})
 	_ = tw.Window.Bind("closeBundledWindow", func() {
 		tw.Window.Terminate()
 	})
@@ -146,6 +150,11 @@ func runStandaloneWindow(sourcePath, title, sourceName string) {
 		return
 	}
 	tw.Window.Run()
+
+	// ウィンドウが閉じられたら、ダイアログ待ちの実行を打ち切って
+	// execMu を解放させる。
+	session.cancelPendingDialogs()
+
 	// ウィンドウを閉じたら、保持していた実行を退役させる（#363）。
 	session.close()
 }

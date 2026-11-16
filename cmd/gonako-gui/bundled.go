@@ -111,6 +111,13 @@ func runBundledHTML(packed *bundle.Bundle) {
 		return
 	}
 	tw.Window.Run()
+
+	// ウィンドウが閉じられたら、応答を待っているダイアログを先に打ち切る。
+	// 打ち切らないと execMu・b.mu を握ったまま残り、close() のVM退役が
+	// そこでブロックして後始末が進まない。
+	bridge.cancelPendingDialogs()
+	session.cancelPendingDialogs()
+
 	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
 	session.close()
 	bridge.close()
@@ -151,6 +158,10 @@ func runBundledProgram(packed *bundle.Bundle) {
 	_ = tw.Window.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return session.resolveDialog(runID, dialogID, text, accepted)
 	})
+	// ページのリロード・移動で、応答を待っているダイアログを打ち切る。
+	_ = tw.Window.Bind("cancelNakoDialogs", func() {
+		session.cancelPendingDialogs()
+	})
 	_ = tw.Window.Bind("closeBundledWindow", func() {
 		tw.Window.Terminate()
 	})
@@ -169,6 +180,11 @@ func runBundledProgram(packed *bundle.Bundle) {
 		return
 	}
 	tw.Window.Run()
+
+	// ウィンドウが閉じられたら、ダイアログ待ちの実行を打ち切って
+	// execMu を解放させる。
+	session.cancelPendingDialogs()
+
 	// ウィンドウを閉じたら、保持していた実行を退役させる（#363）。
 	session.close()
 }

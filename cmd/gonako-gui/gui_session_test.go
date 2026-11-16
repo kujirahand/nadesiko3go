@@ -2,6 +2,7 @@ package main
 
 import (
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -84,6 +85,9 @@ func TestAsyncRunStreamsOutputWhileRunning(t *testing.T) {
 	if !sawOutputBeforeDone {
 		t.Fatal("『表示』の出力が実行完了前にポーリングへ現れなかった（#48が再発）")
 	}
+
+	// goroutineの後片付けまで待つ（→ waitForRunExit）。
+	waitForRunExit(t, session)
 }
 
 // 実行中に作られた画面部品が、ポーリングで取り出す限り1つも失われないこと。
@@ -142,6 +146,12 @@ func TestDispatchDuringRunDoesNotBlock(t *testing.T) {
 	if !strings.Contains(got.Error, "実行中") {
 		t.Fatalf("dispatch during run = %#v", got)
 	}
+
+	// この実行はわざと終わらせずに残すが、テストを終える前にgoroutineの
+	// 後片付け（os.Chdir での作業フォルダ復元）まで待つ。待たずに終えると、
+	// 2秒後にプロセス全体の作業フォルダが書き換わり、その時点で走っている
+	// 別のテスト（include_build_test.go など）を壊す（→ waitForRunExit）。
+	waitForRunExit(t, session)
 }
 
 // バンドル版のページは done を待たずに毎回のポーリングで出力・画面操作を
@@ -581,6 +591,10 @@ func waitForAsyncDone(t *testing.T, c *asyncCollector) AsyncRunStatus {
 	for time.Now().Before(deadline) {
 		status := c.poll()
 		if status.Done {
+			// done が見えた時点でも、実行goroutineはまだ作業フォルダを
+			// 戻している最中かもしれない。ここで待たないと、後片付けが
+			// 次のテストの作業フォルダを書き換えてしまう（→ waitForRunExit）。
+			waitForRunExit(t, c.session)
 			return status
 		}
 		time.Sleep(time.Millisecond)
@@ -601,4 +615,264 @@ func TestBundledAsyncProgramPageUsesHTMLDialogs(t *testing.T) {
 			t.Errorf("page unexpectedly contains native dialog %q", unwanted)
 		}
 	}
+}
+
+// ダイアログ待ちの実行が execMu を握ったままでも、新しい実行を始めれば
+// 待機が打ち切られ、2つ目の実行がデッドロックせずに完了すること（⑫）。
+//
+// 打ち切りは execMu.Lock() より前に行わないと、古い実行がロックを握った
+// まま解放できないため、2つ目の実行は永久に待たされる。
+func TestNewRunCancelsPendingDialogAndReleasesExecMu(t *testing.T) {
+	session := &guiSession{}
+	firstID := session.start(`「入力」と尋ねる
+「{それ}」と表示`, "first.nako3", true, nil, nil)
+
+	first := newAsyncCollector(session, firstID)
+	dialog := waitForDialog(t, first)
+	if dialog.Dialog.Kind != "prompt" {
+		t.Fatalf("dialog = %#v", dialog.Dialog)
+	}
+
+	// 応答を返さずに、新しい実行を始める。
+	secondID := session.start(`「2つ目」と表示`, "second.nako3", true, nil, nil)
+	second := newAsyncCollector(session, secondID)
+	done := waitForAsyncDone(t, second)
+	if done.Result == nil || !done.Result.OK {
+		t.Fatalf("2つ目の実行が完了しなかった: %#v", done.Result)
+	}
+	if got := second.output.String(); got != "2つ目\n" {
+		t.Fatalf("2つ目の出力 = %q, want %q", got, "2つ目\n")
+	}
+
+	// 打ち切られた1つ目は、利用者のキャンセルではなくエラーで終わる。
+	firstDone := waitForAsyncDone(t, first)
+	if firstDone.Result == nil || firstDone.Result.OK {
+		t.Fatalf("打ち切られた実行が成功扱いになった: %#v", firstDone.Result)
+	}
+	if !strings.Contains(firstDone.Result.Error, "中断") {
+		t.Fatalf("打ち切り理由が画面へ伝わっていない: %#v", firstDone.Result)
+	}
+
+	// 実行のgoroutineが作業フォルダを戻し終えるまで待つ（→ waitForRunExit）。
+	waitForRunExit(t, session)
+}
+
+// ウィンドウが閉じられたとき（w.Run() から戻ったとき）に呼ぶ打ち切りで、
+// 待機中の実行がエラー終了し、execMu が解放されること。
+func TestCancelPendingDialogsUnblocksWaitingRun(t *testing.T) {
+	session := &guiSession{}
+	runID := session.start(`「閉じる前」と言う`, "close.nako3", true, nil, nil)
+	collector := newAsyncCollector(session, runID)
+	waitForDialog(t, collector)
+
+	if n := session.cancelPendingDialogs(); n != 1 {
+		t.Fatalf("打ち切ったダイアログ数 = %d, want 1", n)
+	}
+	done := waitForAsyncDone(t, collector)
+	if done.Result == nil || done.Result.OK || done.Result.Error == "" {
+		t.Fatalf("打ち切り後も成功扱い: %#v", done.Result)
+	}
+
+	// execMu が解放されている＝次の実行が普通に完了する。
+	next := session.run(`「次の実行」と表示`, "next.nako3", true, nil, nil)
+	if !next.OK || next.Output != "次の実行\n" {
+		t.Fatalf("打ち切り後に次の実行が動かない: %#v", next)
+	}
+	// 待機が無いときの打ち切りは0件。
+	if n := session.cancelPendingDialogs(); n != 0 {
+		t.Fatalf("待機が無いのに %d 件打ち切った", n)
+	}
+
+	// 実行のgoroutineが作業フォルダを戻し終えるまで待つ（→ waitForRunExit）。
+	waitForRunExit(t, session)
+}
+
+// 打ち切りは利用者の「キャンセル」（accepted=false, err=nil）ではなく、
+// 必ずエラーとして返すこと。ここを取り違えると、打ち切りで実行が正常終了
+// したように見えてしまう。
+func TestCanceledDialogReturnsErrorNotCancelAnswer(t *testing.T) {
+	state := &guiAsyncRun{}
+	type outcome struct {
+		text     string
+		accepted bool
+		err      error
+	}
+	result := make(chan outcome, 1)
+	go func() {
+		text, accepted, err := state.showDialog("prompt", "入力")
+		result <- outcome{text: text, accepted: accepted, err: err}
+	}()
+
+	waitForStateDialog(t, state)
+	if !state.cancelDialog() {
+		t.Fatal("cancelDialog が待機を打ち切れなかった")
+	}
+	select {
+	case got := <-result:
+		if got.err == nil {
+			t.Fatalf("打ち切りがキャンセル扱いになった: %#v", got)
+		}
+		if got.accepted || got.text != "" {
+			t.Fatalf("打ち切りの戻り値 = %#v", got)
+		}
+		if !strings.Contains(got.err.Error(), "中断") {
+			t.Fatalf("エラー文面 = %v", got.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("打ち切り後も showDialog が戻らない")
+	}
+}
+
+// resolve と cancel が同時に来ても、パニックせずハングせず、どちらか一方
+// だけが成立すること（チャネルの二重送信・close済みチャネルへの送信をしない）。
+func TestResolveAndCancelRaceIsSafe(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		state := &guiAsyncRun{}
+		type outcome struct {
+			text     string
+			accepted bool
+			err      error
+		}
+		shown := make(chan outcome, 1)
+		go func() {
+			text, accepted, err := state.showDialog("confirm", "競合")
+			shown <- outcome{text: text, accepted: accepted, err: err}
+		}()
+		dialog := waitForStateDialog(t, state)
+
+		var wg sync.WaitGroup
+		var resolved, canceled bool
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			resolved = state.resolve(dialog.ID, "ok", true)
+		}()
+		go func() {
+			defer wg.Done()
+			canceled = state.cancelDialog()
+		}()
+		wg.Wait()
+
+		select {
+		case got := <-shown:
+			if resolved == canceled {
+				t.Fatalf("resolve=%v cancel=%v が同じ結果になった: %#v", resolved, canceled, got)
+			}
+			if resolved && (got.err != nil || !got.accepted || got.text != "ok") {
+				t.Fatalf("応答が反映されていない: %#v", got)
+			}
+			if canceled && got.err == nil {
+				t.Fatalf("打ち切りがエラーになっていない: %#v", got)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("resolve/cancel の競合で showDialog が戻らない")
+		}
+	}
+}
+
+// 打ち切りの走査が終わった直後にダイアログが登録されても、取り残されないこと。
+// 世代が変わっていれば、応答が来ないと分かるので待ちに入らずエラーで終わる。
+func TestDialogRegisteredAfterCancellationFails(t *testing.T) {
+	session := &guiSession{}
+	state := &guiAsyncRun{session: session, dialogEpoch: session.dialogEpoch}
+	// 新しい実行の開始に相当する打ち切り（この時点では待機なし）。
+	session.cancelPendingDialogs()
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := state.showDialog("alert", "取り残し")
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("取り残されたダイアログが応答待ちに入った")
+		}
+		if !strings.Contains(err.Error(), "中断") {
+			t.Fatalf("エラー文面 = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("取り残されたダイアログが応答待ちのまま戻らない")
+	}
+}
+
+// 応答が来ないままタイムアウトしても、打ち切りと同じくエラーで戻ること。
+func TestDialogTimeoutReturnsError(t *testing.T) {
+	old := guiDialogTimeout
+	guiDialogTimeout = 10 * time.Millisecond
+	defer func() { guiDialogTimeout = old }()
+
+	state := &guiAsyncRun{}
+	started := time.Now()
+	_, accepted, err := state.showDialog("alert", "応答なし")
+	if err == nil {
+		t.Fatal("タイムアウトがエラーにならない")
+	}
+	if accepted {
+		t.Fatal("タイムアウトが accepted=true になった")
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("タイムアウトが効いていない: %v", elapsed)
+	}
+}
+
+// バンドル版・wnako3実行画面のリロード・移動で、待機中のダイアログを
+// 打ち切るフックが埋め込まれていること。
+func TestBundledPageCancelsPendingDialogsOnUnload(t *testing.T) {
+	page := bundledAsyncProgramPage(1)
+	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs"} {
+		if !pageHas(page, want) {
+			t.Errorf("バンドル版ページに %q が無い", want)
+		}
+	}
+}
+
+// 全ページへ注入するローダーにも、同じ打ち切りフックがあること。
+func TestLoaderCancelsPendingDialogsOnUnload(t *testing.T) {
+	loader, err := uiFS.ReadFile(gonakoLoaderAsset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs"} {
+		if !strings.Contains(string(loader), want) {
+			t.Errorf("ローダーに %q が無い", want)
+		}
+	}
+}
+
+// waitForRunExit は、非同期実行のgoroutineが完全に終わるまで待つ。
+//
+// startWithWindow のgoroutineは、実行結果を finish で公開した後に、
+// 遅れて os.Chdir で作業フォルダを元へ戻し、最後に execMu を解放する。
+// finish を見ただけではまだ後片付けが残っており、ここで待たずにテストを
+// 終えると、プロセス全体の作業フォルダがその後のテスト（include_build_test.go
+// など）の途中で書き換わってしまう。execMu を取れることが、
+// 後片付けまで終わった印になる（→ startWithWindow の defer の順序）。
+func waitForRunExit(t *testing.T, session *guiSession) {
+	t.Helper()
+	done := make(chan struct{})
+	go func() {
+		session.execMu.Lock()
+		session.execMu.Unlock()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("実行のgoroutineが終わらなかった")
+	}
+}
+
+// waitForStateDialog は guiAsyncRun にダイアログが登録されるまで待つ。
+func waitForStateDialog(t *testing.T, state *guiAsyncRun) *DialogRequest {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if status := state.status(); status.Dialog != nil {
+			return status.Dialog
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("ダイアログが登録されなかった")
+	return nil
 }

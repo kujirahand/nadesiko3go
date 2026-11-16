@@ -76,6 +76,10 @@ func bindAsyncRunAPI(w *webview.Protected, session *guiSession, args []string, p
 	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return session.resolveDialog(runID, dialogID, text, accepted)
 	})
+	// ページのリロード・移動で、応答を待っているダイアログを打ち切る。
+	_ = w.Bind("cancelNakoDialogs", func() {
+		session.cancelPendingDialogs()
+	})
 }
 
 // runWNako3Window は launchWNako3WindowProcess が起動した子プロセスの入口。
@@ -129,6 +133,13 @@ func runWNako3Window(sourcePath, title, sourceName string) {
 		return
 	}
 	tw.Window.Run()
+
+	// ウィンドウが閉じられたら、応答を待っているダイアログを先に打ち切る。
+	// 打ち切らないと execMu・b.mu を握ったまま残り、close() のVM退役が
+	// そこでブロックして後始末が進まない。
+	bridge.cancelPendingDialogs()
+	session.cancelPendingDialogs()
+
 	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
 	session.close()
 	bridge.close()

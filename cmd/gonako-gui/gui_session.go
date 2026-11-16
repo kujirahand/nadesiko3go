@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -122,7 +123,31 @@ type guiSession struct {
 	active *guiExecution
 	async  map[uint64]*guiAsyncRun
 	window guilib.WindowController
+
+	// dialogEpoch は「新しい実行の開始」「ウィンドウ終了・リロード」で
+	// 待機中のダイアログを打ち切るたびに進む世代番号。
+	//
+	// 実行は予約時の世代を覚えておき、ダイアログを出す直前に現在の世代と
+	// 比べる。打ち切りの走査が終わった直後に登録されたダイアログでも、
+	// 世代が変わっていれば応答は来ないと分かるので、待ちに入らずに
+	// エラーで終了して execMu を解放できる（→ registerDialog）。
+	dialogEpoch uint64
 }
+
+// errDialogCanceled は、待機中のダイアログが外から打ち切られたことを表す。
+//
+// 利用者がダイアログの「キャンセル」を押した場合は accepted=false, err=nil
+// なので、それと混同してはいけない。打ち切りは実行そのものを止めるべき
+// 出来事（ウィンドウ終了・リロード・新しい実行の開始）なので、必ず
+// 非nilのエラーを返してVMを停止させる。
+var errDialogCanceled = errors.New("ダイアログの待機が中断されました")
+
+// guiDialogTimeout はshowDialogが応答を待つ上限。bridge.go の
+// bridgeDialogTimeout と同じ考え方で、画面が応答を返せなくなった場合に
+// execMu を握ったまま永久に固まらないようにする。
+// 猶予は応答待ちの利用者を急かさない程度に長く取り、テストが短縮できる
+// よう変数にしてある。
+var guiDialogTimeout = 30 * time.Minute
 
 func (s *guiSession) pluginForScreen(screen *guilib.Screen) *guilib.Plugin {
 	return guilib.NewWithScreenAndWindow(screen, s.window)
@@ -149,9 +174,16 @@ type AsyncRunStatus struct {
 	Result     *RunResult         `json:"result,omitempty"`
 }
 
+// dialogAnswer は1つのダイアログの決着。
+//
+// err は「待機が外から打ち切られた」ことを表す。利用者がダイアログの
+// 「キャンセル」を押した場合は accepted=false, err=nil なので区別できる。
+// err を使うのはwnako3の命令ブリッジ（bridge.go）だけで、guiSession 側は
+// cancel チャネルで打ち切りを運ぶ（→ guiAsyncRun.showDialog）。
 type dialogAnswer struct {
 	text     string
 	accepted bool
+	err      error
 }
 
 type guiAsyncRun struct {
@@ -159,8 +191,15 @@ type guiAsyncRun struct {
 	nextDialogID uint64
 	dialog       *DialogRequest
 	answer       chan dialogAnswer
+	dialogCancel chan struct{}
 	done         bool
 	result       RunResult
+
+	// session と dialogEpoch は、この実行を予約したセッションと、その時点の
+	// 打ち切り世代。ダイアログを登録する前に世代を確かめ、既に新しい実行が
+	// 始まっている（＝応答が来ない）なら待たずに打ち切る。
+	session     *guiSession
+	dialogEpoch uint64
 
 	// isEvent はこの実行がクリックなどのイベント処理であることを示す。
 	// イベントはクリックのたびに起きるので、画面が結果を読み終えたら
@@ -203,19 +242,78 @@ func (r *guiAsyncRun) dialogHandler(host *guiHost) func(string, string) (string,
 	}
 }
 
+// registerDialog は待機中のダイアログを実行状態へ登録する。
+//
+// 登録はセッションの dialogEpoch と排他して行う。新しい実行の開始や
+// ウィンドウ終了（→ cancelPendingDialogs）が先に起きていれば、この
+// ダイアログにはもう誰も応答できないので、待ちに入る前にエラーで打ち切る。
+// ここを排他しないと「打ち切りの走査が終わった直後に登録されたダイアログ」が
+// 取り残され、その実行が execMu を握ったままデッドロックする。
+//
+// ロック順は s.mu → r.mu。cancelPendingDialogs も同じ順で取る。
+func (r *guiAsyncRun) registerDialog(request *DialogRequest, answer chan dialogAnswer, cancel chan struct{}) error {
+	s := r.session
+	if s == nil {
+		r.mu.Lock()
+		r.dialog, r.answer, r.dialogCancel = request, answer, cancel
+		r.mu.Unlock()
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.dialogEpoch != r.dialogEpoch {
+		return errDialogCanceled
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.dialog, r.answer, r.dialogCancel = request, answer, cancel
+	return nil
+}
+
+// showDialog は画面にダイアログを出し、応答を待つ。
+//
+// 応答は resolve が、打ち切りは cancelDialog が運ぶ。どちらも r.mu を
+// 握って登録の有無を確かめてから決着させるので、両者が同時に来ても
+// 「応答が届く」「打ち切られる」のどちらか一方に必ず定まり、チャネル送信で
+// ブロックしたり閉じたチャネルへ送ったりしない。
+//
+// 打ち切り・タイムアウトは accepted=false, err=nil ではなく、必ず非nilの
+// エラーを返す。利用者のキャンセル操作と区別するため。
 func (r *guiAsyncRun) showDialog(kind, message string) (string, bool, error) {
 	r.mu.Lock()
 	r.nextDialogID++
 	request := &DialogRequest{ID: r.nextDialogID, Kind: kind, Message: message}
-	answer := make(chan dialogAnswer, 1)
-	r.dialog = request
-	r.answer = answer
 	r.mu.Unlock()
 
-	response := <-answer
-	return response.text, response.accepted, nil
+	answer := make(chan dialogAnswer, 1)
+	cancel := make(chan struct{})
+	if err := r.registerDialog(request, answer, cancel); err != nil {
+		return "", false, err
+	}
+
+	timer := time.NewTimer(guiDialogTimeout)
+	defer timer.Stop()
+	select {
+	case response := <-answer:
+		return response.text, response.accepted, nil
+	case <-cancel:
+		return "", false, errDialogCanceled
+	case <-timer.C:
+		if r.abandonDialog(request.ID, answer) {
+			return "", false, fmt.Errorf("ダイアログの応答がありません（%v以内に応答がなく、ページの移動などで打ち切られた可能性があります）", guiDialogTimeout)
+		}
+		// タイムアウトと同時に応答・打ち切りが決まっていた。決まった側を優先する。
+		select {
+		case response := <-answer:
+			return response.text, response.accepted, nil
+		case <-cancel:
+			return "", false, errDialogCanceled
+		}
+	}
 }
 
+// resolve は画面からの応答を待機中のダイアログへ渡す。
+// 該当する待機がなければ（打ち切り後・二重応答など）false を返す。
 func (r *guiAsyncRun) resolve(dialogID uint64, text string, accepted bool) bool {
 	r.mu.Lock()
 	if r.dialog == nil || r.dialog.ID != dialogID || r.answer == nil {
@@ -225,13 +323,48 @@ func (r *guiAsyncRun) resolve(dialogID uint64, text string, accepted bool) bool 
 	answer := r.answer
 	r.dialog = nil
 	r.answer = nil
+	r.dialogCancel = nil
 	r.mu.Unlock()
+	// チャネルは容量1で、登録を外した者だけが送るので、送信がブロックすることはない。
 	select {
 	case answer <- dialogAnswer{text: text, accepted: accepted}:
 		return true
 	default:
 		return false
 	}
+}
+
+// cancelDialog は待機中のダイアログを打ち切る。待機がなければ false。
+//
+// 登録の解除と cancel チャネルの close を r.mu を握ったまま行うので、
+// resolve と競合しても二重に close したり、close 済みチャネルへ送ったりしない。
+func (r *guiAsyncRun) cancelDialog() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.dialog == nil || r.dialogCancel == nil {
+		return false
+	}
+	close(r.dialogCancel)
+	r.dialog = nil
+	r.answer = nil
+	r.dialogCancel = nil
+	return true
+}
+
+// abandonDialog はタイムアウトした showDialog が、まだ自分が待っていることを
+// 確かめて登録を外す。外せたら true（＝タイムアウトで打ち切る）。既に
+// resolve か cancelDialog が決着させていれば false を返し、呼び出し側が
+// その結果を受け取る。
+func (r *guiAsyncRun) abandonDialog(dialogID uint64, answer chan dialogAnswer) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.dialog == nil || r.dialog.ID != dialogID || r.answer != answer {
+		return false
+	}
+	r.dialog = nil
+	r.answer = nil
+	r.dialogCancel = nil
+	return true
 }
 
 func (r *guiAsyncRun) finish(result RunResult) {
@@ -268,7 +401,7 @@ func (s *guiSession) reserveRun(async bool) (uint64, *guiAsyncRun) {
 	s.nextID++
 	var state *guiAsyncRun
 	if async {
-		state = &guiAsyncRun{}
+		state = &guiAsyncRun{session: s, dialogEpoch: s.dialogEpoch}
 		if s.async == nil {
 			s.async = map[uint64]*guiAsyncRun{}
 		}
@@ -277,11 +410,39 @@ func (s *guiSession) reserveRun(async bool) (uint64, *guiAsyncRun) {
 	return s.nextID, state
 }
 
+// cancelPendingDialogs は、応答を待っているダイアログをすべて打ち切る。
+//
+// ウィンドウが閉じられた・ページがリロードされた（→ beforeunload /
+// pagehide）、あるいは新しい実行が始まったときに呼ぶ。打ち切られた実行は
+// エラーで終了して execMu を解放するので、後続の実行がデッドロックしない。
+//
+// dialogEpoch を進めるのは、この走査の直後に登録されたダイアログも確実に
+// 打ち切るため。登録側（registerDialog）は同じ s.mu を取って世代を確かめる
+// ので、打ち切りと登録が競合しても取りこぼさない。
+//
+// 戻り値は打ち切ったダイアログの数。テストとログのために返している。
+func (s *guiSession) cancelPendingDialogs() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.dialogEpoch++
+	canceled := 0
+	for _, state := range s.async {
+		if state.cancelDialog() {
+			canceled++
+		}
+	}
+	return canceled
+}
+
 func (s *guiSession) run(code, filename string, windowMode bool, args []string, packed *bundle.Bundle) RunResult {
 	return s.runWithWindow(code, filename, windowMode, args, packed, s.window)
 }
 
 func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) RunResult {
+	// 前の実行がダイアログ待ちのままなら先に打ち切る。execMu を取る前に
+	// 打ち切らないと、その実行がロックを握ったまま解放できず、ここで
+	// 永久に待たされる（→ ⑫ ダイアログ待機中のデッドロック）。
+	s.cancelPendingDialogs()
 	s.execMu.Lock()
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
@@ -300,6 +461,9 @@ func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args 
 }
 
 func (s *guiSession) runCompiled(prog *ir.Program, args []string, packed *bundle.Bundle) RunResult {
+	// 同期実行も、ダイアログ待ちで execMu を握ったままの実行があれば
+	// 先に打ち切る。さもないとここで永久に待たされる。
+	s.cancelPendingDialogs()
 	s.execMu.Lock()
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
@@ -367,6 +531,10 @@ func (s *guiSession) start(code, filename string, windowMode bool, args []string
 }
 
 func (s *guiSession) startWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) uint64 {
+	// 新しい実行の予約より前に、待機中のダイアログを打ち切る。この時点で
+	// 打ち切らないと、古い実行が execMu を握ったまま応答を待ち続け、
+	// この実行の goroutine がロックを取れずにデッドロックする。
+	s.cancelPendingDialogs()
 	id, state := s.reserveRun(true)
 	workDir, _ := os.Getwd()
 	go func() {
@@ -400,6 +568,8 @@ func (s *guiSession) startWithWindow(code, filename string, windowMode bool, arg
 }
 
 func (s *guiSession) startCompiled(prog *ir.Program, args []string, packed *bundle.Bundle) uint64 {
+	// startWithWindow と同じ理由で、ロックを取る前に待機中のダイアログを打ち切る。
+	s.cancelPendingDialogs()
 	id, state := s.reserveRun(true)
 	go func() {
 		s.execMu.Lock()

@@ -14,6 +14,25 @@ let state = { runId };
 // documentへ未接続の要素も、追加されるまでハンドルで保持する。
 const elements = new Map();
 
+// ページのリロード・移動で、Go側が応答を待っているダイアログを打ち切る。
+// 打ち切らないと、ダイアログ待ちの実行が execMu を握ったまま残り、
+// 次の実行がデッドロックする（⑫）。cancelGonakoDialogs はwnako3の命令
+// ブリッジ（commandBridge）の待機を打ち切るもので、無い場合もある。
+function cancelPendingDialogs() {
+  const bindings = ['cancelNakoDialogs', 'cancelGonakoDialogs'];
+  for (const name of bindings) {
+    if (typeof window[name] !== 'function') continue;
+    try {
+      const pending = window[name]();
+      if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+    } catch (e) {
+      // ページを閉じる処理を妨げない
+    }
+  }
+}
+window.addEventListener('beforeunload', cancelPendingDialogs);
+window.addEventListener('pagehide', cancelPendingDialogs);
+
 // 入力欄の現在値を、なでしこ側のハンドル番号をキーにして {value, checked?} で集める。
 // checked は checkbox・radio のときだけ付け、未選択(false)も必ず送る。
 // value だけだと未選択でも "on" 等が残り、選択済みと区別できない (#355)。
