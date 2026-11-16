@@ -17,6 +17,17 @@ import (
 // folder, and reports what it printed.
 func runIn(t *testing.T, dir, code string) string {
 	t.Helper()
+	out, err := runInResult(t, dir, code)
+	if err != nil {
+		t.Fatalf("%s\n=> %v", code, err)
+	}
+	return out
+}
+
+// runInResult は runIn と同じ実行をして、表示した内容とプログラムの
+// エラーを両方返す。エラーになることを確かめるテスト用。
+func runInResult(t *testing.T, dir, code string) (string, error) {
+	t.Helper()
 	var out strings.Builder
 	host := vm.NewCUIHost(&out, strings.NewReader(""), nil)
 
@@ -29,10 +40,8 @@ func runIn(t *testing.T, dir, code string) string {
 	}
 	defer os.Chdir(previous)
 
-	if err := vm.RunProgram(code, "main.nako3", host); err != nil {
-		t.Fatalf("%s\n=> %v", code, err)
-	}
-	return strings.TrimRight(out.String(), "\n")
+	runErr := vm.RunProgram(code, "main.nako3", host)
+	return strings.TrimRight(out.String(), "\n"), runErr
 }
 
 func TestFileCommands(t *testing.T) {

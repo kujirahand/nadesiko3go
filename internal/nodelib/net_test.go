@@ -2,6 +2,7 @@ package nodelib_test
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -59,5 +60,115 @@ func TestAjaxJSONTrailingGarbage(t *testing.T) {
 		if err := run(body); err != nil {
 			t.Errorf("応答 %q は通るはず: %v", body, err)
 		}
+	}
+}
+
+// closedServerURL は接続だけを受け付けないURLを返す。待ち受けを閉じた
+// ポートへ接続すると、HTTPクライアントは即座に接続エラーになる。
+func closedServerURL(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := ln.Addr().String()
+	if err := ln.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return "http://" + addr
+}
+
+// TestAjaxFailureCallback は接続に失敗したとき『AJAX失敗時』で登録した
+// コールバックが呼ばれ、実行時エラーにならないことを確かめる回帰テスト。
+// 以前は AJAX:ONERROR を SetSysVar で保存していたため、プログラムが
+// その名前の大域変数を持たない限り黙って捨てられ、コールバックが
+// 呼ばれずにエラーになっていた。
+func TestAjaxFailureCallback(t *testing.T) {
+	dir := t.TempDir()
+	code := fmt.Sprintf(`
+●(メッセージで)成功CB
+　「成功: {メッセージ}」と表示
+ここまで
+●(メッセージで)失敗CB
+　「失敗: {メッセージ}」と表示
+ここまで
+「失敗CB」のAJAX失敗時
+URL = "%s"
+URLへ「成功CB」でAJAX送信時
+URLへ「成功CB」でGET送信時
+URLへ「成功CB」でAJAX受信時
+Params = {}
+Params["name"] = "test"
+「成功CB」でURLへParamsをPOST送信時
+「成功CB」でURLへParamsをPOSTフォーム送信時
+`, closedServerURL(t))
+
+	got := runIn(t, dir, code)
+	lines := strings.Split(got, "\n")
+	if len(lines) != 5 {
+		t.Fatalf("エラーコールバックが5回呼ばれるはず: got %q", got)
+	}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "失敗: ") {
+			t.Errorf("エラーコールバックの出力でない: %q", line)
+		}
+	}
+	if strings.Contains(got, "成功") {
+		t.Errorf("失敗時に成功コールバックが呼ばれた: %q", got)
+	}
+}
+
+// TestAjaxFailureCallbackTarget は引数を宣言しないコールバックでも、
+// 『対象』からエラー内容を読めることを確かめる。
+func TestAjaxFailureCallbackTarget(t *testing.T) {
+	code := fmt.Sprintf(`
+●成功CB
+　「成功」と表示
+ここまで
+●失敗CB
+　「失敗: {対象}」と表示
+ここまで
+「失敗CB」のAJAX失敗時
+URL = "%s"
+URLへ「成功CB」でAJAX送信時
+`, closedServerURL(t))
+
+	got := runIn(t, t.TempDir(), code)
+	if !strings.HasPrefix(got, "失敗: ") {
+		t.Errorf("『対象』にエラー内容が入っていない: %q", got)
+	}
+}
+
+// TestAjaxFailureCallbackErrorPropagates は『AJAX失敗時』のコールバック内で
+// 起きたエラーが握り潰されず、呼び出し元へ伝搬して後続処理が実行されない
+// ことを確かめる。成功コールバックはエラーを伝搬するので、失敗コールバックも
+// 同じように振る舞う必要がある。
+func TestAjaxFailureCallbackErrorPropagates(t *testing.T) {
+	code := fmt.Sprintf(`
+●(メッセージで)失敗CB
+　「失敗CB: {メッセージ}」と表示
+　「わざとエラー」でエラー発生
+ここまで
+●(テキストで)成功CB
+　「成功: {テキスト}」と表示
+ここまで
+「失敗CB」のAJAX失敗時
+URL = "%s"
+URLへ「成功CB」でAJAX送信時
+「後続の処理」と表示
+`, closedServerURL(t))
+
+	got, err := runInResult(t, t.TempDir(), code)
+	if err == nil {
+		t.Fatalf("失敗コールバックのエラーが伝搬していない: 出力 %q", got)
+	}
+	if !strings.Contains(err.Error(), "わざとエラー") {
+		t.Errorf("コールバックのエラー内容が失われている: %v", err)
+	}
+	if strings.Contains(got, "後続の処理") {
+		t.Errorf("エラー後も後続処理が実行された: %q", got)
+	}
+	if strings.Contains(got, "成功: ") {
+		t.Errorf("失敗時に成功コールバックが呼ばれた: %q", got)
 	}
 }
