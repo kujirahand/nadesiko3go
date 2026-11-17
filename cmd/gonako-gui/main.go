@@ -18,6 +18,7 @@ import (
 
 	"golang.design/x/clipboard"
 
+	"github.com/kujirahand/nadesiko3go/cmd/gonako-gui/internal/runcwd"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/deskutil"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -798,22 +799,10 @@ func main() {
 	bridge.close()
 }
 
-// nakoRunLocation はエディタからの実行指定（ファイルパス）から、VMへ渡す
-// ソース名と作業ディレクトリを決める。
-//   - 保存済みファイル: 親ディレクトリが実在すれば、そこを作業ディレクトリにする
-//   - 未保存（filePath == ""）: GUI起動時のディレクトリ（initialWorkingDir）で動かす
-//
-// 親ディレクトリが実在しない場合は workDir を空で返し、呼び出し側で
-// 「実行開始時点のCWD」へフォールバックさせる。
+// nakoRunLocation は実行するソース名と作業ディレクトリを決める。
+// 詳細は runcwd.NakoRunLocation を参照。
 func nakoRunLocation(filePath, initialWorkingDir string) (runFile, workDir string) {
-	if filePath == "" {
-		return "gui.nako3", initialWorkingDir
-	}
-	scriptDir := filepath.Dir(filePath)
-	if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
-		workDir = scriptDir
-	}
-	return filePath, workDir
+	return runcwd.NakoRunLocation(filePath, initialWorkingDir)
 }
 
 // bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ

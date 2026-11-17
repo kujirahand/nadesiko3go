@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kujirahand/nadesiko3go/cmd/gonako-gui/internal/runcwd"
 	"github.com/kujirahand/nadesiko3go/internal/bundle"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/ir"
@@ -443,25 +444,6 @@ func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args 
 	return s.runWithWindowInDir(code, filename, windowMode, args, packed, windows, "")
 }
 
-// enterWorkDir は現在のCWDを記録し、workDirが指定されていればその
-// ディレクトリへ移る。戻り値の関数を呼ぶと必ず元のCWDへ戻る。
-//
-// CWDはプロセス全体で1つしかないため、呼び出し側はexecMuを保持した
-// 状態で使うこと。ロックの外で移動・復元すると、実行中の別の実行の
-// 作業ディレクトリを壊したり、復元が追い越してCWDが残留したりする。
-func enterWorkDir(workDir string) func() {
-	originalDir, _ := os.Getwd()
-	if originalDir == "" {
-		return func() {}
-	}
-	if workDir != "" && workDir != originalDir {
-		_ = os.Chdir(workDir)
-	}
-	return func() {
-		_ = os.Chdir(originalDir)
-	}
-}
-
 // runWithWindowInDir はプログラムを同期的に実行する。
 //
 // workDirが空なら、execMuを取った時点のCWDで動かす。workDirを渡した場合は
@@ -491,9 +473,12 @@ func (s *guiSession) runWithWindowInDir(code, filename string, windowMode bool, 
 	defer s.execMu.Unlock()
 	// 復元はexecMuを解放する前に行う（deferはLIFOなので、この順で
 	// ロック解放より先にCWDが戻る）。
-	restoreDir := enterWorkDir(workDir)
-	defer restoreDir()
 	id, _ := s.reserveRun(false)
+	restoreDir, err := runcwd.EnterWorkDir(workDir)
+	if err != nil {
+		return RunResult{OK: false, RunID: id, Error: err.Error()}
+	}
+	defer restoreDir()
 	screen := guilib.NewScreen()
 	plugin := guilib.NewWithScreenAndWindow(screen, windows)
 	registry := stdlib.NewRegistry(guiPluginsWith(plugin)...)
@@ -601,7 +586,11 @@ func (s *guiSession) startWithWindow(code, filename string, windowMode bool, arg
 		s.execMu.Lock()
 		defer s.execMu.Unlock()
 		// CWDの移動と復元はexecMuを保持したまま行う（解放前に戻す）。
-		restoreDir := enterWorkDir(workDir)
+		restoreDir, err := runcwd.EnterWorkDir(workDir)
+		if err != nil {
+			state.finish(RunResult{OK: false, RunID: id, Error: err.Error()})
+			return
+		}
 		defer restoreDir()
 
 		screen := guilib.NewScreen()
