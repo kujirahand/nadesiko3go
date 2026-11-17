@@ -175,6 +175,14 @@ alert/prompt/confirmではなく、`gonako-loader.js`が自前で描画するHTM
 応答を待つ間`b.mu`（常駐VM全体のロック）を握ったままなので、ページの
 移動やリロードで応答が二度と来なくなった場合に備えて
 `bridgeDialogTimeout`（既定30分）でタイムアウトし、ロックを解放する。
+Go側VMの実行（`guiSession.showDialog`）も同じ30分（`guiDialogTimeout`）で
+エラー終了する。
+
+ページの `beforeunload` と `pagehide` は、`cancelNakoDialogs`（guiSession）と
+`cancelGonakoDialogs`（commandBridge）を離脱1回につき1回だけ呼ぶ
+（`unloadDialogsCanceled`）。新しい実行の開始は、待機中のダイアログに加えて、
+実行中の run がこの後に出すダイアログも世代番号で打ち切る。
+仕様の根拠と残件は [issue-499-dialog-cancel.md](issue-499-dialog-cancel.md)。
 
 ## 7. 制約
 

@@ -18,7 +18,20 @@ const elements = new Map();
 // 打ち切らないと、ダイアログ待ちの実行が execMu を握ったまま残り、
 // 次の実行がデッドロックする（⑫）。cancelGonakoDialogs はwnako3の命令
 // ブリッジ（commandBridge）の待機を打ち切るもので、無い場合もある。
+//
+// beforeunload と pagehide は同じ離脱で続けて発火する。Go側の
+// cancelPendingDialogs は2回目もパニックしない（待機が無ければ 0）が、
+// 呼ぶたびに dialogEpoch を進める。離脱1回につき1回だけ呼ぶ。
+//
+// アプリ内に留まる確認（beforeunload で preventDefault や returnValue を
+// 返すハンドラ）を将来足した場合、利用者が留まるを選んでも本関数は既に
+// 走っており、待機中ダイアログが誤って打ち切られる。現状そのような
+// ハンドラは無い。足すときは打ち切りを pagehide だけに移す
+// （pagehide は離脱が確定してから発火する）。
+let unloadDialogsCanceled = false;
 function cancelPendingDialogs() {
+  if (unloadDialogsCanceled) return;
+  unloadDialogsCanceled = true;
   const bindings = ['cancelNakoDialogs', 'cancelGonakoDialogs'];
   for (const name of bindings) {
     if (typeof window[name] !== 'function') continue;

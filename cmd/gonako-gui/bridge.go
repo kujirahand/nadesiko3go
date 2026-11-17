@@ -268,7 +268,10 @@ func (b *commandBridge) abandonDialog(id uint64, answer chan dialogAnswer) (dial
 //
 // dialogEpochを進めるのは、この走査の直後に登録されたダイアログも確実に
 // 打ち切るため。登録側（showDialog）は同じdialogMuを取って世代を確かめる
-// ので、打ち切りと登録が競合しても取りこぼさない。
+// ので、打ち切りと登録が競合しても取りこぼさない。待機が無いときの呼び出しも
+// 世代は進む（戻り値は 0）。2回目が既に打ち切ったダイアログを二重に
+// エラーにはしない。beforeunload と pagehide の二重発火は、JS側の
+// unloadDialogsCanceled で離脱1回につき1回にまとめる。
 //
 // 戻り値は打ち切ったダイアログの数。テストとログのために返している。
 func (b *commandBridge) cancelPendingDialogs() int {
