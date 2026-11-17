@@ -785,6 +785,14 @@ func main() {
 		os.Exit(1)
 	}
 	tw.Window.Run()
+
+	// ウィンドウを閉じたら、応答を待っているダイアログを先に打ち切る。
+	// 打ち切らないと、ダイアログ待ちの実行が execMu・b.mu を握ったまま残り、
+	// close() のVM退役（#363）がそこでブロックして後始末が進まない。
+	// 打ち切れば execMu・b.mu が解放され、close() まで到達できる。
+	bridge.cancelPendingDialogs()
+	guiRuntime.cancelPendingDialogs()
+
 	// ウィンドウを閉じたら、保持していた実行と常駐VMを退役させる（#363）。
 	guiRuntime.close()
 	bridge.close()
@@ -871,6 +879,14 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 
 	_ = w.Bind("resolveNakoDialog", func(runID, dialogID uint64, text string, accepted bool) bool {
 		return guiRuntime.resolveDialog(runID, dialogID, text, accepted)
+	})
+
+	// ページのリロード・移動で、応答を待っているダイアログを打ち切る。
+	// 打ち切らないと、待機中の実行が execMu を握ったままになり、次の実行が
+	// デッドロックする（→ beforeunload / pagehide から呼ぶ）。
+	// 特権ブリッジの一部なので、外部URL(-url)のページには公開しない（#183）。
+	_ = w.Bind("cancelNakoDialogs", func() {
+		guiRuntime.cancelPendingDialogs()
 	})
 
 	// Go ↔ JavaScript バインディング: 文法チェック・自動整形（#118）。

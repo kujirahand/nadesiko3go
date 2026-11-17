@@ -56,6 +56,16 @@ type commandBridge struct {
 	dialogMu      sync.Mutex
 	nextDialogID  uint64
 	dialogAnswers map[uint64]chan dialogAnswer
+
+	// dialogEpoch は cancelPendingDialogs のたびに進む世代番号。
+	//
+	// call は実行を始めた時点の世代を callEpoch に控え、showDialog は
+	// 登録の直前に現在の世代と比べる。打ち切りの走査が終わった直後に
+	// 登録されたダイアログでも、世代が変わっていれば応答は来ないと
+	// 分かるので、待ちに入らずエラーで b.mu を解放できる。
+	// どちらも dialogMu の下で読み書きする。
+	dialogEpoch uint64
+	callEpoch   uint64
 }
 
 func newCommandBridge(windows guilib.WindowController, packed *bundle.Bundle, eval func(js string)) *commandBridge {
@@ -105,8 +115,24 @@ func (b *commandBridge) close() {
 
 // call は命令を同期的に実行する。引数はJSON配列の文字列で受け取る。
 func (b *commandBridge) call(name, argsJSON string) BridgeResult {
+	// この呼び出しが始まった時点の世代を控える。b.muを待っている間に
+	// ページが遷移しても、この呼び出しは前のページのものなので、
+	// ダイアログは応答が来ないものとして打ち切る（→ showDialog）。
+	// ここより後にcancelPendingDialogsが走れば世代が変わる。
+	b.dialogMu.Lock()
+	epoch := b.dialogEpoch
+	b.dialogMu.Unlock()
+	return b.callAtEpoch(name, argsJSON, epoch)
+}
+
+// callAtEpoch は、呼び出しを始めた時点の世代 epoch で命令を実行する。
+// start が起動時に控えた世代を渡すためにも使う。
+func (b *commandBridge) callAtEpoch(name, argsJSON string, epoch uint64) BridgeResult {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.dialogMu.Lock()
+	b.callEpoch = epoch
+	b.dialogMu.Unlock()
 	b.once.Do(b.prepare)
 	if b.initErr != nil {
 		return BridgeResult{Error: b.initErr.Error()}
@@ -133,16 +159,28 @@ func (b *commandBridge) call(name, argsJSON string) BridgeResult {
 // b.mu（常駐VM全体のロック）を解放する。solveDialogがresolveGonakoDialog
 // より先にこのタイムアウトで諦めても、後から届いた応答はresolveDialogが
 // 「該当なし」としてfalseを返すだけで安全に無視される。
+// リロード時はcancelPendingDialogs（→ gonako-loader.jsのunloadフック）が
+// 先に待機を打ち切るので、通常はここまで待たない。
 // テストが短縮できるよう変数にしてある。
 var bridgeDialogTimeout = 30 * time.Minute
 
 // showDialog は『言』『尋』『文字尋』『二択』が呼ぶ。JavaScript側に
 // __gonakoBridgeDialog(id, kind, message) をEvalで届け、そこでダイアログを
 // 表示させる。応答はresolveDialogがresolveGonakoDialog（Bind）経由で運ぶ。
+// 打ち切りはcancelPendingDialogsが運ぶ。
 // bridge.callはこの呼び出しの間ずっとb.muを握ったままになる（guiSessionの
 // execMuと同じ考え方）ので、常駐VMは1度に1つのダイアログしか出さない。
+//
+// 登録と世代の確認はdialogMuの下で行う。cancelPendingDialogsは同じロックで
+// 走査するので、打ち切りと登録が競合しても取りこぼさない（→ callEpoch）。
+// 打ち切りは利用者の「キャンセル」ではないので、必ず非nilのエラーを返す。
 func (b *commandBridge) showDialog(kind, message string) (string, bool, error) {
 	b.dialogMu.Lock()
+	if b.dialogEpoch != b.callEpoch {
+		// この呼び出しが始まった後にページが遷移した。応答は来ない。
+		b.dialogMu.Unlock()
+		return "", false, errDialogCanceled
+	}
 	b.nextDialogID++
 	id := b.nextDialogID
 	answer := make(chan dialogAnswer, 1)
@@ -160,22 +198,33 @@ func (b *commandBridge) showDialog(kind, message string) (string, bool, error) {
 	defer timer.Stop()
 	select {
 	case result := <-answer:
-		return result.text, result.accepted, nil
+		return dialogAnswerOutcome(result)
 	case <-timer.C:
 		if result, ok := b.abandonDialog(id, answer); ok {
-			// タイムアウトと同時に応答が届いていた。応答を優先する。
-			return result.text, result.accepted, nil
+			// タイムアウトと同時に応答・打ち切りが決まっていた。決まった側を優先する。
+			return dialogAnswerOutcome(result)
 		}
 		return "", false, fmt.Errorf("ダイアログの応答がありません（%v以内に応答がなく、ページの移動などで打ち切られた可能性があります）", bridgeDialogTimeout)
 	}
+}
+
+// dialogAnswerOutcome は dialogAnswer を showDialog の戻り値へ変換する。
+// 打ち切りのエラーを、利用者のキャンセル（accepted=false, err=nil）と
+// 混同しないよう、必ずerrを優先して返す。
+func dialogAnswerOutcome(result dialogAnswer) (string, bool, error) {
+	if result.err != nil {
+		return "", false, result.err
+	}
+	return result.text, result.accepted, nil
 }
 
 // resolveDialog はresolveGonakoDialog（Bind）から呼ばれ、showDialogの
 // 待ちを解く。該当する呼び出しがなければ（二重応答など）falseを返す。
 //
 // 登録の削除と応答の送信はdialogMuを握ったまま行う。こうするとabandonDialog
-// から見て「登録が残っている＝未応答」「登録が消えている＝応答が送信済み」の
-// どちらかに必ず定まり、タイムアウトと応答が競合しても応答が失われない。
+// やcancelPendingDialogsから見て「登録が残っている＝未応答」「登録が消えている
+// ＝決着が送信済み」のどちらかに必ず定まり、タイムアウト・打ち切りと応答が
+// 競合しても応答が失われない。
 // チャネルは容量1で、登録を消した者だけが送るので、送信がブロックすることはない。
 func (b *commandBridge) resolveDialog(id uint64, text string, accepted bool) bool {
 	b.dialogMu.Lock()
@@ -190,8 +239,9 @@ func (b *commandBridge) resolveDialog(id uint64, text string, accepted bool) boo
 }
 
 // abandonDialog はタイムアウトしたshowDialogが呼ぶ。登録がまだ残っていれば
-// 削除して諦める（falseを返す）。既にresolveDialogが登録を取っていれば、
-// 応答はチャネルへ送信済みなので、それを受け取って返す（trueを返す）。
+// 削除して諦める（falseを返す）。既にresolveDialogかcancelPendingDialogsが
+// 登録を取っていれば、決着はチャネルへ送信済みなので、それを受け取って返す
+// （trueを返す）。打ち切りの場合はdialogAnswer.errにエラーが入っている。
 func (b *commandBridge) abandonDialog(id uint64, answer chan dialogAnswer) (dialogAnswer, bool) {
 	b.dialogMu.Lock()
 	defer b.dialogMu.Unlock()
@@ -202,11 +252,48 @@ func (b *commandBridge) abandonDialog(id uint64, answer chan dialogAnswer) (dial
 	return <-answer, true
 }
 
+// cancelPendingDialogs は、応答を待っているダイアログをすべて打ち切る。
+//
+// ページのリロード・移動（→ beforeunload / pagehide）やウィンドウ終了で
+// 呼ぶ。wnako3の命令ブリッジはcallの間ずっとb.muを握ったままダイアログの
+// 応答を待つので、打ち切らないと新ページからの命令呼び出しがb.muに阻まれ、
+// bridgeDialogTimeout（30分）まで止まる（#183の外部URL非公開は変えない）。
+//
+// 登録の削除とエラーの送信はdialogMuを握ったまま行う。こうすると
+// resolveDialog・タイムアウト（abandonDialog）・ここが同時に来ても、
+// 「登録が残っている＝まだ誰も決着させていない」「登録が消えている＝
+// 決着が送信済み」のどちらかに必ず定まり、パニック・ブロック・取りこぼしが
+// 起きない。チャネルは容量1で、登録を消した者だけが送るので送信は
+// ブロックしない。
+//
+// dialogEpochを進めるのは、この走査の直後に登録されたダイアログも確実に
+// 打ち切るため。登録側（showDialog）は同じdialogMuを取って世代を確かめる
+// ので、打ち切りと登録が競合しても取りこぼさない。
+//
+// 戻り値は打ち切ったダイアログの数。テストとログのために返している。
+func (b *commandBridge) cancelPendingDialogs() int {
+	b.dialogMu.Lock()
+	defer b.dialogMu.Unlock()
+	b.dialogEpoch++
+	canceled := 0
+	for id, answer := range b.dialogAnswers {
+		delete(b.dialogAnswers, id)
+		answer <- dialogAnswer{err: errDialogCanceled}
+		canceled++
+	}
+	return canceled
+}
+
 // start は命令をバックグラウンドで実行し、呼び出しIDをすぐ返す。
 func (b *commandBridge) start(name, argsJSON string) uint64 {
 	id := b.nextID.Add(1)
+	// 起動した時点の世代を控える。goroutineが走り出す前にページが
+	// 遷移しても、この命令は前のページのものとしてダイアログを打ち切る。
+	b.dialogMu.Lock()
+	epoch := b.dialogEpoch
+	b.dialogMu.Unlock()
 	go func() {
-		result := b.call(name, argsJSON)
+		result := b.callAtEpoch(name, argsJSON, epoch)
 		b.eval(bridgeDoneScript(id, result))
 	}()
 	return id

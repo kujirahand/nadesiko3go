@@ -182,5 +182,12 @@ func installWNako3(w *webview.Protected, cfg wnako3PageConfig, windows guilib.Wi
 	})
 	_ = w.Bind("startNakoCommand", bridge.start)
 	_ = w.Bind("resolveGonakoDialog", bridge.resolveDialog)
+	// ページのリロード・移動で、ブリッジが応答を待っているダイアログを
+	// 打ち切る（→ gonako-loader.jsのbeforeunload/pagehide）。打ち切らないと
+	// commandBridge.callがb.muを握ったまま最大bridgeDialogTimeout待ち、
+	// 新ページからの命令呼び出しが止まる。
+	// installWNako3はtargetURL == "" のときだけ呼ばれるので、外部URLの
+	// ページには公開されない（#183）。
+	_ = w.Bind("cancelGonakoDialogs", bridge.cancelPendingDialogs)
 	return bridge
 }

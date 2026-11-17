@@ -93,6 +93,9 @@ func TestPollForgetsFinishedRun(t *testing.T) {
 	if remaining != 0 {
 		t.Fatalf("完了した実行状態が残っている: %d件", remaining)
 	}
+
+	// 最後の実行も、goroutineの後片付けまで待つ（→ waitForRunExit）。
+	waitForRunExit(t, session)
 }
 
 // GONAKO関数実行/GONAKO実行の紹介サンプルが、実際にブリッジ経由で

@@ -332,6 +332,30 @@
     if (window.resolveGonakoDialog) await window.resolveGonakoDialog(id, text, accepted);
   };
 
+  // ページのリロード・移動で、Go側が応答を待っているダイアログを打ち切る。
+  // 打ち切らないと、ダイアログ待ちの実行が execMu を握ったまま残り、
+  // 次に実行したプログラムがデッドロックする（⑫）。
+  // cancelNakoDialogs はGo側VMの実行（guiSession）を、cancelGonakoDialogs は
+  // wnako3の命令ブリッジ（commandBridge）の待機を打ち切る。後者を忘れると、
+  // 『尋』などの表示中にリロードしたとき、新ページからの命令呼び出しが
+  // ブリッジの b.mu に阻まれて最大30分止まる。
+  // どちらも特権ブリッジの一部で、外部URL(-url)のページには公開されない
+  // （#183）。無い場合は何もしない。
+  function cancelPendingDialogs() {
+    const bindings = ['cancelNakoDialogs', 'cancelGonakoDialogs'];
+    for (const name of bindings) {
+      if (typeof window[name] !== 'function') continue;
+      try {
+        const pending = window[name]();
+        if (pending && typeof pending.catch === 'function') pending.catch(() => {});
+      } catch (e) {
+        // ページを閉じる処理を妨げない
+      }
+    }
+  }
+  window.addEventListener('beforeunload', cancelPendingDialogs);
+  window.addEventListener('pagehide', cancelPendingDialogs);
+
   // Go側でなでしこのプログラムを実行し、表示された文字列を返す
   async function run(code) {
     requireBinding('startNakoCode');
