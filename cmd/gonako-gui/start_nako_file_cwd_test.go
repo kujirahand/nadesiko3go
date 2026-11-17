@@ -1,67 +1,30 @@
 package main
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
-	"unsafe"
-
-	"github.com/webview/webview_go"
 )
 
-// fakeWebView はbindPrivilegedBridgeが登録するBind関数を捕まえるだけの
-// 偽WebView。WebViewを開かずにstartNakoFileなどのバインディングを
-// 直接呼び出せるようにする。
-type fakeWebView struct {
-	mu       sync.Mutex
-	bindings map[string]any
+// startNakoFileForTest / runNakoFileForTest は、bindPrivilegedBridge が
+// 登録する startNakoFile / runNakoFile バインディングの本体と同じ呼び出しを、
+// WebView を介さずに行うテスト用ヘルパー。
+//
+// bindPrivilegedBridge は特権バインドの保護のため *webview.Protected を
+// 要求するようになり（S01 の回帰テストで固定）、偽WebViewでは呼べなく
+// なった。バインディングの本体は nakoRunLocation で作業ディレクトリを
+// 決めて guiSession へ渡すだけなので、その呼び出しをここで再現し、
+// 振る舞いの検証は guiSession 側で行う。
+func startNakoFileForTest(session *guiSession, initialWorkingDir, code, filePath string, windowMode bool) uint64 {
+	runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
+	return session.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
 }
 
-func (f *fakeWebView) Run()                   {}
-func (f *fakeWebView) Terminate()             {}
-func (f *fakeWebView) Dispatch(func())        {}
-func (f *fakeWebView) Destroy()               {}
-func (f *fakeWebView) Window() unsafe.Pointer { return nil }
-func (f *fakeWebView) NativeHandle(webview.NativeHandleKind) unsafe.Pointer {
-	return nil
-}
-func (f *fakeWebView) SetTitle(string)                {}
-func (f *fakeWebView) SetSize(int, int, webview.Hint) {}
-func (f *fakeWebView) Navigate(string)                {}
-func (f *fakeWebView) SetHtml(string)                 {}
-func (f *fakeWebView) Init(string)                    {}
-func (f *fakeWebView) Eval(string)                    {}
-
-func (f *fakeWebView) Bind(name string, fn any) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.bindings == nil {
-		f.bindings = map[string]any{}
-	}
-	f.bindings[name] = fn
-	return nil
-}
-
-func (f *fakeWebView) Unbind(name string) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	delete(f.bindings, name)
-	return nil
-}
-
-func (f *fakeWebView) binding(t *testing.T, name string) any {
-	t.Helper()
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	fn, ok := f.bindings[name]
-	if !ok {
-		t.Fatalf("バインディング %q が登録されていません", name)
-	}
-	return fn
+func runNakoFileForTest(session *guiSession, initialWorkingDir, code, filePath string, windowMode bool) RunResult {
+	runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
+	return session.runWithWindowInDir(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
 }
 
 // samePath はシンボリックリンク（macOSの/private/tmpなど）を解決して比べる。
@@ -207,11 +170,8 @@ func TestStartNakoFileRunsInScriptDirAndRestoresCWD(t *testing.T) {
 	chdirForTest(t, runDir)
 
 	session := &guiSession{}
-	w := &fakeWebView{}
-	bindPrivilegedBridge(w, session, nil, original, "", false)
-	start, ok := w.binding(t, "startNakoFile").(func(string, string, bool) uint64)
-	if !ok {
-		t.Fatal("startNakoFile のシグネチャが func(string, string, bool) uint64 ではありません")
+	start := func(code, filePath string, windowMode bool) uint64 {
+		return startNakoFileForTest(session, original, code, filePath, windowMode)
 	}
 
 	// 実行の途中でUIスレッド側のCWD復元に邪魔されないこと（実行中ずっと
@@ -244,11 +204,8 @@ func TestStartNakoFileUsesInitialWorkingDirForUnsavedFile(t *testing.T) {
 	chdirForTest(t, runDir)
 
 	session := &guiSession{}
-	w := &fakeWebView{}
-	bindPrivilegedBridge(w, session, nil, initialDir, "", false)
-	start, ok := w.binding(t, "startNakoFile").(func(string, string, bool) uint64)
-	if !ok {
-		t.Fatal("startNakoFile のシグネチャが func(string, string, bool) uint64 ではありません")
+	start := func(code, filePath string, windowMode bool) uint64 {
+		return startNakoFileForTest(session, initialDir, code, filePath, windowMode)
 	}
 
 	runID := start(`「{カレントディレクトリ取得}」を表示`, "", false)
@@ -273,11 +230,8 @@ func TestStartNakoFileSerializesConsecutiveRuns(t *testing.T) {
 	chdirForTest(t, runDir)
 
 	session := &guiSession{}
-	w := &fakeWebView{}
-	bindPrivilegedBridge(w, session, nil, original, "", false)
-	start, ok := w.binding(t, "startNakoFile").(func(string, string, bool) uint64)
-	if !ok {
-		t.Fatal("startNakoFile のシグネチャが func(string, string, bool) uint64 ではありません")
+	start := func(code, filePath string, windowMode bool) uint64 {
+		return startNakoFileForTest(session, original, code, filePath, windowMode)
 	}
 
 	code := "「{カレントディレクトリ取得}」を表示\n0.05秒待つ"
@@ -319,15 +273,11 @@ func TestRunNakoFileDuringAsyncRunReturnsBusyAndKeepsAsyncWorkDir(t *testing.T) 
 	chdirForTest(t, runDir)
 
 	session := &guiSession{}
-	w := &fakeWebView{}
-	bindPrivilegedBridge(w, session, nil, original, "", false)
-	start, ok := w.binding(t, "startNakoFile").(func(string, string, bool) uint64)
-	if !ok {
-		t.Fatal("startNakoFile のシグネチャが func(string, string, bool) uint64 ではありません")
+	start := func(code, filePath string, windowMode bool) uint64 {
+		return startNakoFileForTest(session, original, code, filePath, windowMode)
 	}
-	run, ok := w.binding(t, "runNakoFile").(func(string, string, bool) string)
-	if !ok {
-		t.Fatal("runNakoFile のシグネチャが func(string, string, bool) string ではありません")
+	run := func(code, filePath string, windowMode bool) RunResult {
+		return runNakoFileForTest(session, original, code, filePath, windowMode)
 	}
 
 	// Aは待機を挟んで2回CWDを表示する。同期実行に割り込まれても、
@@ -342,11 +292,7 @@ func TestRunNakoFileDuringAsyncRunReturnsBusyAndKeepsAsyncWorkDir(t *testing.T) 
 	// 同期実行は、実行中の非同期実行を待たずに errExecBusy で返らなければ
 	// ならない（UIスレッド上で無制限に待つとメインキューと待ち合って
 	// 固まるため、待ってでも実行する仕様にはしない）。
-	rawB := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
-	var resultB RunResult
-	if err := json.Unmarshal([]byte(rawB), &resultB); err != nil {
-		t.Fatalf("runNakoFile の結果をJSONとして解釈できません: %v (raw=%q)", err, rawB)
-	}
+	resultB := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
 	if resultB.OK {
 		t.Fatalf("同期実行が成功してしまいました（busyで返るはず）: %#v", resultB)
 	}
@@ -374,11 +320,7 @@ func TestRunNakoFileDuringAsyncRunReturnsBusyAndKeepsAsyncWorkDir(t *testing.T) 
 
 	// 実行が終われば、同じ同期実行は今度は成功し、dirBで動く
 	// （busyは一時的な拒否であり、壊れた状態ではない）。
-	rawB2 := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
-	var resultB2 RunResult
-	if err := json.Unmarshal([]byte(rawB2), &resultB2); err != nil {
-		t.Fatalf("runNakoFile の結果をJSONとして解釈できません: %v (raw=%q)", err, rawB2)
-	}
+	resultB2 := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
 	if !resultB2.OK {
 		t.Fatalf("非同期実行の完了後の同期実行に失敗しました: %#v", resultB2)
 	}
