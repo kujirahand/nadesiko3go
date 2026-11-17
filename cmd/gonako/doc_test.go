@@ -3,8 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/kujirahand/nadesiko3go/internal/commanddoc"
 )
 
 // Web検索を伴わない `gonako doc` の動作を確かめる（ネットワークは使わない）。
@@ -14,10 +18,117 @@ func TestRunDoc(t *testing.T) {
 		t.Fatalf("doc: %v; stderr=%s", err, stderr.String())
 	}
 	out := stdout.String()
+	if json.Valid(stdout.Bytes()) {
+		t.Error("通常の検索がJSONになっています")
+	}
 	for _, want := range []string{"■ 秒待", "plugin_system", "マニュアル: https://nadesi.com/v3/doc/"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("出力に%qがありません:\n%s", want, out)
 		}
+	}
+}
+
+func TestRunDocAllJSON(t *testing.T) {
+	gonako, err := commanddoc.Commands()
+	if err != nil {
+		t.Fatal(err)
+	}
+	wnako, err := commanddoc.WNakoCommands()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		args   []string
+		target string
+		list   []commanddoc.Command
+	}{
+		{"通常", []string{"doc", "*"}, "gonako", gonako},
+		{"JSON指定", []string{"doc", "--json", "*"}, "gonako", gonako},
+		{"件数制限とWeb", []string{"doc", "--limit", "3", "--web", "*"}, "gonako", gonako},
+		{"wnako", []string{"doc", "--wnako", "*"}, "wnako", wnako},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if err := run(tc.args, &stdout, &stderr); err != nil {
+				t.Fatalf("doc: %v; stderr=%s", err, stderr.String())
+			}
+			var result docResult
+			if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+				t.Fatalf("JSONとして読めません: %v", err)
+			}
+			if !reflect.DeepEqual(result.Keywords, []string{"*"}) || result.Target != tc.target {
+				t.Errorf("キーワードまたは対象が違います: %v, %s", result.Keywords, result.Target)
+			}
+			if result.Count != len(result.Commands) || result.Count <= 100 {
+				t.Errorf("件数が違います: count=%d commands=%d", result.Count, len(result.Commands))
+			}
+			if !reflect.DeepEqual(result.Commands, tc.list) {
+				t.Error("命令一覧の内容または順序が違います")
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(stdout.Bytes(), &fields); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := fields["count"]; !ok {
+				t.Error("countがありません")
+			}
+			if _, ok := fields["web"]; ok {
+				t.Error("webが出力されています")
+			}
+			if _, ok := fields["web_error"]; ok {
+				t.Error("web_errorが出力されています")
+			}
+			found := false
+			for _, cmd := range result.Commands {
+				if cmd.Name == "表示" {
+					found = true
+				}
+			}
+			if !found {
+				t.Error("表示がありません")
+			}
+		})
+	}
+}
+
+func TestRunDocExpandedGlob(t *testing.T) {
+	dir := t.TempDir()
+	old, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(old) })
+	if err := os.WriteFile("dummy1", nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir("dummy2", 0700); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if err := run([]string{"doc", "dummy1", "dummy2"}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	var result docResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(result.Keywords, []string{"*"}) || result.Count <= 100 || result.Count != len(result.Commands) {
+		t.Errorf("全件出力ではありません: keywords=%v count=%d", result.Keywords, result.Count)
+	}
+	if !strings.Contains(stderr.String(), `gonako doc "*"`) {
+		t.Errorf("引用の注意がありません: %s", stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := run([]string{"doc", "dummy1"}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	if json.Valid(stdout.Bytes()) || !strings.Contains(stdout.String(), "dummy1") || stderr.Len() != 0 {
+		t.Errorf("単一ファイル名が検索されません: stdout=%s stderr=%s", stdout.String(), stderr.String())
 	}
 }
 

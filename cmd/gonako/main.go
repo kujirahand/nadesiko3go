@@ -46,7 +46,7 @@ const usage = `gonako - なでしこ3 Go言語版
   gonako -e <プログラム> [引数...]  その場でプログラムを実行する
   gonako build <ファイル> [オプション] 単一の実行ファイルに固める
   gonako gengo <ファイル> [オプション] Goソースに変換する（段階10・gogen）
-  gonako doc <キーワード> [オプション] 命令やマニュアルを検索する
+  gonako doc <キーワード> [オプション] 命令やマニュアルを検索する（"*" で全命令をJSON出力）
   gonako doctest [パス...]          DocTestのサンプルを実行して確かめる
   gonako install <ファイル> [オプション] bin/に起動用スクリプトを配置する
   gonako lint <ファイル>             文法をチェックする
@@ -83,7 +83,9 @@ doc のオプション:
   --web, -w        Webのマニュアル(https://nadesi.com/v3/doc/)も検索する
   --wnako          本家ブラウザ版(wnako3)の命令一覧から検索する
   --json           結果をJSONで出力する (AI向け)
-  --limit N        表示する件数の上限 (既定: 20、0で全件)
+  --limit N        表示する件数の上限 (既定: 20、0で全件。"*" では無視)
+  gonako doc "*" または gonako doc --json "*" で全命令を出力する。
+  * はシェルによるファイル名への展開を防ぐため引用する。
 
 doctest のオプション:
   --max N          失敗の詳細を表示する件数 (既定: 10、0で全件)
