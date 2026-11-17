@@ -796,7 +796,48 @@ func TestDialogRegisteredAfterCancellationFails(t *testing.T) {
 	}
 }
 
+// 新しい実行の開始は、いま出ているダイアログだけでなく、実行中の run が
+// この後に出そうとするダイアログも打ち切る（置き換え）。
+// 予約は打ち切りの後なので、新しい実行自身のダイアログは打ち切られない。
+func TestNewRunCancelsDialogsTheOldRunEmitsLater(t *testing.T) {
+	session := &guiSession{}
+	old := &guiAsyncRun{session: session, dialogEpoch: session.dialogEpoch}
+
+	// startWithWindow / startCompiled と同じ順。先に打ち切ってから予約する。
+	if n := session.cancelPendingDialogs(); n != 0 {
+		t.Fatalf("待機前の打ち切り件数 = %d, want 0", n)
+	}
+	_, newer := session.reserveRun(true)
+	if newer.dialogEpoch == old.dialogEpoch {
+		t.Fatal("新しい実行が古い世代のまま予約された")
+	}
+
+	_, _, err := old.showDialog("alert", "後から出たダイアログ")
+	if err == nil || !strings.Contains(err.Error(), "中断") {
+		t.Fatalf("後から出たダイアログが打ち切られていない: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, showErr := newer.showDialog("alert", "新しい実行")
+		done <- showErr
+	}()
+	dialog := waitForStateDialog(t, newer)
+	if !newer.resolve(dialog.ID, "", true) {
+		t.Fatal("新しい実行のダイアログに応答できない")
+	}
+	select {
+	case showErr := <-done:
+		if showErr != nil {
+			t.Fatalf("新しい実行のダイアログが失敗した: %v", showErr)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("新しい実行のダイアログが戻らない")
+	}
+}
+
 // 応答が来ないままタイムアウトしても、打ち切りと同じくエラーで戻ること。
+// 本番の上限は guiDialogTimeout（30分）。ここでは短縮して確かめる。
 func TestDialogTimeoutReturnsError(t *testing.T) {
 	old := guiDialogTimeout
 	guiDialogTimeout = 10 * time.Millisecond
@@ -820,7 +861,7 @@ func TestDialogTimeoutReturnsError(t *testing.T) {
 // 打ち切るフックが埋め込まれていること。
 func TestBundledPageCancelsPendingDialogsOnUnload(t *testing.T) {
 	page := bundledAsyncProgramPage(1)
-	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs"} {
+	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs", "unloadDialogsCanceled", "留まる確認"} {
 		if !pageHas(page, want) {
 			t.Errorf("バンドル版ページに %q が無い", want)
 		}
@@ -833,7 +874,7 @@ func TestLoaderCancelsPendingDialogsOnUnload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs"} {
+	for _, want := range []string{"beforeunload", "pagehide", "cancelNakoDialogs", "cancelGonakoDialogs", "unloadDialogsCanceled", "留まる確認"} {
 		if !strings.Contains(string(loader), want) {
 			t.Errorf("ローダーに %q が無い", want)
 		}

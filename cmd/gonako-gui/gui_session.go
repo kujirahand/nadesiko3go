@@ -146,6 +146,8 @@ var errDialogCanceled = errors.New("ダイアログの待機が中断されま�
 // guiDialogTimeout はshowDialogが応答を待つ上限。bridge.go の
 // bridgeDialogTimeout と同じ考え方で、画面が応答を返せなくなった場合に
 // execMu を握ったまま永久に固まらないようにする。
+// 放置されたダイアログは、この時間でエラー終了する。利用者のキャンセル
+// （accepted=false, err=nil）とは区別し、必ず非nilのエラーを返す。
 // 猶予は応答待ちの利用者を急かさない程度に長く取り、テストが短縮できる
 // よう変数にしてある。
 var guiDialogTimeout = 30 * time.Minute
@@ -252,6 +254,11 @@ func (r *guiAsyncRun) dialogHandler(host *guiHost) func(string, string) (string,
 // 取り残され、その実行が execMu を握ったままデッドロックする。
 //
 // ロック順は s.mu → r.mu。cancelPendingDialogs も同じ順で取る。
+//
+// session が nil なのは、テストが guiAsyncRun を単体で作った場合だけ。
+// 本番の実行は reserveRun が必ず session と予約時の dialogEpoch を
+// セットする。nil のときは世代を見ずに登録する（テストが打ち切りと応答の
+// 競合をセッション無しで見るため）。本番経路はこの分岐に頼らない。
 func (r *guiAsyncRun) registerDialog(request *DialogRequest, answer chan dialogAnswer, cancel chan struct{}) error {
 	s := r.session
 	if s == nil {
@@ -417,9 +424,19 @@ func (s *guiSession) reserveRun(async bool) (uint64, *guiAsyncRun) {
 // pagehide）、あるいは新しい実行が始まったときに呼ぶ。打ち切られた実行は
 // エラーで終了して execMu を解放するので、後続の実行がデッドロックしない。
 //
+// 新しい実行の開始（startWithWindow / startCompiled / runWithWindowInDir /
+// runCompiled）は、予約より前にこの関数を呼ぶ。効果は2段ある。
+// 1つ目は、いま応答待ちのダイアログを即時に打ち切る。
+// 2つ目は、dialogEpoch を進めるので、実行中の run がこの後に出そうとする
+// ダイアログも registerDialog が世代不一致で打ち切る（置き換え）。
+// 古い実行はエラー終了し、新しい実行が後を継ぐ。
+//
 // dialogEpoch を進めるのは、この走査の直後に登録されたダイアログも確実に
 // 打ち切るため。登録側（registerDialog）は同じ s.mu を取って世代を確かめる
-// ので、打ち切りと登録が競合しても取りこぼさない。
+// ので、打ち切りと登録が競合しても取りこぼさない。待機が無いときの呼び出しも
+// 世代は進む（戻り値は 0）。2回目が既に打ち切ったダイアログを二重に
+// エラーにはしない。beforeunload と pagehide の二重発火は、JS側の
+// unloadDialogsCanceled で離脱1回につき1回にまとめる。
 //
 // 戻り値は打ち切ったダイアログの数。テストとログのために返している。
 func (s *guiSession) cancelPendingDialogs() int {
