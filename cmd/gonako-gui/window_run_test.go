@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
@@ -65,5 +67,86 @@ func TestInlineRunDoesNotTouchRealWindowController(t *testing.T) {
 	}
 	if real.handle != 0 {
 		t.Fatalf("実ウィンドウのコントローラーが呼び出されています: handle=%d", real.handle)
+	}
+}
+
+// Issue #482: 公開コマンド `gonako-gui run` で利用者が指定したファイルは、
+// 読み込んでも削除されないことを確認する。
+func TestReadStandaloneWindowSourceKeepsPublicRunFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "main.nako3")
+	const source = "「こんにちは」と表示\n"
+	if err := os.WriteFile(path, []byte(source), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := readStandaloneWindowSource(path, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != source {
+		t.Fatalf("読み込んだ内容 = %q, want %q", got, source)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("公開 run 用のファイルが削除された: %v", err)
+	}
+}
+
+// エディタの「ウィンドウ(GUI)」モードが渡す一時ファイルは、従来どおり
+// 読み込み後に削除されることを確認する。
+func TestReadStandaloneWindowSourceRemovesInternalTempFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "gonako-gui-run.nako3")
+	if err := os.WriteFile(path, []byte("「こんにちは」と表示\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := readStandaloneWindowSource(path, true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("内部用の一時ファイルが残っている: %v", err)
+	}
+}
+
+func TestParseGUIRunArgs(t *testing.T) {
+	got, err := parseGUIRunArgs([]string{"main.nako3"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "main.nako3" {
+		t.Fatalf("引数 = %q, want %q", got, "main.nako3")
+	}
+
+	for _, args := range [][]string{
+		nil,
+		{},
+		{"main.nako3", "extra.nako3"},
+		{"-h"},
+	} {
+		if _, err := parseGUIRunArgs(args); err == nil {
+			t.Fatalf("args=%q: エラーにならなかった", args)
+		}
+	}
+}
+
+func TestPrepareGUIRun(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "main.nako3")
+	if err := os.WriteFile(path, []byte("「こんにちは」と表示\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	absPath, workDir, err := prepareGUIRun(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if absPath != path || workDir != dir {
+		t.Fatalf("prepareGUIRun = (%q, %q), want (%q, %q)", absPath, workDir, path, dir)
+	}
+
+	if _, _, err := prepareGUIRun(filepath.Join(dir, "nai.nako3")); err == nil {
+		t.Fatal("存在しないファイルを受け入れてしまった")
+	}
+	if _, _, err := prepareGUIRun(dir); err == nil {
+		t.Fatal("フォルダを受け入れてしまった")
 	}
 }
