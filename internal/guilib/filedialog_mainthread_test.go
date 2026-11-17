@@ -49,6 +49,7 @@ func TestDarwinFileDialogRunsOnMainThread(t *testing.T) {
 		t.Fatal("メインスレッド判定が非同期ディスパッチまたはセマフォ待ちより前にない")
 	}
 	// release がすべて ARC 無効の分岐内にあることを確かめる。
+	// 現行ソースの否定形の has_feature ガードを前提とし、入れ子の #if は追跡しない。
 	guarded := false
 	foundRelease := false
 	for _, line := range strings.Split(source, "\n") {

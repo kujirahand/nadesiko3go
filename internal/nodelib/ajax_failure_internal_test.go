@@ -9,6 +9,7 @@ import (
 )
 
 // ajaxFailureContext はシステム変数の記憶領域を持つ実行環境を模す。
+// stdlib.Context は nil で埋め込むため、オーバーライドしたメソッド以外を呼ぶと panic する。
 type ajaxFailureContext struct {
 	stdlib.Context
 	vars   map[string]value.Value
@@ -26,9 +27,9 @@ func (c *ajaxFailureContext) CallFunc(fn *value.Func, args []value.Value) (value
 }
 
 func TestAjaxFailureDirectSysVar(t *testing.T) {
-	for _, clear := range []bool{false, true} {
+	for _, clearSysVar := range []bool{false, true} {
 		name := "直接代入"
-		if clear {
+		if clearSysVar {
 			name = "未定義でクリア"
 		}
 		t.Run(name, func(t *testing.T) {
@@ -40,13 +41,13 @@ func TestAjaxFailureDirectSysVar(t *testing.T) {
 				t.Fatal(err)
 			}
 			current := value.FuncValue(replacement)
-			if clear {
+			if clearSysVar {
 				current = value.Undefined()
 			}
 			ctx.SetSysVar("AJAX:ONERROR", current)
 			originalErr := errors.New("通信失敗")
 			_, err := ajaxFailure(ctx, originalErr)
-			if clear {
+			if clearSysVar {
 				if !errors.Is(err, originalErr) || len(ctx.called) != 0 {
 					t.Fatalf("クリア後: error=%v, 呼び出し=%v", err, ctx.called)
 				}
