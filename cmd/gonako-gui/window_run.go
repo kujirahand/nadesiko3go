@@ -81,6 +81,21 @@ func launchChildRunProcess(code, filePath, runFlag string) NewWindowRunResult {
 	return NewWindowRunResult{OK: true}
 }
 
+// readStandaloneWindowSource は単独ウィンドウで実行するプログラムを読む。
+// removeSource が真のときだけ、読み込み後にファイルを削除する。削除するのは
+// エディタが作った一時ファイルだけであり、公開コマンド `gonako-gui run` で
+// 利用者が指定したファイルは削除しない (Issue #482)。
+func readStandaloneWindowSource(sourcePath string, removeSource bool) ([]byte, error) {
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		return nil, err
+	}
+	if removeSource {
+		_ = os.Remove(sourcePath)
+	}
+	return data, nil
+}
+
 // runStandaloneWindow is the child-process entry point launched by
 // launchNakoWindowProcess. It reads the program from sourcePath, opens a
 // fresh native window for it, and runs it there — that window, not the
@@ -89,13 +104,26 @@ func launchChildRunProcess(code, filePath, runFlag string) NewWindowRunResult {
 // point at the file the user actually edited instead of the temp file that
 // carried the source text across processes.
 func runStandaloneWindow(sourcePath, title, sourceName string) {
-	data, err := os.ReadFile(sourcePath)
+	runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName, true)
+}
+
+// runStandaloneWindowWithSourceRemoval はGUIプログラムを専用ウィンドウで
+// 実行する。removeSource が真のときは読み込み後に sourcePath を削除する
+// (エディタが渡す一時ファイル用)。公開コマンド `gonako-gui run` からは
+// removeSource=false で呼び、利用者のファイルを残す。
+func runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName string, removeSource bool) {
+	data, err := readStandaloneWindowSource(sourcePath, removeSource)
 	if err != nil {
 		showMessageWindow(title, fmt.Sprintf("プログラムを読み込めません: %v", err))
 		return
 	}
-	os.Remove(sourcePath)
+	runStandaloneWindowProgram(data, title, sourceName)
+}
 
+// runStandaloneWindowProgram は読み込み済みのプログラムを専用ウィンドウで
+// 実行する。公開コマンド `gonako-gui run` は、事前のコンパイル確認で読んだ
+// 内容をそのまま渡すためにこちらを使う。
+func runStandaloneWindowProgram(data []byte, title, sourceName string) {
 	if title == "" {
 		title = "なでしこ3"
 	}

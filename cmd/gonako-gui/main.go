@@ -210,6 +210,8 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
   gonako-gui                        内蔵の標準エディタUIを起動
   gonako-gui ./my-app/              ./my-app フォルダ内の index.html を表示
   gonako-gui ./my-app/index.html    指定したHTMLファイルを表示
+  gonako-gui run ./main.nako3       GUIプログラムをエディタを開かずに直接実行
+                                    (指定したファイルは削除されません)
   gonako-gui -dir ./web/ -title "マイアプリ"
 
 オプション:
@@ -594,9 +596,83 @@ func runExternalLauncher(cmd *exec.Cmd) error {
 	return cmd.Run()
 }
 
+// parseGUIRunArgs は公開コマンド `gonako-gui run` の引数を検証する。
+// 実行する .nako3 ファイルをちょうど1つだけ受け付ける (Issue #482)。
+func parseGUIRunArgs(args []string) (string, error) {
+	if len(args) != 1 {
+		return "", fmt.Errorf("実行する .nako3 ファイルを1つ指定してください")
+	}
+	if strings.HasPrefix(args[0], "-") {
+		return "", fmt.Errorf("オプションは指定できません。ファイルを指定してください: %s", args[0])
+	}
+	return args[0], nil
+}
+
+// prepareGUIRun は `gonako-gui run` で指定されたファイルを確認し、
+// 絶対パスと、そのファイルのあるフォルダ (作業ディレクトリ) を返す。
+// 作業ディレクトリは、エディタの「ウィンドウ(GUI)」モードが子プロセスの
+// 作業ディレクトリをファイルのフォルダにすることに合わせたものである。
+// 相対パスの画像や設定ファイルは、ファイルのあるフォルダから解決される。
+func prepareGUIRun(sourcePath string) (absPath, workDir string, err error) {
+	info, err := os.Stat(sourcePath)
+	if err != nil {
+		return "", "", fmt.Errorf("指定されたパス『%s』が見つかりません: %w", sourcePath, err)
+	}
+	if info.IsDir() {
+		return "", "", fmt.Errorf("プログラムのファイルを指定してください: %s", sourcePath)
+	}
+	absPath, err = filepath.Abs(sourcePath)
+	if err != nil {
+		return "", "", fmt.Errorf("ファイルの場所が分かりません: %w", err)
+	}
+	return absPath, filepath.Dir(absPath), nil
+}
+
+// runGUIProgram は `gonako-gui run <ファイル>` の本体である。エディタを
+// 開かず、指定されたGUIプログラムを専用ウィンドウで直接実行する。
+// 利用者が指定したファイルは削除しない。ウィンドウを開く前に、GUI命令を
+// 含むレジストリでコンパイルだけを行い、文法や命令のエラーは標準エラーへ
+// 返して終了コード1で終わる (ウィンドウ内にしかエラーが出ないと、
+// AIエージェントやスクリプトから失敗を検出できないため)。
+func runGUIProgram(args []string) error {
+	sourcePath, err := parseGUIRunArgs(args)
+	if err != nil {
+		return err
+	}
+	absPath, workDir, err := prepareGUIRun(sourcePath)
+	if err != nil {
+		return err
+	}
+	data, err := readStandaloneWindowSource(absPath, false)
+	if err != nil {
+		return fmt.Errorf("プログラムを読み込めません: %w", err)
+	}
+	registry := stdlib.NewRegistry(guiPlugins()...)
+	if _, err := vm.CompileWithRegistry(string(data), absPath, registry); err != nil {
+		return err
+	}
+	if err := os.Chdir(workDir); err != nil {
+		return fmt.Errorf("作業ディレクトリ %q に移動できません: %w", workDir, err)
+	}
+	runStandaloneWindowProgram(data, filepath.Base(absPath), absPath)
+	return nil
+}
+
 func main() {
 	// 実行ファイルに変換されたアプリなら、エディタではなくそのアプリを動かす
 	if runBundledApp() {
+		return
+	}
+
+	// 公開コマンド `gonako-gui run <ファイル>` はエディタを開かずに
+	// GUIプログラムを直接実行する (Issue #482)。それ以外の引数は従来どおり。
+	if len(os.Args) > 1 && os.Args[1] == "run" {
+		initClipboard()
+		if err := runGUIProgram(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			fmt.Fprintln(os.Stderr, "使い方: gonako-gui run main.nako3")
+			os.Exit(1)
+		}
 		return
 	}
 
