@@ -439,6 +439,42 @@ func (s *guiSession) run(code, filename string, windowMode bool, args []string, 
 }
 
 func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) RunResult {
+	// workDirを空にして、実行開始時点のCWDで動かす（従来の挙動）。
+	return s.runWithWindowInDir(code, filename, windowMode, args, packed, windows, "")
+}
+
+// enterWorkDir は現在のCWDを記録し、workDirが指定されていればその
+// ディレクトリへ移る。戻り値の関数を呼ぶと必ず元のCWDへ戻る。
+//
+// CWDはプロセス全体で1つしかないため、呼び出し側はexecMuを保持した
+// 状態で使うこと。ロックの外で移動・復元すると、実行中の別の実行の
+// 作業ディレクトリを壊したり、復元が追い越してCWDが残留したりする。
+func enterWorkDir(workDir string) func() {
+	originalDir, _ := os.Getwd()
+	if originalDir == "" {
+		return func() {}
+	}
+	if workDir != "" && workDir != originalDir {
+		_ = os.Chdir(workDir)
+	}
+	return func() {
+		_ = os.Chdir(originalDir)
+	}
+}
+
+// runWithWindowInDir はプログラムを同期的に実行する。
+//
+// workDirが空なら、execMuを取った時点のCWDで動かす。workDirを渡した場合は
+// そのディレクトリへ移動してから実行し、終了後に必ず元のCWDへ戻す。
+// startWithWindowと同じく、CWDの移動と復元はexecMuで直列化した内側で行う。
+// ロックの外で移動すると、実行中の非同期実行の作業ディレクトリを壊し、
+// 最後には呼び出し元のディレクトリへ「復元」してCWDが残留する。
+//
+// execMuを待つのは短い猶予（syncRunLockGrace）までで、取れなければ
+// errExecBusyを返す。呼び出し元はUIスレッドであり、実行中の処理を
+// 待ってでも実行する仕様にすると、メインキューとの相互待ちで固まる
+// （runCompiledと揃えた仕様）。
+func (s *guiSession) runWithWindowInDir(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) RunResult {
 	// 前の実行がダイアログ待ちのままなら先に打ち切る。execMu を取る前に
 	// 打ち切らないと、その実行がロックを握ったまま解放できず、ここで
 	// 永久に待たされる（→ ⑫ ダイアログ待機中のデッドロック）。
@@ -453,6 +489,10 @@ func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args 
 		return RunResult{OK: false, RunID: id, Error: errExecBusy}
 	}
 	defer s.execMu.Unlock()
+	// 復元はexecMuを解放する前に行う（deferはLIFOなので、この順で
+	// ロック解放より先にCWDが戻る）。
+	restoreDir := enterWorkDir(workDir)
+	defer restoreDir()
 	id, _ := s.reserveRun(false)
 	screen := guilib.NewScreen()
 	plugin := guilib.NewWithScreenAndWindow(screen, windows)
@@ -539,28 +579,30 @@ func (s *guiSession) close() {
 }
 
 func (s *guiSession) start(code, filename string, windowMode bool, args []string, packed *bundle.Bundle) uint64 {
-	return s.startWithWindow(code, filename, windowMode, args, packed, s.window)
+	// workDirを空にして、実行開始時点のCWDで動かす（従来の挙動）。
+	return s.startWithWindow(code, filename, windowMode, args, packed, s.window, "")
 }
 
-func (s *guiSession) startWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController) uint64 {
+// startWithWindow はプログラムを非同期で実行する。
+//
+// workDirが空なら、execMuを取った時点のCWDで動かす。workDirを渡した場合は
+// そのディレクトリへ移動してから実行し、終了後に必ず元のCWDへ戻す。
+// CWDはプロセス全体で1つしかないため、os.Getwd/os.ChdirはexecMuで直列化
+// した内側で行う。そうしないと、後から始まった実行が先の実行の作業
+// ディレクトリを拾ったり、復元が追い越したりして、実行後もCWDが
+// 書き換わったまま残る（runCompiledNowが記録するexec.workDirもずれる）。
+func (s *guiSession) startWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) uint64 {
 	// 新しい実行の予約より前に、待機中のダイアログを打ち切る。この時点で
 	// 打ち切らないと、古い実行が execMu を握ったまま応答を待ち続け、
 	// この実行の goroutine がロックを取れずにデッドロックする。
 	s.cancelPendingDialogs()
 	id, state := s.reserveRun(true)
-	workDir, _ := os.Getwd()
 	go func() {
 		s.execMu.Lock()
 		defer s.execMu.Unlock()
-		originalDir, _ := os.Getwd()
-		if workDir != "" {
-			_ = os.Chdir(workDir)
-		}
-		defer func() {
-			if originalDir != "" {
-				_ = os.Chdir(originalDir)
-			}
-		}()
+		// CWDの移動と復元はexecMuを保持したまま行う（解放前に戻す）。
+		restoreDir := enterWorkDir(workDir)
+		defer restoreDir()
 
 		screen := guilib.NewScreen()
 		plugin := guilib.NewWithScreenAndWindow(screen, windows)

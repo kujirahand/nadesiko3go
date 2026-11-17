@@ -798,6 +798,24 @@ func main() {
 	bridge.close()
 }
 
+// nakoRunLocation はエディタからの実行指定（ファイルパス）から、VMへ渡す
+// ソース名と作業ディレクトリを決める。
+//   - 保存済みファイル: 親ディレクトリが実在すれば、そこを作業ディレクトリにする
+//   - 未保存（filePath == ""）: GUI起動時のディレクトリ（initialWorkingDir）で動かす
+//
+// 親ディレクトリが実在しない場合は workDir を空で返し、呼び出し側で
+// 「実行開始時点のCWD」へフォールバックさせる。
+func nakoRunLocation(filePath, initialWorkingDir string) (runFile, workDir string) {
+	if filePath == "" {
+		return "gui.nako3", initialWorkingDir
+	}
+	scriptDir := filepath.Dir(filePath)
+	if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
+		workDir = scriptDir
+	}
+	return filePath, workDir
+}
+
 // bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ
 // 公開するGo側APIをまとめてBindする。ファイル操作やコード実行を含むため、
 // 外部URL(-url)を表示するウィンドウでは呼んではいけない（#183）。
@@ -813,45 +831,27 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	})
 
 	// 内蔵エディタ用。ファイル位置とウィンドウ表示モードも受け取る。
+	// CWDはプロセス全体で共有されるため、ここではos.Chdirしない。決めた
+	// 作業ディレクトリをrunWithWindowInDirへ渡し、移動と復元はexecMuで
+	// 直列化した内側（実行中）で行う。
 	_ = w.Bind("runNakoFile", func(code string, filePath string, windowMode bool) string {
-		origDir, _ := os.Getwd()
-		defer func() {
-			_ = os.Chdir(origDir)
-		}()
-
-		runFile := filePath
-		if runFile != "" {
-			scriptDir := filepath.Dir(runFile)
-			if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
-				_ = os.Chdir(scriptDir)
-			}
-		} else {
-			_ = os.Chdir(initialWorkingDir)
-			runFile = "gui.nako3"
-		}
+		runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
 
 		// 「母艦」はエディタ内蔵実行（インライン・コマンドライン）では実際の
 		// エディタウィンドウを動かさない疑似コントローラーを使う（#97）。
-		result := guiRuntime.runWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController())
+		result := guiRuntime.runWithWindowInDir(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
 
 	// ダイアログを使うプログラムはWebViewのUIスレッドを塞がないよう、
 	// バックグラウンドで実行してHTML側から進捗を取得する。
+	// CWDはプロセス全体で共有されるため、ここではos.Chdirせず、決めた
+	// 作業ディレクトリをstartWithWindowへ渡す。実際の移動と復元は実行
+	// goroutine側がexecMuで直列化した内側で行う。
 	_ = w.Bind("startNakoFile", func(code string, filePath string, windowMode bool) uint64 {
-		runFile := filePath
-		if runFile != "" {
-			scriptDir := filepath.Dir(runFile)
-			if stat, err := os.Stat(scriptDir); err == nil && stat.IsDir() {
-				origDir, _ := os.Getwd()
-				_ = os.Chdir(scriptDir)
-				defer func() { _ = os.Chdir(origDir) }()
-			}
-		} else {
-			runFile = "gui.nako3"
-		}
-		return guiRuntime.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController())
+		runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
+		return guiRuntime.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
 	})
 
 	// 「ウィンドウ(GUI)」実行モード。エディタとは別プロセス・別ウィンドウで
