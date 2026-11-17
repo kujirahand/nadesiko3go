@@ -21,6 +21,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/cmd/gonako-gui/internal/runcwd"
 	"github.com/kujirahand/nadesiko3go/internal/csvlib"
 	"github.com/kujirahand/nadesiko3go/internal/deskutil"
+	"github.com/kujirahand/nadesiko3go/internal/editorlint"
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
 	"github.com/kujirahand/nadesiko3go/internal/imagelib"
 	"github.com/kujirahand/nadesiko3go/internal/inilib"
@@ -988,6 +989,13 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	_ = w.Bind("checkWNakoSyntax", func(code, filePath string) string {
 		res := checkNakoSyntax(code, filePath, lintModeWNako)
 		b, _ := json.Marshal(res)
+		return string(b)
+	})
+	// DocTestは文法チェックの応答では始めだけ返し、結果はポーリングで渡す。
+	// Bindの中で実行完了を待つと、UIスレッドが止まってエディタが固まる（#516）。
+	_ = w.Bind("pollEditorDocTest", func(runID uint64) string {
+		status := editorlint.Poll(runID)
+		b, _ := json.Marshal(status)
 		return string(b)
 	})
 	_ = w.Bind("formatWNakoCode", func(code, filePath string) string {

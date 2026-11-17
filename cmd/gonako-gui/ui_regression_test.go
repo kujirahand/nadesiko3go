@@ -486,6 +486,26 @@ func TestPromptDialogIgnoresIMEEnter(t *testing.T) {
 	}
 }
 
+// 文法チェックは、DocTestがあれば続けて実行し、結果をポーリングで受け取ること（#516）。
+func TestSyntaxCheckRunsDocTest(t *testing.T) {
+	app := readUIAsset(t, "app.js")
+	for _, required := range []string{
+		"DocTestが含まれ、文法エラーが無いときだけサンプルを実行する（#516）。",
+		"window.pollEditorDocTest",
+		"discardEditorDocTest",
+		"DocTestを実行しています",
+		"DocTestで失敗があります",
+	} {
+		if !strings.Contains(app, required) {
+			t.Fatalf("app.js にDocTestつき文法チェックの処理 %q がありません", required)
+		}
+	}
+	html := readUIAsset(t, "index.html")
+	if !strings.Contains(html, "DocTestがあれば続けて実行します") {
+		t.Fatal("文法チェックボタンの説明がDocTestに更新されていません")
+	}
+}
+
 // 文法チェックと自動整形が実行モードの命令セットで行われること（#301）。
 func TestSyntaxCheckFollowsRunMode(t *testing.T) {
 	app := readUIAsset(t, "app.js")

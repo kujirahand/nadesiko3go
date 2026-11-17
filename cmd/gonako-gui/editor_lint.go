@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/kujirahand/nadesiko3go/internal/ast"
+	"github.com/kujirahand/nadesiko3go/internal/editorlint"
 	"github.com/kujirahand/nadesiko3go/internal/format"
 	"github.com/kujirahand/nadesiko3go/internal/lexer"
 	"github.com/kujirahand/nadesiko3go/internal/parser"
@@ -15,9 +16,15 @@ import (
 )
 
 // LintResult は文法チェックの結果をJavaScript側へ返すJSON構造。
+//
+// DocTest があるときは、文法が通ったあとでサンプルの実行を始める。
+// 実行はUIスレッドを止めないよう別ゴルーチンで行い、DocTest.Pending と
+// RunID を返す。結果は pollEditorDocTest で取り出す（#516）。
 type LintResult struct {
-	OK    bool   `json:"ok"`
-	Error string `json:"error,omitempty"`
+	OK      bool            `json:"ok"`
+	Error   string          `json:"error,omitempty"`
+	Text    string          `json:"text,omitempty"`
+	DocTest *editorlint.Ref `json:"doctest,omitempty"`
 }
 
 // FormatResult は自動整形の結果をJavaScript側へ返すJSON構造。
@@ -168,18 +175,30 @@ func wnakoFuncList() lexer.FuncList {
 	return list
 }
 
-// checkNakoSyntax はプログラムを実行せず構文解析だけ行う（#118）。
-// `gonako lint` と同じくコンパイル・実行はしないため、実行に時間がかかる
-// プログラムや副作用のあるプログラムでも安全に呼び出せる。
-// modeは命令セット（lintModeGonako / lintModeWNako）を指定する（#301）。
+// checkNakoSyntax はバッファの構文を調べる（#118）。
+// プログラム本体は実行しない。DocTest（{{{#nako3 … ### 表示結果）が
+// 含まれ、文法エラーが無いときだけ、そのサンプルを続けて実行する（#516）。
+// modeはバッファ全体の命令セット（lintModeGonako / lintModeWNako）を指定する（#301）。
 func checkNakoSyntax(code, filename, mode string) LintResult {
+	original := filename
 	if filename == "" {
 		filename = "gui.nako3"
 	}
-	if _, err := parseFuncFor(mode)(code, filename); err != nil {
-		return LintResult{OK: false, Error: err.Error()}
+	res := editorlint.Check(code, filename, original, editorlint.Options{
+		Whole:  parseErr(mode),
+		Sample: parseErr(lintModeGonako),
+		Web:    parseErr(lintModeWNako),
+	})
+	return LintResult{OK: res.OK, Error: res.Error, Text: res.Text, DocTest: res.DocTest}
+}
+
+// parseErr は構文解析関数を、エラーだけを返す形にそろえる。
+func parseErr(mode string) editorlint.ParseFunc {
+	parse := parseFuncFor(mode)
+	return func(code, filename string) error {
+		_, err := parse(code, filename)
+		return err
 	}
-	return LintResult{OK: true}
 }
 
 // formatNakoCode は整形した結果を返す（#118・#120）。ファイルへは
