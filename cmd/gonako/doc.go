@@ -6,6 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/commanddoc"
@@ -27,6 +29,11 @@ type docResult struct {
 func searchDoc(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("doc", flag.ContinueOnError)
 	flags.SetOutput(stderr)
+	flags.Usage = func() {
+		fmt.Fprintln(stderr, "使い方: gonako doc <キーワード> [オプション]")
+		fmt.Fprintln(stderr, "全命令のJSON出力: gonako doc \"*\"（シェルによる展開を防ぐため引用する）")
+		flags.PrintDefaults()
+	}
 	var commandOnly, web, asJSON, wnako bool
 	flags.BoolVar(&commandOnly, "command", false, "命令一覧から検索する")
 	flags.BoolVar(&commandOnly, "c", false, "命令一覧から検索する (--commandの短縮形)")
@@ -47,6 +54,12 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 	if len(keywords) == 0 {
 		return errors.New("検索するキーワードを指定してください (例: gonako doc 秒待)")
 	}
+	all := len(keywords) == 1 && keywords[0] == "*"
+	if !all && expandedGlob(keywords) {
+		fmt.Fprintln(stderr, "注意: * はシェルに展開されます。gonako doc \"*\" のように引用してください。")
+		keywords = []string{"*"}
+		all = true
+	}
 
 	// 既定はGo版(gonako)の命令。--wnako なら本家ブラウザ版(wnako3)の命令を引く(#101)。
 	list, err := commanddoc.Commands()
@@ -56,9 +69,12 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	found := commanddoc.Search(list, keywords)
+	found := list
+	if !all {
+		found = commanddoc.Search(list, keywords)
+	}
 	total := len(found)
-	if *limit > 0 && len(found) > *limit {
+	if !all && *limit > 0 && len(found) > *limit {
 		found = found[:*limit]
 	}
 
@@ -71,7 +87,7 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 		result.Commands = []commanddoc.Command{}
 	}
 	// --command は既定の動作なので、--web と一緒に指定されていなければ何もしない。
-	if web {
+	if web && !all {
 		results, err := commanddoc.SearchWeb(keywords)
 		if err != nil {
 			// Webは繋がらないこともある。命令の検索結果は出したいので、
@@ -81,7 +97,7 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 		result.Web = results
 	}
 
-	if asJSON {
+	if asJSON || all {
 		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
 		enc.SetEscapeHTML(false)
@@ -89,6 +105,22 @@ func searchDoc(args []string, stdout, stderr io.Writer) error {
 	}
 	writeDocText(stdout, stderr, result, web, total-len(found))
 	return nil
+}
+
+// expandedGlob はカレントディレクトリの複数の名前が渡されたかを調べる。
+func expandedGlob(keywords []string) bool {
+	if len(keywords) < 2 {
+		return false
+	}
+	for _, keyword := range keywords {
+		if keyword == "." || keyword == ".." || filepath.Base(keyword) != keyword {
+			return false
+		}
+		if _, err := os.Stat(keyword); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // writeDocText は人が読む形式で検索結果を書き出す。
