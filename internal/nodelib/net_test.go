@@ -172,3 +172,75 @@ URLへ「成功CB」でAJAX送信時
 		t.Errorf("失敗時に成功コールバックが呼ばれた: %q", got)
 	}
 }
+
+// TestAjaxFailureReregister は再登録した関数値だけが呼ばれることを確かめる。
+func TestAjaxFailureReregister(t *testing.T) {
+	code := fmt.Sprintf(`
+●失敗CB1
+ 「古い」と表示
+ここまで
+F=関数()
+ 「新しい」と表示
+ここまで
+「失敗CB1」のAJAX失敗時
+FのAJAX失敗時
+URL = "%s"
+URLへ「成功CB」でAJAX送信時
+`, closedServerURL(t))
+	if got := runIn(t, t.TempDir(), code); got != "新しい" {
+		t.Errorf("再登録後の出力: %q", got)
+	}
+}
+
+// TestAjaxFailureReadAndMultipart は送信後の本文読み取り失敗と送信前の
+// フォーム組み立て失敗で、失敗コールバックとそのエラー伝搬を確かめる。
+func TestAjaxFailureReadAndMultipart(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "100")
+		_, _ = w.Write([]byte("short"))
+	}))
+	defer server.Close()
+	cases := []struct{ name, call, message string }{
+		{"本文読み取り", fmt.Sprintf(`"%s"へ「成功CB」でAJAX送信時`, server.URL), "unexpected EOF"},
+		{"フォーム組み立て", `「成功CB」で「http://127.0.0.1:1」へ「文字列」をPOSTフォーム送信時`, "辞書型"},
+	}
+	for _, tc := range cases {
+		for _, callbackError := range []bool{false, true} {
+			name := tc.name
+			if callbackError {
+				name += "/コールバック内エラー"
+			} else {
+				name += "/正常終了"
+			}
+			t.Run(name, func(t *testing.T) {
+				failure := ""
+				if callbackError {
+					failure = "「わざとエラー」でエラー発生"
+				}
+				code := fmt.Sprintf(`
+●(メッセージで)失敗CB
+ 「失敗: {メッセージ}」と表示
+ %s
+ここまで
+●成功CB
+ 「成功」と表示
+ここまで
+「失敗CB」のAJAX失敗時
+%s
+「後続」と表示
+`, failure, tc.call)
+				got, err := runInResult(t, t.TempDir(), code)
+				if !strings.Contains(got, "失敗: ") || !strings.Contains(got, tc.message) || strings.Contains(got, "成功") {
+					t.Errorf("失敗時の出力: %q", got)
+				}
+				if callbackError {
+					if err == nil || !strings.Contains(err.Error(), "わざとエラー") || strings.Contains(got, "後続") {
+						t.Errorf("コールバックのエラー: 出力=%q, error=%v", got, err)
+					}
+				} else if err != nil || !strings.Contains(got, "後続") {
+					t.Errorf("コールバック後の実行: 出力=%q, error=%v", got, err)
+				}
+			})
+		}
+	}
+}
