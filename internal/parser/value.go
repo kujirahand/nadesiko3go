@@ -511,11 +511,15 @@ func (p *Parser) yJSONObject() *ast.Node {
 			if v == nil {
 				p.failAt("辞書オブジェクトの宣言で値がありません。", m)
 			}
+		} else if keyTok.Type == lexer.TypeWord {
+			// 『{A}』は変数Aを値にする省略記法。通常の変数参照と同じく
+			// getVarNameRef を通してモジュール修飾 (main__A) を解決する。
+			// これを省くとグローバル変数Aとは別のスロットAを作ってしまう。
+			v = p.getVarNameRef(p.wordNode(keyTok))
 		} else {
+			// 文字列『{"A"}』や数値『{1}』の省略記法は値そのものなので、
+			// 変数参照に変換しない。
 			copyKey := *key
-			if keyTok.Type == lexer.TypeWord {
-				copyKey.Type = ast.Word
-			}
 			v = &copyKey
 		}
 		values = append(values, key, v)

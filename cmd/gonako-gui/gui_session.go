@@ -443,7 +443,15 @@ func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args 
 	// 打ち切らないと、その実行がロックを握ったまま解放できず、ここで
 	// 永久に待たされる（→ ⑫ ダイアログ待機中のデッドロック）。
 	s.cancelPendingDialogs()
-	s.execMu.Lock()
+	// WebViewのバインド呼び出し（runNakoFile / runNakoCode）はUIスレッド上で
+	// 処理される。ここで execMu を無制限に待つと、バックグラウンド実行が
+	// ネイティブのファイルダイアログを main queue へディスパッチしている間、
+	// UIスレッドが main queue を回せないまま互いに待ち合って固まる。
+	// 少しだけ待って取れなければエラーを返し、UIスレッドを解放する。
+	if !s.lockExecWithin(syncRunLockGrace) {
+		id, _ := s.reserveRun(false)
+		return RunResult{OK: false, RunID: id, Error: errExecBusy}
+	}
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
 	screen := guilib.NewScreen()
@@ -464,7 +472,11 @@ func (s *guiSession) runCompiled(prog *ir.Program, args []string, packed *bundle
 	// 同期実行も、ダイアログ待ちで execMu を握ったままの実行があれば
 	// 先に打ち切る。さもないとここで永久に待たされる。
 	s.cancelPendingDialogs()
-	s.execMu.Lock()
+	// runWithWindow と同じ理由で、待ちを区切る。
+	if !s.lockExecWithin(syncRunLockGrace) {
+		id, _ := s.reserveRun(false)
+		return RunResult{OK: false, RunID: id, Error: errExecBusy}
+	}
 	defer s.execMu.Unlock()
 	id, _ := s.reserveRun(false)
 	screen := guilib.NewScreen()
@@ -669,6 +681,16 @@ func (s *guiSession) resolveDialog(runID, dialogID uint64, text string, accepted
 // dispatchLockGrace is how long an event may wait for a run to let go of
 // execMu. Short enough that the window never visibly freezes.
 const dispatchLockGrace = 50 * time.Millisecond
+
+// syncRunLockGrace は同期実行（WebViewのバインド呼び出し＝UIスレッド上）が
+// execMu を待つ上限。UIスレッドを長く止めると、バックグラウンド実行が
+// ネイティブのファイルダイアログ（macOSは main queue へのディスパッチ）を
+// 出したときに、UIスレッドが main queue を回せずデッドロックするため短くする。
+const syncRunLockGrace = 50 * time.Millisecond
+
+// errExecBusy は同期実行が execMu を取れなかったときのエラー。
+// 実行中のプログラムが終われば、もう一度実行できる。
+const errExecBusy = "プログラムの実行中です。終了してからもう一度実行してください。"
 
 // lockExecWithin takes execMu, giving up if it cannot within timeout.
 func (s *guiSession) lockExecWithin(timeout time.Duration) bool {
