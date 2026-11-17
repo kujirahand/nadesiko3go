@@ -311,7 +311,7 @@ func TestStartNakoFileSerializesConsecutiveRuns(t *testing.T) {
 // 壊れ、A終了時の復元の後でBが誤ったディレクトリで動き、最後にBが
 // ディレクトリAへ「復元」してCWDが残留する。CWDの移動と復元は
 // どちらもexecMuの内側で行わなければならない。
-func TestRunNakoFileDuringAsyncRunKeepsEachWorkDir(t *testing.T) {
+func TestRunNakoFileDuringAsyncRunReturnsBusyAndKeepsAsyncWorkDir(t *testing.T) {
 	original := mustGetwd(t)
 	dirA := t.TempDir()
 	dirB := t.TempDir()
@@ -330,29 +330,31 @@ func TestRunNakoFileDuringAsyncRunKeepsEachWorkDir(t *testing.T) {
 		t.Fatal("runNakoFile のシグネチャが func(string, string, bool) string ではありません")
 	}
 
-	// Aは待機を挟んで2回CWDを表示し、Bに割り込まれていないことを示す。
+	// Aは待機を挟んで2回CWDを表示する。同期実行に割り込まれても、
+	// 両方とも自分の作業ディレクトリで動くことを示す。
 	codeA := "「{カレントディレクトリ取得}」を表示\n0.2秒待つ\n「{カレントディレクトリ取得}」を表示"
 	runA := start(codeA, filepath.Join(dirA, "a.nako3"), false)
 
-	// AがexecMuを取ってdirAへ移動するまで待つ。これでBの呼び出しは
+	// AがexecMuを取ってdirAへ移動するまで待つ。これで同期実行の呼び出しは
 	// 必ずAの実行中（ロック保持中）になる。
 	waitForCWD(t, dirA)
 
+	// 同期実行は、実行中の非同期実行を待たずに errExecBusy で返らなければ
+	// ならない（UIスレッド上で無制限に待つとメインキューと待ち合って
+	// 固まるため、待ってでも実行する仕様にはしない）。
 	rawB := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
 	var resultB RunResult
 	if err := json.Unmarshal([]byte(rawB), &resultB); err != nil {
 		t.Fatalf("runNakoFile の結果をJSONとして解釈できません: %v (raw=%q)", err, rawB)
 	}
-	if !resultB.OK {
-		t.Fatalf("同期実行に失敗しました: %#v", resultB)
+	if resultB.OK {
+		t.Fatalf("同期実行が成功してしまいました（busyで返るはず）: %#v", resultB)
 	}
-	if got := strings.TrimSpace(resultB.Output); !samePath(got, dirB) {
-		t.Fatalf("同期実行のCWD = %q, want %q", got, dirB)
-	}
-	if got := execWorkDir(session); !samePath(got, dirB) {
-		t.Fatalf("同期実行のexec.workDir = %q, want %q", got, dirB)
+	if resultB.Error != errExecBusy {
+		t.Fatalf("同期実行のエラー = %q, want errExecBusy (%q)", resultB.Error, errExecBusy)
 	}
 
+	// Aは割り込まれず、両回ともdirAで動く。
 	outA, resultA := waitAsyncRun(t, session, runA)
 	if !resultA.OK {
 		t.Fatalf("非同期実行に失敗しました: %#v", resultA)
@@ -367,6 +369,24 @@ func TestRunNakoFileDuringAsyncRunKeepsEachWorkDir(t *testing.T) {
 		}
 	}
 
-	// 両方の完了後、プロセスCWDは元のディレクトリへ戻っていること。
+	// Aの完了後、プロセスCWDは元のディレクトリへ戻っていること。
+	waitForCWD(t, runDir)
+
+	// 実行が終われば、同じ同期実行は今度は成功し、dirBで動く
+	// （busyは一時的な拒否であり、壊れた状態ではない）。
+	rawB2 := run("「{カレントディレクトリ取得}」を表示", filepath.Join(dirB, "b.nako3"), false)
+	var resultB2 RunResult
+	if err := json.Unmarshal([]byte(rawB2), &resultB2); err != nil {
+		t.Fatalf("runNakoFile の結果をJSONとして解釈できません: %v (raw=%q)", err, rawB2)
+	}
+	if !resultB2.OK {
+		t.Fatalf("非同期実行の完了後の同期実行に失敗しました: %#v", resultB2)
+	}
+	if got := strings.TrimSpace(resultB2.Output); !samePath(got, dirB) {
+		t.Fatalf("同期実行のCWD = %q, want %q", got, dirB)
+	}
+	if got := execWorkDir(session); !samePath(got, dirB) {
+		t.Fatalf("同期実行のexec.workDir = %q, want %q", got, dirB)
+	}
 	waitForCWD(t, runDir)
 }

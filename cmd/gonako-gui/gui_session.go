@@ -469,12 +469,25 @@ func enterWorkDir(workDir string) func() {
 // startWithWindowと同じく、CWDの移動と復元はexecMuで直列化した内側で行う。
 // ロックの外で移動すると、実行中の非同期実行の作業ディレクトリを壊し、
 // 最後には呼び出し元のディレクトリへ「復元」してCWDが残留する。
+//
+// execMuを待つのは短い猶予（syncRunLockGrace）までで、取れなければ
+// errExecBusyを返す。呼び出し元はUIスレッドであり、実行中の処理を
+// 待ってでも実行する仕様にすると、メインキューとの相互待ちで固まる
+// （runCompiledと揃えた仕様）。
 func (s *guiSession) runWithWindowInDir(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) RunResult {
 	// 前の実行がダイアログ待ちのままなら先に打ち切る。execMu を取る前に
 	// 打ち切らないと、その実行がロックを握ったまま解放できず、ここで
 	// 永久に待たされる（→ ⑫ ダイアログ待機中のデッドロック）。
 	s.cancelPendingDialogs()
-	s.execMu.Lock()
+	// WebViewのバインド呼び出し（runNakoFile / runNakoCode）はUIスレッド上で
+	// 処理される。ここで execMu を無制限に待つと、バックグラウンド実行が
+	// ネイティブのファイルダイアログを main queue へディスパッチしている間、
+	// UIスレッドが main queue を回せないまま互いに待ち合って固まる。
+	// 少しだけ待って取れなければエラーを返し、UIスレッドを解放する。
+	if !s.lockExecWithin(syncRunLockGrace) {
+		id, _ := s.reserveRun(false)
+		return RunResult{OK: false, RunID: id, Error: errExecBusy}
+	}
 	defer s.execMu.Unlock()
 	// 復元はexecMuを解放する前に行う（deferはLIFOなので、この順で
 	// ロック解放より先にCWDが戻る）。
