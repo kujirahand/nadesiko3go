@@ -604,6 +604,7 @@ func netCommands(m map[string]command) {
 			reqURL := str(a, 1)
 			v := argAt(a, 2)
 			body, contentType, err := buildMultipartForm("POSTフォーム送信時", v)
+			// 引数不正など、送信前の組み立て失敗も失敗コールバックに渡す。
 			if err != nil {
 				return ajaxFailure(ctx, err)
 			}

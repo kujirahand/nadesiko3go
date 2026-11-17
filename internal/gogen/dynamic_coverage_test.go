@@ -59,7 +59,7 @@ var dynamicStateConsumers = map[string]string{
 // dynamicUndetectable は「一覧にあるが走査では検出されない」命令と理由。
 var dynamicUndetectable = map[string]string{
 	"ファイル処理時":     "コールバックを CommandState へ保存する側。消費側は dynamicStateConsumers",
-	"AJAX失敗時":     "コールバックを AJAX:ONERROR へ保存する側 (SetSysVar のみで sink が無い)",
+	"AJAX失敗時":     "コールバックを AJAX:ONERROR と CommandState に保存する側で、sink が無い",
 	"AJAXテキスト取得":  "#335 で AJAX:ONERROR の消費側として一覧入り。現行実装は ONERROR を直接消費しないが、保存側と対で安全側に残す",
 	"AJAX内容取得":    "同上 (AJAXテキスト取得の別名)",
 	"AJAX受信":      "同上 (AJAXテキスト取得の別名)",
