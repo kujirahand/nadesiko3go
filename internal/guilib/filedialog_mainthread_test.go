@@ -18,7 +18,7 @@ func TestDarwinFileDialogRunsOnMainThread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("filedialog_darwin.m が読めない: %v", err)
 	}
-	source := string(data)
+	source := stripCComments(string(data))
 
 	// 別スレッドからはメインキューへ投げ、セマフォで完了を待つ。
 	for _, want := range []string{
@@ -26,10 +26,49 @@ func TestDarwinFileDialogRunsOnMainThread(t *testing.T) {
 		"dispatch_get_main_queue()",
 		"dispatch_async",
 		"dispatch_semaphore_wait",
+		"dispatch_semaphore_signal",
 	} {
 		if !strings.Contains(source, want) {
 			t.Fatalf("filedialog_darwin.m に %q が無い（メインスレッド実行が失われている）", want)
 		}
+	}
+
+	start := strings.Index(source, "static void gonakoOnMainThread(")
+	if start < 0 {
+		t.Fatal("gonakoOnMainThread の定義が無い")
+	}
+	end := strings.Index(source[start:], "\n}\n")
+	if end < 0 {
+		t.Fatal("gonakoOnMainThread の終端が無い")
+	}
+	helper := source[start : start+end]
+	mainThread := strings.Index(helper, "[NSThread isMainThread]")
+	async := strings.Index(helper, "dispatch_async(")
+	wait := strings.Index(helper, "dispatch_semaphore_wait(")
+	if mainThread < 0 || async < 0 || wait < 0 || mainThread > async || mainThread > wait {
+		t.Fatal("メインスレッド判定が非同期ディスパッチまたはセマフォ待ちより前にない")
+	}
+	// release がすべて ARC 無効の分岐内にあることを確かめる。
+	guarded := false
+	foundRelease := false
+	for _, line := range strings.Split(source, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "#if !__has_feature(objc_arc)" {
+			guarded = true
+			continue
+		}
+		if strings.HasPrefix(line, "#endif") || strings.HasPrefix(line, "#else") || strings.HasPrefix(line, "#elif") {
+			guarded = false
+		}
+		if strings.Contains(line, "dispatch_release(") {
+			foundRelease = true
+			if !guarded {
+				t.Fatal("dispatch_release が ARC ガードの外にある")
+			}
+		}
+	}
+	if !foundRelease {
+		t.Fatal("dispatch_release が無い")
 	}
 
 	// dispatch_sync はメインスレッドから呼ぶとデッドロックするので使わない。
@@ -71,4 +110,52 @@ func darwinDialogFunctionBody(t *testing.T, source, name string) string {
 		t.Fatalf("%s の終端が見つからない", name)
 	}
 	return rest[:end]
+}
+
+// 文字列と文字定数の中はそのまま残し、コメントだけを空白に置き換える。
+func stripCComments(source string) string {
+	b := []byte(source)
+	for i := 0; i < len(b); {
+		if b[i] == '"' || b[i] == '\'' {
+			quote := b[i]
+			i++
+			for i < len(b) {
+				if b[i] == '\\' && i+1 < len(b) {
+					i += 2
+					continue
+				}
+				if b[i] == quote {
+					i++
+					break
+				}
+				i++
+			}
+			continue
+		}
+		if i+1 < len(b) && b[i] == '/' && b[i+1] == '/' {
+			for i < len(b) && b[i] != '\n' {
+				b[i] = ' '
+				i++
+			}
+			continue
+		}
+		if i+1 < len(b) && b[i] == '/' && b[i+1] == '*' {
+			b[i], b[i+1] = ' ', ' '
+			i += 2
+			for i < len(b) {
+				if i+1 < len(b) && b[i] == '*' && b[i+1] == '/' {
+					b[i], b[i+1] = ' ', ' '
+					i += 2
+					break
+				}
+				if b[i] != '\n' {
+					b[i] = ' '
+				}
+				i++
+			}
+			continue
+		}
+		i++
+	}
+	return string(b)
 }

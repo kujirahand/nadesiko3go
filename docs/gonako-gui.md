@@ -279,6 +279,12 @@ B = 20
 `runId`と、画面操作時だけ返る`operations`は内蔵GUIが画面部品とイベントを管理するための値です。
 通常のJavaScript連携では`ok`、`output`、`error`だけを利用できます。
 
+`runNakoCode`や`runNakoFile`などの同期APIは、別のプログラムが実行中の場合、
+短い待ちのあとに「プログラムの実行中です。終了してからもう一度実行してください。」
+というエラーを返します。これはUIスレッドが塞がり、ネイティブのファイルダイアログと
+互いに待ち合うことを防ぐためです。実行中に別のプログラムを開始する場合は、
+非同期APIの`startNakoCode`と`pollNakoRun`を使ってください。
+
 ダイアログ命令を含むプログラムを独自HTMLから実行する場合は、UIを止めない
 `window.startNakoCode(code)`を使い、`window.pollNakoRun(runId)`で進捗を取得します。
 `dialog`が返ったらHTMLで回答画面を表示し、

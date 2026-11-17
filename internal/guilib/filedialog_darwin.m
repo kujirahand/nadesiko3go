@@ -22,6 +22,10 @@
 // ようにUIスレッド上で同期的に走る経路）。dispatch_sync はメインスレッドから
 // 呼ぶと自分自身を待ってデッドロックするので使わない。別スレッドからは
 // dispatch_async でメインキューへ投げ、セマフォで完了を待つ。
+// この無期限待ちは、guilib の呼び出し元が gonako-gui のみで、その NSApp の
+// RunLoop がメインキューを回し続けることを前提とする。defaultDir 等の C文字列も
+// 呼び出し元の Go 側が関数の戻りまで保持する。将来タイムアウトを導入する場合は、
+// 先にこれらの文字列の所有権をブロック側へ移すこと。
 static void gonakoOnMainThread(dispatch_block_t block) {
     if ([NSThread isMainThread]) {
         block();
