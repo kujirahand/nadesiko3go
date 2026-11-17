@@ -58,7 +58,7 @@ func TestNonNumericLoopVarMatchesVM(t *testing.T) {
 	}
 }
 
-// TestLoopVarTypeInference は、融合命令の代入先スロットの型推論を直接確かめる。
+// TestLoopVarTypeInference は、融合命令のソースと代入先の型推論を直接確かめる。
 // 文字列ループの変数は数値ではなく、昇格もしない。数値ループの変数は
 // これまでどおり float64 に昇格する (最適化を壊していない)。
 func TestLoopVarTypeInference(t *testing.T) {
@@ -89,6 +89,17 @@ func TestLoopVarTypeInference(t *testing.T) {
 		{
 			name:        "global_numeric_loop",
 			code:        "Aを1から3まで繰り返す\n  Aを表示\nここまで\n",
+			global:      true,
+			wantNumeric: true,
+		},
+		{
+			name:        "local_numeric_arithmetic",
+			code:        "●テストとは\nAを1から3まで繰り返す\n  (A+1)を表示\nここまで\nここまで\nテスト\n",
+			wantNumeric: true,
+		},
+		{
+			name:        "global_numeric_arithmetic",
+			code:        "Aを1から3まで繰り返す\n  (A+1)を表示\nここまで\n",
 			global:      true,
 			wantNumeric: true,
 		},
@@ -131,10 +142,18 @@ func TestLoopVarTypeInference(t *testing.T) {
 						promoted = info.promoted[fi][slot]
 					}
 					if numeric != c.wantNumeric {
-						t.Fatalf("スロット %d が数値と推論された = %v, want %v", slot, numeric, c.wantNumeric)
+						t.Errorf("代入先スロット B=%d が数値と推論された = %v, want %v", slot, numeric, c.wantNumeric)
 					}
 					if promoted != c.wantNumeric {
-						t.Fatalf("スロット %d が float64 に昇格した = %v, want %v", slot, promoted, c.wantNumeric)
+						t.Errorf("代入先スロット B=%d が float64 に昇格した = %v, want %v", slot, promoted, c.wantNumeric)
+					}
+					// A は代入先がグローバルの場合もローカルスロットである。
+					source := int(inst.A)
+					if got := info.numericLocals[fi][source]; got != c.wantNumeric {
+						t.Errorf("ソース側スロット A=%d が数値と推論された = %v, want %v", source, got, c.wantNumeric)
+					}
+					if got := info.promoted[fi][source]; got != c.wantNumeric {
+						t.Errorf("ソース側スロット A=%d が float64 に昇格した = %v, want %v", source, got, c.wantNumeric)
 					}
 				}
 			}
@@ -143,4 +162,36 @@ func TestLoopVarTypeInference(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestNumericLoopVarMatchesVM は数値ループの実行結果を VM と比較する。
+func TestNumericLoopVarMatchesVM(t *testing.T) {
+	assertMatchesVM(t, "local_in_function", "●テストとは\nAを1から3まで繰り返す\n  Aを表示\nここまで\nここまで\nテスト\n")
+	assertMatchesVM(t, "global_at_top_level", "Aを1から3まで繰り返す\n  Aを表示\nここまで\n")
+}
+
+// TestNestedLoopMatchesVM は異なる型のループ変数が互いの動作に影響しないことを確かめる。
+func TestNestedLoopMatchesVM(t *testing.T) {
+	body := "Aを1から2まで繰り返す\n  Bを「あ」から「い」まで繰り返す\n    Aを表示\n    Bを表示\n  ここまで\nここまで\n"
+	assertMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
+	assertMatchesVM(t, "global_at_top_level", body)
+}
+
+// TestMixedLoopBoundsMatchesVM は開始値と終了値の型が異なる場合の動作を VM と比較する。
+func TestMixedLoopBoundsMatchesVM(t *testing.T) {
+	for _, c := range []struct{ name, bounds string }{
+		{"numeric_start", "1から「い」"},
+		{"string_start", "「あ」から3"},
+	} {
+		body := "Aを" + c.bounds + "まで繰り返す\n  Aを表示\nここまで\n「終了」を表示\n"
+		assertMatchesVM(t, c.name+"_local", "●テストとは\n"+body+"ここまで\nテスト\n")
+		assertMatchesVM(t, c.name+"_global", body)
+	}
+}
+
+// TestLoopVarArithmeticMatchesVM は昇格したループ変数の算術結果を VM と比較する。
+func TestLoopVarArithmeticMatchesVM(t *testing.T) {
+	body := "Aを1から3まで繰り返す\n  (A+1)を表示\nここまで\n"
+	assertMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
+	assertMatchesVM(t, "global_at_top_level", body)
 }
