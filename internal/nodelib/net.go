@@ -251,6 +251,89 @@ func doAjax(client *http.Client, optVal value.Value, reqURL string) (*http.Respo
 	return client.Do(req)
 }
 
+// 『AJAX失敗時』（AJAX:ONERROR）の保存と参照。
+//
+// VMはプログラム中に名前が現れない変数に記憶領域を割り当てないため、
+// 『AJAX失敗時』の SetSysVar が黙って捨てられることがある（『AJAXオプション設定』
+// と同じ事情。ajaxOptionValue のコメント参照）。その場合でもコールバックが
+// 届くよう、設定命令は実行単位の CommandState にも控えを保存する。
+//
+// 読み出し側は、設定直後のシステム変数の値をスナップショットとして控えておき、
+// 現在値がそれと食い違っていれば「設定後にプログラムが同じ名前へ直接代入・
+// クリアした」と判断してシステム変数の最新値を優先する。システム変数に記憶領域が
+// 無い場合、スナップショットも未定義のまま一致し続けるので控えが使われる。
+const (
+	// ajaxOnErrorCopyState は CommandState に置くコールバックの控え。
+	ajaxOnErrorCopyState = "__ajaxOnErrorCopy"
+	// ajaxOnErrorSnapshotState は設定直後のシステム変数の値。
+	ajaxOnErrorSnapshotState = "__ajaxOnErrorSysVarSnapshot"
+)
+
+// sameAJAXCallback は『AJAX失敗時』の保存値として2つの値が同じかを判定する。
+// 数値・文字列・真偽値・未定義は値で比べ、配列・辞書・関数は実体が
+// 同じときだけ等しいとみなす（システム変数のスナップショット比較用）。
+func sameAJAXCallback(a, b value.Value) bool {
+	if a.Kind() != b.Kind() {
+		return false
+	}
+	switch a.Kind() {
+	case value.KindUndefined, value.KindNull:
+		return true
+	case value.KindBool:
+		ab, _ := a.Bool()
+		bb, _ := b.Bool()
+		return ab == bb
+	case value.KindNumber:
+		an, _ := a.Number()
+		bn, _ := b.Number()
+		return an == bn
+	case value.KindString:
+		as, _ := a.String()
+		bs, _ := b.String()
+		return as == bs
+	}
+	// 配列・辞書・関数は実体（ポインタ）が同じなら同じ値。
+	return a == b
+}
+
+// handleAJAXError は『AJAX失敗時』のコールバックを呼ぶ。
+// 登録されていて呼び出せたときだけ handled=true を返し、呼び出し側は
+// 従来どおりエラーを返すかどうかを決める。コールバック自身が返した
+// エラーは callErr として返し、成功コールバックと同じく呼び出し元へ
+// 伝搬させる。
+func handleAJAXError(ctx stdlib.Context, err error) (result value.Value, handled bool, callErr error) {
+	onErr := ctx.CommandState(ajaxOnErrorCopyState)
+	if !sameAJAXCallback(ctx.SysVar("AJAX:ONERROR"), ctx.CommandState(ajaxOnErrorSnapshotState)) {
+		// 設定後に直接代入・クリアされている。最新のシステム変数を優先する。
+		onErr = ctx.SysVar("AJAX:ONERROR")
+	}
+	if onErr.Kind() == value.KindUndefined {
+		return value.Undefined(), false, nil
+	}
+	fn, ok := toFunc(ctx, onErr)
+	if !ok {
+		return value.Undefined(), false, nil
+	}
+	msg := value.String(err.Error())
+	// 引数を宣言しないコールバックでも『対象』からエラー内容を読めるようにする。
+	ctx.SetSysVar("対象", msg)
+	_, callErr = ctx.CallFunc(fn, []value.Value{msg})
+	return value.Undefined(), true, callErr
+}
+
+// ajaxFailure はエラーを『AJAX失敗時』へ渡し、コールバックが無ければ
+// これまでどおりエラーとして返す。コールバック内で起きたエラーは
+// 握り潰さず、そのまま呼び出し元へ伝搬させる。
+func ajaxFailure(ctx stdlib.Context, err error) (value.Value, error) {
+	if v, handled, callErr := handleAJAXError(ctx, err); handled {
+		if callErr != nil {
+			return value.Undefined(), callErr
+		}
+		return v, nil
+	}
+	return value.Undefined(), err
+}
+
 func netCommands(m map[string]command) {
 	client := &http.Client{Timeout: 30 * time.Second}
 
@@ -448,7 +531,13 @@ func netCommands(m map[string]command) {
 		josi:       [][]string{{"の"}},
 		returnNone: true,
 		fn: func(ctx stdlib.Context, a []value.Value) (value.Value, error) {
-			ctx.SetSysVar("AJAX:ONERROR", argAt(a, 0))
+			cb := argAt(a, 0)
+			// 大域変数として宣言しているプログラムとの互換のためシステム変数にも書く。
+			ctx.SetSysVar("AJAX:ONERROR", cb)
+			// システム変数に記憶領域が無い場合に備えた控えと、設定直後の値の
+			// スナップショット（handleAJAXError のコメント参照）。
+			ctx.SetCommandState(ajaxOnErrorCopyState, cb)
+			ctx.SetCommandState(ajaxOnErrorSnapshotState, ctx.SysVar("AJAX:ONERROR"))
 			return value.Undefined(), nil
 		},
 	}
@@ -458,18 +547,12 @@ func netCommands(m map[string]command) {
 		reqURL := str(a, 1)
 		resp, err := doAjax(client, ajaxOptionValue(ctx), reqURL)
 		if err != nil {
-			if onErr := ctx.SysVar("AJAX:ONERROR"); onErr.Kind() != value.KindUndefined {
-				if fn, ok := toFunc(ctx, onErr); ok {
-					_, _ = ctx.CallFunc(fn, []value.Value{value.String(err.Error())})
-					return value.Undefined(), nil
-				}
-			}
-			return value.Undefined(), err
+			return ajaxFailure(ctx, err)
 		}
 		defer resp.Body.Close()
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return value.Undefined(), err
+			return ajaxFailure(ctx, err)
 		}
 		textVal := value.String(string(data))
 		ctx.SetSysVar("対象", textVal)
@@ -497,18 +580,12 @@ func netCommands(m map[string]command) {
 			}
 			resp, err := client.Post(reqURL, "application/x-www-form-urlencoded", strings.NewReader(bodyStr))
 			if err != nil {
-				if onErr := ctx.SysVar("AJAX:ONERROR"); onErr.Kind() != value.KindUndefined {
-					if fn, ok := toFunc(ctx, onErr); ok {
-						_, _ = ctx.CallFunc(fn, []value.Value{value.String(err.Error())})
-						return value.Undefined(), nil
-					}
-				}
-				return value.Undefined(), err
+				return ajaxFailure(ctx, err)
 			}
 			defer resp.Body.Close()
 			data, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return value.Undefined(), err
+				return ajaxFailure(ctx, err)
 			}
 			textVal := value.String(string(data))
 			ctx.SetSysVar("対象", textVal)
@@ -528,22 +605,16 @@ func netCommands(m map[string]command) {
 			v := argAt(a, 2)
 			body, contentType, err := buildMultipartForm("POSTフォーム送信時", v)
 			if err != nil {
-				return value.Undefined(), err
+				return ajaxFailure(ctx, err)
 			}
 			resp, err := client.Post(reqURL, contentType, body)
 			if err != nil {
-				if onErr := ctx.SysVar("AJAX:ONERROR"); onErr.Kind() != value.KindUndefined {
-					if fn, ok := toFunc(ctx, onErr); ok {
-						_, _ = ctx.CallFunc(fn, []value.Value{value.String(err.Error())})
-						return value.Undefined(), nil
-					}
-				}
-				return value.Undefined(), err
+				return ajaxFailure(ctx, err)
 			}
 			defer resp.Body.Close()
 			data, err := io.ReadAll(resp.Body)
 			if err != nil {
-				return value.Undefined(), err
+				return ajaxFailure(ctx, err)
 			}
 			textVal := value.String(string(data))
 			ctx.SetSysVar("対象", textVal)
