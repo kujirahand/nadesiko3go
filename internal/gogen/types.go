@@ -362,6 +362,10 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			dropLocal(pc, int(inst.A))
 		case ir.OpLoadGlobal:
 			dropGlobal(pc, int(inst.A))
+		case ir.OpStoreSoreAndLocal, ir.OpStoreSoreAndGlobal:
+			// 融合命令はローカル A を読んでから『それ』と B へ書く。
+			// 書き込みだけでなく、A の読み出しとしても数える
+			dropLocal(pc, int(inst.A))
 		case ir.OpBinaryAt:
 			// 覗き穴最適化がまとめた Load が中に隠れている
 			_, left, right := ir.DecodeBinaryAt(inst.A)
@@ -429,6 +433,22 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			}
 			continue
 		}
+		// 融合命令 OpStoreSoreAnd... はスタックを使わないので depths[pc] が
+		// 0 になることがある。深さ0で下の switch を素通りすると、ループ
+		// 変数が非数値のまま float64 に昇格してしまうので、深さの検査より
+		// 先にここで判定する (スタックは見ない)。
+		if inst.Op == ir.OpStoreSoreAndLocal || inst.Op == ir.OpStoreSoreAndGlobal {
+			if inst.Op == ir.OpStoreSoreAndLocal {
+				if locals[int(inst.B)] && !locals[int(inst.A)] {
+					delete(locals, int(inst.B))
+					changed = true
+				}
+			} else if info.numericGlobals[int(inst.B)] && !locals[int(inst.A)] {
+				info.numericGlobals[int(inst.B)] = false
+				changed = true
+			}
+			continue
+		}
 		if depths[pc] == 0 {
 			continue
 		}
@@ -455,16 +475,6 @@ func (info *typeInfo) refineFunc(prog *ir.Program, fi int) bool {
 			d := depths[pc]
 			isNum := d >= 2 && stacks[pc][d-1] && stacks[pc][d-2] && numericOp(ir.BinaryOp(inst.A))
 			if info.numericGlobals[int(inst.B)] && !isNum {
-				info.numericGlobals[int(inst.B)] = false
-				changed = true
-			}
-		case ir.OpStoreSoreAndLocal:
-			if locals[int(inst.B)] && !locals[int(inst.A)] {
-				delete(locals, int(inst.B))
-				changed = true
-			}
-		case ir.OpStoreSoreAndGlobal:
-			if info.numericGlobals[int(inst.B)] && !locals[int(inst.A)] {
 				info.numericGlobals[int(inst.B)] = false
 				changed = true
 			}
