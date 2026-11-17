@@ -823,6 +823,7 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	// CWDはプロセス全体で共有されるため、ここではos.Chdirしない。決めた
 	// 作業ディレクトリをrunWithWindowInDirへ渡し、移動と復元はexecMuで
 	// 直列化した内側（実行中）で行う。
+	// 相対パスの絶対化は呼び出し時点のプロセスCWDを使い、実行中のCWD変更とは同期しない。
 	_ = w.Bind("runNakoFile", func(code string, filePath string, windowMode bool) string {
 		runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
 
@@ -838,6 +839,7 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	// CWDはプロセス全体で共有されるため、ここではos.Chdirせず、決めた
 	// 作業ディレクトリをstartWithWindowへ渡す。実際の移動と復元は実行
 	// goroutine側がexecMuで直列化した内側で行う。
+	// 相対パスの絶対化は呼び出し時点のプロセスCWDを使い、実行中のCWD変更とは同期しない。
 	_ = w.Bind("startNakoFile", func(code string, filePath string, windowMode bool) uint64 {
 		runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
 		return guiRuntime.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)

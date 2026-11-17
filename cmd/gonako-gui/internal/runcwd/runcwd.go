@@ -46,6 +46,7 @@ func EnterWorkDir(workDir string) (func(), error) {
 //
 // 対象のディレクトリが実在しない場合は workDir を空で返し、呼び出し側で
 // 「実行開始時点のCWD」へフォールバックさせる。
+// 相対パスは呼び出し時点のプロセスCWDで絶対化し、実行中のCWD変更とは同期しない。
 func NakoRunLocation(filePath, initialWorkingDir string) (runFile, workDir string) {
 	absOrClean := func(path string) string {
 		if absolute, err := filepath.Abs(path); err == nil {

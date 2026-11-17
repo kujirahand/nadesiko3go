@@ -164,17 +164,31 @@ func TestLoopVarTypeInference(t *testing.T) {
 	}
 }
 
+// assertNonEmptyMatchesVM は出力があるケースで、VMとの一致に加えて空出力を検出する。
+func assertNonEmptyMatchesVM(t *testing.T, name, code string) {
+	t.Helper()
+	t.Run(name, func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("go build/run per case; skipped under -short")
+		}
+		if strings.TrimRight(vmOutput(t, code), "\n") == "" {
+			t.Fatal("VM の出力が空")
+		}
+		assertMatchesVM(t, "matches_vm", code)
+	})
+}
+
 // TestNumericLoopVarMatchesVM は数値ループの実行結果を VM と比較する。
 func TestNumericLoopVarMatchesVM(t *testing.T) {
-	assertMatchesVM(t, "local_in_function", "●テストとは\nAを1から3まで繰り返す\n  Aを表示\nここまで\nここまで\nテスト\n")
-	assertMatchesVM(t, "global_at_top_level", "Aを1から3まで繰り返す\n  Aを表示\nここまで\n")
+	assertNonEmptyMatchesVM(t, "local_in_function", "●テストとは\nAを1から3まで繰り返す\n  Aを表示\nここまで\nここまで\nテスト\n")
+	assertNonEmptyMatchesVM(t, "global_at_top_level", "Aを1から3まで繰り返す\n  Aを表示\nここまで\n")
 }
 
 // TestNestedLoopMatchesVM は異なる型のループ変数が互いの動作に影響しないことを確かめる。
 func TestNestedLoopMatchesVM(t *testing.T) {
 	body := "Aを1から2まで繰り返す\n  Bを「あ」から「い」まで繰り返す\n    Aを表示\n    Bを表示\n  ここまで\nここまで\n"
-	assertMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
-	assertMatchesVM(t, "global_at_top_level", body)
+	assertNonEmptyMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
+	assertNonEmptyMatchesVM(t, "global_at_top_level", body)
 }
 
 // TestMixedLoopBoundsMatchesVM は開始値と終了値の型が異なる場合の動作を VM と比較する。
@@ -184,14 +198,14 @@ func TestMixedLoopBoundsMatchesVM(t *testing.T) {
 		{"string_start", "「あ」から3"},
 	} {
 		body := "Aを" + c.bounds + "まで繰り返す\n  Aを表示\nここまで\n「終了」を表示\n"
-		assertMatchesVM(t, c.name+"_local", "●テストとは\n"+body+"ここまで\nテスト\n")
-		assertMatchesVM(t, c.name+"_global", body)
+		assertNonEmptyMatchesVM(t, c.name+"_local", "●テストとは\n"+body+"ここまで\nテスト\n")
+		assertNonEmptyMatchesVM(t, c.name+"_global", body)
 	}
 }
 
 // TestLoopVarArithmeticMatchesVM は昇格したループ変数の算術結果を VM と比較する。
 func TestLoopVarArithmeticMatchesVM(t *testing.T) {
 	body := "Aを1から3まで繰り返す\n  (A+1)を表示\nここまで\n"
-	assertMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
-	assertMatchesVM(t, "global_at_top_level", body)
+	assertNonEmptyMatchesVM(t, "local_in_function", "●テストとは\n"+body+"ここまで\nテスト\n")
+	assertNonEmptyMatchesVM(t, "global_at_top_level", body)
 }

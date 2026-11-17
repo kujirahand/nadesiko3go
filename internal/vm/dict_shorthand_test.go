@@ -24,8 +24,8 @@ func TestDictShorthandVariableReference(t *testing.T) {
 		},
 		{
 			"同名グローバル変数を隠すローカル変数",
-			"A = 10\n●hogeとは\n  A = 20\n  D = {A}\n  D[\"A\"]を表示\nここまで\nhoge()",
-			"20",
+			"A = 10\n●hogeとは\n  変数 A = 20\n  D = {A}\n  D[\"A\"]を表示\nここまで\nhoge()\nAを表示",
+			"20\n10",
 		},
 		{
 			"関数の引数",

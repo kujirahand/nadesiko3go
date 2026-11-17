@@ -7,6 +7,20 @@ import (
 	"testing"
 )
 
+// samePath はシンボリックリンクを解決してパスを比較する。
+func samePath(a, b string) bool {
+	resolve := func(p string) string {
+		if p == "" {
+			return ""
+		}
+		if resolved, err := filepath.EvalSymlinks(p); err == nil {
+			return resolved
+		}
+		return filepath.Clean(p)
+	}
+	return resolve(a) == resolve(b)
+}
+
 func TestNakoRunLocation(t *testing.T) {
 	base := t.TempDir()
 	scriptDir := filepath.Join(base, "script")
@@ -70,12 +84,12 @@ func TestEnterWorkDir(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer restore()
-		if got, err := os.Getwd(); err != nil || got != dir {
+		if got, err := os.Getwd(); err != nil || !samePath(got, dir) {
 			t.Fatalf("移動先 = %q, err = %v", got, err)
 		}
 		panic("復元の確認")
 	}()
-	if got, err := os.Getwd(); err != nil || got != original {
+	if got, err := os.Getwd(); err != nil || !samePath(got, original) {
 		t.Fatalf("復元先 = %q, err = %v", got, err)
 	}
 }
@@ -118,7 +132,7 @@ func TestEnterWorkDirWhenGetwdFails(t *testing.T) {
 		t.Fatal(err)
 	}
 	restore()
-	if got, err := os.Getwd(); err != nil || got != base {
+	if got, err := os.Getwd(); err != nil || !samePath(got, base) {
 		t.Fatalf("移動先 = %q, err = %v", got, err)
 	}
 }
