@@ -179,10 +179,18 @@ func TestAIProjectGuideExamplesCompile(t *testing.T) {
 		t.Fatalf("nako3ブロックが %d 件しか抽出できませんでした", len(blocks))
 	}
 	registry := stdlib.NewRegistry(guiPlugins()...)
+	const windowExample = `{"サイズ":[640,480],"位置":"中央"}で母艦のウィンドウ変更`
+	foundWindow := false
 	for i, code := range blocks {
 		if _, err := vm.CompileWithRegistry(code, "AGENTS.md", registry); err != nil {
 			t.Errorf("ブロック %d がコンパイルできません: %v\n%s", i+1, err, code)
 		}
+		if strings.Contains(code, windowExample) {
+			foundWindow = true
+		}
+	}
+	if !foundWindow {
+		t.Fatal("母艦のウィンドウ変更の例を ```nako3 ブロックとしてコンパイル対象に含めてください")
 	}
 }
 

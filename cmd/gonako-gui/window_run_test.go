@@ -107,6 +107,36 @@ func TestReadStandaloneWindowSourceRemovesInternalTempFile(t *testing.T) {
 	}
 }
 
+// Issue #512: 第1引数 run はサブコマンドである。run という名前の
+// フォルダやファイルを開きたいときは ./run のようにパスで指定する。
+func TestIsGUIRunCommand(t *testing.T) {
+	if !isGUIRunCommand([]string{"run"}) {
+		t.Fatal("第1引数 run はサブコマンドとして扱う")
+	}
+	if !isGUIRunCommand([]string{"run", "main.nako3"}) {
+		t.Fatal("gonako-gui run main.nako3 はサブコマンドとして扱う")
+	}
+	if !isGUIRunCommand([]string{"run", "./run"}) {
+		t.Fatal("run ./run の先頭はサブコマンド、続く ./run はファイルパス")
+	}
+	for _, args := range [][]string{
+		nil,
+		{},
+		{"./run"},
+		{"./run/main.nako3"},
+		{"run/main.nako3"},
+		{`.\run`},
+		{"run.nako3"},
+		{"main.nako3"},
+		{"-h"},
+		{"Run"},
+	} {
+		if isGUIRunCommand(args) {
+			t.Errorf("%q をサブコマンドとして扱った", args)
+		}
+	}
+}
+
 func TestParseGUIRunArgs(t *testing.T) {
 	got, err := parseGUIRunArgs([]string{"main.nako3"})
 	if err != nil {

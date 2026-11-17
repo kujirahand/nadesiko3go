@@ -628,12 +628,20 @@ func prepareGUIRun(sourcePath string) (absPath, workDir string, err error) {
 	return absPath, filepath.Dir(absPath), nil
 }
 
+// isGUIRunCommand は引数の先頭が公開サブコマンド run かを返す。
+// 第1引数がちょうど run のときだけサブコマンドになる。run という名前の
+// フォルダやファイルは ./run のようにパスで指定する（docs/gonako-gui.md）。
+func isGUIRunCommand(args []string) bool {
+	return len(args) > 0 && args[0] == "run"
+}
+
 // runGUIProgram は `gonako-gui run <ファイル>` の本体である。エディタを
 // 開かず、指定されたGUIプログラムを専用ウィンドウで直接実行する。
 // 利用者が指定したファイルは削除しない。ウィンドウを開く前に、GUI命令を
-// 含むレジストリでコンパイルだけを行い、文法や命令のエラーは標準エラーへ
-// 返して終了コード1で終わる (ウィンドウ内にしかエラーが出ないと、
-// AIエージェントやスクリプトから失敗を検出できないため)。
+// 含むレジストリでコンパイルだけを行い、文法や命令のエラーは呼び出し元へ
+// 返す。main はそれを reportGUIRunError で届け、終了コード1で終わる。
+// ウィンドウの中だけにエラーが出ると、AIエージェントやスクリプトから
+// 失敗を検出できないため、標準エラーへ書けるときは必ず書く。
 func runGUIProgram(args []string) error {
 	sourcePath, err := parseGUIRunArgs(args)
 	if err != nil {
@@ -666,11 +674,11 @@ func main() {
 
 	// 公開コマンド `gonako-gui run <ファイル>` はエディタを開かずに
 	// GUIプログラムを直接実行する (Issue #482)。それ以外の引数は従来どおり。
-	if len(os.Args) > 1 && os.Args[1] == "run" {
+	// 第1引数がちょうど run のときだけサブコマンドにする (Issue #512)。
+	if isGUIRunCommand(os.Args[1:]) {
 		initClipboard()
 		if err := runGUIProgram(os.Args[2:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			fmt.Fprintln(os.Stderr, "使い方: gonako-gui run main.nako3")
+			reportGUIRunError(err)
 			os.Exit(1)
 		}
 		return
