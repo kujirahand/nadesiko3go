@@ -3003,8 +3003,55 @@ document.addEventListener('DOMContentLoaded', () => {
     return selectAppType.value === 'wnako3';
   }
 
-  // 文法チェック（#118）。実行はせず構文解析だけを行うので、
-  // 副作用のあるプログラムでも安全に呼べる。
+  const syntaxCheckStatus = '文法チェック中...';
+  const docTestRunStatus = '文法チェック完了。DocTestを実行しています...';
+
+  // 画面が結果を受け取る前に編集されたDocTestは表示しない。
+  // 実行自体は裏で続くので、完了を読み捨てて結果の置き場を空ける。
+  function discardEditorDocTest(runId) {
+    if (!runId || typeof window.pollEditorDocTest !== 'function') return;
+    void (async () => {
+      for (;;) {
+        const status = parseBoundJSON(await window.pollEditorDocTest(runId));
+        if (status.done) return;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    })();
+  }
+
+  function showSyntaxError(text, status) {
+    output.textContent = text || '文法エラーがあります';
+    output.className = 'output has-error';
+    execStatus.textContent = 'エラー';
+    execStatus.className = 'status-indicator error';
+    setStatus(status || '文法チェックでエラーが見つかりました');
+  }
+
+  function showSyntaxSuccess(text, status) {
+    output.textContent = text || '文法エラーはありません';
+    output.className = 'output has-content';
+    execStatus.textContent = 'OK';
+    execStatus.className = 'status-indicator success';
+    setStatus(status || '文法チェック完了: エラーはありません');
+  }
+
+  // DocTestの完了を待つ。編集されていたら null を返し、結果は捨てる。
+  async function waitForEditorDocTest(runId, requestCode, requestFilePath) {
+    for (;;) {
+      if (isStaleRequest(requestCode, requestFilePath)) {
+        discardEditorDocTest(runId);
+        reportStaleIfIdle(docTestRunStatus, 'DocTest: 待機中に編集されたため中止しました');
+        return null;
+      }
+      const status = parseBoundJSON(await window.pollEditorDocTest(runId));
+      if (status.done) return status;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+  }
+
+  // 文法チェック（#118）。プログラム本体は実行しない。
+  // DocTestが含まれ、文法エラーが無いときだけサンプルを実行する（#516）。
+  // 実行はポーリングで受け取り、ダイアログ待ちでエディタを止めない。
   async function checkSyntax() {
     const code = editor.value;
     const filePath = currentFilePath;
@@ -3013,35 +3060,61 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     setOutputPanelOpen(true);
+    selectOutputTab('result');
     hideDocPreview();
     btnSyntaxCheck.disabled = true;
-    setStatus('文法チェック中...');
+    setStatus(syntaxCheckStatus);
     try {
       // 実行モードの命令セットで調べる。ブラウザ(wnako3)モードではwnako専用の
       // 命令が使えるので、gonakoの命令一覧で調べると誤ってエラーになる（#301）。
       const checker = isWNakoRunMode() ? window.checkWNakoSyntax : window.checkNakoSyntax;
       const raw = await checker(code, filePath || '');
+      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (isStaleRequest(code, filePath)) {
-        reportStaleIfIdle('文法チェック中...', '文法チェック: 待機中に編集されたため中止しました');
+        if (data && data.doctest && data.doctest.runId) {
+          discardEditorDocTest(data.doctest.runId);
+        }
+        reportStaleIfIdle(syntaxCheckStatus, '文法チェック: 待機中に編集されたため中止しました');
         return;
       }
-      const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
-      if (data.ok) {
-        output.textContent = '文法エラーはありません';
-        output.className = 'output has-content';
-        execStatus.textContent = 'OK';
-        execStatus.className = 'status-indicator success';
-        setStatus('文法チェック完了: エラーはありません');
-      } else {
-        output.textContent = data.error || '文法エラーがあります';
-        output.className = 'output has-error';
-        execStatus.textContent = 'エラー';
-        execStatus.className = 'status-indicator error';
-        setStatus('文法チェックでエラーが見つかりました');
+      if (!data.ok) {
+        showSyntaxError(data.error || data.text);
+        return;
       }
+      if (data.doctest && data.doctest.pending) {
+        if (typeof window.pollEditorDocTest !== 'function') {
+          showSyntaxSuccess(data.text, '文法チェック完了: エラーはありません');
+          return;
+        }
+        const total = data.doctest.total ? ` ${data.doctest.total}件` : '';
+        output.textContent = `文法エラーはありません\n\nDocTest${total}を実行しています...`;
+        output.className = 'output has-content';
+        execStatus.textContent = '確認中';
+        execStatus.className = 'status-indicator running';
+        setStatus(docTestRunStatus);
+        const status = await waitForEditorDocTest(data.doctest.runId, code, filePath);
+        if (!status) return;
+        if (isStaleRequest(code, filePath)) {
+          reportStaleIfIdle(docTestRunStatus, 'DocTest: 待機中に編集されたため中止しました');
+          return;
+        }
+        if (!status.ok) {
+          showSyntaxError(status.text || status.error, 'DocTestで失敗があります');
+          return;
+        }
+        const doneStatus = (status.text && status.text.indexOf('DocTest') >= 0)
+          ? '文法チェック完了。DocTestを確認しました'
+          : '文法チェック完了: エラーはありません';
+        showSyntaxSuccess(status.text, doneStatus);
+        return;
+      }
+      const doneStatus = (data.text && data.text.indexOf('DocTest') >= 0)
+        ? '文法チェック完了。DocTestを確認しました'
+        : undefined;
+      showSyntaxSuccess(data.text, doneStatus);
     } catch (err) {
       if (isStaleRequest(code, filePath)) {
-        reportStaleIfIdle('文法チェック中...', '文法チェック: 待機中に編集されたため中止しました');
+        reportStaleIfIdle(syntaxCheckStatus, '文法チェック: 待機中に編集されたため中止しました');
         return;
       }
       output.textContent = `[システムエラー] ${err.message || err}`;

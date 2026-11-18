@@ -45,6 +45,11 @@ var omittedCommands = []struct {
 	{marker: "ナデシコする", name: "ナデシコ"},
 }
 
+// SkipReason は、内蔵VMが実行しないサンプルならその理由を返す。
+// 空なら実行する。エディタの文法チェックは、この理由があるサンプルを
+// 文法エラーにせず省略として数える。
+func SkipReason(code string) string { return omittedReason(code) }
+
 func omittedReason(code string) string {
 	for _, command := range omittedCommands {
 		if strings.Contains(code, command.marker) {
