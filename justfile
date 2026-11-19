@@ -146,10 +146,17 @@ benchmark: cmd
     {{go}} run ./benchmark/runner.go
 
 # テストを実行
+# GUI版 (cmd/gonako-gui, internal/guilib) は GTK/WebKit の開発ライブラリが
+# ない環境ではリンクできないため、CI (.github/workflows/test.yml) と同じく
+# 除外する。GUI版のテストは `just test-gui` で実行する (#520)。
 test:
-    {{go}} test ./...
+    {{go}} list ./... | grep -vE '/(cmd/gonako-gui|internal/guilib)$' | xargs {{go}} test
     {{go}} test ./scripts/gen-manual.go ./scripts/gen-manual_test.go
     {{go}} test ./scripts/build-release.go ./scripts/build-release_test.go
+
+# GUI版のテストを実行 (GTK/WebKit の開発ライブラリが必要)
+test-gui:
+    {{go}} test ./cmd/gonako-gui ./internal/guilib
 
 # Go言語コードの行数・文字数・ファイル数を集計・分析する
 analyze-gocode *args:
