@@ -97,6 +97,10 @@ func TestDictShorthandAlignment518(t *testing.T) {
 		{"添字の中の明示形 (対照)", "A=1;B=[100,200];B[({A:A}$A)-1]を表示", "100"},
 		{"添字の中の数値キー (対照)", "B=[100,200];B[({1:1}$1)-1]を表示", "100"},
 		{"添字の中の省略記法 関数内", "A=1\n●テストとは\nB=[100,200]\nB[({A}$A)-1]を戻る\nここまで\nテストを表示", "100"},
+		{"添字の中の文字列省略記法 (対照)", "B=[100,200];B[(({\"A\"}$\"A\")の文字数)-1]を表示", "100"},
+		// 関数より後で定義される大域変数 (後処理で解決される経路)
+		{"関数内 後で定義される大域変数", "●テストとは\n{A}をJSON変換して戻る\nここまで\nA=1\nテストを表示", `{"A":1}`},
+		{"関数内 後で定義される大域変数 添字の中", "●テストとは\nB=[100,200]\nB[({A}$A)-1]を戻る\nここまで\nA=1\nテストを表示", "100"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -108,15 +112,17 @@ func TestDictShorthandAlignment518(t *testing.T) {
 }
 
 // 数値キーの書き間違いは文法エラーになること (#518)。
+// 別の原因の文法エラーで通ってしまわないよう、文面まで確かめる。
 func TestDictShorthandNumberKeyErrors518(t *testing.T) {
-	for _, code := range []string{
-		"{1:}をJSON変換して表示",
-		"{1:10:20}をJSON変換して表示",
-	} {
-		if _, err := vm.RunSource(code, "main.nako3", nil); err == nil {
-			t.Errorf("%q: エラーになりませんでした", code)
-		} else if !strings.Contains(err.Error(), "文法エラー") {
-			t.Errorf("%q: 文法エラーではないエラー %v", code, err)
+	tests := []struct{ code, wantErr string }{
+		{"{1:}をJSON変換して表示", "辞書オブジェクトの宣言で値がありません。"},
+		{"{1:10:20}をJSON変換して表示", "辞書オブジェクトの宣言で末尾の『}』がありません。"},
+	}
+	for _, tt := range tests {
+		if _, err := vm.RunSource(tt.code, "main.nako3", nil); err == nil {
+			t.Errorf("%q: エラーになりませんでした", tt.code)
+		} else if !strings.Contains(err.Error(), tt.wantErr) {
+			t.Errorf("%q: エラー %v に %q が含まれません", tt.code, err, tt.wantErr)
 		}
 	}
 }
