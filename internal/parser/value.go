@@ -515,7 +515,11 @@ func (p *Parser) yJSONObject() *ast.Node {
 			// 『{A}』は変数Aを値にする省略記法。通常の変数参照と同じく
 			// getVarNameRef を通してモジュール修飾 (main__A) を解決する。
 			// これを省くとグローバル変数Aとは別のスロットAを作ってしまう。
-			v = p.getVarNameRef(p.wordNode(keyTok))
+			// getVarNameRef は NameToken の値を書き換えるため、元のトークンを
+			// 共有すると巻き戻し後の再パースでキーまで main__A になってしまう。
+			// 値側にはトークンのコピーを渡す (#518)。
+			valueTok := *keyTok
+			v = p.getVarNameRef(p.wordNode(&valueTok))
 		} else {
 			// 文字列『{"A"}』や数値『{1}』の省略記法は値そのものなので、
 			// 変数参照に変換しない。
