@@ -25,14 +25,17 @@ func TestRunDueTimersFiresTimersRegisteredAfterMain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	host := &Collector{}
+	// 実時間の時計を持つホストを使う (GUIホストと同じ条件)。
+	// 固定時刻ホスト (Collector) では仮想時計が実時間と対応しない。
+	var out strings.Builder
+	host := NewCUIHost(&out, strings.NewReader(""), nil)
 	m := New(prog, runtimeRegistry(), host, DefaultOptions())
 	if err := m.Run(); err != nil {
 		t.Fatal(err)
 	}
 	count := func() int {
 		t.Helper()
-		host.buf.Reset()
+		out.Reset()
 		fn := m.FindFunc("回数表示")
 		if fn == nil {
 			t.Fatal("回数表示 が見つかりません")
@@ -40,9 +43,9 @@ func TestRunDueTimersFiresTimersRegisteredAfterMain(t *testing.T) {
 		if _, err := m.CallFunc(fn, nil); err != nil {
 			t.Fatal(err)
 		}
-		n, err := strconv.Atoi(strings.TrimSpace(host.buf.String()))
+		n, err := strconv.Atoi(strings.TrimSpace(out.String()))
 		if err != nil {
-			t.Fatalf("回数の表示が数値ではありません: %q", host.buf.String())
+			t.Fatalf("回数の表示が数値ではありません: %q", out.String())
 		}
 		return n
 	}

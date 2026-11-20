@@ -98,6 +98,14 @@ func (m *VM) runPendingCallbacks() error {
 	return m.loop.RunUntilIdle(m.dispatch)
 }
 
+// RunDueTimers はイベントループの時計を現在時刻まで進め、期限の来た
+// コールバックを実行する。GUIセッションが本体終了後もタイマーを
+// 発火させ続けるために定期的に呼ぶ (#528)。CUI実行では使わない
+// (『秒待つ』がループを回すため)。
+func (m *VM) RunDueTimers() error {
+	return m.loop.RunUntil(time.Now(), m.dispatch)
+}
+
 // dispatch runs one scheduled callback. An error inside a callback stops the
 // loop and surfaces as the program's error.
 // コールバック内の『終了』は error ではなく exitPanic で抜けるので、エラー監視や
