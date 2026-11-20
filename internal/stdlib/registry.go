@@ -108,6 +108,7 @@ func ParserFuncList() lexer.FuncList {
 	addFunc("割余", [][]string{{"を"}, {"で"}})
 	addFunc("偶数", [][]string{{"が"}})
 	addFunc("奇数", [][]string{{"が"}})
+	addFunc("乱数", [][]string{{"の"}})
 	addFunc("二乗", [][]string{{"の", "を"}})
 	addFunc("べき乗", [][]string{{"の"}, {"の"}})
 	for _, name := range []string{"以上", "以下", "未満", "超"} {
