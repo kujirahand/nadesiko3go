@@ -46,10 +46,12 @@ type EventField struct {
 
 // EventPayload は画面部品のイベントとともにGo側へ渡す状態一式。
 // Values のキーは画面部品のハンドル(10進文字列)。DropFiles は drop イベントで
-// ドロップされたファイルの配列で、入力部品の値とは別の専用フィールドにしてある。
+// ドロップされたファイルの配列、Key は keydown イベントで押されたキー名で、
+// いずれも入力部品の値とは別の専用フィールドにしてある。
 type EventPayload struct {
 	Values    map[string]EventField `json:"values,omitempty"`
 	DropFiles []string              `json:"dropFiles,omitempty"`
+	Key       string                `json:"key,omitempty"`
 }
 
 type screenNode struct {
@@ -851,6 +853,9 @@ func (s *Screen) DispatchEvent(handle int, event string, payload EventPayload) e
 		}
 		binding.ctx.SetSysVar("ドロップファイル", value.ArrayValue(value.NewArray(items...)))
 	}
+	if event == "keydown" {
+		binding.ctx.SetSysVar("押下キー", value.String(payload.Key))
+	}
 	_, err := binding.ctx.CallFunc(binding.fn, nil)
 	return err
 }
@@ -863,6 +868,8 @@ func eventName(event string) string {
 		return "変更時"
 	case "submit":
 		return "フォーム送信時"
+	case "keydown":
+		return "キー押下時"
 	default:
 		return "DOMイベント"
 	}

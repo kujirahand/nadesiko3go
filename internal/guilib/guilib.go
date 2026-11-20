@@ -362,6 +362,11 @@ func (p *Plugin) commands() map[string]command {
 			returnNone: true,
 			fn:         p.cmdOnClick,
 		},
+		"キー押下時": { // @画面部品でキーが押された時に実行する処理を登録する。押されたキーは『押下キー』で参照できる // @きーおうかじ
+			josi:       [][]string{{"で"}, {"を", "の"}},
+			returnNone: true,
+			fn:         p.cmdOnKeyDown,
+		},
 		"変更時": {
 			josi:       [][]string{{"で"}, {"を", "の"}},
 			returnNone: true,
@@ -1122,6 +1127,10 @@ func (p *Plugin) bindEvent(ctx stdlib.Context, args []value.Value, event string)
 
 func (p *Plugin) cmdOnClick(ctx stdlib.Context, args []value.Value) (value.Value, error) {
 	return p.bindEvent(ctx, args, "click")
+}
+
+func (p *Plugin) cmdOnKeyDown(ctx stdlib.Context, args []value.Value) (value.Value, error) {
+	return p.bindEvent(ctx, args, "keydown")
 }
 
 func (p *Plugin) cmdOnChange(ctx stdlib.Context, args []value.Value) (value.Value, error) {
