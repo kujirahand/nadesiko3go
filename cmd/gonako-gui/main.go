@@ -1043,6 +1043,14 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 		return string(b)
 	})
 
+	// Go ↔ JavaScript バインディング: 本体終了後もタイマーを発火させる
+	// ポンプ (#528)。イベントと同じく非同期で、戻り値はポーリング用のIDだけ。
+	_ = w.Bind("pumpNakoTimers", func(runID uint64) string {
+		started := guiRuntime.startPump(runID)
+		b, _ := json.Marshal(started)
+		return string(b)
+	})
+
 	// Go ↔ JavaScript バインディング: アプリケーション情報
 	_ = w.Bind("getAppInfo", func() string {
 		home, _ := os.UserHomeDir()

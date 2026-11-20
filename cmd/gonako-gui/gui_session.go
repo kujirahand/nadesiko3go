@@ -827,3 +827,58 @@ func (s *guiSession) startEvent(runID uint64, handle int, event string, payload 
 	}()
 	return EventStart{RunID: eventID}
 }
+
+// startPump は保持している実行のタイマーを現在時刻まで進める (#528)。
+//
+// 本体が終わった後のVMは、誰もイベントループを回さないとタイマーが
+// 発火しない。画面側が一定間隔でこれを呼び、イベントと同じポーリング
+// 経路で結果 (画面操作・ダイアログ) を受け取る。実行ロックの扱いは
+// startEvent と同じで、取れなければエラーとして返し、画面側は次の
+// 間隔でまた呼ぶ。
+func (s *guiSession) startPump(runID uint64) EventStart {
+	if !s.lockExecWithin(dispatchLockGrace) {
+		return EventStart{Error: "プログラムの実行中はタイマーを進められません。"}
+	}
+	s.mu.Lock()
+	exec := s.active
+	s.mu.Unlock()
+	if exec == nil || exec.id != runID {
+		s.execMu.Unlock()
+		return EventStart{Error: "この画面は古い実行結果です。もう一度実行してください。"}
+	}
+	eventID, state := s.reserveRun(true)
+	state.isEvent = true
+
+	go func() {
+		defer s.execMu.Unlock()
+		originalDir, _ := os.Getwd()
+		if exec.workDir != "" {
+			_ = os.Chdir(exec.workDir)
+		}
+		defer func() {
+			if originalDir != "" {
+				_ = os.Chdir(originalDir)
+			}
+		}()
+		// ダイアログの宛先を今回のポンプに向ける (startEvent と同じ理由)。
+		exec.host.dialog = state.dialogHandler(exec.host)
+
+		done := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			streamPendingOutput(state, exec.host, exec.screen, done)
+		}()
+		err := exec.machine.RunDueTimers()
+		close(done)
+		wg.Wait()
+
+		result := RunResult{OK: err == nil, RunID: runID}
+		if err != nil {
+			result.Error = err.Error()
+		}
+		state.finish(result)
+	}()
+	return EventStart{RunID: eventID}
+}
