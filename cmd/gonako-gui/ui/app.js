@@ -2738,6 +2738,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // 実行結果のDOMを保持したまま、ヘルプの表示だけを切り替える。
+  function selectOutputTab(tab) {
+    const isHelp = tab === 'help';
+    resultPanel.hidden = isHelp;
+    helpPanel.hidden = !isHelp;
+    paneOutput.classList.toggle('showing-help', isHelp);
+    resultTab.classList.toggle('active', !isHelp);
+    helpTab.classList.toggle('active', isHelp);
+    resultTab.setAttribute('aria-selected', String(!isHelp));
+    helpTab.setAttribute('aria-selected', String(isHelp));
+    resultTab.tabIndex = isHelp ? -1 : 0;
+    helpTab.tabIndex = isHelp ? 0 : -1;
+  }
+  resultTab.addEventListener('click', () => selectOutputTab('result'));
+  helpTab.addEventListener('click', () => selectOutputTab('help'));
+  [resultTab, helpTab].forEach((tab, index) => {
+    tab.addEventListener('keydown', (event) => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
+      selectOutputTab(next === 0 ? 'result' : 'help');
+      [resultTab, helpTab][next].focus();
+    });
+  });
+
   // 本体終了後もタイマーを発火させるポンプ (#528)。GUIプレビューが
   // 生きている間、一定間隔で Go 側のタイマーを現在時刻まで進め、
   // 生まれた画面操作を反映する。プレビューが差し替われば自動で止まる。
@@ -2786,31 +2811,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 50);
   }
-
-  // 実行結果のDOMを保持したまま、ヘルプの表示だけを切り替える。
-  function selectOutputTab(tab) {
-    const isHelp = tab === 'help';
-    resultPanel.hidden = isHelp;
-    helpPanel.hidden = !isHelp;
-    paneOutput.classList.toggle('showing-help', isHelp);
-    resultTab.classList.toggle('active', !isHelp);
-    helpTab.classList.toggle('active', isHelp);
-    resultTab.setAttribute('aria-selected', String(!isHelp));
-    helpTab.setAttribute('aria-selected', String(isHelp));
-    resultTab.tabIndex = isHelp ? -1 : 0;
-    helpTab.tabIndex = isHelp ? 0 : -1;
-  }
-  resultTab.addEventListener('click', () => selectOutputTab('result'));
-  helpTab.addEventListener('click', () => selectOutputTab('help'));
-  [resultTab, helpTab].forEach((tab, index) => {
-    tab.addEventListener('keydown', (event) => {
-      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-      event.preventDefault();
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? 1 : 1 - index;
-      selectOutputTab(next === 0 ? 'result' : 'help');
-      [resultTab, helpTab][next].focus();
-    });
-  });
 
   function setOutputPanelOpen(open) {
     if (open === outputPanelOpen) return;
