@@ -455,6 +455,43 @@ function askCustom(d) {
   });
 }
 
+// 本体終了後もタイマーを発火させるポンプ (#528)。一定間隔で Go 側の
+// タイマーを現在時刻まで進め、生まれた画面操作を反映する。
+let pumpBusy = false;
+function startPumpLoop() {
+  if (typeof window.pumpNakoTimers !== 'function') return;
+  setInterval(async () => {
+    if (pumpBusy) return;
+    pumpBusy = true;
+    try {
+      const raw = await window.pumpNakoTimers(runId);
+      const started = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!started || started.error || !started.runId) return;
+      const id = started.runId;
+      for (;;) {
+        const p = await window.pollNakoRun(id);
+        const s = typeof p === 'string' ? JSON.parse(p) : p;
+        if (s.operations && s.operations.length) apply(s.operations);
+        if (s.dialog) {
+          const a = await ask(s.dialog);
+          await window.resolveNakoDialog(id, s.dialog.id, a.text, a.accepted);
+          continue;
+        }
+        if (s.done) {
+          const r = s.result || {};
+          if (r.error) document.getElementById('gonako-error').textContent = r.error;
+          break;
+        }
+        await new Promise(x => setTimeout(x, 10));
+      }
+    } catch (_) {
+      // 一時的な失敗は次の間隔で再試行する。
+    } finally {
+      pumpBusy = false;
+    }
+  }, 50);
+}
+
 // 出力と画面操作はポーリングのたびに届き、読まなければ消える。done を
 // 見る前に必ず適用すること（→ AsyncRunStatus のコメント）。
 async function run() {
@@ -480,6 +517,7 @@ async function run() {
       // 表示や画面部品が無くても、ウィンドウは空のまま表示し続ける（#97）。
       // 起動直後に閉じてしまうと、意図した通りに動いているのか
       // 利用者に判別できないため。
+      startPumpLoop();
       return;
     }
     await new Promise(x => setTimeout(x, 20));
