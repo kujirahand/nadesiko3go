@@ -52,7 +52,9 @@ func chdirOutside(t *testing.T, outside string) {
 func assertCwd(t *testing.T, want string) {
 	t.Helper()
 	got, err := os.Getwd()
-	if err != nil || got != want {
+	// macOSでは /var が /private/var へのシンボリックリンクで、
+	// TempDir は /var/...、Getwd は解決後の /private/var/... を返す。
+	if err != nil || !samePath(got, want) {
 		t.Fatalf("作業フォルダが変わった: %q, %v (want %q)", got, err, want)
 	}
 }

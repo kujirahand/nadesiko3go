@@ -24,6 +24,10 @@ jobs:
           - os: ubuntu-22.04
             webkit: "4.0"
             packages: gcc g++ pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+          # 公開リポジトリ向けの ARM ランナー。パッケージは amd64 の 24.04 と同じ。
+          - os: ubuntu-24.04-arm
+            webkit: "4.1"
+            packages: gcc g++ pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
 
     steps:
       - name: Check out repository
@@ -100,7 +104,7 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: macos
+    name: macos arm64
     runs-on: macos-latest
     timeout-minutes: 25
 
@@ -129,6 +133,40 @@ jobs:
       - name: Upload macOS binary
         uses: actions/upload-artifact@v4
         with:
-          name: gonako-gui-macos
+          name: gonako-gui-macos-arm64
           path: bin/gonako-gui
+          if-no-files-found: error
+
+  # GitHub の標準 macOS ランナーは Apple Silicon のみ。Intel 向けは
+  # 同じランナーから clang -arch x86_64 でクロスビルドする。
+  macos-amd64:
+    name: macos amd64 (cross from arm64)
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Cross-build gonako-gui for Intel
+        run: go run ./scripts/build-release.go -version ci -platforms darwin/amd64 -skip-cli
+
+      - name: Check Mach-O architecture
+        run: |
+          mkdir -p bin
+          unzip -p release/gonako-gui-ci-darwin-amd64.app.zip gonako-gui-ci-darwin-amd64.app/Contents/MacOS/gonako-gui > bin/gonako-gui-amd64
+          chmod +x bin/gonako-gui-amd64
+          file bin/gonako-gui-amd64
+          file bin/gonako-gui-amd64 | grep -q 'x86_64'
+
+      - name: Upload macOS Intel archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonako-gui-macos-amd64
+          path: release/gonako-gui-ci-darwin-amd64.app.zip
           if-no-files-found: error

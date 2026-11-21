@@ -244,6 +244,36 @@ func runWebkitTagScript(t *testing.T, goos, pkgDir string) (string, int) {
 	return string(out), code
 }
 
+func TestDarwinClangArch(t *testing.T) {
+	arch, err := darwinClangArch("amd64")
+	if err != nil || arch != "x86_64" {
+		t.Fatalf("amd64 -> %q, %v", arch, err)
+	}
+	arch, err = darwinClangArch("arm64")
+	if err != nil || arch != "arm64" {
+		t.Fatalf("arm64 -> %q, %v", arch, err)
+	}
+	if _, err := darwinClangArch("386"); err == nil {
+		t.Fatal("386 を受け付けてしまった")
+	}
+}
+
+func TestMergeEnvOverridesEarlierKeys(t *testing.T) {
+	got := mergeEnv(
+		[]string{"CGO_LDFLAGS=-O2 -g", "PATH=/usr/bin", "KEEP=1"},
+		[]string{"CGO_LDFLAGS=-arch x86_64", "CC=clang"},
+	)
+	want := []string{"PATH=/usr/bin", "KEEP=1", "CGO_LDFLAGS=-arch x86_64", "CC=clang"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestWebkitGTKTagScript(t *testing.T) {
 	t.Run("4.0があればタグは空", func(t *testing.T) {
 		out, code := runWebkitTagScript(t, "linux", writeFakePkgConfig(t, "webkit2gtk-4.0"))

@@ -133,6 +133,8 @@ just gui
 
 LinuxやWindowsからmacOS向けの `gonako-gui` はクロスビルドできません。`just release-darwin` も、macOS以外ではGUIをスキップします。AppleのSDKとフレームワークが必要なためです。配布用のmacOS版はmacOS上で作ってください。
 
+Apple Silicon の Mac から Intel（amd64）向けを作るときは、`just release-darwin` が clang に `-arch x86_64` を渡します。逆に Intel の Mac から Apple Silicon 向けを作るときは `-arch arm64` です。ホストと同じアーキテクチャのときは追加のフラグはありません。Intel Mac の GitHub ランナーは無いため、CI では Apple Silicon ランナーから Intel 向けをクロスビルドします。できたバイナリの実行確認は、そのアーキテクチャの Mac で行ってください。
+
 ---
 
 ## Windows
@@ -162,6 +164,8 @@ go run ./scripts/build-release.go -platforms windows/amd64 -skip-cli
 
 Ubuntu 24.04 の MinGW には `eventtoken.h`（小文字）しかありません。WebView2のヘッダが取り込む `EventToken.h` は、大文字小文字を区別するファイルシステムでは見つかりません。同梱の `WebView2.h` は MinGW のとき小文字のヘッダを使うので、上のコマンドで `release/gonako-gui-<version>-windows-amd64.zip` ができます。中の実行ファイルは Windows 用の GUI サブシステム（PE32+）です。macOS向けのクロスビルドは、この方法ではできません。
 
+Windows arm64 向けのクロスコンパイラ（`aarch64-w64-mingw32-gcc`）は、Ubuntu 24.04 のパッケージにはありません。MinGW は x86_64 と i686 だけです。`scripts/build-release.go` はコンパイラが見つかれば arm64 もビルドしますが、標準の apt だけでは入りません。
+
 `x86_64-w64-mingw32-gcc` が見つからなければ、そのGUIはスキップされます（失敗にはしません）。arm64 Windows向けは `aarch64-w64-mingw32-gcc` が必要です。
 
 macOSでは `brew install mingw-w64` で同じクロスコンパイラを入れられます。
@@ -184,10 +188,13 @@ OSを指定する場合は `just release-linux` / `just release-windows` / `just
 
 `.github/workflows/gui.yml` が次を実行します。
 
-- Ubuntu 24.04 で WebKitGTK 4.1 を使い、ビルド・テスト・成果物のアップロード
-- Ubuntu 22.04 で WebKitGTK 4.0 を使い、ビルドとテスト（タグなしの従来経路）
+- Ubuntu 24.04（amd64）で WebKitGTK 4.1 を使い、ビルド・テスト・成果物のアップロード
+- Ubuntu 22.04（amd64）で WebKitGTK 4.0 を使い、ビルドとテスト（タグなしの従来経路）
+- Ubuntu 24.04 の ARM ランナー（`ubuntu-24.04-arm`）で Linux arm64 をネイティブビルド
 - Ubuntu 24.04 から MinGW で Windows amd64 向けをクロスビルドし、zipをアップロード
-- macOSランナー（`macos-latest`）でネイティブビルドし、成果物をアップロード
+- macOSランナー（`macos-latest`、Apple Silicon）で arm64 をネイティブビルドし、同じランナーから Intel（amd64）向けをクロスビルド
+
+Linux arm64 を amd64 のマシンからクロスビルドするには、そのアーキテクチャの GTK と WebKitGTK が別途必要です。CI は ARM ランナーでネイティブに作ります。Windows arm64 は、上のとおり Ubuntu 24.04 の MinGW ではコンパイラが無いため CI には入れていません。
 
 通常のテスト（`.github/workflows/test.yml`）は、GTKが無い環境でも通るよう `cmd/gonako-gui` と `internal/guilib` を除外したままです。GUIのテストは `gui.yml` と `just test-gui` が担当します。
 

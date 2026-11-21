@@ -263,12 +263,31 @@ func buildGUIDarwin(cfg config, goarch string) error {
 
 	fmt.Printf("  -> ビルド中: %s (darwin/%s)\n", binName, goarch)
 
-	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", binPath, "./cmd/gonako-gui")
-	cmd.Env = append(os.Environ(),
+	env := []string{
 		"GOOS=darwin",
-		"GOARCH="+goarch,
+		"GOARCH=" + goarch,
 		"CGO_ENABLED=1",
-	)
+	}
+	// Apple Silicon 上で Intel 向け（またはその逆）を作るときは、clang に
+	// 対象アーキテクチャを渡す。渡さないとホストのCPU向けオブジェクトになり、
+	// WebKit.framework とリンクできない。
+	if runtime.GOARCH != goarch {
+		clangArch, err := darwinClangArch(goarch)
+		if err != nil {
+			return err
+		}
+		archFlag := "-arch " + clangArch
+		env = append(env,
+			"CC=clang",
+			"CXX=clang++",
+			"CGO_CFLAGS="+archFlag,
+			"CGO_CXXFLAGS="+archFlag,
+			"CGO_LDFLAGS="+archFlag+" -Wl,-no_warn_duplicate_libraries",
+		)
+		fmt.Printf("  -> クロスコンパイル: clang %s\n", archFlag)
+	}
+	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", binPath, "./cmd/gonako-gui")
+	cmd.Env = mergeEnv(os.Environ(), env)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -497,6 +516,42 @@ func buildGUILinux(cfg config, goarch string) error {
 func hasCommand(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// darwinClangArch は Go の GOARCH を clang の -arch の名前へ変換する。
+func darwinClangArch(goarch string) (string, error) {
+	switch goarch {
+	case "amd64":
+		return "x86_64", nil
+	case "arm64":
+		return "arm64", nil
+	default:
+		return "", fmt.Errorf("macOS向けとして未対応のアーキテクチャです: %s", goarch)
+	}
+}
+
+// mergeEnv は base に overrides（KEY=VALUE）を上書きで足す。
+// 同じキーが base に先にあると、子プロセスはそちらを見てしまうため除く。
+func mergeEnv(base, overrides []string) []string {
+	replace := map[string]string{}
+	for _, kv := range overrides {
+		key, val, ok := strings.Cut(kv, "=")
+		if !ok {
+			continue
+		}
+		replace[key] = val
+	}
+	out := make([]string, 0, len(base)+len(overrides))
+	for _, kv := range base {
+		key, _, ok := strings.Cut(kv, "=")
+		if ok {
+			if _, drop := replace[key]; drop {
+				continue
+			}
+		}
+		out = append(out, kv)
+	}
+	return append(out, overrides...)
 }
 
 // linuxWebKitGTKTag は scripts/webkit-gtk-tag.sh の判定を返す。
