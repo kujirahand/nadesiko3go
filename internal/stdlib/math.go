@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"math"
+	"math/rand/v2"
 	"strings"
 
 	"github.com/kujirahand/nadesiko3go/internal/value"
@@ -37,6 +38,21 @@ func mathImpls(m map[string]Impl) {
 	}
 	m["奇数"] = func(_ Context, a []value.Value) (value.Value, error) {
 		return value.Bool(int64(value.ToNumber(arg(a, 0)))%2 != 0), nil
+	}
+	// 『乱数』: 本家 plugin_system の契約どおり、数値Aなら 0..A-1 の整数、
+	// 配列 [最小,最大] ならその範囲 (両端含む) の整数を返す (#525)。
+	m["乱数"] = func(_ Context, a []value.Value) (value.Value, error) {
+		v := arg(a, 0)
+		if arr, ok := v.Array(); ok && arr.Len() >= 2 {
+			min := int64(value.ToNumber(arr.Get(0)))
+			max := int64(value.ToNumber(arr.Get(1)))
+			return value.Number(float64(randInclusive(min, max))), nil
+		}
+		n := int64(value.ToNumber(v))
+		if n <= 0 {
+			return value.Number(0), nil
+		}
+		return value.Number(float64(rand.Int64N(n))), nil
 	}
 	m["二乗"] = func(_ Context, a []value.Value) (value.Value, error) {
 		n := value.ToNumber(arg(a, 0))
@@ -93,6 +109,20 @@ func mathImpls(m map[string]Impl) {
 		n := uint(value.ToInt32(arg(a, 1))) & 31
 		return value.Number(float64(v >> n)), nil
 	}
+}
+
+// randInclusive は min 以上 max 以下の整数を返す。max < min のときは min。
+// 幅が int64 に収まらないときも min を返す。rand.Int64N は引数が 0 以下だと
+// panic するため、max-min+1 の溢れをここで止める。
+func randInclusive(min, max int64) int64 {
+	if max < min {
+		return min
+	}
+	span := max - min
+	if span < 0 || span == math.MaxInt64 {
+		return min
+	}
+	return min + rand.Int64N(span+1)
 }
 
 func compare(test func(int) bool) Impl {
