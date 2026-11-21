@@ -64,7 +64,7 @@ function values() {
 // イベントも通常実行と同じポーリング経路に載せる。同期実行すると、
 // ハンドラ内の『言う』がダイアログの応答を待つ一方、応答を返す画面は
 // この関数の戻りを待ち続け、ウィンドウごと固まる（#59）。
-// extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列）。
+// extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列、key: 押されたキー名）。
 async function send(h, n, extra) {
   const err = document.getElementById('gonako-error');
   const raw = await window.startNakoEvent(state.runId, Number(h), n, { values: values(), ...(extra || {}) });
@@ -202,8 +202,22 @@ function apply(ops) {
     } else if (o.type === 'listen' && !e.dataset['gonakoEvent' + o.event]) {
       // 同じイベントを二重に登録しない
       e.dataset['gonakoEvent' + o.event] = '1';
+      if (o.event === 'keydown') {
+        // キー入力を受けられるよう、要素をフォーカス可能にする。
+        if (!e.hasAttribute('tabindex')) e.tabIndex = 0;
+        e.addEventListener('pointerdown', () => e.focus());
+      }
       e.addEventListener(o.event, x => {
         if (o.event === 'submit') x.preventDefault();
+        if (o.event === 'keydown') {
+          // キャンバス上の矢印キーやスペースで画面がスクロールしないようにする。
+          // 入力欄やテキストエリアでは、文字入力とカーソル移動を妨げない。
+          const tag = (x.target && x.target.tagName || '').toLowerCase();
+          const typing = tag === 'input' || tag === 'textarea' || (x.target && x.target.isContentEditable);
+          if (!typing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(x.key)) x.preventDefault();
+          send(o.handle, o.event, { key: x.key });
+          return;
+        }
         send(o.handle, o.event);
       });
     } else if (o.type === 'canvas') {

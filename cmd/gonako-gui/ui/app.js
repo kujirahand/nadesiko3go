@@ -2529,7 +2529,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // イベント処理はGo側で非同期に走る。同期実行だとハンドラ内の『言う』が
   // ダイアログの応答を待ち、その応答を返すこの関数はイベントの終了を
   // 待っている、という行き詰まりでウィンドウが固まっていた（#59）。
-  // extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列）。
+  // extra は payload へ足す専用フィールド（dropFiles: ドロップされたファイルの配列、key: 押されたキー名）。
   async function sendGUIEvent(handle, eventName, extra) {
     if (!activeGUIRunID || typeof window.startNakoEvent !== 'function') return;
     try {
@@ -2681,8 +2681,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const marker = `gonakoEvent${op.event}`;
         if (el.dataset[marker]) return;
         el.dataset[marker] = '1';
+        if (op.event === 'keydown') {
+          // キー入力を受けられるよう、要素をフォーカス可能にして、
+          // クリックされたらフォーカスを移す (キャンバスでゲームを操作するため)。
+          if (!el.hasAttribute('tabindex')) el.tabIndex = 0;
+          el.addEventListener('pointerdown', () => el.focus());
+        }
         el.addEventListener(op.event, event => {
           if (op.event === 'submit') event.preventDefault();
+          if (op.event === 'keydown') {
+            // キャンバス上の矢印キーやスペースで画面がスクロールしないようにする。
+            // 入力欄やテキストエリアでは、文字入力とカーソル移動を妨げない。
+            const tag = (event.target && event.target.tagName || '').toLowerCase();
+            const typing = tag === 'input' || tag === 'textarea' || (event.target && event.target.isContentEditable);
+            if (!typing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
+            sendGUIEvent(op.handle, op.event, { key: event.key });
+            return;
+          }
           sendGUIEvent(op.handle, op.event);
         });
       } else if (op.type === 'canvas') {
