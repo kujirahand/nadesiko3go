@@ -9,7 +9,7 @@ import (
 // ひな形の正規タグ集合（#445）。ui/app.js の templateGenres と合わせる。
 var templateCanonicalGenres = []string{
 	"文法", "プログラミング学習", "GUI", "ダイアログ",
-	"仕事自動化", "ファイル", "CUI", "WEB",
+	"仕事自動化", "ファイル", "CUI", "WEB", "ゲーム",
 }
 
 // 実行モードID（#445）。ui/index.html の select-app-type の値と合わせる。
