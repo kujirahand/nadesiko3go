@@ -777,9 +777,15 @@ document.addEventListener('DOMContentLoaded', () => {
         continue;
       }
       if (status.done) {
-        // ウィンドウモードでは、本体が終わってもタイマーを回し続ける (#528)
-        if (isWindowMode && activeGUIRunID) startGUIPump();
-        return status.result || { ok: false, error: '実行結果がありません。' };
+        const result = status.result || { ok: false, error: '実行結果がありません。' };
+        // インライン実行では、画面部品が一度も無くてもタイマーを回す。
+        // activeGUIRunID は画面操作が届いたときだけ入るので、『表示』だけの
+        // 時計などはここで実行IDを補う (#528)。
+        if (isWindowMode && result.ok) {
+          activeGUIRunID = activeGUIRunID || runId;
+          startGUIPump();
+        }
+        return result;
       }
       await new Promise(resolve => setTimeout(resolve, 20));
     }

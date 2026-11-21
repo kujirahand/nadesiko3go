@@ -351,4 +351,9 @@ func TestTimerPumpIsBoundOnEveryRunSurface(t *testing.T) {
 	if !strings.Contains(page, "pumpNakoTimers") {
 		t.Fatal("梱包版の画面が pumpNakoTimers を呼んでいません")
 	}
+	// インライン実行は、画面操作が無くても成功した実行のタイマーを回す。
+	editor := readUIAsset(t, "app.js")
+	if !strings.Contains(editor, "activeGUIRunID = activeGUIRunID || runId") {
+		t.Fatal("インライン実行が画面操作のないタイマーを開始しません")
+	}
 }
