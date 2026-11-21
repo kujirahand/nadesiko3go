@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -96,53 +97,61 @@ func TestGameSampleMemory(t *testing.T) {
 		}
 		return text, found
 	}
-	// 1枚目をめくる
-	r1 := dispatchEvent(t, session, initial.RunID, buttons[0], "click", noEvent)
-	if !r1.OK {
-		t.Fatalf("click1: %s", r1.Error)
+	// シャッフル結果に依存せず、絵柄の違う2枚を開いてタイマー裏返しを確認する。
+	// 隣り合う2枚が揃ったときは、そのペアを確定させて次の2枚へ進む。
+	var openedHandle int
+	var openedText string
+	var mismatchA, mismatchB int
+	for _, handle := range buttons {
+		res := dispatchEvent(t, session, initial.RunID, handle, "click", noEvent)
+		if !res.OK {
+			t.Fatalf("click %d: %s", handle, res.Error)
+		}
+		text, ok := textOf(res.Operations, handle)
+		if !ok || text == "？" || text == "" {
+			t.Fatalf("カードがめくれませんでした: handle=%d %q", handle, text)
+		}
+		if openedHandle == 0 {
+			openedHandle = handle
+			openedText = text
+			continue
+		}
+		if text != openedText {
+			mismatchA, mismatchB = openedHandle, handle
+			break
+		}
+		openedHandle = 0
 	}
-	e0, ok := textOf(r1.Operations, buttons[0])
-	if !ok || e0 == "？" || e0 == "" {
-		t.Fatalf("1枚目がめくれませんでした: %q", e0)
+	if mismatchA == 0 {
+		t.Fatal("絵柄の違うカードが見つかりません")
 	}
-	// 2枚目をめくる (絵柄が違えばタイマーで裏返る)
-	r2 := dispatchEvent(t, session, initial.RunID, buttons[1], "click", noEvent)
-	if !r2.OK {
-		t.Fatalf("click2: %s", r2.Error)
-	}
-	e1, _ := textOf(r2.Operations, buttons[1])
-	t.Logf("cards: %q vs %q", e0, e1)
-	if e1 != e0 {
-		// 外れ: 0.8秒後に裏返る。タイマーポンプを回して裏返しを進める
-		flipBack := false
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) && !flipBack {
-			started := session.startPump(initial.RunID)
-			if started.Error != "" {
-				t.Fatalf("pump: %s", started.Error)
+	flipBack := false
+	deadline = time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) && !flipBack {
+		started := session.startPump(initial.RunID)
+		if started.Error != "" {
+			t.Fatalf("pump: %s", started.Error)
+		}
+		c := newAsyncCollector(session, started.RunID)
+		waitForAsyncDone(t, c)
+		for _, op := range c.ops {
+			if op.Type == "text" && op.Text == "？" && (op.Handle == mismatchA || op.Handle == mismatchB) {
+				flipBack = true
 			}
-			c := newAsyncCollector(session, started.RunID)
-			waitForAsyncDone(t, c)
-			for _, op := range c.ops {
-				if op.Type == "text" && op.Text == "？" && (op.Handle == buttons[0] || op.Handle == buttons[1]) {
-					flipBack = true
-				}
-			}
-			time.Sleep(60 * time.Millisecond)
 		}
-		if !flipBack {
-			t.Fatal("外れたカードがタイマーで裏返りませんでした")
-		}
-		// ロックが解けて3枚目がめくれること
-		r3 := dispatchEvent(t, session, initial.RunID, buttons[2], "click", noEvent)
-		if !r3.OK {
-			t.Fatalf("click3: %s", r3.Error)
-		}
-		e2, ok2 := textOf(r3.Operations, buttons[2])
-		if !ok2 || e2 == "？" {
-			t.Fatalf("ロックが解けず3枚目がめくれません: ops=%#v", r3.Operations)
-		}
-		t.Logf("3rd card opened: %q (flip-back timer path OK)", e2)
+		time.Sleep(60 * time.Millisecond)
+	}
+	if !flipBack {
+		t.Fatal("外れたカードがタイマーで裏返りませんでした")
+	}
+	// ロックが解けて、裏返ったカードを再びめくれること
+	r3 := dispatchEvent(t, session, initial.RunID, mismatchA, "click", noEvent)
+	if !r3.OK {
+		t.Fatalf("click3: %s", r3.Error)
+	}
+	e2, ok2 := textOf(r3.Operations, mismatchA)
+	if !ok2 || e2 == "？" {
+		t.Fatalf("ロックが解けずカードがめくれません: ops=%#v", r3.Operations)
 	}
 }
 
@@ -298,5 +307,48 @@ func TestGameSampleSnakeTimerTicks(t *testing.T) {
 	t.Logf("canvas ops in 2s: %d", canvasOps)
 	if canvasOps <= 6 {
 		t.Fatalf("タイマーの描画が増えていません: %d", canvasOps)
+	}
+}
+
+// 迷路は外部の到達確認だけでなく、キー入力でゴール表示まで進むこと。
+func TestGameSampleMazeReachesGoal(t *testing.T) {
+	session, initial, canvas := runGameSample(t, "ui/samples/21_2D迷路ゲーム.nako3")
+	keys := []string{
+		"ArrowRight", "ArrowRight", "ArrowDown", "ArrowDown",
+		"ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight",
+		"ArrowDown", "ArrowDown", "ArrowRight", "ArrowRight",
+		"ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown",
+		"ArrowRight", "ArrowRight", "ArrowRight", "ArrowRight",
+	}
+	var last RunResult
+	for _, key := range keys {
+		last = dispatchEvent(t, session, initial.RunID, canvas, "keydown", guilib.EventPayload{Key: key})
+		if !last.OK {
+			t.Fatalf("keydown %s: %s", key, last.Error)
+		}
+	}
+	for _, op := range last.Operations {
+		if op.Type == "text" && strings.Contains(op.Text, "ゴール") {
+			return
+		}
+	}
+	t.Fatalf("ゴール表示がありません: %#v", last.Operations)
+}
+
+// ゲームサンプルは mode=newwindow で単独ウィンドウ (window_run.go) が
+// bundled/app.js を表示する。そのJSは pumpNakoTimers を呼ぶ。
+func TestTimerPumpIsBoundOnEveryRunSurface(t *testing.T) {
+	for _, file := range []string{"main.go", "bundled.go", "window_run.go"} {
+		src, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(string(src), `Bind("pumpNakoTimers"`) {
+			t.Fatalf("%s に pumpNakoTimers のバインドがありません", file)
+		}
+	}
+	page := readUIAsset(t, "bundled/app.js")
+	if !strings.Contains(page, "pumpNakoTimers") {
+		t.Fatal("梱包版の画面が pumpNakoTimers を呼んでいません")
 	}
 }

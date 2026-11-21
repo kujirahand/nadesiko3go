@@ -149,6 +149,13 @@ func runStandaloneWindowProgram(data []byte, title, sourceName string) {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, payload))
 		return string(b)
 	})
+	// サンプルの「ウィンドウ(GUI)」と gonako-gui run は、この単独ウィンドウで
+	// bundled/app.js を表示する。画面側は本体終了後に pumpNakoTimers を呼ぶ
+	// ので、エディタと梱包実行と同じバインドが要る (#528)。
+	_ = tw.Window.Bind("pumpNakoTimers", func(runID uint64) string {
+		b, _ := json.Marshal(session.startPump(runID))
+		return string(b)
+	})
 	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {
 		b, _ := json.Marshal(session.poll(runID))
 		return string(b)
