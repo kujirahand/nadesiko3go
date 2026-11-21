@@ -1,6 +1,7 @@
 package stdlib_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -63,5 +64,34 @@ func TestRandomCommand(t *testing.T) {
 	}
 	if len(seen) != 3 {
 		t.Fatalf("[3,5]の乱数で全ての値が出ませんでした: %v", seen)
+	}
+
+	// 最大 < 最小は最小を返す（乱数を振らない）。
+	if n := call(value.ArrayValue(value.NewArray(value.Number(5), value.Number(3)))); n != 5 {
+		t.Fatalf("[5,3]の乱数 = %v, want 5", n)
+	}
+}
+
+// 幅が int64 に収まらない範囲でも panic せず、最小値を返す。
+func TestRandomCommandHugeRangeDoesNotPanic(t *testing.T) {
+	r := stdlib.NewRegistry()
+	e, ok := r.Lookup("乱数")
+	if !ok || e.Fn == nil {
+		t.Fatal("乱数 が登録されていない")
+	}
+	wide := value.ArrayValue(value.NewArray(
+		value.Number(float64(math.MinInt64)),
+		value.Number(math.Pow(2, 62)),
+	))
+	got, err := e.Fn(nil, []value.Value{wide})
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, ok := got.Number()
+	if !ok {
+		t.Fatalf("乱数 = %v, 数値ではありません", got)
+	}
+	if n != float64(math.MinInt64) {
+		t.Fatalf("巨大範囲の乱数 = %v, want %v", n, float64(math.MinInt64))
 	}
 }

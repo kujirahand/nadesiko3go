@@ -46,10 +46,7 @@ func mathImpls(m map[string]Impl) {
 		if arr, ok := v.Array(); ok && arr.Len() >= 2 {
 			min := int64(value.ToNumber(arr.Get(0)))
 			max := int64(value.ToNumber(arr.Get(1)))
-			if max < min {
-				return value.Number(float64(min)), nil
-			}
-			return value.Number(float64(min + rand.Int64N(max-min+1))), nil
+			return value.Number(float64(randInclusive(min, max))), nil
 		}
 		n := int64(value.ToNumber(v))
 		if n <= 0 {
@@ -112,6 +109,20 @@ func mathImpls(m map[string]Impl) {
 		n := uint(value.ToInt32(arg(a, 1))) & 31
 		return value.Number(float64(v >> n)), nil
 	}
+}
+
+// randInclusive は min 以上 max 以下の整数を返す。max < min のときは min。
+// 幅が int64 に収まらないときも min を返す。rand.Int64N は引数が 0 以下だと
+// panic するため、max-min+1 の溢れをここで止める。
+func randInclusive(min, max int64) int64 {
+	if max < min {
+		return min
+	}
+	span := max - min
+	if span < 0 || span == math.MaxInt64 {
+		return min
+	}
+	return min + rand.Int64N(span+1)
 }
 
 func compare(test func(int) bool) Impl {
