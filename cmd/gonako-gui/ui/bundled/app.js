@@ -210,7 +210,11 @@ function apply(ops) {
       e.addEventListener(o.event, x => {
         if (o.event === 'submit') x.preventDefault();
         if (o.event === 'keydown') {
-          if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(x.key)) x.preventDefault();
+          // キャンバス上の矢印キーやスペースで画面がスクロールしないようにする。
+          // 入力欄やテキストエリアでは、文字入力とカーソル移動を妨げない。
+          const tag = (x.target && x.target.tagName || '').toLowerCase();
+          const typing = tag === 'input' || tag === 'textarea' || (x.target && x.target.isContentEditable);
+          if (!typing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(x.key)) x.preventDefault();
           send(o.handle, o.event, { key: x.key });
           return;
         }

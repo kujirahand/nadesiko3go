@@ -2690,8 +2690,11 @@ document.addEventListener('DOMContentLoaded', () => {
         el.addEventListener(op.event, event => {
           if (op.event === 'submit') event.preventDefault();
           if (op.event === 'keydown') {
-            // 矢印キーやスペースで画面がスクロールしないようにする。
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
+            // キャンバス上の矢印キーやスペースで画面がスクロールしないようにする。
+            // 入力欄やテキストエリアでは、文字入力とカーソル移動を妨げない。
+            const tag = (event.target && event.target.tagName || '').toLowerCase();
+            const typing = tag === 'input' || tag === 'textarea' || (event.target && event.target.isContentEditable);
+            if (!typing && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) event.preventDefault();
             sendGUIEvent(op.handle, op.event, { key: event.key });
             return;
           }
