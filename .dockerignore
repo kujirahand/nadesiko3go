@@ -1,0 +1,8 @@
+.git
+bin
+out
+release
+nadesiko3
+homebrew-nadesiko3
+manual
+*.exe

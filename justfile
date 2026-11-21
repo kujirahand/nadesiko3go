@@ -24,8 +24,9 @@ cui:
 # GUI版をビルド
 # macOSはwebview_goのWebKitフレームワークとcgoランタイムがどちらも-lobjcをリンクするため、
 # Xcode 15以降のldが重複リンク警告を出す。実害はないが -no_warn_duplicate_libraries で抑制する。
+# Linuxは scripts/go-gui.sh が webkit2gtk-4.0 と 4.1 を自動で選ぶ。
 gui:
-    {{go}} build -o bin/gonako-gui ./cmd/gonako-gui
+    GO={{quote(go)}} ./scripts/go-gui.sh build -o bin/gonako-gui ./cmd/gonako-gui
 
 # ブラウザ向けWebAssembly版（コア機能のみ）を bin/wasm にビルド
 # gonako.wasm と、Go付属の wasm_exec.js、サンプルページ index.html を出力する
@@ -135,7 +136,7 @@ release-gui:
 
 # GUI版をビルドせずに実行
 run-gui:
-    {{go}} run ./cmd/gonako-gui
+    GO={{quote(go)}} ./scripts/go-gui.sh run ./cmd/gonako-gui
 
 # ビルド成果物を削除
 clean:
@@ -155,8 +156,9 @@ test:
     {{go}} test ./scripts/build-release.go ./scripts/build-release_test.go
 
 # GUI版のテストを実行 (GTK/WebKit の開発ライブラリが必要)
+# Linuxでは webkit2gtk-4.0 が無ければ 4.1 用のビルドタグを付ける。
 test-gui:
-    {{go}} test ./cmd/gonako-gui ./internal/guilib
+    GO={{quote(go)}} ./scripts/go-gui.sh test ./cmd/gonako-gui ./internal/guilib
 
 # Go言語コードの行数・文字数・ファイル数を集計・分析する
 analyze-gocode *args:

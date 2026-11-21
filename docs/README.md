@@ -5,7 +5,8 @@
 ## 目次・ドキュメント一覧
 
 - [init.md](init.md): clone後の開発環境の初期化（参照用リポジトリ・マニュアル）
-- [build-gonako-linux.md](build-gonako-linux.md): Linuxでgonako-gui/guilibをビルドするための開発ライブラリ導入手順（GTK・WebKitGTK）
+- [build-gonako-gui.md](build-gonako-gui.md): gonako-guiのビルド手順（Linux / macOS / Windowsの依存関係、CI、Docker）
+- [build-gonako-linux.md](build-gonako-linux.md): Linuxビルドの補足（旧pkg-configエイリアスは不要）
 - [bundle-resources.md](bundle-resources.md): プログラムとリソースの単一ファイル梱包（バンドル）手順・運用ガイド
 - [compat.md](compat.md): 公式TypeScript版との互換性（差分fixture・文字列・エラー・本家側対応）
 - [differences.md](differences.md): なでしこ3（公式TypeScript版）との差異一覧

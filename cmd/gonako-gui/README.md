@@ -11,6 +11,8 @@ OS標準のWebView（macOS: WKWebView, Windows: WebView2, Linux: WebKitGTK）を
 just gui
 ```
 
+LinuxではGTK 3とWebKitGTKの開発パッケージが必要です。`just gui` は WebKitGTK 4.0 と 4.1 を自動で選びます。OSごとの依存関係は [docs/build-gonako-gui.md](../../docs/build-gonako-gui.md) を参照してください。
+
 ## 起動方法
 
 ```bash

@@ -198,3 +198,117 @@ func TestWriteUploadScripts_OldVersionExcluded(t *testing.T) {
 		t.Errorf("バッチファイルに新版GUIが含まれていない:\n%s", bat)
 	}
 }
+
+func webkitTagScript(t *testing.T) string {
+	t.Helper()
+	for _, candidate := range []string{"webkit-gtk-tag.sh", filepath.Join("scripts", "webkit-gtk-tag.sh")} {
+		if _, err := os.Stat(candidate); err == nil {
+			abs, err := filepath.Abs(candidate)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return abs
+		}
+	}
+	t.Fatal("webkit-gtk-tag.sh が見つかりません")
+	return ""
+}
+
+func writeFakePkgConfig(t *testing.T, found string) string {
+	t.Helper()
+	dir := t.TempDir()
+	body := "#!/bin/sh\n" +
+		"if [ \"$1\" = \"--exists\" ] && [ \"$2\" = \"" + found + "\" ]; then\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 1\n"
+	if err := os.WriteFile(filepath.Join(dir, "pkg-config"), []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func runWebkitTagScript(t *testing.T, goos, pkgDir string) (string, int) {
+	t.Helper()
+	cmd := exec.Command(webkitTagScript(t))
+	cmd.Env = []string{"GOOS=" + goos, "PATH=" + pkgDir + ":/usr/bin:/bin"}
+	out, err := cmd.CombinedOutput()
+	code := 0
+	if err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if !ok {
+			t.Fatal(err)
+		}
+		code = exitErr.ExitCode()
+	}
+	return string(out), code
+}
+
+func TestDarwinClangArch(t *testing.T) {
+	arch, err := darwinClangArch("amd64")
+	if err != nil || arch != "x86_64" {
+		t.Fatalf("amd64 -> %q, %v", arch, err)
+	}
+	arch, err = darwinClangArch("arm64")
+	if err != nil || arch != "arm64" {
+		t.Fatalf("arm64 -> %q, %v", arch, err)
+	}
+	if _, err := darwinClangArch("386"); err == nil {
+		t.Fatal("386 を受け付けてしまった")
+	}
+}
+
+func TestMergeEnvOverridesEarlierKeys(t *testing.T) {
+	got := mergeEnv(
+		[]string{"CGO_LDFLAGS=-O2 -g", "PATH=/usr/bin", "KEEP=1"},
+		[]string{"CGO_LDFLAGS=-arch x86_64", "CC=clang"},
+	)
+	want := []string{"PATH=/usr/bin", "KEEP=1", "CGO_LDFLAGS=-arch x86_64", "CC=clang"}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d: %v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestWebkitGTKTagScript(t *testing.T) {
+	t.Run("4.0があればタグは空", func(t *testing.T) {
+		out, code := runWebkitTagScript(t, "linux", writeFakePkgConfig(t, "webkit2gtk-4.0"))
+		if code != 0 {
+			t.Fatalf("終了コード = %d, 出力 = %s", code, out)
+		}
+		if strings.TrimSpace(out) != "" {
+			t.Fatalf("タグ = %q, want empty", out)
+		}
+	})
+	t.Run("4.1だけならタグを出す", func(t *testing.T) {
+		out, code := runWebkitTagScript(t, "linux", writeFakePkgConfig(t, "webkit2gtk-4.1"))
+		if code != 0 {
+			t.Fatalf("終了コード = %d, 出力 = %s", code, out)
+		}
+		if strings.TrimSpace(out) != "webkit2gtk_4_1" {
+			t.Fatalf("タグ = %q", out)
+		}
+	})
+	t.Run("どちらも無ければ失敗する", func(t *testing.T) {
+		out, code := runWebkitTagScript(t, "linux", writeFakePkgConfig(t, ""))
+		if code == 0 {
+			t.Fatalf("成功してしまった: %s", out)
+		}
+		if !strings.Contains(out, "libwebkit2gtk-4.1-dev") {
+			t.Fatalf("案内がありません: %s", out)
+		}
+	})
+	t.Run("Linux以外はpkg-configが無くても空", func(t *testing.T) {
+		out, code := runWebkitTagScript(t, "darwin", t.TempDir())
+		if code != 0 {
+			t.Fatalf("終了コード = %d, 出力 = %s", code, out)
+		}
+		if strings.TrimSpace(out) != "" {
+			t.Fatalf("タグ = %q, want empty", out)
+		}
+	})
+}

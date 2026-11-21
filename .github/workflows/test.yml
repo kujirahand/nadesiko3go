@@ -28,3 +28,6 @@ jobs:
           go list ./... \
             | grep -vE '/(cmd/gonako-gui|internal/guilib)$' \
             | xargs go test
+
+      - name: Run release-script tests
+        run: go test ./scripts/build-release.go ./scripts/build-release_test.go
