@@ -151,6 +151,10 @@ func runBundledProgram(packed *bundle.Bundle) {
 		b, _ := json.Marshal(session.startEvent(runID, handle, event, payload))
 		return string(b)
 	})
+	_ = tw.Window.Bind("pumpNakoTimers", func(runID uint64) string {
+		b, _ := json.Marshal(session.startPump(runID))
+		return string(b)
+	})
 	_ = tw.Window.Bind("pollNakoRun", func(runID uint64) string {
 		b, _ := json.Marshal(session.poll(runID))
 		return string(b)

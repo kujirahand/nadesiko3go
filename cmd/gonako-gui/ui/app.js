@@ -776,7 +776,17 @@ document.addEventListener('DOMContentLoaded', () => {
         await window.resolveNakoDialog(runId, status.dialog.id, answer.text, answer.accepted);
         continue;
       }
-      if (status.done) return status.result || { ok: false, error: '実行結果がありません。' };
+      if (status.done) {
+        const result = status.result || { ok: false, error: '実行結果がありません。' };
+        // インライン実行では、画面部品が一度も無くてもタイマーを回す。
+        // activeGUIRunID は画面操作が届いたときだけ入るので、『表示』だけの
+        // 時計などはここで実行IDを補う (#528)。
+        if (isWindowMode && result.ok) {
+          activeGUIRunID = activeGUIRunID || runId;
+          startGUIPump();
+        }
+        return result;
+      }
       await new Promise(resolve => setTimeout(resolve, 20));
     }
   }
@@ -2759,6 +2769,55 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // 本体終了後もタイマーを発火させるポンプ (#528)。GUIプレビューが
+  // 生きている間、一定間隔で Go 側のタイマーを現在時刻まで進め、
+  // 生まれた画面操作を反映する。プレビューが差し替われば自動で止まる。
+  let guiPumpTimer = null;
+  let guiPumpBusy = false;
+
+  function stopGUIPump() {
+    if (guiPumpTimer !== null) {
+      clearInterval(guiPumpTimer);
+      guiPumpTimer = null;
+    }
+  }
+
+  function startGUIPump() {
+    stopGUIPump();
+    if (typeof window.pumpNakoTimers !== 'function') return;
+    guiPumpTimer = setInterval(async () => {
+      if (!activeGUIRunID) { stopGUIPump(); return; }
+      if (guiPumpBusy) return;
+      guiPumpBusy = true;
+      try {
+        const started = parseBoundJSON(await window.pumpNakoTimers(activeGUIRunID));
+        if (!started || started.error || !started.runId) return;
+        const pumpRunID = started.runId;
+        for (;;) {
+          const status = parseBoundJSON(await window.pollNakoRun(pumpRunID));
+          if (status.operations && status.operations.length > 0) {
+            applyGUIOperations(status.operations);
+          }
+          if (status.dialog) {
+            const answer = await showNakoDialog(status.dialog);
+            await window.resolveNakoDialog(pumpRunID, status.dialog.id, answer.text, answer.accepted);
+            continue;
+          }
+          if (status.done) {
+            const result = status.result || {};
+            if (result.error) reportGUIEventError(result.error);
+            break;
+          }
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      } catch (_) {
+        // バインディングが一時的に失敗しても、次の間隔で再試行する。
+      } finally {
+        guiPumpBusy = false;
+      }
+    }, 50);
+  }
+
   function setOutputPanelOpen(open) {
     if (open === outputPanelOpen) return;
     outputPanelOpen = open;
@@ -2814,6 +2873,7 @@ document.addEventListener('DOMContentLoaded', () => {
     guiElements.clear();
     windowPreview.style.display = 'none';
     hideDocPreview();
+    stopGUIPump();
     activeGUIRunID = 0;
 
     // 「ウィンドウ(GUI)」は別プロセス・別ウィンドウで動くので、エディタ側は
