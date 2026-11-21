@@ -1,12 +1,14 @@
 package webview
 
+// Linux系の pkg-config（webkit2gtk-4.0 / 4.1）は gtk_pc_4_0.go と gtk_pc_4_1.go。
+// 4.0 の開発パッケージが無い環境では -tags webkit2gtk_4_1 を付ける。
+
 /*
 #cgo CFLAGS: -I${SRCDIR}/libs/webview/include
 #cgo CXXFLAGS: -I${SRCDIR}/libs/webview/include -DWEBVIEW_STATIC
 
 #cgo linux openbsd freebsd netbsd CXXFLAGS: -DWEBVIEW_GTK -std=c++11
 #cgo linux openbsd freebsd netbsd LDFLAGS: -ldl
-#cgo linux openbsd freebsd netbsd pkg-config: gtk+-3.0 webkit2gtk-4.0
 
 #cgo darwin CXXFLAGS: -DWEBVIEW_COCOA -std=c++11
 #cgo darwin LDFLAGS: -framework WebKit -ldl

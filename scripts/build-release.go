@@ -459,7 +459,21 @@ func buildGUILinux(cfg config, goarch string) error {
 
 	fmt.Printf("  -> ビルド中: %s (linux/%s)\n", binName, goarch)
 
-	cmd := exec.Command("go", "build", "-trimpath", "-ldflags=-s -w", "-o", binPath, "./cmd/gonako-gui")
+	args := []string{"build", "-trimpath", "-ldflags=-s -w", "-o", binPath}
+	// Linux上では webkit2gtk-4.0 と 4.1 のどちらが入っているかを見てタグを付ける。
+	// macOSなど別OSからのクロスビルドではホストにGTKが無いので、従来どおりタグなし。
+	if runtime.GOOS == "linux" {
+		tag, err := linuxWebKitGTKTag()
+		if err != nil {
+			return err
+		}
+		if tag != "" {
+			fmt.Printf("  -> WebKitGTK: -tags %s\n", tag)
+			args = append(args, "-tags", tag)
+		}
+	}
+	args = append(args, "./cmd/gonako-gui")
+	cmd := exec.Command("go", args...)
 	cmd.Env = envs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -483,6 +497,21 @@ func buildGUILinux(cfg config, goarch string) error {
 func hasCommand(name string) bool {
 	_, err := exec.LookPath(name)
 	return err == nil
+}
+
+// linuxWebKitGTKTag は scripts/webkit-gtk-tag.sh の判定を返す。
+// 4.0 があるときは空、4.1 だけのときは "webkit2gtk_4_1"。
+func linuxWebKitGTKTag() (string, error) {
+	cmd := exec.Command("./scripts/webkit-gtk-tag.sh")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = err.Error()
+		}
+		return "", fmt.Errorf("Linux向けGUIのWebKitGTKを判定できません: %s", msg)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 func copyFile(src, dst string, mode os.FileMode) error {

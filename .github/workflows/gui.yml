@@ -1,0 +1,134 @@
+name: GUI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: linux (${{ matrix.os }}, ${{ matrix.webkit }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            webkit: "4.1"
+            packages: gcc g++ pkg-config libgtk-3-dev libwebkit2gtk-4.1-dev
+          - os: ubuntu-22.04
+            webkit: "4.0"
+            packages: gcc g++ pkg-config libgtk-3-dev libwebkit2gtk-4.0-dev
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install GTK and WebKitGTK
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${{ matrix.packages }}
+
+      - name: Show selected WebKitGTK tag
+        run: |
+          tag="$(./scripts/webkit-gtk-tag.sh || true)"
+          echo "tag=${tag:-<none>}"
+          if [ "${{ matrix.webkit }}" = "4.1" ] && [ "$tag" != "webkit2gtk_4_1" ]; then
+            echo "Ubuntu 24.04 では webkit2gtk_4_1 タグが必要です (got: ${tag:-<none>})" >&2
+            exit 1
+          fi
+          if [ "${{ matrix.webkit }}" = "4.0" ] && [ -n "$tag" ]; then
+            echo "Ubuntu 22.04 の 4.0 パッケージではタグ不要です (got: $tag)" >&2
+            exit 1
+          fi
+
+      - name: Build gonako-gui
+        run: ./scripts/go-gui.sh build -trimpath -ldflags="-s -w" -o bin/gonako-gui ./cmd/gonako-gui
+
+      - name: Smoke test
+        run: |
+          ./bin/gonako-gui -help
+          ldd bin/gonako-gui
+
+      - name: Test GUI packages
+        run: ./scripts/go-gui.sh test ./cmd/gonako-gui ./internal/guilib
+
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonako-gui-${{ matrix.os }}-webkit${{ matrix.webkit }}
+          path: bin/gonako-gui
+          if-no-files-found: error
+
+  windows-cross:
+    name: windows amd64 (mingw cross)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Install MinGW
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+
+      - name: Cross-build gonako-gui for Windows
+        run: go run ./scripts/build-release.go -version ci -platforms windows/amd64 -skip-cli
+
+      - name: Upload Windows archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonako-gui-windows-amd64
+          path: release/gonako-gui-ci-windows-amd64.zip
+          if-no-files-found: error
+
+  macos:
+    name: macos
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build gonako-gui
+        env:
+          CGO_LDFLAGS: -Wl,-no_warn_duplicate_libraries
+        run: go build -trimpath -ldflags="-s -w" -o bin/gonako-gui ./cmd/gonako-gui
+
+      - name: Smoke test
+        run: ./bin/gonako-gui -help
+
+      - name: Test GUI packages
+        env:
+          CGO_LDFLAGS: -Wl,-no_warn_duplicate_libraries
+        run: go test ./cmd/gonako-gui ./internal/guilib
+
+      - name: Upload macOS binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: gonako-gui-macos
+          path: bin/gonako-gui
+          if-no-files-found: error

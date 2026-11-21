@@ -160,6 +160,16 @@ just build
 just release
 ```
 
+`gonako-gui`（GUI版）はcgoでOSのWebViewをリンクします。CUI版の `gonako` だけなら追加のライブラリは要りません。
+
+| OS | 追加で必要なもの |
+|---|---|
+| Linux | GCC、pkg-config、GTK 3、WebKitGTK 4.0または4.1。Ubuntu/Debianでは `sudo ./scripts/install-gui-deps.sh` |
+| macOS | Xcodeコマンドラインツール |
+| Windows | MSYS2のGCC（WebView2のヘッダは同梱） |
+
+Linuxでは `just gui` が WebKitGTK 4.0 と 4.1 を自動で選びます。手順の詳細は [docs/build-gonako-gui.md](docs/build-gonako-gui.md) にあります。
+
 ----------------------------
 
 ## 「gnako-gui」「gonako」で実現できること

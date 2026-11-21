@@ -975,7 +975,13 @@ typedef interface ICoreWebView2ProcessInfosChangedEventHandler ICoreWebView2Proc
 /* header files for imported files */
 #include "objidl.h"
 #include "oaidl.h"
+/* MinGW ships eventtoken.h. A case-sensitive cross build cannot find "EventToken.h".
+   MSVC keeps including the Windows SDK header. */
+#if defined(__MINGW32__)
+#include <eventtoken.h>
+#else
 #include "EventToken.h"
+#endif
 
 #ifdef __cplusplus
 extern "C"{

@@ -186,7 +186,7 @@ just publish
 - インストーラーのフォールバック版（`install.sh` の `DEFAULT_VERSION` / `install.ps1` の `$defaultVersion`）は同期対象外です。`--stable <VERSION>` を付けたときだけ、この2箇所を切り替えます（`just publish` が公開後に実行）。
 
 ### `just release` (`scripts/build-release.go`)
-- Linux向けGUIは、ホストとアーキテクチャが違う場合（amd64ホストでarm64をビルドする等）はクロスCコンパイラ（`aarch64-linux-gnu-gcc` 等）が必要です。無ければそのGUIはスキップされます。
+- Linux向けGUIは、ホストと同じアーキテクチャならGTK 3とWebKitGTK（4.0または4.1）の開発パッケージが必要です。`scripts/webkit-gtk-tag.sh` がどちらを使うか決めます。手順は `docs/build-gonako-gui.md` を参照してください。ホストとアーキテクチャが違う場合（amd64ホストでarm64をビルドする等）は、加えてクロスCコンパイラ（`aarch64-linux-gnu-gcc` 等）とそのアーキテクチャのGTK/WebKitが必要です。コンパイラが無ければそのGUIはスキップされます。
 - `just release` は実行中のOSを自動判定し、そのOS向けの CLI/GUI バイナリをクロスコンパイルして ZIP 圧縮します。実行前に `release/` を空にします。
 - OSを明示する場合は `just release-darwin` / `just release-windows` / `just release-linux` を使います。
 - あわせて `release/upload-<VERSION>.sh` および `release/upload-<VERSION>.bat` を出力します。
