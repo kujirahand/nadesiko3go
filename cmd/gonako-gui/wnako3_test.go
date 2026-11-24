@@ -9,7 +9,18 @@ import (
 	"testing"
 	"testing/fstest"
 	"time"
+
+	"github.com/kujirahand/nadesiko3go/internal/version"
 )
+
+// wnako3側の『GONAKOバージョン』定数は __gonakoConfig の gonakoVersion を
+// そのまま使うため、唯一の定義元 version.Version と一致し続けることを守る (#472)。
+func TestWNako3PageConfigGonakoVersionLinksToVersionPackage(t *testing.T) {
+	cfg := newWNako3PageConfig(false)
+	if cfg.GonakoVersion != version.Version {
+		t.Fatalf("GonakoVersion = %q, want version.Version %q", cfg.GonakoVersion, version.Version)
+	}
+}
 
 func TestWNako3IsEmbedded(t *testing.T) {
 	info := readWNako3Info()
