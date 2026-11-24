@@ -822,6 +822,8 @@ func TestTemplateFiltersByGenreAndRunMode(t *testing.T) {
 		// 「すべてのサンプル」でモード絞り込みも解除する。
 		"templateModeFilterEnabled = false;",
 		"templateSearch.addEventListener('input', applyTemplateFilters)",
+		// ジャンルのチェック時、検索が空ならモード絞り込みを外す (#545)。
+		"if (event.target.checked && templateSearch.value.trim() === '') {\n      templateModeFilterEnabled = false;",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js にひな形の絞り込み処理 %q がありません", required)

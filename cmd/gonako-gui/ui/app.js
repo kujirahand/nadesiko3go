@@ -1343,7 +1343,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   templateSearch.addEventListener('input', applyTemplateFilters);
-  templateGenreFilters.addEventListener('change', applyTemplateFilters);
+  // ジャンルをチェックしたとき、検索ボックスが空なら実行モードの絞り込みは外し、
+  // すべてのサンプルの中からそのジャンルを探す (#545)。
+  // 外さないと、実行モードと違う `mode` のサンプル (ゲームなど) が出てこない。
+  templateGenreFilters.addEventListener('change', event => {
+    if (event.target.checked && templateSearch.value.trim() === '') {
+      templateModeFilterEnabled = false;
+    }
+    applyTemplateFilters();
+  });
 
   // 「すべてのサンプル」で検索・ジャンル・モードの絞り込みをすべて解除する。
   templateShowAll.addEventListener('click', () => {
