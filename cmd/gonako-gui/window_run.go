@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
+	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 // NewWindowRunResult is what runNakoInNewWindow reports back to the editor.
@@ -28,6 +30,13 @@ type NewWindowRunResult struct {
 // its own window, separate from the editor's. It returns as soon as the
 // process has started; it does not wait for the program to finish.
 func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
+	// 保存前のプログラムは取り込み元のフォルダが無い。子プロセスを起動してから
+	// 失敗させず、ここで先に保存を促す（#542）。
+	if filePath == "" {
+		if err := parser.CheckUnsavedRequires(code, vm.RuntimeFuncList()); err != nil {
+			return NewWindowRunResult{Error: err.Error()}
+		}
+	}
 	return launchChildRunProcess(code, filePath, "--run-window")
 }
 

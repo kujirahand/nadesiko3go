@@ -28,6 +28,7 @@ import (
 	"github.com/kujirahand/nadesiko3go/internal/mathlib"
 	"github.com/kujirahand/nadesiko3go/internal/nodelib"
 	"github.com/kujirahand/nadesiko3go/internal/officelib"
+	"github.com/kujirahand/nadesiko3go/internal/parser"
 	"github.com/kujirahand/nadesiko3go/internal/pdflib"
 	"github.com/kujirahand/nadesiko3go/internal/sqlitelib"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -895,6 +896,17 @@ func nakoRunLocation(filePath, initialWorkingDir string) (runFile, workDir strin
 	return runcwd.NakoRunLocation(filePath, initialWorkingDir)
 }
 
+// editorSourcePath はエディタが実行するプログラムの、取り込み解決の起点を返す。
+// まだ保存していない（ファイルパスが空の）ときは parser.UnsavedSourcePath を返し、
+// フォルダを基準にする取り込みは先に保存するよう促すエラーにする（#542）。
+// 保存済みなら空文字を返し、実行するファイル自身を起点にする。
+func editorSourcePath(filePath string) string {
+	if filePath == "" {
+		return parser.UnsavedSourcePath
+	}
+	return ""
+}
+
 // bindPrivilegedBridge はエディタや独自HTML(-dir指定)の信頼できるUIへ
 // 公開するGo側APIをまとめてBindする。ファイル操作やコード実行を含むため、
 // 外部URL(-url)を表示するウィンドウでは呼んではいけない（#183）。
@@ -919,7 +931,7 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 
 		// 「母艦」はエディタ内蔵実行（インライン・コマンドライン）では実際の
 		// エディタウィンドウを動かさない疑似コントローラーを使う（#97）。
-		result := guiRuntime.runWithWindowInDir(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
+		result := guiRuntime.runWithWindowSource(code, runFile, editorSourcePath(filePath), windowMode, nil, nil, newVirtualWindowController(), workDir)
 		b, _ := json.Marshal(result)
 		return string(b)
 	})
@@ -932,7 +944,7 @@ func bindPrivilegedBridge(w *webview.Protected, guiRuntime *guiSession, directWi
 	// 相対パスの絶対化は呼び出し時点のプロセスCWDを使い、実行中のCWD変更とは同期しない。
 	_ = w.Bind("startNakoFile", func(code string, filePath string, windowMode bool) uint64 {
 		runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
-		return guiRuntime.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
+		return guiRuntime.startWithWindowSource(code, runFile, editorSourcePath(filePath), windowMode, nil, nil, newVirtualWindowController(), workDir)
 	})
 
 	// 「ウィンドウ(GUI)」実行モード。エディタとは別プロセス・別ウィンドウで

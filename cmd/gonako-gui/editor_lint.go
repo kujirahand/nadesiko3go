@@ -183,6 +183,12 @@ func checkNakoSyntax(code, filename, mode string) LintResult {
 	original := filename
 	if filename == "" {
 		filename = "gui.nako3"
+		// 保存前は取り込み元のフォルダが無い。取り込みがあれば保存を促す（#542）。
+		if mode != lintModeWNako {
+			if err := parser.CheckUnsavedRequires(code, vm.RuntimeFuncList()); err != nil {
+				return LintResult{OK: false, Error: err.Error()}
+			}
+		}
 	}
 	res := editorlint.Check(code, filename, original, editorlint.Options{
 		Whole:  parseErr(mode),

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -44,9 +46,14 @@ func ParseSourceFile(code, filename, sourcePath string, funcList lexer.FuncList)
 		return nil, err
 	}
 	var modNames []string
-	raw, err = resolveRequires(raw, requireFrom, map[string]bool{}, &modNames, funcList)
+	var requireWarnings []string
+	raw, err = resolveRequires(raw, requireFrom, map[string]bool{}, &modNames, funcList, &requireWarnings)
 	if err != nil {
 		return nil, err
+	}
+	// 取り込みの警告は、実行を止めずに標準エラーへ知らせる。
+	for _, w := range requireWarnings {
+		fmt.Fprintln(os.Stderr, "警告: "+w)
 	}
 	lx.ModList = append(lx.ModList, modNames...)
 	tokens, err := lx.ReplaceTokens(raw, true, filename)
@@ -60,6 +67,7 @@ func ParseSourceFile(code, filename, sourcePath string, funcList lexer.FuncList)
 	p := New()
 	p.SetFuncList(lx.FuncList)
 	p.SetModuleExport(lx.ModuleExport)
+	p.Warnings = append(p.Warnings, requireWarnings...)
 	return p.Parse(tokens, filename)
 }
 
@@ -71,8 +79,39 @@ func requireSourcePath(filename, sourcePath string) (string, error) {
 	if sourcePath == "" {
 		return filename, nil
 	}
-	if isRequireURL(sourcePath) || strings.HasPrefix(sourcePath, embeddedPrefix) {
+	if sourcePath == UnsavedSourcePath || isRequireURL(sourcePath) || strings.HasPrefix(sourcePath, embeddedPrefix) {
 		return sourcePath, nil
 	}
 	return filepath.Abs(sourcePath)
+}
+
+// CheckUnsavedRequires は、まだ保存していないプログラムの取り込み文を調べる。
+// 取り込み元のフォルダを基準に解決する取り込み（./ や ../ を付けた相対パス、
+// パッケージとして見つからない名前）があれば、先に保存するよう促すエラーを返す。
+// 組み込みプラグイン・URL・貯蔵庫・見つかるパッケージは、保存の有無で結果が
+// 変わらないので問題にしない。ここでは取り込み先を読み込まない（#542）。
+func CheckUnsavedRequires(code string, funcs lexer.FuncList) error {
+	raw, err := lexer.Tokenize(prepare.Text(prepare.Convert(code)), 0, "")
+	if err != nil {
+		return nil // 字句エラーは通常の構文チェックに任せる
+	}
+	raw, err = indent.ConvertSyntax(raw)
+	if err != nil {
+		return nil
+	}
+	for i := range raw {
+		if !isRequireStatement(raw, i) {
+			continue
+		}
+		nameTok := raw[i+1]
+		if isBuiltinPlugin(nameTok.StringValue(), funcs) {
+			continue
+		}
+		if _, err := resolveRequirePath(nameTok.StringValue(), UnsavedSourcePath, nameTok); err != nil {
+			if strings.Contains(err.Error(), unsavedRequireHint) {
+				return err
+			}
+		}
+	}
+	return nil
 }
