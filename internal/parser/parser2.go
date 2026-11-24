@@ -555,6 +555,9 @@ func (p *Parser) yIncDec() *ast.Node {
 	}
 
 	word := p.popStack([]string{"を"})
+	if t := normalizeArrayAssignmentTarget(word); t != nil {
+		word = t
+	}
 	if word == nil || (word.Type != ast.Word && word.Type != ast.RefArray && word.Type != ast.RefProp) {
 		p.failToken(fmt.Sprintf(
 			"『%s』文で定数が見当たりません。『(変数名)を(値)だけ%s』のように使います。",
@@ -622,6 +625,10 @@ func (p *Parser) yCall() *ast.Node {
 		if p.check2([][]lexer.TokenType{{lexer.TypeFunc, lexer.TypeWord}, {"("}}) {
 			if cur := p.peek(0); cur != nil && cur.Josi == "" {
 				if t := p.yValue(); t != nil { // yValueでC言語風呼び出しをパースする
+					if (t.Type == ast.Func || t.Type == ast.CallValue) && t.Josi == "" && p.check("…") {
+						p.pushStack(p.yRange(t))
+						continue
+					}
 					// 呼び出しの直後に演算子が続くときは計算式として読む (#478 / 本家 #2671)
 					// 例: INT(3.7)-1を表示, 10にINT(3.7)+1を足して表示
 					if (t.Type == ast.Func || t.Type == ast.CallValue) && t.Josi == "" &&
@@ -657,6 +664,10 @@ func (p *Parser) yCall() *ast.Node {
 		if p.check(lexer.TypeFunc) {
 			r := p.yCallFunc()
 			if r == nil {
+				continue
+			}
+			if p.check("…") {
+				p.pushStack(p.yRange(r))
 				continue
 			}
 			if p.check("間") { // 「〜する間」の形ならスタックに積む

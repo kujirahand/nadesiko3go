@@ -411,7 +411,7 @@ func (p *Parser) yValueWord() *ast.Node {
 				break
 			}
 		}
-		return r
+		return p.yRefArrayValue(r)
 	}
 	return w
 }
