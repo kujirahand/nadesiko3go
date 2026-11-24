@@ -278,6 +278,11 @@ func TestGameSampleSnakeTimerTicks(t *testing.T) {
 	session := &guiSession{}
 	runID := session.start(string(code), "game.nako3", true, nil, nil)
 	mainCollector := newAsyncCollector(session, runID)
+	// 最初にルールのダイアログが出るので、閉じてからゲームを開始させる
+	dlg := waitForDialog(t, mainCollector)
+	if !session.resolveDialog(runID, dlg.Dialog.ID, "", true) {
+		t.Fatal("ルールのダイアログを閉じられません")
+	}
 	waitForAsyncDone(t, mainCollector)
 	canvasOps := 0
 	for _, op := range mainCollector.ops {
