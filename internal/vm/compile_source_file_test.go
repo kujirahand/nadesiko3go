@@ -44,6 +44,10 @@ func TestCompileProgramFileResolvesNestedRequiresFromSourcePath(t *testing.T) {
 	if err := os.Chdir(outside); err != nil {
 		t.Fatal(err)
 	}
+	wantDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	mainPath := filepath.Join(project, "main.nako3")
 	code := "!「./helper.nako3」を取り込む\n補助実行\n"
@@ -77,7 +81,7 @@ func TestCompileProgramFileResolvesNestedRequiresFromSourcePath(t *testing.T) {
 		t.Fatalf("出力 = %q, want 正しい葉", got)
 	}
 
-	if got, err := os.Getwd(); err != nil || got != outside {
+	if got, err := os.Getwd(); err != nil || got != wantDir {
 		t.Fatalf("作業フォルダが変わった: %q, %v", got, err)
 	}
 }

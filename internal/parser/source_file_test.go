@@ -56,13 +56,17 @@ func TestParseSourceFileResolvesRequiresFromSourcePath(t *testing.T) {
 		"sub/leaf.nako3": "もし\n",
 	})
 	chdirForTest(t, outside)
+	wantDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	code := "!「./helper.nako3」を取り込む\n補助実行\n"
 	mainPath := filepath.Join(project, "main.nako3")
 	if _, err := parser.ParseSourceFile(code, "main.nako3", mainPath, sourceFileTestFuncs()); err != nil {
 		t.Fatalf("ParseSourceFile: %v", err)
 	}
-	if got, err := os.Getwd(); err != nil || got != outside {
+	if got, err := os.Getwd(); err != nil || got != wantDir {
 		t.Fatalf("作業フォルダが変わった: %q, %v", got, err)
 	}
 

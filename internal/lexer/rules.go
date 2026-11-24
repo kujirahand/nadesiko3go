@@ -99,6 +99,7 @@ func init() {
 		{name: TypeKokokara, pattern: regexp.MustCompile(`^(ここから),?`)},
 		{name: TypeKokomade, pattern: regexp.MustCompile(`^(ここまで|💧)`)},
 		{name: TypeMoshi, pattern: regexp.MustCompile(`^もしも?`)},
+		{name: TypeZutto, pattern: regexp.MustCompile(`^ずっと`)},
 		// 「ならば」は助詞として扱う
 		{name: TypeChigaeba, pattern: regexp.MustCompile(`^違(えば)?`)},
 		// 「回」「間」「繰返」などは replaceWord で word から変換する

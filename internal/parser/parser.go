@@ -140,6 +140,8 @@ func (p *Parser) ySentence() *ast.Node {
 		return p.yEOL()
 	case p.check("もし"):
 		return p.yIF()
+	case p.check(lexer.TypeZutto):
+		return p.yZuttoWhile()
 	case p.check("後判定"):
 		return p.yAtohantei()
 	case p.check("エラー監視"):

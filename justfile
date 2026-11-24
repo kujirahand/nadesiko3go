@@ -147,13 +147,12 @@ benchmark: cmd
     {{go}} run ./benchmark/runner.go
 
 # テストを実行
-# GUI版 (cmd/gonako-gui, internal/guilib) は GTK/WebKit の開発ライブラリが
-# ない環境ではリンクできないため、CI (.github/workflows/test.yml) と同じく
-# 除外する。GUI版のテストは `just test-gui` で実行する (#520)。
+# GUI版は cgo とプラットフォームの開発ライブラリが利用可能な場合に実行する。
 test:
     {{go}} list ./... | grep -vE '/(cmd/gonako-gui|internal/guilib)$' | xargs {{go}} test
     {{go}} test ./scripts/gen-manual.go ./scripts/gen-manual_test.go
     {{go}} test ./scripts/build-release.go ./scripts/build-release_test.go
+    @GO={{quote(go)}} bash ./scripts/test-gui-if-available.sh
 
 # GUI版のテストを実行 (GTK/WebKit の開発ライブラリが必要)
 # Linuxでは webkit2gtk-4.0 が無ければ 4.1 用のビルドタグを付ける。

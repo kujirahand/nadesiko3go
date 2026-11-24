@@ -26,6 +26,7 @@ const (
 	TypeDefFunc       TokenType = "def_func"
 	TypeNot           TokenType = "not"
 	TypeMoshi         TokenType = "もし"
+	TypeZutto         TokenType = "ずっと"
 	TypeChigaeba      TokenType = "違えば"
 	TypeKokomade      TokenType = "ここまで"
 	TypeKokokara      TokenType = "ここから"
