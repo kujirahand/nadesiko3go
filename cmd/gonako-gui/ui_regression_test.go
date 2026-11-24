@@ -827,6 +827,17 @@ func TestTemplateFiltersByGenreAndRunMode(t *testing.T) {
 			t.Fatalf("app.js にひな形の絞り込み処理 %q がありません", required)
 		}
 	}
+	// ジャンル選択中かつ検索が空なら、モード絞り込みを使わない (#545)。
+	// 整形し直しで落ちないよう、空白を除いて比べる。
+	compact := strings.Join(strings.Fields(app), "")
+	for _, required := range []string{
+		"constmodeFilterActive=templateModeFilterEnabled&&!(selectedGenres.size>0&&query==='');",
+		"!modeFilterActive||modes.length===0||modes.includes(currentMode)",
+	} {
+		if !strings.Contains(compact, required) {
+			t.Fatalf("app.js にジャンル選択時のモード絞り込み解除 %q がありません", required)
+		}
+	}
 
 	style := readUIAsset(t, "style.css")
 	for _, required := range []string{
