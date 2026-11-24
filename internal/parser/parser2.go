@@ -53,20 +53,60 @@ func (p *Parser) yRepeatTime() *ast.Node {
 	return &ast.Node{Type: ast.RepeatTimes, Blocks: []*ast.Node{num, block}, SourceMap: m, End: &end}
 }
 
-// yWhile reads 『(条件)の間…ここまで』.
+// yWhile は『(条件)の間…ここまで』文を解析する。
 func (p *Parser) yWhile() *ast.Node {
 	m := p.peekSourceMap(nil)
 	if !p.check("間") {
 		return nil
 	}
-	p.get() // skip '間'
+	expr := p.popStack(nil)
+	return p.yWhileBody(expr, m)
+}
+
+// yZuttoWhile は『ずっと（比較式）の間…ここまで』文を解析する (#526 / 本家 #2694)。
+func (p *Parser) yZuttoWhile() *ast.Node {
+	m := p.peekSourceMap(nil)
+	if !p.check(lexer.TypeZutto) {
+		return nil
+	}
+	p.get() // 'ずっと' を消費
+	for p.check(lexer.TypeComma) {
+		p.get()
+	}
+	if p.check("間") || p.check(lexer.TypeEOL) || p.isEOF() ||
+		(p.check(lexer.TypeWord) && p.peek(0) != nil && p.peek(0).StringValue() == "の" && p.peek(1) != nil && p.peek(1).Type == "間") {
+		p.failAt("『ずっと』文で条件がありません。", m)
+	}
+	// 代入文(yLet)を経由せず式として解析することで '=' を比較演算子として扱う
+	expr := p.yGetArg()
+	if expr == nil {
+		p.failAt("『ずっと』文の条件式に間違いがあります。", m)
+	}
+	if p.check("間") {
+		return p.yWhileBody(expr, m)
+	}
+	if p.check(lexer.TypeEOL) || p.isEOF() {
+		p.failAt("『ずっと』文に『間』がありません。", m)
+	}
+	// なでしこ式関数呼び出しを含む条件式(例: ずっと iが3未満の間)に対応
+	p.pushStack(expr)
+	res := p.yCall()
+	if res != nil && res.Type == ast.While {
+		return res
+	}
+	p.failAt("『ずっと』文に『間』がありません。", m)
+	return nil
+}
+
+// yWhileBody は「間」以降のブロックを解析して ast.While ノードを生成する。
+func (p *Parser) yWhileBody(expr *ast.Node, m ast.SourceMap) *ast.Node {
+	p.get() // '間' を消費
 	for p.check(lexer.TypeComma) {
 		p.get()
 	}
 	if p.check("繰返") { // #927
 		p.get()
 	}
-	expr := p.popStack(nil)
 	if expr == nil {
 		p.failAt("『間』で条件がありません。", m)
 	}
@@ -626,8 +666,13 @@ func (p *Parser) yCall() *ast.Node {
 			if !p.checkTypes(toTokenTypes(operatorList)) {
 				return r // 関数呼び出しの後に演算子がないのでそのまま戻す
 			}
-			// 四則演算があった場合、計算してスタックに載せる
-			p.pushStack(p.yGetArgOperator(r))
+			// 四則演算や比較演算があった場合、計算する
+			calc := p.yGetArgOperator(r)
+			// 『(式)ならば』の条件として使う場合は、呼び出し元が戻り値を見るのでそのまま返す (#527)
+			if p.check("ならば") && calc.Josi == "" && len(p.stack) == 0 {
+				return calc
+			}
+			p.pushStack(calc)
 			continue
 		}
 
@@ -641,6 +686,21 @@ func (p *Parser) yCall() *ast.Node {
 
 	// 助詞が余ってしまった場合
 	if len(p.stack) > 0 {
+		// 『もし、Aの要素数が2ならば』のように、関数呼び出し結果に助詞『が』が付き
+		// その後に比較対象の値が1つ続いて『ならば』が来る場合は等価比較として扱う (#527)
+		if p.check("ならば") && len(p.stack) == 2 && p.stack[0].Josi == "が" && p.stack[1].Josi == "" {
+			lhs := p.stack[0]
+			rhs := p.stack[1]
+			p.stack = p.stack[:0]
+			end := p.peekSourceMap(nil)
+			return &ast.Node{
+				Type:      ast.Op,
+				Operator:  "eq",
+				Blocks:    []*ast.Node{lhs, rhs},
+				SourceMap: lhs.SourceMap,
+				End:       &end,
+			}
+		}
 		if p.isReadingCalc {
 			return p.popStack(nil)
 		}

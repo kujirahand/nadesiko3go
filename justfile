@@ -147,13 +147,12 @@ benchmark: cmd
     {{go}} run ./benchmark/runner.go
 
 # テストを実行
-# GUI版 (cmd/gonako-gui, internal/guilib) は GTK/WebKit の開発ライブラリが
-# ない環境ではリンクできないため、CI (.github/workflows/test.yml) と同じく
-# 除外する。GUI版のテストは `just test-gui` で実行する (#520)。
+# GUI版は cgo とプラットフォームの開発ライブラリが利用可能な場合に実行する。
 test:
     {{go}} list ./... | grep -vE '/(cmd/gonako-gui|internal/guilib)$' | xargs {{go}} test
     {{go}} test ./scripts/gen-manual.go ./scripts/gen-manual_test.go
     {{go}} test ./scripts/build-release.go ./scripts/build-release_test.go
+    @if [ "$( {{go}} env CGO_ENABLED )" != 1 ]; then echo 'GUIテストをスキップ: cgo が無効です'; elif [ "$( {{go}} env GOOS )" = darwin ] || [ "$( {{go}} env GOOS )" = windows ]; then GO={{quote(go)}} ./scripts/go-gui.sh test ./cmd/gonako-gui ./internal/guilib; elif [ "$( {{go}} env GOOS )" = linux ] && command -v pkg-config >/dev/null 2>&1 && pkg-config --exists gtk+-3.0 && { pkg-config --exists webkit2gtk-4.0 || pkg-config --exists webkit2gtk-4.1; }; then GO={{quote(go)}} ./scripts/go-gui.sh test ./cmd/gonako-gui ./internal/guilib; else echo 'GUIテストをスキップ: 対応する GUI 開発環境がありません'; fi
 
 # GUI版のテストを実行 (GTK/WebKit の開発ライブラリが必要)
 # Linuxでは webkit2gtk-4.0 が無ければ 4.1 用のビルドタグを付ける。
