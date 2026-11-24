@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -129,7 +130,7 @@ func TestRequireUnsavedSource(t *testing.T) {
 	setupLocalRequireTest(t, fstest.MapFS{"pkg.nako3": &fstest.MapFile{Data: []byte("")}})
 	for _, name := range []string{"sub.nako3", "./sub.nako3", "../sub.nako3"} {
 		_, err := resolveRequirePath(name, UnsavedSourcePath, lexer.Token{})
-		if err == nil || !strings.Contains(err.Error(), "保存") {
+		if err == nil || !strings.Contains(err.Error(), "保存") || !errors.Is(err, ErrUnsavedRequire) {
 			t.Errorf("%s: 保存を促すエラーになりません: %v", name, err)
 		}
 	}

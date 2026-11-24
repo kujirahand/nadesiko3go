@@ -38,6 +38,10 @@ func TestCheckNakoSyntaxUnsavedRequire(t *testing.T) {
 	if res.OK || !strings.Contains(res.Error, "保存") {
 		t.Fatalf("保存前の取り込み: OK=%v error=%q", res.OK, res.Error)
 	}
+	// 取り込みが無ければ、保存前でも他の構文エラーは通常どおり報告される。
+	if res := checkNakoSyntax("もし「A」ならば\n「B」と表示。", "", lintModeGonako); res.OK || strings.Contains(res.Error, "保存") {
+		t.Fatalf("構文エラー: OK=%v error=%q", res.OK, res.Error)
+	}
 	// 取り込みがなければ従来どおり通る。
 	if res := checkNakoSyntax("「あ」と表示。\n", "", lintModeGonako); !res.OK {
 		t.Fatalf("取り込みなし: %q", res.Error)

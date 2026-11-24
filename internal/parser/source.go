@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -108,7 +109,7 @@ func CheckUnsavedRequires(code string, funcs lexer.FuncList) error {
 			continue
 		}
 		if _, err := resolveRequirePath(nameTok.StringValue(), UnsavedSourcePath, nameTok); err != nil {
-			if strings.Contains(err.Error(), unsavedRequireHint) {
+			if errors.Is(err, ErrUnsavedRequire) {
 				return err
 			}
 		}

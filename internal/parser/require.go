@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -238,11 +239,23 @@ func findPackageRequire(name string) (string, bool) {
 	return embeddedRequirePath(path.Join("gonako-package", filepath.ToSlash(name)))
 }
 
-// unsavedRequireHint は保存前の取り込みエラーに含まれる案内文（判定にも使う）。
+// unsavedRequireHint は保存前の取り込みエラーに含まれる案内文。
 const unsavedRequireHint = "先にこのプログラムをファイルとして保存"
 
+// ErrUnsavedRequire は、保存前のプログラムが取り込み元のフォルダを必要とする
+// 取り込みをしたときのエラーが満たす。errors.Is で判定する（#542）。
+var ErrUnsavedRequire = errors.New("保存前のプログラムでは取り込み元のフォルダを使えません")
+
+// unsavedRequireError は、通常の取り込みエラー（なでしこ形式の文面）に
+// ErrUnsavedRequire を結び付ける。
+type unsavedRequireError struct{ err error }
+
+func (e *unsavedRequireError) Error() string { return e.err.Error() }
+
+func (e *unsavedRequireError) Unwrap() []error { return []error{e.err, ErrUnsavedRequire} }
+
 func unsavedRequireErr(tok lexer.Token, name string) error {
-	return requireErr(tok, fmt.Sprintf("!「%s」を取り込むには、取り込み元のフォルダが必要です。"+unsavedRequireHint+"してから実行してください。", name))
+	return &unsavedRequireError{err: requireErr(tok, fmt.Sprintf("!「%s」を取り込むには、取り込み元のフォルダが必要です。"+unsavedRequireHint+"してから実行してください。", name))}
 }
 
 // requireNotFoundMessage は取り込むファイルが見つからないときの文面を作る。
