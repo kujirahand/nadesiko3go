@@ -184,12 +184,28 @@ func checkNakoSyntax(code, filename, mode string) LintResult {
 	if filename == "" {
 		filename = "gui.nako3"
 	}
+	// 保存前は取り込み元のフォルダが無いので、取り込み解決の起点に保存前の
+	// 目印を渡す。フォルダが要る取り込みは、保存を促すエラーとして返る（#542）。
+	// 取り込みが無ければ他の構文エラーは通常どおり報告され、全文を調べ直すことも無い。
+	unsaved := original == ""
 	res := editorlint.Check(code, filename, original, editorlint.Options{
-		Whole:  parseErr(mode),
-		Sample: parseErr(lintModeGonako),
+		Whole:  parseErrFor(mode, unsaved),
+		Sample: parseErrFor(lintModeGonako, unsaved),
 		Web:    parseErr(lintModeWNako),
 	})
 	return LintResult{OK: res.OK, Error: res.Error, Text: res.Text, DocTest: res.DocTest}
+}
+
+// parseErrFor は parseErr に、保存前かどうかを足したもの。gonakoの命令セットで
+// 保存前のときだけ、取り込み解決の起点に parser.UnsavedSourcePath を渡す。
+func parseErrFor(mode string, unsaved bool) editorlint.ParseFunc {
+	if !unsaved || mode == lintModeWNako {
+		return parseErr(mode)
+	}
+	return func(code, filename string) error {
+		_, err := vm.ParseProgramFile(code, filename, parser.UnsavedSourcePath)
+		return err
+	}
 }
 
 // parseErr は構文解析関数を、エラーだけを返す形にそろえる。

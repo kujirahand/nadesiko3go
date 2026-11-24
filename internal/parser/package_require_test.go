@@ -86,8 +86,10 @@ func TestRequireExplicitLocalPath(t *testing.T) {
 			t.Fatalf("%s: %q, %v", name, got, err)
 		}
 	}
-	if _, err := resolveRequirePath("lib.nako3", filepath.Join(root, "main.nako3"), lexer.Token{}); err == nil {
-		t.Fatal("裸のパスでローカルファイルを取り込みました")
+	// 接頭辞のない名前も、取り込み元のフォルダのファイルとして解決する（#542）。
+	got, err := resolveRequirePath("lib.nako3", filepath.Join(root, "main.nako3"), lexer.Token{})
+	if err != nil || got != file {
+		t.Fatalf("裸のパス: %q, %v", got, err)
 	}
 }
 

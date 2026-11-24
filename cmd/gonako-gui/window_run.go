@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 
 	"github.com/kujirahand/nadesiko3go/internal/guilib"
+	"github.com/kujirahand/nadesiko3go/internal/parser"
+	"github.com/kujirahand/nadesiko3go/internal/vm"
 )
 
 // NewWindowRunResult is what runNakoInNewWindow reports back to the editor.
@@ -28,7 +30,26 @@ type NewWindowRunResult struct {
 // its own window, separate from the editor's. It returns as soon as the
 // process has started; it does not wait for the program to finish.
 func launchNakoWindowProcess(code, filePath string) NewWindowRunResult {
+	// 保存前のプログラムは取り込み元のフォルダが無い。子プロセスを起動してから
+	// 失敗させず、ここで先に保存を促す（#542）。
+	if filePath == "" {
+		if err := parser.CheckUnsavedRequires(code, vm.RuntimeFuncList()); err != nil {
+			return NewWindowRunResult{Error: err.Error()}
+		}
+	}
 	return launchChildRunProcess(code, filePath, "--run-window")
+}
+
+// childRunArgs は子プロセスへ渡す引数を作る。保存前のプログラム（unsaved）は
+// 表示名が gui.nako3 になるだけで、取り込み元のフォルダが無い。そのことを
+// --run-window-unsaved で子へ伝え、子の取り込み解決を親やエディタ内実行と
+// 揃える（#542）。この目印は「ウィンドウ(GUI)」モードだけが使う。
+func childRunArgs(runFlag, tmpPath, title, sourceName string, unsaved bool) []string {
+	args := []string{runFlag, tmpPath, "--run-window-title", title, "--run-window-name", sourceName}
+	if unsaved && runFlag == "--run-window" {
+		args = append(args, "--run-window-unsaved")
+	}
+	return args
 }
 
 // launchChildRunProcess は gonako-gui 自身を子プロセスとして起動し、
@@ -68,7 +89,7 @@ func launchChildRunProcess(code, filePath, runFlag string) NewWindowRunResult {
 		}
 	}
 
-	cmd := exec.Command(self, runFlag, tmpPath, "--run-window-title", title, "--run-window-name", sourceName)
+	cmd := exec.Command(self, childRunArgs(runFlag, tmpPath, title, sourceName, filePath == "")...)
 	cmd.Dir = workDir
 	if err := cmd.Start(); err != nil {
 		os.Remove(tmpPath)
@@ -103,27 +124,42 @@ func readStandaloneWindowSource(sourcePath string, removeSource bool) ([]byte, e
 // original .nako3 path (or a fallback), used only so compile/runtime errors
 // point at the file the user actually edited instead of the temp file that
 // carried the source text across processes.
-func runStandaloneWindow(sourcePath, title, sourceName string) {
-	runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName, true)
+func runStandaloneWindow(sourcePath, title, sourceName string, unsaved bool) {
+	runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName, true, unsaved)
 }
 
 // runStandaloneWindowWithSourceRemoval はGUIプログラムを専用ウィンドウで
 // 実行する。removeSource が真のときは読み込み後に sourcePath を削除する
 // (エディタが渡す一時ファイル用)。公開コマンド `gonako-gui run` からは
 // removeSource=false で呼び、利用者のファイルを残す。
-func runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName string, removeSource bool) {
+func runStandaloneWindowWithSourceRemoval(sourcePath, title, sourceName string, removeSource, unsaved bool) {
 	data, err := readStandaloneWindowSource(sourcePath, removeSource)
 	if err != nil {
 		showMessageWindow(title, fmt.Sprintf("プログラムを読み込めません: %v", err))
 		return
 	}
-	runStandaloneWindowProgram(data, title, sourceName)
+	runStandaloneWindowProgramFrom(data, title, sourceName, unsavedSourcePath(unsaved))
+}
+
+// unsavedSourcePath は保存前のとき、取り込み解決の起点として渡す目印を返す。
+// 保存済みなら空文字で、表示名のファイル自身を起点にする。
+func unsavedSourcePath(unsaved bool) string {
+	if unsaved {
+		return parser.UnsavedSourcePath
+	}
+	return ""
 }
 
 // runStandaloneWindowProgram は読み込み済みのプログラムを専用ウィンドウで
 // 実行する。公開コマンド `gonako-gui run` は、事前のコンパイル確認で読んだ
 // 内容をそのまま渡すためにこちらを使う。
 func runStandaloneWindowProgram(data []byte, title, sourceName string) {
+	runStandaloneWindowProgramFrom(data, title, sourceName, "")
+}
+
+// runStandaloneWindowProgramFrom は runStandaloneWindowProgram に、取り込み解決の
+// 起点 sourcePath を足したもの。空なら sourceName を起点にする（#542）。
+func runStandaloneWindowProgramFrom(data []byte, title, sourceName, sourcePath string) {
 	if title == "" {
 		title = "なでしこ3"
 	}
@@ -177,7 +213,7 @@ func runStandaloneWindowProgram(data []byte, title, sourceName string) {
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
-	runID := session.start(string(data), sourceName, true, nil, nil)
+	runID := session.startWithWindowSource(string(data), sourceName, sourcePath, true, nil, nil, session.window, "")
 	page.SetHTML(bundledAsyncProgramPage(runID))
 	if err := tw.Navigate("/"); err != nil {
 		tw.Close()

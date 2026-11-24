@@ -19,12 +19,12 @@ import (
 // 振る舞いの検証は guiSession 側で行う。
 func startNakoFileForTest(session *guiSession, initialWorkingDir, code, filePath string, windowMode bool) uint64 {
 	runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
-	return session.startWithWindow(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
+	return session.startWithWindowSource(code, runFile, editorSourcePath(filePath), windowMode, nil, nil, newVirtualWindowController(), workDir)
 }
 
 func runNakoFileForTest(session *guiSession, initialWorkingDir, code, filePath string, windowMode bool) RunResult {
 	runFile, workDir := nakoRunLocation(filePath, initialWorkingDir)
-	return session.runWithWindowInDir(code, runFile, windowMode, nil, nil, newVirtualWindowController(), workDir)
+	return session.runWithWindowSource(code, runFile, editorSourcePath(filePath), windowMode, nil, nil, newVirtualWindowController(), workDir)
 }
 
 // samePath はシンボリックリンク（macOSの/private/tmpなど）を解決して比べる。

@@ -40,7 +40,14 @@ func RunWithHostAndRegistryOptions(code, filename string, registry *stdlib.Regis
 // registry. Interactive GUI sessions use it to retain the resulting VM after
 // main has returned, so browser events can call registered closures later.
 func CompileWithRegistry(code, filename string, registry *stdlib.Registry) (*ir.Program, error) {
-	tree, err := parser.ParseSource(code, filename, registry.FuncList())
+	return CompileWithRegistryFile(code, filename, "", registry)
+}
+
+// CompileWithRegistryFile は CompileWithRegistry と同じコンパイルを行うが、
+// 取り込みを解決する起点 sourcePath を分けて渡せる。空なら filename を使う。
+// まだ保存していないプログラムには parser.UnsavedSourcePath を渡す（#542）。
+func CompileWithRegistryFile(code, filename, sourcePath string, registry *stdlib.Registry) (*ir.Program, error) {
+	tree, err := parser.ParseSourceFile(code, filename, sourcePath, registry.FuncList())
 	if err != nil {
 		return nil, err
 	}

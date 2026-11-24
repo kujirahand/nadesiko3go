@@ -474,6 +474,13 @@ func (s *guiSession) runWithWindow(code, filename string, windowMode bool, args 
 // 待ってでも実行する仕様にすると、メインキューとの相互待ちで固まる
 // （runCompiledと揃えた仕様）。
 func (s *guiSession) runWithWindowInDir(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) RunResult {
+	return s.runWithWindowSource(code, filename, "", windowMode, args, packed, windows, workDir)
+}
+
+// runWithWindowSource は runWithWindowInDir に、取り込み解決の起点 sourcePath を
+// 足したもの。空なら filename を起点にする。保存前のエディタ内容には
+// parser.UnsavedSourcePath を渡す（#542）。
+func (s *guiSession) runWithWindowSource(code, filename, sourcePath string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) RunResult {
 	// 前の実行がダイアログ待ちのままなら先に打ち切る。execMu を取る前に
 	// 打ち切らないと、その実行がロックを握ったまま解放できず、ここで
 	// 永久に待たされる（→ ⑫ ダイアログ待機中のデッドロック）。
@@ -502,7 +509,7 @@ func (s *guiSession) runWithWindowInDir(code, filename string, windowMode bool, 
 	host := newGUIHost(screen, windowMode, args, packed)
 
 	result := RunResult{OK: false, RunID: id}
-	prog, err := vm.CompileWithRegistry(code, filename, registry)
+	prog, err := vm.CompileWithRegistryFile(code, filename, sourcePath, registry)
 	if err != nil {
 		result.Error = err.Error()
 		return result
@@ -594,6 +601,12 @@ func (s *guiSession) start(code, filename string, windowMode bool, args []string
 // ディレクトリを拾ったり、復元が追い越したりして、実行後もCWDが
 // 書き換わったまま残る（runCompiledNowが記録するexec.workDirもずれる）。
 func (s *guiSession) startWithWindow(code, filename string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) uint64 {
+	return s.startWithWindowSource(code, filename, "", windowMode, args, packed, windows, workDir)
+}
+
+// startWithWindowSource は startWithWindow に、取り込み解決の起点 sourcePath を
+// 足したもの。空なら filename を起点にする（#542）。
+func (s *guiSession) startWithWindowSource(code, filename, sourcePath string, windowMode bool, args []string, packed *bundle.Bundle, windows guilib.WindowController, workDir string) uint64 {
 	// 新しい実行の予約より前に、待機中のダイアログを打ち切る。この時点で
 	// 打ち切らないと、古い実行が execMu を握ったまま応答を待ち続け、
 	// この実行の goroutine がロックを取れずにデッドロックする。
@@ -616,7 +629,7 @@ func (s *guiSession) startWithWindow(code, filename string, windowMode bool, arg
 		host := newGUIHost(screen, windowMode, args, packed)
 		host.dialog = state.dialogHandler(host)
 		result := RunResult{OK: false, RunID: id}
-		prog, err := vm.CompileWithRegistry(code, filename, registry)
+		prog, err := vm.CompileWithRegistryFile(code, filename, sourcePath, registry)
 		if err != nil {
 			result.Error = err.Error()
 			state.finish(result)
