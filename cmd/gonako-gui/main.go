@@ -218,6 +218,7 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
 オプション:
   -dir string      配信・表示するHTMLフォルダのパス
   -url string      直接開くURL (http:// または https://)
+  -version         バージョン情報を表示
   -title string    ウィンドウタイトル (既定: "なでしこ3 (gonako-gui)")
   -width int       ウィンドウの幅 (既定: 1080)
   -height int      ウィンドウの高さ (既定: 720)
@@ -685,13 +686,12 @@ func main() {
 		return
 	}
 
-	initClipboard()
-
 	flags := flag.NewFlagSet("gonako-gui", flag.ExitOnError)
 	flags.Usage = func() {
 		fmt.Print(usage)
 	}
 
+	versionFlag := flags.Bool("version", false, "バージョン情報を表示")
 	dirFlag := flags.String("dir", "", "配信するHTMLフォルダのパス")
 	urlFlag := flags.String("url", "", "開くURL")
 	titleFlag := flags.String("title", "なでしこ3 (gonako-gui)", "ウィンドウタイトル")
@@ -711,6 +711,11 @@ func main() {
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		os.Exit(1)
 	}
+	if *versionFlag {
+		showGUIVersion()
+		return
+	}
+	initClipboard()
 	explicitFlags := map[string]bool{}
 	flags.Visit(func(item *flag.Flag) { explicitFlags[item.Name] = true })
 
