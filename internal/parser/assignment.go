@@ -262,8 +262,11 @@ func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {
 	}
 	wordTok := p.get()
 	var indexes []*ast.Node
+	var props []*ast.Node
 	for {
 		if p.check("@") {
+			indexes = append(indexes, props...)
+			props = nil
 			p.get()
 			idx := p.yValueArrayIndex()
 			if idx == nil {
@@ -274,6 +277,8 @@ func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {
 			continue
 		}
 		if p.check("[") {
+			indexes = append(indexes, props...)
+			props = nil
 			p.get()
 			var group []*ast.Node
 			for {
@@ -294,18 +299,18 @@ func (p *Parser) yLetArrayChain(m ast.SourceMap) *ast.Node {
 			indexes = append(indexes, p.checkArrayReverse(group)...)
 			continue
 		}
+		if p.check2([][]lexer.TokenType{{"$"}, {lexer.TypeWord, lexer.TypeString}}) {
+			p.get()
+			t := p.get()
+			prop := p.wordNode(t)
+			prop.Type = ast.String
+			props = append(props, prop)
+			continue
+		}
 		break
 	}
 	// プロパティ代入『A$キー=値』や連鎖『A@0$キー=値』を受理する。
 	// indexes が空でも props があれば LetProp として受理する。
-	var props []*ast.Node
-	for p.check2([][]lexer.TokenType{{"$"}, {lexer.TypeWord, lexer.TypeString}}) {
-		p.get()
-		t := p.get()
-		prop := p.wordNode(t)
-		prop.Type = ast.String
-		props = append(props, prop)
-	}
 	if len(indexes) == 0 && len(props) == 0 {
 		return rollback()
 	}
@@ -395,11 +400,12 @@ func normalizeArrayAssignmentTarget(n *ast.Node) *ast.Node {
 		return nil
 	case n.Type == ast.Word:
 		return n
-	case n.Type == ast.RefArray:
+	case n.Type == ast.RefArray || n.Type == ast.RefProp:
 		c := *n
+		c.Type = ast.RefArray
 		c.Index = append([]*ast.Node(nil), n.Index...)
 		return &c
-	case n.Type != ast.RefArrayValue || n.Name != "@" || len(n.Index) == 0:
+	case n.Type != ast.RefArrayValue || (n.Name != "@" && n.Name != "$") || len(n.Index) == 0:
 		return nil
 	}
 	target := normalizeArrayAssignmentTarget(n.Index[0])
