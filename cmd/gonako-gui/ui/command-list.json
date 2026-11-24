@@ -1244,6 +1244,20 @@
     "docUrl": "https://nadesi.com/v3/doc/index.php?gonako%2FGET%E9%80%81%E4%BF%A1%E6%99%82"
   },
   {
+    "name": "GONAKOバージョン",
+    "type": "const",
+    "josi": null,
+    "plugin": "plugin_system",
+    "category": "システム定数",
+    "desc": "gonako（CLI/gonako-gui）のバージョン番号を表す文字列定数です",
+    "template": "GONAKOバージョン",
+    "yomi": "GONAKOばーじょん",
+    "file": "internal/stdlib/registry.go",
+    "line": 68,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L68",
+    "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2FGONAKO%E3%83%90%E3%83%BC%E3%82%B8%E3%83%A7%E3%83%B3"
+  },
+  {
     "name": "HEX",
     "type": "func",
     "josi": [
@@ -4972,8 +4986,8 @@
     "template": "ナデシコ種類",
     "yomi": "ナデシコしゅるい",
     "file": "internal/stdlib/registry.go",
-    "line": 68,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L68",
+    "line": 69,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L69",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%8A%E3%83%87%E3%82%B7%E3%82%B3%E7%A8%AE%E9%A1%9E"
   },
   {
@@ -5767,8 +5781,8 @@
     "template": "プラグイン名",
     "yomi": "プラグインめい",
     "file": "internal/stdlib/registry.go",
-    "line": 69,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L69",
+    "line": 70,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L70",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E3%83%97%E3%83%A9%E3%82%B0%E3%82%A4%E3%83%B3%E5%90%8D"
   },
   {
@@ -6490,8 +6504,8 @@
     "template": "元号データ",
     "yomi": "げんごうデータ",
     "file": "internal/stdlib/registry.go",
-    "line": 76,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L76",
+    "line": 77,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L77",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%83%E5%8F%B7%E3%83%87%E3%83%BC%E3%82%BF"
   },
   {
@@ -6552,8 +6566,8 @@
     "template": "全角カナ一覧",
     "yomi": "ぜんかくカナいちらん",
     "file": "internal/stdlib/registry.go",
-    "line": 72,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L72",
+    "line": 73,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L73",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%A8%E8%A7%92%E3%82%AB%E3%83%8A%E4%B8%80%E8%A6%A7"
   },
   {
@@ -6566,8 +6580,8 @@
     "template": "全角カナ濁音一覧",
     "yomi": "ぜんかくカナだくおんいちらん",
     "file": "internal/stdlib/registry.go",
-    "line": 73,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L73",
+    "line": 74,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L74",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%85%A8%E8%A7%92%E3%82%AB%E3%83%8A%E6%BF%81%E9%9F%B3%E4%B8%80%E8%A6%A7"
   },
   {
@@ -6802,8 +6816,8 @@
     "template": "半角カナ一覧",
     "yomi": "はんかくカナいちらん",
     "file": "internal/stdlib/registry.go",
-    "line": 74,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L74",
+    "line": 75,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L75",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%8D%8A%E8%A7%92%E3%82%AB%E3%83%8A%E4%B8%80%E8%A6%A7"
   },
   {
@@ -6816,8 +6830,8 @@
     "template": "半角カナ濁音一覧",
     "yomi": "はんかくカナだくおんいちらん",
     "file": "internal/stdlib/registry.go",
-    "line": 75,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L75",
+    "line": 76,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L76",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%8D%8A%E8%A7%92%E3%82%AB%E3%83%8A%E6%BF%81%E9%9F%B3%E4%B8%80%E8%A6%A7"
   },
   {
@@ -6950,8 +6964,8 @@
     "template": "名前空間",
     "yomi": "なまえくうかん",
     "file": "internal/stdlib/registry.go",
-    "line": 70,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L70",
+    "line": 71,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L71",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E5%90%8D%E5%89%8D%E7%A9%BA%E9%96%93"
   },
   {
@@ -7606,8 +7620,8 @@
     "template": "戻値有",
     "yomi": "もどりちあり",
     "file": "internal/stdlib/registry.go",
-    "line": 78,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L78",
+    "line": 79,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L79",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%88%BB%E5%80%A4%E6%9C%89"
   },
   {
@@ -7620,8 +7634,8 @@
     "template": "戻値無",
     "yomi": "もどりちなし",
     "file": "internal/stdlib/registry.go",
-    "line": 77,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L77",
+    "line": 78,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L78",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%88%BB%E5%80%A4%E7%84%A1"
   },
   {
@@ -7634,8 +7648,8 @@
     "template": "抽出文字列",
     "yomi": "ちゅうしゅつもじれつ",
     "file": "internal/stdlib/registry.go",
-    "line": 84,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L84",
+    "line": 85,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L85",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E6%8A%BD%E5%87%BA%E6%96%87%E5%AD%97%E5%88%97"
   },
   {
@@ -10474,8 +10488,8 @@
     "template": "表示ログ",
     "yomi": "ひょうじログ",
     "file": "internal/stdlib/registry.go",
-    "line": 71,
-    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L71",
+    "line": 72,
+    "url": "https://github.com/kujirahand/nadesiko3go/blob/master/internal/stdlib/registry.go#L72",
     "docUrl": "https://nadesi.com/v3/doc/index.php?plugin_system%2F%E8%A1%A8%E7%A4%BA%E3%83%AD%E3%82%B0"
   },
   {

@@ -65,6 +65,7 @@ func ParserFuncList() lexer.FuncList {
 	addConst("ナデシコエンジン", "nadesi.com/v3")     // @なでしこエンジン識別子を表す文字列定数です // @ナデシコエンジン
 	addConst("ナデシコバージョン", version.Nadesiko)   // @なでしこのバージョン番号を表す文字列定数です // @ナデシコバージョン
 	addConst("ナデシコ言語バージョン", version.Nadesiko) // @ナデシコバージョンと同じ値を表す定数です // @ナデシコげんごバージョン
+	addConst("GONAKOバージョン", version.Version)  // @gonako（CLI/gonako-gui）のバージョン番号を表す文字列定数です // @GONAKOばーじょん
 	addConst("ナデシコ種類", "?")                   // @実行環境の種類を保持する初期値 ? の変数です // @ナデシコしゅるい
 	addConst("プラグイン名", "メイン")                 // @現在のプラグイン名を保持するシステム変数です // @プラグインめい
 	addConst("名前空間", "")                      // @現在使用中の名前空間を保持するシステム変数です // @なまえくうかん

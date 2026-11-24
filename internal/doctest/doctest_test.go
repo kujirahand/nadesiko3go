@@ -114,6 +114,14 @@ func TestRunDoesNotSkipNadesikoConstants(t *testing.T) {
 	}
 }
 
+func TestRunDoesNotSkipGonakoVersionConstant(t *testing.T) {
+	test := Test{Code: "GONAKOバージョンを表示", Expect: version.Version, Runtime: CNako}
+	result := Run(test)
+	if result.Skipped || !result.OK {
+		t.Fatalf("Run = %#v", result)
+	}
+}
+
 func TestRunSkipsEnvironmentDependentPluginList(t *testing.T) {
 	test := Test{Code: "プラグイン一覧取得して表示", Runtime: CNako}
 	result := Run(test)
