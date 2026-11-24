@@ -705,6 +705,8 @@ func main() {
 	runWindowFlag := flags.String("run-window", "", "")
 	runWindowTitleFlag := flags.String("run-window-title", "", "")
 	runWindowNameFlag := flags.String("run-window-name", "", "")
+	// 保存前のプログラムであることを子へ伝える内部専用フラグ（#542）。
+	runWindowUnsavedFlag := flags.Bool("run-window-unsaved", false, "")
 	// エディタの「ブラウザ(wnako3)」実行モード用の内部専用フラグ（#63）。
 	// タイトルと元のファイル名は -run-window-title / -run-window-name を共用する。
 	runWNako3Flag := flags.String("run-wnako3", "", "")
@@ -721,7 +723,7 @@ func main() {
 	flags.Visit(func(item *flag.Flag) { explicitFlags[item.Name] = true })
 
 	if *runWindowFlag != "" {
-		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag, *runWindowNameFlag)
+		runStandaloneWindow(*runWindowFlag, *runWindowTitleFlag, *runWindowNameFlag, *runWindowUnsavedFlag)
 		return
 	}
 	if *runWNako3Flag != "" {
