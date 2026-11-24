@@ -822,11 +822,20 @@ func TestTemplateFiltersByGenreAndRunMode(t *testing.T) {
 		// 「すべてのサンプル」でモード絞り込みも解除する。
 		"templateModeFilterEnabled = false;",
 		"templateSearch.addEventListener('input', applyTemplateFilters)",
-		// ジャンルのチェック時、検索が空ならモード絞り込みを外す (#545)。
-		"if (event.target.checked && templateSearch.value.trim() === '') {\n      templateModeFilterEnabled = false;",
 	} {
 		if !strings.Contains(app, required) {
 			t.Fatalf("app.js にひな形の絞り込み処理 %q がありません", required)
+		}
+	}
+	// ジャンル選択中かつ検索が空なら、モード絞り込みを使わない (#545)。
+	// 整形し直しで落ちないよう、空白を除いて比べる。
+	compact := strings.Join(strings.Fields(app), "")
+	for _, required := range []string{
+		"constmodeFilterActive=templateModeFilterEnabled&&!(selectedGenres.size>0&&query==='');",
+		"!modeFilterActive||modes.length===0||modes.includes(currentMode)",
+	} {
+		if !strings.Contains(compact, required) {
+			t.Fatalf("app.js にジャンル選択時のモード絞り込み解除 %q がありません", required)
 		}
 	}
 

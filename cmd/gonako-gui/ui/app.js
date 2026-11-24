@@ -1274,8 +1274,14 @@ document.addEventListener('DOMContentLoaded', () => {
     );
     const currentMode = selectAppType.value;
 
-    templateModeNote.hidden = !templateModeFilterEnabled;
-    if (templateModeFilterEnabled) {
+    // ジャンルが選ばれていて検索ボックスが空のときは、実行モードの絞り込みを
+    // 使わず、すべてのサンプルの中からそのジャンルを探す (#545)。
+    // 状態から毎回決めるので、操作の順番やチェックを外した後でも結果が変わらない。
+    const modeFilterActive =
+      templateModeFilterEnabled && !(selectedGenres.size > 0 && query === '');
+
+    templateModeNote.hidden = !modeFilterActive;
+    if (modeFilterActive) {
       templateModeNote.textContent =
         `実行モード「${runModeLabels[currentMode] || currentMode}」で使えるひな形を表示中です（「すべてのサンプル」で解除）`;
     }
@@ -1290,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', () => {
         selectedGenres.size === 0 || tags.some(tag => selectedGenres.has(tag));
       // モード情報が無いひな形は、どのモードでも使えるとみなして表示する。
       const matchesMode =
-        !templateModeFilterEnabled || modes.length === 0 || modes.includes(currentMode);
+        !modeFilterActive || modes.length === 0 || modes.includes(currentMode);
       return matchesSearch && matchesGenre && matchesMode;
     });
     renderTemplates(filtered);
@@ -1343,15 +1349,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   templateSearch.addEventListener('input', applyTemplateFilters);
-  // ジャンルをチェックしたとき、検索ボックスが空なら実行モードの絞り込みは外し、
-  // すべてのサンプルの中からそのジャンルを探す (#545)。
-  // 外さないと、実行モードと違う `mode` のサンプル (ゲームなど) が出てこない。
-  templateGenreFilters.addEventListener('change', event => {
-    if (event.target.checked && templateSearch.value.trim() === '') {
-      templateModeFilterEnabled = false;
-    }
-    applyTemplateFilters();
-  });
+  templateGenreFilters.addEventListener('change', applyTemplateFilters);
 
   // 「すべてのサンプル」で検索・ジャンル・モードの絞り込みをすべて解除する。
   templateShowAll.addEventListener('click', () => {
