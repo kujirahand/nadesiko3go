@@ -9,7 +9,7 @@ package version
 // gitタグ・配布ファイル名（gonako-<Version>-darwin-arm64 など）と一致させる。
 // プログラムからは「GONAKOバージョン」定数がこの値を返す（wnako3側の
 // 同名定数とも __gonakoConfig 経由で一致する）。
-const Version = "3.8.12"
+const Version = "3.8.13"
 
 // Nadesiko は「ナデシコバージョン」「ナデシコ言語バージョン」定数が返す
 // なでしこ言語仕様のバージョン。本家(TypeScript版)のpackage.jsonと合わせる。
