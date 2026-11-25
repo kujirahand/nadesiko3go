@@ -207,6 +207,22 @@ const usage = `gonako-gui - なでしこ3 GUI (軽量WebView)
 
 使い方:
   gonako-gui [オプション] [HTMLフォルダまたはファイル]
+  gonako-gui <サブコマンド> [引数...]
+
+サブコマンド (gonako と共通。詳細は gonako-gui help <サブコマンド>):
+  run <ファイル>          GUIプログラムをエディタを開かずに直接実行する
+  edit [ファイル]         内蔵エディタで開く (引数なし・ファイル直接指定と同じ)
+  -e <プログラム> [引数...] その場でプログラムをウィンドウで実行する
+  version                 バージョン情報を表示する
+  doc <キーワード>        命令やマニュアルを検索する
+  doctest [パス...]       DocTestのサンプルを実行して確かめる
+  lint <ファイル>         文法をチェックする
+  format <ファイル>       コードを整形する
+  build <ファイル>        単一の実行ファイルに固める (土台は gonako-gui)
+  gengo <ファイル>        Goソースに変換する
+  install <ファイル>      bin/に起動用スクリプトを配置する
+  compat run|commands     本家との互換性チェック
+  help [サブコマンド]     このヘルプ、またはサブコマンドのヘルプを表示する
 
 例:
   gonako-gui                        内蔵の標準エディタUIを起動
@@ -669,9 +685,40 @@ func runGUIProgram(args []string) error {
 	return nil
 }
 
+// runGUIInline は `gonako-gui -e <プログラム> [引数...]` の本体である。
+// run と同じく、ウィンドウを開く前にコンパイルだけを行い、エラーは
+// 呼び出し元へ返す。プログラムの後の引数は『コマンドライン』として渡す。
+func runGUIInline(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("実行するプログラムを指定してください")
+	}
+	code := args[0]
+	registry := stdlib.NewRegistry(guiPlugins()...)
+	if _, err := vm.CompileWithRegistry(code, "main.nako3", registry); err != nil {
+		return err
+	}
+	runStandaloneWindowProgramWithArgs([]byte(code), "なでしこ3", "main.nako3", args[1:])
+	return nil
+}
+
 func main() {
 	// 実行ファイルに変換されたアプリなら、エディタではなくそのアプリを動かす
 	if runBundledApp() {
+		return
+	}
+
+	// GUIを起動しないサブコマンド (help / version / doc / doctest / lint /
+	// format / build / gengo / install / compat) と、サブコマンドごとの
+	// --help は、フラグ解析の前に処理する (Issue #551)。
+	if name, ok := isSubcommandHelp(os.Args[1:]); ok {
+		fmt.Print(subcommandUsage[name])
+		return
+	}
+	if handled, err := runSubcommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -685,6 +732,24 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+
+	// `gonako-gui -e <プログラム> [引数...]` は、その場でプログラムを
+	// 専用ウィンドウで実行する (gonako -e の GUI版、Issue #551)。
+	if len(os.Args) > 1 && os.Args[1] == "-e" {
+		initClipboard()
+		if err := runGUIInline(os.Args[2:]); err != nil {
+			reportGUIRunError(err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	// `gonako-gui edit [ファイル]` は内蔵エディタで開く明示形 (Issue #551)。
+	// edit を取り除いて、従来の引数処理にそのまま渡す。
+	guiArgs := os.Args[1:]
+	if len(guiArgs) > 0 && guiArgs[0] == "edit" {
+		guiArgs = guiArgs[1:]
 	}
 
 	flags := flag.NewFlagSet("gonako-gui", flag.ExitOnError)
@@ -711,7 +776,7 @@ func main() {
 	// タイトルと元のファイル名は -run-window-title / -run-window-name を共用する。
 	runWNako3Flag := flags.String("run-wnako3", "", "")
 
-	if err := flags.Parse(os.Args[1:]); err != nil {
+	if err := flags.Parse(guiArgs); err != nil {
 		os.Exit(1)
 	}
 	if *versionFlag {
