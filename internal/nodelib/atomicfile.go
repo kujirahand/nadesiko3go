@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -34,13 +35,28 @@ import (
 // ある。また、置き換えのたびに Sync するため、小さなファイルを大量に
 // 保存する場合は従来より遅くなるトレードオフがある（#424 の方針）。
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	return writeFileAtomicFunc(path, perm, func(w io.Writer) error {
+		_, err := w.Write(data)
+		return err
+	})
+}
+
+// writeFileAtomicFunc は writeFileAtomic と同じ置換方針で、内容を write
+// コールバックからストリーミングで書き込む版。大きなデータをメモリへ
+// 全量保持せずに済む。特殊ファイルへは従来どおり直接書き込む。
+func writeFileAtomicFunc(path string, perm os.FileMode, write func(io.Writer) error) error {
 	info, err := os.Stat(path)
 	switch {
 	case err == nil:
 		if !info.Mode().IsRegular() {
 			// ディレクトリや特殊ファイルを rename で置き換えない。
 			// /dev/full や FIFO などは従来どおり直接書き込む。
-			return os.WriteFile(path, data, perm)
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			return write(f)
 		}
 		// rename はフォルダの権限だけで成功してしまうため、この確認が
 		// 無いと現行はエラーになる読み取り専用ファイルを上書きしてしまう。
@@ -52,12 +68,12 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 		if err := check.Close(); err != nil {
 			return err
 		}
-		return replaceFileAtomic(path, data, info.Mode().Perm(), true)
+		return replaceFileAtomicFunc(path, info.Mode().Perm(), true, write)
 	case errors.Is(err, os.ErrNotExist):
 		// 存在しないパスと壊れた symlink はここに来る。resolveExisting は
 		// 壊れた symlink ではリンク位置そのものを返すため、rename で
 		// リンク位置に通常ファイルができる。
-		return replaceFileAtomic(path, data, perm, false)
+		return replaceFileAtomicFunc(path, perm, false, write)
 	default:
 		return err
 	}
@@ -70,6 +86,13 @@ func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
 // する。新規ファイルでは Chmod せず、作成権限と umask の結果が現行の
 // os.WriteFile と一致する。
 func replaceFileAtomic(path string, data []byte, mode os.FileMode, exists bool) (err error) {
+	return replaceFileAtomicFunc(path, mode, exists, func(w io.Writer) error {
+		_, err := w.Write(data)
+		return err
+	})
+}
+
+func replaceFileAtomicFunc(path string, mode os.FileMode, exists bool, write func(io.Writer) error) (err error) {
 	final := resolveExisting(path)
 	tmp, err := createAtomicTemp(filepath.Dir(final), mode)
 	if err != nil {
@@ -91,7 +114,7 @@ func replaceFileAtomic(path string, data []byte, mode os.FileMode, exists bool) 
 		}
 	}()
 
-	if _, err := tmp.Write(data); err != nil {
+	if err := write(tmp); err != nil {
 		return retargetPathError(err, final)
 	}
 	if exists {

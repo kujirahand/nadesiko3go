@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/kujirahand/nadesiko3go/internal/safepath"
 	"github.com/kujirahand/nadesiko3go/internal/stdlib"
@@ -15,7 +16,40 @@ import (
 )
 
 func zipCommands(m map[string]command) {
-	m["圧縮"] = command{
+	m["ZIP一覧取得"] = command{ // @ZIPファイルAのエントリ一覧を辞書(名前・サイズ・圧縮後サイズ・更新日時・フォルダ)の配列で返す // @ZIPいちらんしゅとく
+		josi: [][]string{{"の", "を"}},
+		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+			return zipList(str(a, 0))
+		},
+	}
+
+	m["ZIPエントリ読"] = command{ // @ZIPファイルAからエントリ名Bの内容をバイト配列で読む // @ZIPえんとりよ
+		josi: [][]string{{"の", "から"}, {"を"}},
+		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+			data, err := zipReadEntry(str(a, 0), str(a, 1))
+			if err != nil {
+				return value.Undefined(), err
+			}
+			return bytesValue(data), nil
+		},
+	}
+
+	m["ZIP追加"] = command{ // @ZIPファイルAへエントリ名BでデータC(文字列またはバイト配列)を追加する(ZIPが無ければ新規作成。同じZIPへの同時追加は不可) // @ZIPついか
+		josi:       [][]string{{"へ", "に"}, {"で"}, {"を"}},
+		returnNone: true,
+		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
+			data, err := anyBytes(argAt(a, 2))
+			if err != nil {
+				return value.Undefined(), err
+			}
+			if err := zipAddEntry(str(a, 0), str(a, 1), data); err != nil {
+				return value.Undefined(), err
+			}
+			return value.Undefined(), nil
+		},
+	}
+
+	m["圧縮"] = command{ // @ファイルまたはフォルダAをZIP形式でBへ圧縮する(Go標準のarchive/zipで処理するため外部ツールは不要) // @あっしゅく
 		josi: [][]string{{"を", "から"}, {"へ", "に", "で"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			src := str(a, 0)
@@ -30,7 +64,7 @@ func zipCommands(m map[string]command) {
 		},
 	}
 
-	m["解凍"] = command{
+	m["解凍"] = command{ // @ZIPファイルAをフォルダBへ解凍する(Go標準のarchive/zipで処理するため外部ツールは不要) // @かいとう
 		josi: [][]string{{"を", "から"}, {"へ", "に", "で"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
 			src := str(a, 0)
@@ -209,6 +243,122 @@ func extractZip(src, destDir string) error {
 		return fmt.Errorf("安全でないパスのエントリを%d件拒否しました: %s", n, strings.Join(parts, "および"))
 	}
 	return nil
+}
+
+// zipEntryName はZIPエントリ名を検証し、「/」区切りに正規化して返す。
+// 絶対パス・ドライブ指定・「..」を含む名前は展開時にZip Slipの原因になるためエラーにする。
+func zipEntryName(name string) (string, error) {
+	n := strings.ReplaceAll(name, "\\", "/")
+	if n == "" {
+		return "", errors.New("ZIPのエントリ名が空です。")
+	}
+	if strings.HasPrefix(n, "/") || (len(n) >= 2 && n[1] == ':') {
+		return "", fmt.Errorf("ZIPのエントリ名に絶対パスは使えません: %s", name)
+	}
+	for _, part := range strings.Split(n, "/") {
+		if part == ".." {
+			return "", fmt.Errorf("ZIPのエントリ名に「..」は使えません: %s", name)
+		}
+	}
+	return n, nil
+}
+
+// zipList はZIPのエントリ一覧を辞書の配列で返す。
+func zipList(path string) (value.Value, error) {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return value.Undefined(), err
+	}
+	defer r.Close()
+	items := make([]value.Value, 0, len(r.File))
+	for _, f := range r.File {
+		d := value.NewDict()
+		d.Set("名前", value.String(f.Name))
+		d.Set("サイズ", value.Number(float64(f.UncompressedSize64)))
+		d.Set("圧縮後サイズ", value.Number(float64(f.CompressedSize64)))
+		d.Set("更新日時", value.String(f.Modified.Format("2006-01-02 15:04:05")))
+		d.Set("フォルダ", value.Bool(f.FileInfo().IsDir()))
+		items = append(items, value.DictValue(d))
+	}
+	return value.ArrayValue(value.NewArray(items...)), nil
+}
+
+// zipEntryMaxBytes は『ZIPエントリ読』でメモリへ展開する1エントリの上限。
+// 圧縮率の高いデータ(ZIP爆弾)でメモリを使い尽くさないための制限である。
+const zipEntryMaxBytes = 512 << 20
+
+// zipReadEntry はZIP内のエントリの内容を返す。
+func zipReadEntry(path, name string) ([]byte, error) {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	want := strings.ReplaceAll(name, "\\", "/")
+	for _, f := range r.File {
+		if f.Name != want {
+			continue
+		}
+		if f.UncompressedSize64 > zipEntryMaxBytes {
+			return nil, fmt.Errorf("エントリ『%s』の展開後サイズ(%dバイト)が上限(%dバイト)を超えています。", name, f.UncompressedSize64, zipEntryMaxBytes)
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		defer rc.Close()
+		data, err := io.ReadAll(io.LimitReader(rc, zipEntryMaxBytes+1))
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(data)) > zipEntryMaxBytes {
+			return nil, fmt.Errorf("エントリ『%s』の展開後サイズが上限(%dバイト)を超えています。", name, zipEntryMaxBytes)
+		}
+		return data, nil
+	}
+	return nil, fmt.Errorf("ZIPにエントリ『%s』がありません。", name)
+}
+
+// zipAddEntry はZIPへエントリを追加する(ZIPが無ければ新規作成)。
+// 既存エントリは再圧縮せずそのままコピーし、結果は一時ファイル経由で
+// 原子的に置き換える。書き込みはストリーミングで行い、ZIP全体をメモリへ
+// 保持しない。同じZIPへの同時追加は想定していない(後から置換した側が残る)。
+func zipAddEntry(path, name string, data []byte) error {
+	name, err := zipEntryName(name)
+	if err != nil {
+		return err
+	}
+	// 既存ZIPは書き込み中も読み続けるため、先に開いて重複を確認する。
+	var r *zip.ReadCloser
+	if rc, err := zip.OpenReader(path); err == nil {
+		r = rc
+		defer r.Close()
+		for _, f := range r.File {
+			if f.Name == name {
+				return fmt.Errorf("ZIPに同名のエントリ『%s』が既にあります。", name)
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return writeFileAtomicFunc(path, 0o644, func(w io.Writer) error {
+		zw := zip.NewWriter(w)
+		if r != nil {
+			for _, f := range r.File {
+				if err := zw.Copy(f); err != nil {
+					return err
+				}
+			}
+		}
+		hw, err := zw.CreateHeader(&zip.FileHeader{Name: name, Method: zip.Deflate, Modified: time.Now()})
+		if err != nil {
+			return err
+		}
+		if _, err := hw.Write(data); err != nil {
+			return err
+		}
+		return zw.Close()
+	})
 }
 
 // summarizeNames はエラー文言に載せる名前を先頭5件に絞り、
