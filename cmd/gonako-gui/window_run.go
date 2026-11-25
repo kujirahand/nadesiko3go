@@ -157,9 +157,19 @@ func runStandaloneWindowProgram(data []byte, title, sourceName string) {
 	runStandaloneWindowProgramFrom(data, title, sourceName, "")
 }
 
+// runStandaloneWindowProgramWithArgs はプログラムへの引数 (『コマンドライン』)
+// 付きで実行する。`gonako-gui -e` が使う (Issue #551)。
+func runStandaloneWindowProgramWithArgs(data []byte, title, sourceName string, args []string) {
+	runStandaloneWindowProgramFromArgs(data, title, sourceName, "", args)
+}
+
 // runStandaloneWindowProgramFrom は runStandaloneWindowProgram に、取り込み解決の
 // 起点 sourcePath を足したもの。空なら sourceName を起点にする（#542）。
 func runStandaloneWindowProgramFrom(data []byte, title, sourceName, sourcePath string) {
+	runStandaloneWindowProgramFromArgs(data, title, sourceName, sourcePath, nil)
+}
+
+func runStandaloneWindowProgramFromArgs(data []byte, title, sourceName, sourcePath string, progArgs []string) {
 	if title == "" {
 		title = "なでしこ3"
 	}
@@ -213,7 +223,7 @@ func runStandaloneWindowProgramFrom(data []byte, title, sourceName, sourcePath s
 		showMessageWindow(title, fmt.Sprintf("Bindを登録できません: %v", err))
 		return
 	}
-	runID := session.startWithWindowSource(string(data), sourceName, sourcePath, true, nil, nil, session.window, "")
+	runID := session.startWithWindowSource(string(data), sourceName, sourcePath, true, progArgs, nil, session.window, "")
 	page.SetHTML(bundledAsyncProgramPage(runID))
 	if err := tw.Navigate("/"); err != nil {
 		tw.Close()
