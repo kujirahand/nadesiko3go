@@ -29,7 +29,11 @@ func cryptoCommands(m map[string]command) {
 	m["ハッシュ値計算"] = command{
 		josi: [][]string{{"を", "の"}, {"で", "の"}},
 		fn: func(_ stdlib.Context, a []value.Value) (value.Value, error) {
-			text := str(a, 0)
+			// 文字列はUTF-8、数値配列はバイト列として扱う
+			text, err := anyBytes(argAt(a, 0))
+			if err != nil {
+				return value.Undefined(), err
+			}
 			algo := strings.ToLower(strings.TrimSpace(str(a, 1)))
 			if algo == "" {
 				algo = "sha256"
@@ -50,7 +54,7 @@ func cryptoCommands(m map[string]command) {
 			default:
 				return value.Undefined(), fmt.Errorf("未対応のハッシュ関数『%s』です。", algo)
 			}
-			h.Write([]byte(text))
+			h.Write(text)
 			return value.String(hex.EncodeToString(h.Sum(nil))), nil
 		},
 	}
