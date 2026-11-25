@@ -673,6 +673,9 @@ func buildBundleGUI(args []string, stdout, stderr io.Writer) error {
 		if source == "" {
 			return errors.New("一覧を表示する実行ファイルを指定してください")
 		}
+		if flags.NArg() > 0 {
+			return fmt.Errorf("余分な引数があります: %s", flags.Arg(0))
+		}
 		packed, err := bundle.Open(source)
 		if err != nil {
 			return fmt.Errorf("バンドルを読み込めません: %w", err)

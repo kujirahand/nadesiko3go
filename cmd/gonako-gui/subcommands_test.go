@@ -148,6 +148,10 @@ func TestSubcommandBuildAndGengoAndInstall(t *testing.T) {
 	if !handled || err != nil || !strings.Contains(out, "プログラム:") {
 		t.Fatalf("build --list: handled=%v err=%v out=%q", handled, err, out)
 	}
+	// build --list の余分な引数はエラー (SOLレビューで成立した指摘)
+	if handled, _, _, err = runSub(t, "build", outBin, "--list", "extra"); !handled || err == nil {
+		t.Fatalf("build --list extra: handled=%v err=%v", handled, err)
+	}
 	// gengo
 	goOut := filepath.Join(dir, "app.go")
 	handled, out, _, err = runSub(t, "gengo", src, "--out", goOut)
